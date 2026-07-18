@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="360" viewBox="0 0 1280 360" role="img" aria-labelledby="title desc">
+  <title id="title">Ádám Tokár, founder of Apex Web and ApexChatbot</title>
+  <desc id="desc">A premium dark banner introducing Ádám Tokár and his AI front-office work.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#090A0F"/>
+      <stop offset="0.55" stop-color="#11131A"/>
+      <stop offset="1" stop-color="#0A0B12"/>
+    </linearGradient>
+    <radialGradient id="goldGlow" cx="0.18" cy="0.15" r="0.72">
+      <stop offset="0" stop-color="#DDBB63" stop-opacity="0.30"/>
+      <stop offset="0.55" stop-color="#DDBB63" stop-opacity="0.05"/>
+      <stop offset="1" stop-color="#DDBB63" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="violetGlow" cx="0.90" cy="0.90" r="0.72">
+      <stop offset="0" stop-color="#8B5CF6" stop-opacity="0.28"/>
+      <stop offset="0.62" stop-color="#8B5CF6" stop-opacity="0.05"/>
+      <stop offset="1" stop-color="#8B5CF6" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="grid" width="48" height="48" patternUnits="userSpaceOnUse">
+      <path d="M48 0H0V48" fill="none" stroke="#FFFFFF" stroke-opacity="0.035"/>
+    </pattern>
+    <linearGradient id="line" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#DDBB63"/>
+      <stop offset="0.58" stop-color="#DDBB63"/>
+      <stop offset="1" stop-color="#8B5CF6"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="18" flood-color="#000000" flood-opacity="0.42"/>
+    </filter>
+  </defs>
+
+  <rect width="1280" height="360" rx="28" fill="url(#bg)"/>
+  <rect width="1280" height="360" rx="28" fill="url(#goldGlow)"/>
+  <rect width="1280" height="360" rx="28" fill="url(#violetGlow)"/>
+  <rect x="1" y="1" width="1278" height="358" rx="27" fill="url(#grid)" stroke="#FFFFFF" stroke-opacity="0.08"/>
+
+  <g opacity="0.75">
+    <circle cx="1134" cy="69" r="4" fill="#DDBB63"/>
+    <circle cx="1160" cy="69" r="4" fill="#8B5CF6"/>
+    <circle cx="1186" cy="69" r="4" fill="#39D0C8"/>
+  </g>
+
+  <g transform="translate(72 61)" filter="url(#shadow)">
+    <rect width="82" height="82" rx="23" fill="#12151D" stroke="#DDBB63" stroke-opacity="0.55"/>
+    <path d="M24 55V30.5C24 26.9 26.9 24 30.5 24h21C55.1 24 58 26.9 58 30.5V55" fill="none" stroke="#E5C979" stroke-width="5" stroke-linecap="round"/>
+    <path d="M33 43h16M41 35v16" stroke="#8B5CF6" stroke-width="4" stroke-linecap="round"/>
+  </g>
+
+  <text x="72" y="187" fill="#F7F7F4" font-family="ui-sans-serif, system-ui, sans-serif" font-size="54" font-weight="750" letter-spacing="-1.4">ÁDÁM TOKÁR</text>
+  <text x="74" y="229" fill="#DDBB63" font-family="ui-sans-serif, system-ui, sans-serif" font-size="22" font-weight="650" letter-spacing="1.8">FOUNDER · APEX WEB + APEXCHATBOT</text>
+  <rect x="74" y="252" width="620" height="3" rx="1.5" fill="url(#line)"/>
+  <text x="74" y="295" fill="#C8CAD2" font-family="ui-sans-serif, system-ui, sans-serif" font-size="22" font-weight="450">AI front office · voice · chat · automation · CRM</text>
+
+  <g transform="translate(834 111)" font-family="ui-sans-serif, system-ui, sans-serif" font-size="16" font-weight="620">
+    <rect width="332" height="48" rx="24" fill="#151821" stroke="#FFFFFF" stroke-opacity="0.12"/>
+    <circle cx="27" cy="24" r="6" fill="#DDBB63"/>
+    <text x="48" y="30" fill="#F3F1EA">Answer and understand</text>
+
+    <rect y="62" width="332" height="48" rx="24" fill="#151821" stroke="#FFFFFF" stroke-opacity="0.12"/>
+    <circle cx="27" cy="86" r="6" fill="#8B5CF6"/>
+    <text x="48" y="92" fill="#F3F1EA">Qualify and route</text>
+
+    <rect y="124" width="332" height="48" rx="24" fill="#151821" stroke="#FFFFFF" stroke-opacity="0.12"/>
+    <circle cx="27" cy="148" r="6" fill="#39D0C8"/>
+    <text x="48" y="154" fill="#F3F1EA">Book and follow up</text>
+  </g>
+</svg>
