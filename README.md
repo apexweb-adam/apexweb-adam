@@ -63,6 +63,13 @@ human approval  •  CRM  •  monitoring  •  measurable follow-up
 - **[Apex Web AI front office](https://apexweb.hu)**: Hungarian voice, chat, booking, lead capture, routing, administration, and operational monitoring.
 - **[ApexChatbot](https://apexchatbot.com)**: multilingual website chatbot product with clear product knowledge and human approval boundaries.
 
+### Ecommerce operator product
+
+- **[Apex Product Creative Engine](https://apexweb.hu/ai-prompt-konyvtar-webshopoknak?utm_source=github&utm_medium=founder_profile&utm_campaign=pce_validation)**: a 12-step prompt and QA system that turns verified product facts into a campaign brief, 12 creative concepts, image and video briefs, ad copy, quality control, and a 30-day test plan.
+  - Evidence: six controlled runs on three owned product fixtures, 72 of 72 workflow sections completed, 86.5-second median completion time, and one failed visual attempt preserved and rejected.
+  - One-time B2B licenses: Core 49 USD, Pro 99 USD, Agency 249 USD. These are observed workflow tests, not guaranteed business results.
+  - **[View the full English proof and checkout](https://apex-product-creative-engine.judimix.chatgpt.site/?utm_source=github&utm_medium=founder_profile&utm_campaign=pce_validation)** · [Hungarian product page](https://apexweb.hu/ai-prompt-konyvtar-webshopoknak?utm_source=github&utm_medium=founder_profile&utm_campaign=pce_validation)
+
 ### Public engineering work
 
 - **[LangGraph Job Search Agent](https://github.com/apexweb-adam/langgraph-jobsearch-agent)**: job discovery, AI scoring with deterministic guardrails, human approval, and a daily decision digest.
