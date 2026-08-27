@@ -596,7 +596,7 @@ async def set_bot_paused_admin(payload: dict[str, Any], db: AsyncSession = Depen
 
 @router.post("/admin/trigger-deploy")
 async def trigger_deploy_admin(payload: dict[str, Any]) -> dict[str, Any]:
-  """Trigger Render redeploy when stale (requires webhook secret + RENDER_DEPLOY_HOOK env)."""
+  """Trigger Render redeploy when stale (webhook secret + RENDER_DEPLOY_HOOK env or platform setting)."""
   from app.engines.deploy_trigger import maybe_trigger_stale_redeploy
 
   secret = payload.get("secret", "")
@@ -605,6 +605,27 @@ async def trigger_deploy_admin(payload: dict[str, Any]) -> dict[str, Any]:
 
   result = await maybe_trigger_stale_redeploy()
   return {"status": "ok", **result, "timestamp": datetime.utcnow().isoformat()}
+
+
+@router.post("/admin/set-deploy-hook")
+async def set_deploy_hook_admin(payload: dict[str, Any], db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
+  """Store Render deploy hook URL in platform_settings (requires webhook secret)."""
+  from app.engines.platform_settings import set_render_deploy_hook
+
+  secret = payload.get("secret", "")
+  if not settings.tradingview_webhook_secret or secret != settings.tradingview_webhook_secret:
+    return {"status": "unauthorized"}
+
+  hook_url = (payload.get("hook_url") or "").strip()
+  if not hook_url.startswith("https://"):
+    return {"status": "error", "message": "hook_url must be an https URL"}
+
+  await set_render_deploy_hook(db, hook_url)
+  return {
+    "status": "ok",
+    "hook_configured": True,
+    "timestamp": datetime.utcnow().isoformat(),
+  }
 
 
 @router.post("/admin/reset-paper-trading")
