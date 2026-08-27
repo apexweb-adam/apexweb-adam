@@ -49,6 +49,7 @@ class ProfitabilityGate:
       days_trading = 0
 
     verification_day = days_trading + 1 if period_start else 0
+    verification_days_remaining = max(0, self.MIN_DAYS - verification_day)
 
     checks = {
       "min_trades": {
@@ -94,7 +95,7 @@ class ProfitabilityGate:
     if total_trades < self.MIN_TRADES:
       blockers.append(f"{self.MIN_TRADES - total_trades} more trades")
     if days_trading < self.MIN_DAYS:
-      blockers.append(f"{self.MIN_DAYS - days_trading} more days")
+      blockers.append(f"{max(0, self.MIN_DAYS - verification_day)} more days")
     if total_pnl <= 0:
       blockers.append("positive PnL")
     if profit_factor < self.MIN_PROFIT_FACTOR:
@@ -111,7 +112,7 @@ class ProfitabilityGate:
       "total_pnl": total_pnl,
       "days_trading": days_trading,
       "verification_day": verification_day,
-      "verification_days_remaining": max(0, self.MIN_DAYS - days_trading),
+      "verification_days_remaining": verification_days_remaining,
       "verification_started_at": verification_start.isoformat() if verification_start else None,
       "checks": checks,
       "recommendation": (
