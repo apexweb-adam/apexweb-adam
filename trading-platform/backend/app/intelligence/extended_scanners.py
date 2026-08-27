@@ -81,6 +81,8 @@ class ExtendedIntelligenceScanner(IntelligenceScanner):
     count += await self._scan_tiktok_news()
     if settings.twitter_bearer_token:
       count += await self._scan_x_twitter()
+    elif settings.newsapi_key:
+      count += await self._scan_x_social_news_fallback()
     await self.session.commit()
     return count
 

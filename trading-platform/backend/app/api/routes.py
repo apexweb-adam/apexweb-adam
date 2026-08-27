@@ -409,7 +409,7 @@ async def get_intelligence_sources(db: AsyncSession = Depends(get_db)) -> list[d
     "political": True,
     "tiktok": True,
     "tradingview": bool(settings.tradingview_webhook_secret),
-    "x": bool(settings.twitter_bearer_token),
+    "x": bool(settings.twitter_bearer_token) or bool(settings.newsapi_key),
     "newsapi": bool(settings.newsapi_key),
   }
 
@@ -419,6 +419,8 @@ async def get_intelligence_sources(db: AsyncSession = Depends(get_db)) -> list[d
     if source == "tradingview" and is_configured:
       return "active"  # push webhook — no poll items until alerts fire
     if is_configured and not has_items and source == "x":
+      if settings.newsapi_key and not settings.twitter_bearer_token:
+        return "active"  # NewsAPI social fallback fills X slot
       return "degraded"  # token set but API returned no data (often 402 billing)
     if is_configured or has_items:
       return "active"
