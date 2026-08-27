@@ -4,9 +4,11 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
 
 from app.api.routes import router
 from app.config import settings
+from app.engines.deploy_status import build_deploy_status
 from app.workers.scheduler import setup_scheduler, stop_bots
 
 
@@ -40,9 +42,22 @@ app.include_router(router, prefix="/api")
 
 @app.get("/")
 async def root():
+  deploy = await build_deploy_status()
+  dashboard = deploy.get("dashboard_url")
   return {
     "name": settings.app_name,
     "mode": "paper_trading" if settings.paper_trading_only else "live",
     "docs": "/docs",
     "api": "/api",
+    "dashboard": dashboard,
+    "dashboard_redirect": "/api/dashboard",
   }
+
+
+@app.get("/dashboard", include_in_schema=False)
+async def root_dashboard_redirect():
+  deploy = await build_deploy_status()
+  url = deploy.get("dashboard_url") or deploy.get("verified_dashboard_url")
+  if not url:
+    url = "https://apex-trading-dashboard-q1o1x9nlh-apexweb-adams-projects.vercel.app"
+  return RedirectResponse(url=url, status_code=302)
