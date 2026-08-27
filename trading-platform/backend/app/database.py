@@ -1,3 +1,4 @@
+import ssl
 from collections.abc import AsyncGenerator
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -10,8 +11,30 @@ class Base(DeclarativeBase):
     pass
 
 
-engine = create_async_engine(settings.database_url, echo=False)
+def normalize_database_url(url: str) -> str:
+  """Support Supabase/Postgres URLs from Render env (postgres:// or postgresql://)."""
+  if url.startswith("postgres://"):
+    return url.replace("postgres://", "postgresql+asyncpg://", 1)
+  if url.startswith("postgresql://") and "+asyncpg" not in url:
+    return url.replace("postgresql://", "postgresql+asyncpg://", 1)
+  return url
+
+
+def _engine_kwargs(url: str) -> dict:
+  normalized = normalize_database_url(url)
+  kwargs: dict = {"echo": False}
+  if normalized.startswith("postgresql+asyncpg://"):
+    kwargs["connect_args"] = {"ssl": ssl.create_default_context()}
+  return kwargs
+
+
+_db_url = normalize_database_url(settings.database_url)
+engine = create_async_engine(_db_url, **_engine_kwargs(settings.database_url))
 SessionLocal = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+
+
+def is_postgres() -> bool:
+  return _db_url.startswith("postgresql+asyncpg://")
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
@@ -26,7 +49,9 @@ async def init_db() -> None:
 
   from app.models.entities import BotState, Portfolio, StrategyConfig
 
-  os.makedirs("data", exist_ok=True)
+  if not is_postgres():
+    os.makedirs("data", exist_ok=True)
+
   async with engine.begin() as conn:
     await conn.run_sync(Base.metadata.create_all)
 

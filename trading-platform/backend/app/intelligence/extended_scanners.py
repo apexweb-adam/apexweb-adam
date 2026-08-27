@@ -59,7 +59,7 @@ class ExtendedIntelligenceScanner(IntelligenceScanner):
     count = await super().scan_all()
     count += await self._scan_youtube()
     count += await self._scan_polymarket()
-    if settings.polymarket_wallet_address:
+    if settings.polymarket_wallet_address or settings.polymarket_deposit_address:
       count += await self._scan_polymarket_account()
     count += await self._scan_political()
     count += await self._scan_tiktok_news()
@@ -186,59 +186,79 @@ class ExtendedIntelligenceScanner(IntelligenceScanner):
     return count
 
   async def _scan_polymarket_account(self) -> int:
-    """Fetch user's open Polymarket positions via public Data API (no auth required)."""
+    """Fetch user's Polymarket positions via public Data API (+ optional CLOB key)."""
     count = 0
-    wallet = settings.polymarket_wallet_address.strip()
-    if not wallet:
+    wallets = [
+      w.strip()
+      for w in [settings.polymarket_wallet_address, settings.polymarket_deposit_address]
+      if w and w.strip()
+    ]
+    if not wallets:
       return 0
+
+    headers: dict[str, str] = {}
+    if settings.polymarket_api_key:
+      headers["POLY_API_KEY"] = settings.polymarket_api_key
+
     try:
       async with httpx.AsyncClient(timeout=15) as client:
-        response = await client.get(
-          f"{settings.polymarket_data_api_url}/positions",
-          params={"user": wallet, "limit": 25, "sortBy": "CASHPNL", "sortDirection": "DESC"},
-        )
-        if response.status_code != 200:
-          print(f"Polymarket account API error: {response.status_code}")
-          return 0
-
-        for pos in response.json():
-          title = pos.get("title", "Unknown market")
-          outcome = pos.get("outcome", "")
-          size = pos.get("size", 0)
-          cur_price = pos.get("curPrice", 0)
-          cash_pnl = pos.get("cashPnl", 0)
-          slug = pos.get("slug", pos.get("eventSlug", ""))
-          url = f"https://polymarket.com/event/{slug}" if slug else f"https://polymarket.com/profile/{wallet}"
-
-          content = (
-            f"Your position: {outcome} | Size: {size:.2f} | Price: {cur_price:.2f} | "
-            f"PnL: ${cash_pnl:,.2f}"
+        for wallet in wallets:
+          response = await client.get(
+            f"{settings.polymarket_data_api_url}/positions",
+            params={"user": wallet, "limit": 25, "sortBy": "CASHPNL", "sortDirection": "DESC"},
+            headers=headers,
           )
-          sentiment = 0.3 if cash_pnl > 0 else -0.3 if cash_pnl < 0 else 0.0
-
-          full_text = f"{title} {content}"
-          existing = await self.session.execute(
-            select(IntelligenceItem).where(
-              IntelligenceItem.source == "polymarket_account",
-              IntelligenceItem.title == f"[Your Position] {title[:450]}",
-            )
-          )
-          if existing.scalar_one_or_none():
+          if response.status_code != 200:
+            print(f"Polymarket account API error for {wallet[:10]}…: {response.status_code}")
             continue
 
-          self.session.add(
-            IntelligenceItem(
-              source="polymarket_account",
-              category="political",
-              title=f"[Your Position] {title[:450]}",
-              content=content[:2000],
-              url=url[:1000],
-              sentiment=sentiment,
-              relevance_score=relevance_score(full_text, "political"),
-              symbols_mentioned=extract_symbols(full_text),
+          positions = response.json()
+          if not positions:
+            profile = settings.polymarket_profile_url or f"https://polymarket.com/profile/{wallet}"
+            title = f"[Your Polymarket] Account linked ({wallet[:6]}…{wallet[-4:]})"
+            content = "No open positions. Wallet connected for prediction-market signal overlay."
+            if await self._add_item("polymarket_account", title, content, profile, "political"):
+              count += 1
+            continue
+
+          for pos in positions:
+            title = pos.get("title", "Unknown market")
+            outcome = pos.get("outcome", "")
+            size = pos.get("size", 0)
+            cur_price = pos.get("curPrice", 0)
+            cash_pnl = pos.get("cashPnl", 0)
+            slug = pos.get("slug", pos.get("eventSlug", ""))
+            url = f"https://polymarket.com/event/{slug}" if slug else f"https://polymarket.com/profile/{wallet}"
+
+            content = (
+              f"Your position: {outcome} | Size: {size:.2f} | Price: {cur_price:.2f} | "
+              f"PnL: ${cash_pnl:,.2f}"
             )
-          )
-          count += 1
+            sentiment = 0.3 if cash_pnl > 0 else -0.3 if cash_pnl < 0 else 0.0
+
+            full_text = f"{title} {content}"
+            existing = await self.session.execute(
+              select(IntelligenceItem).where(
+                IntelligenceItem.source == "polymarket_account",
+                IntelligenceItem.title == f"[Your Position] {title[:450]}",
+              )
+            )
+            if existing.scalar_one_or_none():
+              continue
+
+            self.session.add(
+              IntelligenceItem(
+                source="polymarket_account",
+                category="political",
+                title=f"[Your Position] {title[:450]}",
+                content=content[:2000],
+                url=url[:1000],
+                sentiment=sentiment,
+                relevance_score=relevance_score(full_text, "political"),
+                symbols_mentioned=extract_symbols(full_text),
+              )
+            )
+            count += 1
     except Exception as e:
       print(f"Polymarket account scan error: {e}")
     return count

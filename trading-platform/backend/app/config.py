@@ -20,7 +20,11 @@ class Settings(BaseSettings):
     tradingview_webhook_secret: str = ""
     polymarket_api_url: str = "https://gamma-api.polymarket.com"
     polymarket_data_api_url: str = "https://data-api.polymarket.com"
+    polymarket_clob_api_url: str = "https://clob.polymarket.com"
+    polymarket_api_key: str = ""
     polymarket_wallet_address: str = ""
+    polymarket_deposit_address: str = ""
+    polymarket_profile_url: str = "https://polymarket.com/@apexweb"
 
     # Bot tuning
     crypto_symbols: str = "BTCUSDT,ETHUSDT,SOLUSDT,DOGEUSDT,PEPEUSDT"

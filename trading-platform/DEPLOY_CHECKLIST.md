@@ -20,19 +20,18 @@ Production backendnél ugyanezeket add hozzá Render/Railway **Environment Varia
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/apexweb-adam/apexweb-adam)
 
-Részletes lépések: `RENDER_DEPLOY.md`
+**Fontos:** A Render free tier **nem támogat disket**. Az adatbázis **Supabase Postgres** (lásd `SUPABASE_SETUP.md`).
 
-1. Kattints a **Deploy to Render** gombra (vagy Render → Blueprint → repo)
-2. Environment fülön: `./scripts/export-render-env.sh` kimenetét másold be
+1. Blueprint → branch `main` → `render.yaml` (disk nélkül)
+2. Environment: `./scripts/export-render-env.sh` + Supabase `DATABASE_URL` (jelszó a Supabase dashboardból)
 3. Deploy után: `./scripts/post-render-deploy.sh https://YOUR-SERVICE.onrender.com`
 
-### Railway alternatíva
-
-1. https://railway.app → New Project → Deploy from GitHub
-2. Root: `trading-platform/backend`
-3. Dockerfile deploy
-4. Add persistent volume: `/app/data`
-5. Ugyanazok az env var-ok
+| Változó | Mit csinál |
+|---------|------------|
+| `DATABASE_URL` | Supabase pooler URI (`postgresql+asyncpg://...`) |
+| `POLYMARKET_API_KEY` | Polymarket API kulcs |
+| `POLYMARKET_WALLET_ADDRESS` | @apexweb proxy wallet |
+| `POLYMARKET_DEPOSIT_ADDRESS` | Deposit wallet |
 
 ---
 
