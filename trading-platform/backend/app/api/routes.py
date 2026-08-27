@@ -281,6 +281,33 @@ async def get_profitability(db: AsyncSession = Depends(get_db)) -> dict[str, Any
   return await gate.evaluate()
 
 
+@router.get("/active-gate")
+async def get_active_gate(db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
+  """Active-bot profitability gate — same shape as dashboard /api/active-gate."""
+  gate = ProfitabilityGate(db)
+  status = await gate.evaluate()
+  return {
+    "paused_bots": status.get("paused_bots") or [],
+    "active_bots": {
+      "total_trades": status["total_trades"],
+      "win_rate": status["win_rate"],
+      "profit_factor": status["profit_factor"],
+      "total_pnl": status["total_pnl"],
+    },
+    "aggregate": status.get("aggregate") or {
+      "total_trades": status["total_trades"],
+      "win_rate": status["win_rate"],
+      "profit_factor": status["profit_factor"],
+      "total_pnl": status["total_pnl"],
+    },
+    "verification_day": status.get("verification_day"),
+    "verification_days_remaining": status.get("verification_days_remaining"),
+    "live_trading_ready": status.get("live_trading_ready"),
+    "checks": status.get("checks"),
+    "recommendation": status.get("recommendation"),
+  }
+
+
 @router.get("/verification/history")
 async def get_verification_history(
   limit: int = 30,

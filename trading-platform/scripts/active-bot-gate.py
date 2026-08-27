@@ -21,17 +21,18 @@ def fetch(path: str) -> dict | list:
 
 
 def fetch_active_gate() -> dict | None:
-    """Use dashboard /api/active-gate when deployed (PR #52+)."""
-    try:
-        with urllib.request.urlopen(f"{DASHBOARD}/api/active-gate", timeout=45) as resp:
-            data = json.load(resp)
-            if data.get("active_bots") and "error" not in data:
-                return data
-    except urllib.error.HTTPError as exc:
-        if exc.code != 404:
-            print(f"active-gate HTTP {exc.code}, falling back", file=sys.stderr)
-    except Exception as exc:
-        print(f"active-gate unavailable ({exc}), falling back", file=sys.stderr)
+    """Prefer dashboard /api/active-gate; fall back to /api/backend/active-gate proxy."""
+    for path in ("/api/active-gate", "/api/backend/active-gate"):
+        try:
+            with urllib.request.urlopen(f"{DASHBOARD}{path}", timeout=45) as resp:
+                data = json.load(resp)
+                if data.get("active_bots") and "error" not in data:
+                    return data
+        except urllib.error.HTTPError as exc:
+            if exc.code != 404:
+                print(f"{path} HTTP {exc.code}, trying next", file=sys.stderr)
+        except Exception as exc:
+            print(f"{path} unavailable ({exc}), trying next", file=sys.stderr)
     return None
 
 
