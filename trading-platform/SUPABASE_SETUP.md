@@ -19,8 +19,11 @@ RLS is enabled on all tables (backend uses direct Postgres connection, not anon 
 3. Convert to async format for this backend:
 
 ```bash
-# Pooler (recommended for Render)
+# Pooler (local dev / serverless)
 DATABASE_URL=postgresql+asyncpg://postgres.zzgmovjapeyauvpdpuqe:[PASSWORD]@aws-0-eu-west-1.pooler.supabase.com:6543/postgres
+
+# Direct connection (recommended for Render + asyncpg — avoids pgbouncer prepared-statement issues)
+DATABASE_URL=postgresql+asyncpg://postgres.zzgmovjapeyauvpdpuqe:[PASSWORD]@aws-0-eu-west-1.pooler.supabase.com:5432/postgres
 ```
 
 Replace `[PASSWORD]` with your database password from **Database Settings → Database password**.

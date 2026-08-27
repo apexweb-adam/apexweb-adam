@@ -40,6 +40,10 @@ if curl -sf http://127.0.0.1:8000/api/health >/dev/null 2>&1; then
   PERSIST=$(echo "$STATUS" | python3 -c "import sys,json; print(1 if json.load(sys.stdin).get('database',{}).get('persistent') else 0)")
   check "Local backend /api/health" 1
   check "Intelligence sources $INTEL/$TOTAL" "$([[ "$INTEL" == "$TOTAL" && "$TOTAL" -gt 0 ]] && echo 1 || echo 0)"
+  BOTS=$(echo "$STATUS" | python3 -c "import sys,json; print(json.load(sys.stdin).get('stats',{}).get('bots_active',0))")
+  check "4 trading bots active" "$([[ "$BOTS" == "4" ]] && echo 1 || echo 0)"
+  REVIEWS=$(curl -sf http://127.0.0.1:8000/api/reviews?limit=1 2>/dev/null | python3 -c "import sys,json; print(len(json.load(sys.stdin)))" 2>/dev/null || echo 0)
+  check "Daily review / learning loop" "$([[ "$REVIEWS" -gt 0 ]] && echo 1 || echo 0)"
   if [[ "$PERSIST" == "1" ]]; then
     check "Database persistent (Supabase)" 1
   else

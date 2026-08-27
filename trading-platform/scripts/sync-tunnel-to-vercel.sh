@@ -36,18 +36,22 @@ echo "Backend: $BACKEND_URL"
 echo "WebSocket: $WS_URL"
 
 # Always update local vercel.json for git-tracked interim deploys
-python3 - "$ROOT/vercel.json" "$BACKEND_URL" "$WS_URL" <<'PY'
+python3 - "$ROOT/vercel.json" "$ROOT/dashboard/vercel.json" "$BACKEND_URL" "$WS_URL" <<'PY'
 import json, sys
-path, api, ws = sys.argv[1:4]
-with open(path) as f:
-    cfg = json.load(f)
-cfg.setdefault("env", {})
-cfg["env"]["BACKEND_URL"] = api
-cfg["env"]["BACKEND_WS_URL"] = ws
-with open(path, "w") as f:
-    json.dump(cfg, f, indent=2)
-    f.write("\n")
-print(f"Updated {path}")
+paths, api, ws = sys.argv[1:-2], sys.argv[-2], sys.argv[-1]
+for path in paths:
+    try:
+        with open(path) as f:
+            cfg = json.load(f)
+    except FileNotFoundError:
+        continue
+    cfg.setdefault("env", {})
+    cfg["env"]["BACKEND_URL"] = api
+    cfg["env"]["BACKEND_WS_URL"] = ws
+    with open(path, "w") as f:
+        json.dump(cfg, f, indent=2)
+        f.write("\n")
+    print(f"Updated {path}")
 PY
 
 if [[ -z "${VERCEL_TOKEN:-}" ]]; then

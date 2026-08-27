@@ -4,7 +4,7 @@
   "framework": "nextjs",
   "installCommand": "cd dashboard && npm install",
   "env": {
-    "BACKEND_URL": "https://examine-translations-navy-featured.trycloudflare.com",
-    "BACKEND_WS_URL": "wss://examine-translations-navy-featured.trycloudflare.com"
+    "BACKEND_URL": "https://apex-trading-backend.onrender.com",
+    "BACKEND_WS_URL": "wss://apex-trading-backend.onrender.com"
   }
 }
