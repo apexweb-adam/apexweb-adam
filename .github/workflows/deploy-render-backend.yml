@@ -18,11 +18,11 @@ jobs:
         run: curl -fsS -X POST "${{ secrets.RENDER_DEPLOY_HOOK }}"
 
       - name: Deploy hook not configured
-        if: ${{ secrets.RENDER_DEPLOY_HOOK == '' }}
+        if: ${{ secrets.RENDER_DEPLOY_HOOK == '' && secrets.RENDER_API_KEY == '' }}
         run: |
-          echo "::warning::RENDER_DEPLOY_HOOK secret is not set in GitHub."
-          echo "Render Blueprint autoDeploy from GitHub may still deploy — verify at:"
-          echo "  https://apex-trading-backend.onrender.com/api/status (deploy.git_commit)"
+          echo "::warning::Neither RENDER_DEPLOY_HOOK nor RENDER_API_KEY is set."
+          echo "Render Blueprint autoDeploy from GitHub may still deploy — verify:"
+          echo "  https://apex-trading-backend.onrender.com/api/status (deploy.git_commit vs latest_main_commit)"
           echo "Add Deploy Hook URL from Render → Settings → Deploy Hook to repo secrets."
 
   trigger-render-api:

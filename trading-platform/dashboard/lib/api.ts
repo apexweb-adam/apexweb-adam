@@ -198,6 +198,11 @@ export type PlatformDeployStatus = {
   render_blueprint: string;
   supabase_project: string;
   dashboard_url: string;
+  git_commit?: string | null;
+  latest_main_commit?: string | null;
+  latest_main_message?: string | null;
+  is_stale?: boolean;
+  stale_minutes?: number | null;
   next_steps: string[];
 };
 
