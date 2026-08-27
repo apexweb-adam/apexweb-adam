@@ -65,6 +65,12 @@ class BaseBot(ABC):
     symbols = await self.get_symbols()
 
     async with SessionLocal() as session:
+      from app.engines.platform_settings import is_bot_paused
+
+      if await is_bot_paused(session, self.bot_type):
+        await self._record_scan_result(len(symbols), [], "paused — no new trades")
+        return []
+
       engine = PaperTradingEngine(session, self.bot_type)
       strategy = await engine.get_strategy()
       strategy_params = {
@@ -224,7 +230,7 @@ class CryptoBot(BaseBot):
 
 class StocksFuturesBot(BaseBot):
   bot_type = "stocks_futures"
-  scan_interval = 60
+  scan_interval = 45
 
   async def get_symbols(self) -> list[str]:
     stocks = [s.strip() for s in settings.stock_symbols.split(",")]
@@ -234,16 +240,18 @@ class StocksFuturesBot(BaseBot):
   async def fetch_price_data(self, symbol: str) -> tuple[float, pd.DataFrame | None]:
     return await fetch_yfinance_data(symbol)
 
-  async def scan_and_trade(self) -> list[dict]:
+  def _in_us_session(self) -> bool:
     now = datetime.utcnow()
-    weekday = now.weekday()
-    hour = now.hour
-    minute = now.minute
-    if weekday >= 5:
-      return []
-    # US regular session ~9:30–16:00 ET (13:30–21:00 UTC summer / 14:30–22:00 UTC winter)
-    minutes = hour * 60 + minute
-    if minutes < 13 * 60 + 30 or minutes > 21 * 60:
+    if now.weekday() >= 5:
+      return False
+    minutes = now.hour * 60 + now.minute
+    # US regular session ~9:30–16:00 ET (13:30–21:00 UTC); extend 30m for closes
+    return 13 * 60 + 30 <= minutes <= 21 * 60 + 30
+
+  async def scan_and_trade(self) -> list[dict]:
+    symbols = await self.get_symbols()
+    if not self._in_us_session():
+      await self._record_scan_result(len(symbols), [], "outside US market hours")
       return []
     return await super().scan_and_trade()
 

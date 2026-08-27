@@ -40,6 +40,7 @@ Already migrated on project `apexweb` (`zzgmovjapeyauvpdpuqe`): portfolios, trad
 - GitHub secret `RENDER_DEPLOY_HOOK` — auto-redeploy on backend pushes
 - GitHub secret `RENDER_API_KEY` — `render-api-deploy` workflow
 - Render env `RENDER_DEPLOY_HOOK` — same Deploy Hook URL; stale deploys self-trigger on startup (once/hour) and via `POST /api/admin/trigger-deploy`
+- Platform setting `render_deploy_hook` — set via `POST /api/admin/set-deploy-hook` or Supabase `platform_settings` (fallback when env var unset)
 
 ## TradingView webhook (after Render live)
 

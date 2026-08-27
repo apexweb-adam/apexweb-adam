@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.entities import PlatformSetting
 
 VERIFICATION_STARTED_KEY = "verification_started_at"
+RENDER_DEPLOY_HOOK_KEY = "render_deploy_hook"
 BOT_PAUSED_PREFIX = "bot_paused:"
 
 
@@ -43,6 +44,14 @@ async def set_platform_setting(session: AsyncSession, key: str, value: str) -> N
   else:
     session.add(PlatformSetting(key=key, value=value))
   await session.commit()
+
+
+async def get_render_deploy_hook(session: AsyncSession) -> str | None:
+  return await get_platform_setting(session, RENDER_DEPLOY_HOOK_KEY)
+
+
+async def set_render_deploy_hook(session: AsyncSession, hook_url: str) -> None:
+  await set_platform_setting(session, RENDER_DEPLOY_HOOK_KEY, hook_url.strip())
 
 
 async def get_verification_started_at(session: AsyncSession) -> datetime | None:

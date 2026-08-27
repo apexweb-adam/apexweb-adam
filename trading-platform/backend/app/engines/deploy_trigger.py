@@ -10,15 +10,28 @@ import httpx
 
 from app.database import SessionLocal
 from app.engines.deploy_status import build_deploy_status
-from app.engines.platform_settings import get_platform_setting, set_platform_setting
+from app.engines.platform_settings import (
+  get_platform_setting,
+  get_render_deploy_hook,
+  set_platform_setting,
+)
 
 LAST_REDEPLOY_KEY = "last_redeploy_trigger_at"
 REDEPLOY_COOLDOWN = timedelta(hours=1)
 
 
+async def resolve_render_deploy_hook() -> str:
+  env_hook = os.environ.get("RENDER_DEPLOY_HOOK", "").strip()
+  if env_hook:
+    return env_hook
+  async with SessionLocal() as session:
+    stored = await get_render_deploy_hook(session)
+    return (stored or "").strip()
+
+
 async def maybe_trigger_stale_redeploy() -> dict[str, Any]:
   """POST to RENDER_DEPLOY_HOOK once per hour when deploy is stale."""
-  hook = os.environ.get("RENDER_DEPLOY_HOOK", "").strip()
+  hook = await resolve_render_deploy_hook()
   status = await build_deploy_status()
 
   if not status.get("is_stale"):
