@@ -92,9 +92,13 @@ async def analyze_polymarket(
       reasons.append(f"Value zone Yes @ {price:.2f}")
       direction = "buy"
 
-  if price >= 0.72 or momentum < -0.015:
+  if price >= 0.72:
     score -= 0.30
-    reasons.append("Overbought or fading Yes price")
+    reasons.append("Yes price overbought (>0.72)")
+    direction = "sell"
+  elif momentum < -0.025 and df is not None and len(df) >= 12:
+    score -= 0.30
+    reasons.append(f"Yes momentum {momentum*100:.1f}% (real ticks)")
     direction = "sell"
 
   if sentiment < -0.15 and direction != "sell":

@@ -7,7 +7,6 @@ import httpx
 import pandas as pd
 
 from app.config import settings
-from app.engines.market_data import generate_synthetic_ohlcv
 
 # slug -> list of (timestamp, yes_price)
 _pm_history: dict[str, list[tuple[datetime, float]]] = {}
@@ -103,7 +102,8 @@ async def fetch_polymarket_data(symbol: str) -> tuple[float, pd.DataFrame | None
     df = pd.DataFrame(rows)
     return price, df
 
-  return price, generate_synthetic_ohlcv(price, 60)
+  # No synthetic OHLCV — avoids fake MACD/momentum whipsaws on fresh markets
+  return price, None
 
 
 async def get_polymarket_symbols() -> list[str]:

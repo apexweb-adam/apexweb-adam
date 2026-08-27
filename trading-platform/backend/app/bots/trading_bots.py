@@ -244,7 +244,14 @@ class PolymarketBot(BaseBot):
         position = await engine.get_position(symbol)
 
         if position:
-          if pm_sig.direction == "sell" or integration_boost < -0.12:
+          opened = position.opened_at
+          if opened and opened.tzinfo is not None:
+            opened = opened.replace(tzinfo=None)
+          held_seconds = (datetime.utcnow() - opened).total_seconds() if opened else 9999
+          min_hold_seconds = 900  # 15 min before signal exit (stops still apply)
+          if held_seconds >= min_hold_seconds and (
+            pm_sig.direction == "sell" or integration_boost < -0.12
+          ):
             reason = f"PM exit: {pm_sig.reason}"
             if integration_reason:
               reason += f" | {integration_reason}"

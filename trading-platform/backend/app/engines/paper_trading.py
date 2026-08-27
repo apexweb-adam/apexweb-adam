@@ -38,7 +38,10 @@ class PaperTradingEngine:
     )
     strategy = result.scalar_one_or_none()
     if not strategy:
-      strategy = StrategyConfig(bot_type=self.bot_type)
+      defaults = {}
+      if self.bot_type == "polymarket":
+        defaults = {"max_position_pct": 0.02, "stop_loss_pct": 0.06, "min_signal_score": 0.18}
+      strategy = StrategyConfig(bot_type=self.bot_type, **defaults)
       self.session.add(strategy)
       await self.session.commit()
       await self.session.refresh(strategy)
