@@ -54,7 +54,7 @@ else
 fi
 
 # Production dashboard proxy
-DASH="https://apex-trading-dashboard-q1o1x9nlh-apexweb-adams-projects.vercel.app"
+DASH="https://apex-trading-dashboard-fvmoq5oyj-apexweb-adams-projects.vercel.app"
 LEGACY_DASH="https://apex-trading-dashboard-flame.vercel.app"
 if curl -sf "$DASH/api/backend/health" >/dev/null 2>&1; then
   check "Production dashboard API proxy" 1

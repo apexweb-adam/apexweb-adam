@@ -13,11 +13,11 @@ GITHUB_API = f"https://api.github.com/repos/{GITHUB_REPO}/commits/main"
 PRODUCTION_DASHBOARD_URL = "https://apex-trading-dashboard-flame.vercel.app"
 VERIFIED_DASHBOARD_URL = os.environ.get(
   "VERIFIED_DASHBOARD_URL",
-  "https://apex-trading-dashboard-q1o1x9nlh-apexweb-adams-projects.vercel.app",
+  "https://apex-trading-dashboard-fvmoq5oyj-apexweb-adams-projects.vercel.app",
 )
 VERIFIED_DEPLOYMENT_ID = os.environ.get(
   "VERIFIED_VERCEL_DEPLOYMENT_ID",
-  "dpl_DFWFJtVnsfSLAkby6DWNLqUHYX7p",
+  "dpl_8xcr2CHLWNyDHpHo5cSLsZn3YaU5",
 )
 EXPECTED_DASHBOARD_BUNDLE = "2026-08-27-r7"
 

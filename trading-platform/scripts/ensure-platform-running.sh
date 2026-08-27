@@ -61,7 +61,7 @@ start_backend
 start_tunnel
 sync_vercel
 echo ""
-echo "Dashboard (full UI): https://apex-trading-dashboard-q1o1x9nlh-apexweb-adams-projects.vercel.app"
+echo "Dashboard (full UI): https://apex-trading-dashboard-fvmoq5oyj-apexweb-adams-projects.vercel.app"
 echo "Dashboard (legacy prod): https://apex-trading-dashboard-flame.vercel.app"
 echo "Local API: http://127.0.0.1:8000/api/status"
 TUNNEL=$(rg -o 'https://[a-z0-9-]+\.trycloudflare\.com' /tmp/cloudflared.log 2>/dev/null | tail -1 || true)

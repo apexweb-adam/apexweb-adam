@@ -48,14 +48,14 @@ A dashboard REST hívásokat runtime proxy-n keresztül továbbítja (`/api/back
 
 **Redeploy** csak akkor kell, ha a `vercel.json`-ban lévő alapértelmezett env-t is frissíted.
 
-**Operational dashboard (full features):** https://apex-trading-dashboard-q1o1x9nlh-apexweb-adams-projects.vercel.app  
+**Operational dashboard (full features):** https://apex-trading-dashboard-fvmoq5oyj-apexweb-adams-projects.vercel.app  
 (`bundleRevision` r7, native `/api/active-gate`, equity chart — use this until production is promoted.)
 
 **Backend redirect (always current):** https://apex-trading-backend.onrender.com/dashboard → recommended dashboard URL  
 **CRM landing page:** https://apex-trading-backend.onrender.com/crm
 
 Legacy production alias (stale bundle): https://apex-trading-dashboard-flame.vercel.app  
-(Promote `dpl_DFWFJtVnsfSLAkby6DWNLqUHYX7p` in [Vercel deployments](https://vercel.com/apexweb-adams-projects/apex-trading-dashboard/deployments) or add `VERCEL_TOKEN` to GitHub secrets.)
+(Promote `dpl_8xcr2CHLWNyDHpHo5cSLsZn3YaU5` in [Vercel deployments](https://vercel.com/apexweb-adams-projects/apex-trading-dashboard/deployments) or add `VERCEL_TOKEN` to GitHub secrets.)
 
 ### GitHub Actions deploy secrets (CI)
 
@@ -68,7 +68,7 @@ Add these in **GitHub → repo → Settings → Secrets and variables → Action
 | `RENDER_DEPLOY_HOOK` | Auto-redeploy backend when stale (Render → apex-trading-backend → Settings → Deploy Hook) |
 | `RENDER_API_KEY` | Alternative backend deploy via Render API |
 
-**One-time production promote:** After adding `VERCEL_TOKEN`, run **Promote Vercel Dashboard to Production** (auto-runs on main dashboard pushes). Verified preview: `dpl_DFWFJtVnsfSLAkby6DWNLqUHYX7p`.
+**One-time production promote:** After adding `VERCEL_TOKEN`, run **Promote Vercel Dashboard to Production** (auto-runs on main dashboard pushes). Verified preview: `dpl_8xcr2CHLWNyDHpHo5cSLsZn3YaU5`.
 
 Optional repo **variables** (defaults exist in workflow):
 
