@@ -9,6 +9,7 @@ import {
   type Bot,
   type Trade,
   type Position,
+  type RecentIntelItem,
 } from "./api";
 
 type LiveData = {
@@ -17,6 +18,7 @@ type LiveData = {
   bots: Bot[];
   positions: Position[];
   trades: Trade[];
+  recentIntel: RecentIntelItem[];
   connected: boolean;
   lastUpdate: string | null;
   lastTrade: Record<string, unknown> | null;
@@ -28,6 +30,7 @@ export function useLiveData(): LiveData {
   const [bots, setBots] = useState<Bot[]>([]);
   const [positions, setPositions] = useState<Position[]>([]);
   const [trades, setTrades] = useState<Trade[]>([]);
+  const [recentIntel, setRecentIntel] = useState<RecentIntelItem[]>([]);
   const [connected, setConnected] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<string | null>(null);
   const [lastTrade, setLastTrade] = useState<Record<string, unknown> | null>(null);
@@ -61,6 +64,7 @@ export function useLiveData(): LiveData {
     if (data.bots) setBots(data.bots as Bot[]);
     if (data.positions) setPositions(data.positions as Position[]);
     if (data.trades) setTrades(data.trades as Trade[]);
+    if (data.recent_intel) setRecentIntel(data.recent_intel as RecentIntelItem[]);
     if (data.timestamp) setLastUpdate(String(data.timestamp));
   }, []);
 
@@ -113,5 +117,5 @@ export function useLiveData(): LiveData {
     };
   }, [connect, refreshFromApi]);
 
-  return { stats, portfolios, bots, positions, trades, connected, lastUpdate, lastTrade };
+  return { stats, portfolios, bots, positions, trades, recentIntel, connected, lastUpdate, lastTrade };
 }
