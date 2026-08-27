@@ -44,7 +44,7 @@ import type {
   ActiveGateStatus,
   EquityHistoryPoint,
 } from "@/lib/api";
-import { enrichProfitabilityStatus, activeGateToProfitability } from "@/lib/profitability";
+import { enrichProfitabilityStatus, activeGateToProfitability, buildEquityHistoryFromTrades } from "@/lib/profitability";
 import { VerificationPnLChart } from "@/components/VerificationPnLChart";
 import { IntelRoutingPanel } from "@/components/IntelRoutingPanel";
 
@@ -92,6 +92,13 @@ export default function Dashboard() {
     for (const t of liveTrades) byId.set(t.id, t);
     return Array.from(byId.values());
   }, [connected, liveTrades, gateTradesRest, tradesRest]);
+
+  const equityHistoryFromTrades = useMemo(
+    () => buildEquityHistoryFromTrades(gateTrades.filter((t) => t.action === "sell")),
+    [gateTrades]
+  );
+  const chartEquityHistory =
+    (equityHistory?.length ?? 0) > 0 ? equityHistory! : equityHistoryFromTrades;
 
   const gateStatus = useMemo(() => {
     if (activeGate?.active_bots) {
@@ -411,11 +418,11 @@ export default function Dashboard() {
                         </div>
                       ))}
                     </div>
-                    {((verificationHistory ?? []).length > 0 || (equityHistory ?? []).length > 0) && (
+                    {((verificationHistory ?? []).length > 0 || chartEquityHistory.length > 0) && (
                       <div className="pt-2 border-t border-apex-border">
                         <VerificationPnLChart
                           snapshots={verificationHistory ?? []}
-                          equityHistory={equityHistory ?? []}
+                          equityHistory={chartEquityHistory}
                         />
                         <p className="text-xs text-gray-500 mb-2 mt-3">Daily verification log</p>
                         <div className="space-y-1 max-h-32 overflow-y-auto">
