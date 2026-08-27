@@ -35,7 +35,12 @@ class ProfitabilityGate:
     first_trade = (
       await self.session.execute(select(func.min(Trade.executed_at)))
     ).scalar_one_or_none()
-    days_trading = (datetime.utcnow() - first_trade).days if first_trade else 0
+    if first_trade:
+      if first_trade.tzinfo is not None:
+        first_trade = first_trade.replace(tzinfo=None)
+      days_trading = (datetime.utcnow() - first_trade).days
+    else:
+      days_trading = 0
 
     checks = {
       "min_trades": {

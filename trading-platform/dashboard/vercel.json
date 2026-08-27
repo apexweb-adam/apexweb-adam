@@ -1,10 +1,9 @@
 {
-  "framework": "nextjs",
   "buildCommand": "npm run build",
-  "installCommand": "npm install",
   "outputDirectory": ".next",
+  "framework": "nextjs",
   "env": {
-    "BACKEND_URL": "https://examine-translations-navy-featured.trycloudflare.com",
-    "BACKEND_WS_URL": "wss://examine-translations-navy-featured.trycloudflare.com"
+    "BACKEND_URL": "https://apex-trading-backend.onrender.com",
+    "BACKEND_WS_URL": "wss://apex-trading-backend.onrender.com"
   }
 }
