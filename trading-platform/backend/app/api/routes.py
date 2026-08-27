@@ -49,6 +49,7 @@ async def get_dashboard_url() -> dict[str, Any]:
     "vercel_promote_url": deploy.get("vercel_promote_url"),
     "verified_dashboard_discovered": deploy.get("verified_dashboard_discovered"),
     "verified_bundle_revision": deploy.get("verified_bundle_revision"),
+    "production_proxy_operational": deploy.get("production_proxy_operational"),
     "next_steps": deploy.get("next_steps", []),
   }
 

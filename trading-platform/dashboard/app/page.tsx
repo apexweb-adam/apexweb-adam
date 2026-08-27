@@ -51,7 +51,7 @@ import { IntelRoutingPanel } from "@/components/IntelRoutingPanel";
 type Tab = "overview" | "trades" | "positions" | "intelligence" | "learning" | "strategy";
 
 export default function Dashboard() {
-  const { stats, portfolios, bots, positions: livePositions, trades: liveTrades, connected, lastUpdate, lastTrade } = useLiveData();
+  const { stats, portfolios, bots, positions: livePositions, trades: liveTrades, recentIntel, connected, lastUpdate, lastTrade } = useLiveData();
   const { data: tradesRest } = useAPI<Trade[]>("/trades?limit=50", 30000);
   const { data: gateTradesRest } = useAPI<Trade[]>("/trades?limit=200", 30000);
   const { data: positionsRest } = useAPI<Position[]>("/positions", 30000);
@@ -82,7 +82,30 @@ export default function Dashboard() {
       .catch(() => setDashConfig(null));
   }, []);
 
-  const vercelStale = dashConfig != null && !dashConfig.features?.activeGate;
+  const vercelFullBundle = dashConfig?.features?.activeGate === true;
+  const vercelProxyMode = dashConfig != null && !vercelFullBundle;
+  const gateViaProxy = Boolean(activeGate?.active_bots);
+  const vercelStale = vercelProxyMode;
+
+  const intelFeed = useMemo(() => {
+    const rest = intelligence ?? [];
+    if (!connected || recentIntel.length === 0) return rest;
+    const byId = new Map<number, IntelligenceItem>();
+    for (const item of rest) byId.set(item.id, item);
+    for (const item of recentIntel) {
+      if (!byId.has(item.id)) {
+        byId.set(item.id, {
+          ...item,
+          content: item.title,
+          url: "",
+          symbols_mentioned: "",
+        });
+      }
+    }
+    return Array.from(byId.values()).sort(
+      (a, b) => new Date(b.fetched_at).getTime() - new Date(a.fetched_at).getTime()
+    );
+  }, [intelligence, recentIntel, connected]);
 
   const gateTrades = useMemo(() => {
     const rest = gateTradesRest ?? tradesRest ?? [];
@@ -166,8 +189,11 @@ export default function Dashboard() {
       {vercelStale && (
         <div className="bg-apex-gold/15 border-b border-apex-gold/30 px-6 py-2">
           <p className="max-w-[1600px] mx-auto text-xs text-apex-gold">
-            Dashboard bundle is stale — promote latest main in Vercel for native /api/active-gate.
-            Gate metrics still load via backend proxy.{" "}
+            {gateViaProxy
+              ? "Production CRM is operational via backend proxy — gate metrics and trades load correctly."
+              : "Dashboard bundle is stale — promote latest main in Vercel for native /api/active-gate."}{" "}
+            {!gateViaProxy && "Gate metrics still load via backend proxy when available. "}
+            Promote for native routes and newest UI.{" "}
             <a
               href={dashConfig?.promoteUrl ?? "https://vercel.com/apexweb-adams-projects/apex-trading-dashboard/deployments"}
               target="_blank"
@@ -505,7 +531,7 @@ export default function Dashboard() {
                 )}
               </Card>
               <Card title="Latest Intelligence">
-                {(intelligence ?? []).slice(0, 5).map((item) => (
+                {(intelFeed ?? []).slice(0, 5).map((item) => (
                   <div key={item.id} className="py-2 border-b border-apex-border last:border-0">
                     <div className="flex items-center gap-2 mb-1">
                       <span className="text-[10px] px-1.5 py-0.5 rounded bg-apex-border text-gray-400 uppercase">
@@ -587,7 +613,7 @@ export default function Dashboard() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card title="Market Intelligence Feed">
               <div className="space-y-3 max-h-[700px] overflow-y-auto">
-                {(intelligence ?? []).map((item) => (
+                {(intelFeed ?? []).map((item) => (
                   <div
                     key={item.id}
                     className="p-3 rounded-lg bg-apex-dark border border-apex-border"

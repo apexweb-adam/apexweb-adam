@@ -134,6 +134,19 @@ async def fetch_commits_since(deployed_sha: str) -> list[dict[str, str]]:
     return []
 
 
+async def probe_production_proxy_operational() -> bool:
+  """True when production Vercel serves active-gate via /api/backend proxy."""
+  try:
+    async with httpx.AsyncClient(timeout=8.0) as client:
+      response = await client.get(f"{PRODUCTION_DASHBOARD_URL}/api/backend/active-gate")
+      if response.status_code != 200:
+        return False
+      data = response.json()
+      return bool(data.get("active_bots"))
+  except Exception:
+    return False
+
+
 async def fetch_vercel_dashboard_bundle() -> dict[str, Any]:
   """Probe production /api/config for dashboard bundle freshness."""
   promote_id = configured_verified_deployment_id()
@@ -143,33 +156,39 @@ async def fetch_vercel_dashboard_bundle() -> dict[str, Any]:
 
   try:
     prod_cfg = await probe_dashboard_config(PRODUCTION_DASHBOARD_URL)
+    proxy_ok = await probe_production_proxy_operational()
     if prod_cfg and bundle_is_current(prod_cfg):
       return {
         "vercel_bundle_stale": False,
         "vercel_bundle_revision": prod_cfg.get("bundleRevision"),
+        "production_proxy_operational": proxy_ok,
         "dashboard_url": PRODUCTION_DASHBOARD_URL,
       }
 
     discovered = await discover_verified_dashboard()
     verified_url = discovered["verified_dashboard_url"]
+    dashboard_url = PRODUCTION_DASHBOARD_URL if proxy_ok else verified_url
     return {
       "vercel_bundle_stale": True,
       "vercel_bundle_revision": (prod_cfg or {}).get("bundleRevision"),
+      "production_proxy_operational": proxy_ok,
       "verified_dashboard_url": verified_url,
       "verified_dashboard_discovered": discovered.get("discovered", False),
       "verified_bundle_revision": discovered.get("vercel_bundle_revision"),
       "vercel_promote_deployment_id": promote_id,
       "vercel_promote_url": promote_url,
-      "dashboard_url": verified_url,
+      "dashboard_url": dashboard_url,
     }
   except Exception:
     verified_url = configured_verified_dashboard_url()
+    proxy_ok = await probe_production_proxy_operational()
     return {
       "vercel_bundle_stale": True,
+      "production_proxy_operational": proxy_ok,
       "verified_dashboard_url": verified_url,
       "vercel_promote_deployment_id": promote_id,
       "vercel_promote_url": promote_url,
-      "dashboard_url": verified_url,
+      "dashboard_url": PRODUCTION_DASHBOARD_URL if proxy_ok else verified_url,
     }
 
 
@@ -204,11 +223,18 @@ async def build_deploy_status() -> dict[str, Any]:
   if vercel.get("vercel_bundle_stale"):
     verified = vercel.get("verified_dashboard_url", configured_verified_dashboard_url())
     promote_id = vercel.get("vercel_promote_deployment_id") or configured_verified_deployment_id()
-    next_steps.append(
-      "Vercel production dashboard bundle is stale — promote "
-      f"{promote_id} in Vercel, "
-      f"or use verified preview: {verified}"
-    )
+    if vercel.get("production_proxy_operational"):
+      next_steps.append(
+        "Vercel production bundle is stale but CRM proxy is operational on "
+        f"{PRODUCTION_DASHBOARD_URL} — promote {promote_id} for native routes and newest UI, "
+        f"or use verified preview: {verified}"
+      )
+    else:
+      next_steps.append(
+        "Vercel production dashboard bundle is stale — promote "
+        f"{promote_id} in Vercel, "
+        f"or use verified preview: {verified}"
+      )
 
   return {
     "git_commit": deployed,
