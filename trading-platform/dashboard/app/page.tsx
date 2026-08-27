@@ -15,7 +15,7 @@ import {
   TrendingUp,
   Zap,
 } from "lucide-react";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useLiveData } from "@/lib/useLiveData";
 import { useAPI } from "@/lib/useAPI";
 import {
@@ -39,6 +39,7 @@ import type {
   VerificationSnapshot,
   IntelligenceSource,
   PlatformStatus,
+  DashboardConfig,
 } from "@/lib/api";
 import { enrichProfitabilityStatus } from "@/lib/profitability";
 
@@ -64,6 +65,16 @@ export default function Dashboard() {
   const { data: intelSources } = useAPI<IntelligenceSource[]>("/intelligence/sources", 30000);
   const { data: platformStatus } = useAPI<PlatformStatus>("/status", 30000);
   const [tab, setTab] = useState<Tab>("overview");
+  const [dashConfig, setDashConfig] = useState<DashboardConfig | null>(null);
+
+  useEffect(() => {
+    fetch("/api/config", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((cfg) => setDashConfig(cfg))
+      .catch(() => setDashConfig(null));
+  }, []);
+
+  const vercelStale = dashConfig != null && !dashConfig.features?.activeGate;
 
   const gateTrades = useMemo(() => {
     const rest = gateTradesRest ?? tradesRest ?? [];
@@ -126,6 +137,27 @@ export default function Dashboard() {
           </div>
         </div>
       </header>
+
+      {vercelStale && (
+        <div className="bg-apex-gold/15 border-b border-apex-gold/30 px-6 py-2">
+          <p className="max-w-[1600px] mx-auto text-xs text-apex-gold">
+            Dashboard deploy is stale — active-bot gate and client enrichment missing.{" "}
+            <a
+              href={dashConfig?.promoteUrl ?? "https://vercel.com/apexweb-adams-projects/apex-trading-dashboard/deployments"}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline hover:text-white"
+            >
+              Promote latest main in Vercel →
+            </a>
+            {dashConfig?.githubMainCommit && (
+              <span className="ml-2 font-mono text-[10px] text-gray-500">
+                main {dashConfig.githubMainCommit}
+              </span>
+            )}
+          </p>
+        </div>
+      )}
 
       <div className="max-w-[1600px] mx-auto px-6 py-6">
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-6">
@@ -238,12 +270,18 @@ export default function Dashboard() {
                   )}
                 </Card>
               )}
-              {platformStatus?.deploy &&
-                (platformStatus.deploy.is_stale ||
-                  (platformStatus.deploy.next_steps?.length ?? 0) > 0) && (
+              {(vercelStale ||
+                (platformStatus?.deploy &&
+                  (platformStatus.deploy.is_stale ||
+                    (platformStatus.deploy.next_steps?.length ?? 0) > 0))) && (
                 <Card title="Production Deploy">
                   <div className="space-y-3">
-                    {platformStatus.deploy.is_stale && (
+                    {vercelStale && (
+                      <div className="rounded-lg border border-apex-red/40 bg-apex-red/10 px-3 py-2 text-xs text-apex-red">
+                        Vercel dashboard stale — promote latest main deployment for /api/active-gate
+                      </div>
+                    )}
+                    {platformStatus?.deploy?.is_stale && (
                       <div className="rounded-lg border border-apex-gold/40 bg-apex-gold/10 px-3 py-2 text-xs text-apex-gold">
                         Backend deploy is stale
                         {platformStatus.deploy.stale_minutes != null && (
@@ -264,37 +302,41 @@ export default function Dashboard() {
                         )}
                       </div>
                     )}
-                    <div className="flex flex-wrap gap-2 text-xs">
-                      <span
-                        className={cn(
-                          "px-2 py-1 rounded-full",
-                          platformStatus.database.persistent
-                            ? "bg-apex-green/10 text-apex-green"
-                            : "bg-apex-gold/10 text-apex-gold"
+                    {platformStatus?.deploy && (
+                      <>
+                        <div className="flex flex-wrap gap-2 text-xs">
+                          <span
+                            className={cn(
+                              "px-2 py-1 rounded-full",
+                              platformStatus.database.persistent
+                                ? "bg-apex-green/10 text-apex-green"
+                                : "bg-apex-gold/10 text-apex-gold"
+                            )}
+                          >
+                            DB: {platformStatus.database.engine}
+                          </span>
+                          <span className="px-2 py-1 rounded-full bg-apex-green/10 text-apex-green">
+                            Intel {platformStatus.intelligence.active_sources}/
+                            {platformStatus.intelligence.total_sources}
+                          </span>
+                        </div>
+                        {(platformStatus.deploy.next_steps?.length ?? 0) > 0 && (
+                          <ul className="space-y-2 text-xs text-gray-400 list-disc list-inside">
+                            {platformStatus.deploy.next_steps.map((step) => (
+                              <li key={step}>{step}</li>
+                            ))}
+                          </ul>
                         )}
-                      >
-                        DB: {platformStatus.database.engine}
-                      </span>
-                      <span className="px-2 py-1 rounded-full bg-apex-green/10 text-apex-green">
-                        Intel {platformStatus.intelligence.active_sources}/
-                        {platformStatus.intelligence.total_sources}
-                      </span>
-                    </div>
-                    {(platformStatus.deploy.next_steps?.length ?? 0) > 0 && (
-                      <ul className="space-y-2 text-xs text-gray-400 list-disc list-inside">
-                        {platformStatus.deploy.next_steps.map((step) => (
-                          <li key={step}>{step}</li>
-                        ))}
-                      </ul>
+                        <a
+                          href={platformStatus.deploy.render_blueprint}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-block text-xs text-apex-gold hover:underline"
+                        >
+                          Open Render Blueprint →
+                        </a>
+                      </>
                     )}
-                    <a
-                      href={platformStatus.deploy.render_blueprint}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-block text-xs text-apex-gold hover:underline"
-                    >
-                      Open Render Blueprint →
-                    </a>
                   </div>
                 </Card>
               )}
