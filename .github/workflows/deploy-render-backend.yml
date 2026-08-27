@@ -11,8 +11,16 @@ on:
 
 jobs:
   trigger-render:
-    if: ${{ secrets.RENDER_DEPLOY_HOOK != '' }}
     runs-on: ubuntu-latest
     steps:
-      - name: Trigger Render deploy
+      - name: Trigger Render deploy hook
+        if: ${{ secrets.RENDER_DEPLOY_HOOK != '' }}
         run: curl -fsS -X POST "${{ secrets.RENDER_DEPLOY_HOOK }}"
+
+      - name: Deploy hook not configured
+        if: ${{ secrets.RENDER_DEPLOY_HOOK == '' }}
+        run: |
+          echo "::warning::RENDER_DEPLOY_HOOK secret is not set in GitHub."
+          echo "Render Blueprint autoDeploy from GitHub may still deploy — verify at:"
+          echo "  https://apex-trading-backend.onrender.com/api/status (deploy.git_commit)"
+          echo "Add Deploy Hook URL from Render → Settings → Deploy Hook to repo secrets."

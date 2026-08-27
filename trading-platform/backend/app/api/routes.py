@@ -1,4 +1,5 @@
 import asyncio
+import os
 from datetime import datetime
 from typing import Any
 
@@ -423,6 +424,13 @@ async def get_platform_status(db: AsyncSession = Depends(get_db)) -> dict[str, A
       "render_blueprint": "https://render.com/deploy?repo=https://github.com/apexweb-adam/apexweb-adam",
       "supabase_project": "zzgmovjapeyauvpdpuqe",
       "dashboard_url": "https://apex-trading-dashboard-flame.vercel.app",
+      "git_commit": settings.render_git_commit or os.environ.get("RENDER_GIT_COMMIT") or None,
+      "git_branch": settings.render_git_branch or os.environ.get("RENDER_GIT_BRANCH") or None,
+      "features": {
+        "admin_risk_migrations": True,
+        "polymarket_position_cap": True,
+        "startup_strategy_migration": True,
+      },
       "next_steps": (
         []
         if is_postgres()

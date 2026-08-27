@@ -66,6 +66,23 @@ RENDER="https://apex-trading-backend.onrender.com"
 CODE=$(curl -s -o /dev/null -w "%{http_code}" "$RENDER/api/health" 2>/dev/null || echo "000")
 if [[ "$CODE" == "200" ]]; then
   check "Render backend live ($RENDER)" 1
+  ADMIN_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$RENDER/api/admin/apply-risk-migrations" \
+    -H "Content-Type: application/json" -d '{"secret":""}' 2>/dev/null || echo "000")
+  if [[ "$ADMIN_CODE" == "200" || "$ADMIN_CODE" == "422" ]]; then
+    check "Render backend has latest admin migrate endpoint" 1
+  else
+    echo "○ Render may be on stale build (admin endpoint HTTP $ADMIN_CODE) — trigger manual deploy"
+  fi
+  STATUS_JSON=$(curl -sf "$RENDER/api/status" 2>/dev/null || echo "{}")
+  REMOTE_COMMIT=$(echo "$STATUS_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin).get('deploy',{}).get('git_commit') or '')" 2>/dev/null || true)
+  LOCAL_COMMIT=$(git -C "$(dirname "$0")/.." rev-parse --short HEAD 2>/dev/null || git rev-parse --short HEAD 2>/dev/null || echo "")
+  if [[ -n "$REMOTE_COMMIT" && -n "$LOCAL_COMMIT" ]]; then
+    if [[ "$REMOTE_COMMIT" == "$LOCAL_COMMIT" || "$REMOTE_COMMIT" == "${LOCAL_COMMIT:0:7}"* ]]; then
+      check "Render git commit matches repo ($REMOTE_COMMIT)" 1
+    else
+      echo "○ Render commit $REMOTE_COMMIT ≠ local $LOCAL_COMMIT — redeploy recommended"
+    fi
+  fi
 else
   echo "✗ Render backend not deployed yet (HTTP $CODE)"
   echo "  → https://render.com/deploy?repo=https://github.com/apexweb-adam/apexweb-adam"

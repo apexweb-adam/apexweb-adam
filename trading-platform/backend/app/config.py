@@ -50,6 +50,10 @@ class Settings(BaseSettings):
     # Dashboard
     cors_origins: str = "http://localhost:3000,http://localhost:3001"
 
+    # Render injects these at build/deploy time (optional locally)
+    render_git_commit: str = ""
+    render_git_branch: str = ""
+
     class Config:
         env_file = (".env", "../.env")
         env_file_encoding = "utf-8"
