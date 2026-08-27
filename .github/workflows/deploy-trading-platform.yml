@@ -69,8 +69,12 @@ jobs:
           MAIN=$(curl -fsS "https://api.github.com/repos/apexweb-adam/apexweb-adam/commits/main" | python3 -c "import json,sys; print(json.load(sys.stdin)['sha'][:12])")
           PAGE=$(curl -fsS "https://apex-trading-dashboard-flame.vercel.app/")
           echo "main=$MAIN"
-          if echo "$PAGE" | grep -q "excludes paused"; then
-            echo "Production has active-bot profitability gate"
+          GATE=$(curl -fsS -o /dev/null -w "%{http_code}" "https://apex-trading-dashboard-flame.vercel.app/api/active-gate" || echo "000")
+          if [[ "$GATE" == "200" ]]; then
+            echo "Production has /api/active-gate endpoint"
+            curl -fsS "https://apex-trading-dashboard-flame.vercel.app/api/active-gate" | python3 -c "import json,sys; d=json.load(sys.stdin); print('active PnL $%.2f' % d['active_bots']['total_pnl'])"
+          elif echo "$PAGE" | grep -q "excludes paused"; then
+            echo "Production has client-side active-bot gate"
           else
-            echo "::warning::Production dashboard missing client-side gate (PR #48+) — promote latest main in Vercel"
+            echo "::warning::Production dashboard stale — missing /api/active-gate and client gate. Promote latest main in Vercel."
           fi
