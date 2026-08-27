@@ -15,7 +15,7 @@ from app.engines.polymarket_signals import analyze_polymarket
 from app.engines.paper_trading import PaperTradingEngine
 from app.engines.price_validation import is_price_sane
 from app.engines.signal_engine import SignalEngine
-from app.models.entities import IntelligenceItem, Trade
+from app.models.entities import BotState, IntelligenceItem, Trade
 
 
 class BaseBot(ABC):
@@ -142,11 +142,26 @@ class BaseBot(ABC):
       learner = LearningEngine(session)
       await learner.analyze_losing_trade(trade)
 
+  async def _record_scan_heartbeat(self) -> None:
+    async with SessionLocal() as session:
+      result = await session.execute(
+        select(BotState).where(BotState.bot_type == self.bot_type)
+      )
+      state = result.scalar_one_or_none()
+      if not state:
+        state = BotState(bot_type=self.bot_type, status="running")
+        session.add(state)
+      state.last_scan_at = datetime.utcnow()
+      state.status = "running"
+      state.updated_at = datetime.utcnow()
+      await session.commit()
+
   async def run_loop(self) -> None:
     self.running = True
     while self.running:
       try:
         await self.scan_and_trade()
+        await self._record_scan_heartbeat()
       except Exception as e:
         print(f"[{self.bot_type}] Error in scan: {e}")
       await asyncio.sleep(self.scan_interval)
