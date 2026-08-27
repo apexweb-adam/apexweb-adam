@@ -52,6 +52,30 @@ jobs:
           print('Scheduler:', sched)
           "
 
+      - name: Check active-bot gate endpoint (production proxy)
+        run: |
+          set -euo pipefail
+          DASHBOARD="https://apex-trading-dashboard-flame.vercel.app"
+          GATE=$(curl -fsS -o /dev/null -w "%{http_code}" "$DASHBOARD/api/backend/active-gate" || echo "000")
+          echo "Production /api/backend/active-gate HTTP $GATE"
+          if [[ "$GATE" != "200" ]]; then
+            echo "::error::Active-bot gate unavailable on production proxy"
+            exit 1
+          fi
+          curl -fsS "$DASHBOARD/api/backend/active-gate" | python3 -c "
+          import json,sys
+          d=json.load(sys.stdin)
+          assert d.get('active_bots'), d
+          a=d['active_bots']
+          print('OK: %s trades WR %.1f%% PF %s PnL $%.2f' % (
+            a.get('total_trades'), (a.get('win_rate') or 0)*100,
+            a.get('profit_factor'), a.get('total_pnl') or 0))
+          "
+          NATIVE=$(curl -fsS -o /dev/null -w "%{http_code}" "$DASHBOARD/api/active-gate" || echo "000")
+          if [[ "$NATIVE" != "200" ]]; then
+            echo "::warning::Production /api/active-gate is $NATIVE — promote latest Vercel preview (see promote-vercel-production workflow)"
+          fi
+
       - name: Check active-bot profitability gate (excludes paused bots)
         run: python3 trading-platform/scripts/active-bot-gate.py
 

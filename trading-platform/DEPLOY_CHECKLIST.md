@@ -70,7 +70,9 @@ Optional repo **variables** (defaults exist in workflow):
 | `VERCEL_ORG_ID` | `team_K7OUE7uroVXeVUf42cUAQvAl` |
 | `VERCEL_PROJECT_ID` | `prj_HGbG5vHgfutHi31QfXDqSsTnTAGv` |
 
-**If production is stale:** Render dashboard → Manual Deploy; Vercel → Promote latest `main` deployment to Production.
+**If production is stale:** Render dashboard → Manual Deploy; Vercel → Promote latest preview (`dpl_CiDNLsj`) to Production.
+
+**Gate on stale Vercel prod:** `/api/backend/active-gate` works via the existing dashboard proxy even when `/api/active-gate` returns 404.
 
 Verify backend: `curl https://apex-trading-backend.onrender.com/api/status` — `deploy.git_commit` should match `latest_main_commit`.
 

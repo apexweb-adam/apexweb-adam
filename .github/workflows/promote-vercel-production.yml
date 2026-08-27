@@ -9,11 +9,11 @@ on:
       deployment_id:
         description: Vercel deployment ID to promote (default latest preview with active-gate)
         required: false
-        default: "dpl_9mmWv1xwK7yzyk1aMzLLFMxLpp9h"
+        default: "dpl_CiDNLsjD34vvn4RR5BbzS8qzb4iu"
       preview_url:
         description: Preview URL to verify before promote
         required: false
-        default: "https://apex-trading-dashboard-90czgdzsg-apexweb-adams-projects.vercel.app"
+        default: "https://apex-trading-dashboard-khblkxfs2-apexweb-adams-projects.vercel.app"
 
 jobs:
   promote:
