@@ -284,16 +284,27 @@ export type PlatformDeployStatus = {
   next_steps: string[];
 };
 
+export type GateEntryTightening = {
+  active: boolean;
+  win_rate: number;
+  min_sentiment: number;
+  require_macd_bullish: boolean;
+  min_composite_boost: number;
+  max_pm_open_positions: number;
+};
+
 export type PlatformStatus = {
   platform: string;
   database: { engine: string; persistent: boolean };
   intelligence: { active_sources: number; total_sources: number };
   scheduler?: Record<string, string>;
+  gate_entry_tightening?: GateEntryTightening;
   integrations?: {
     tradingview_webhook?: boolean;
     tradingview_webhook_url?: string | null;
     tradingview_items?: number;
     tradingview_setup?: string | null;
+    tradingview_test_endpoint?: string | null;
     tradingview_example_payload?: Record<string, string> | null;
   };
   learning?: {

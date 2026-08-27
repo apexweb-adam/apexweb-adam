@@ -3,8 +3,8 @@ export const DASHBOARD_BUNDLE_REVISION = "2026-08-27-r9";
 
 /** Verified preview when production -flame bundle is stale (matches backend deploy_status defaults). */
 export const VERIFIED_PREVIEW_URL =
-  "https://apex-trading-dashboard-7zhc1azza-apexweb-adams-projects.vercel.app";
-export const VERIFIED_PROMOTE_DEPLOYMENT_ID = "dpl_35HJwCuB4czMbXFnWMdhfdGPbMsd";
+  "https://apex-trading-dashboard-ekn183k28-apexweb-adams-projects.vercel.app";
+export const VERIFIED_PROMOTE_DEPLOYMENT_ID = "dpl_42zPqzLoftwSZddPxVfp7ztRiVES";
 
 export const DASHBOARD_FEATURES = {
   activeGate: true,

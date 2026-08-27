@@ -407,15 +407,29 @@ export default function Dashboard() {
                             </span>
                           )}
                         </div>
-                        {platformStatus.integrations?.tradingview_setup && (
+                        {(platformStatus.integrations?.tradingview_webhook ||
+                          platformStatus.integrations?.tradingview_setup) && (
                           <div className="rounded-lg border border-apex-border bg-apex-dark px-3 py-2 text-xs text-gray-400">
                             <p className="text-apex-gold font-medium mb-1">TradingView webhook ready</p>
-                            <p>{platformStatus.integrations.tradingview_setup}</p>
+                            {platformStatus.integrations.tradingview_setup && (
+                              <p>{platformStatus.integrations.tradingview_setup}</p>
+                            )}
                             {platformStatus.integrations.tradingview_webhook_url && (
                               <p className="mt-1 font-mono text-[10px] text-gray-500 break-all">
                                 {platformStatus.integrations.tradingview_webhook_url}
                               </p>
                             )}
+                            {platformStatus.integrations.tradingview_test_endpoint && (
+                              <p className="mt-2 text-[10px] text-gray-500">
+                                Test: {platformStatus.integrations.tradingview_test_endpoint}
+                              </p>
+                            )}
+                            {platformStatus.integrations.tradingview_items != null &&
+                              platformStatus.integrations.tradingview_items > 0 && (
+                                <p className="mt-1 text-apex-green text-[10px]">
+                                  {platformStatus.integrations.tradingview_items} alert(s) received
+                                </p>
+                              )}
                             {platformStatus.integrations.tradingview_example_payload && (
                               <pre className="mt-2 p-2 rounded bg-black/40 text-[10px] text-gray-400 overflow-x-auto">
                                 {JSON.stringify(
@@ -480,6 +494,30 @@ export default function Dashboard() {
                       </p>
                     )}
                     <p className="text-xs text-gray-500">{gateStatus.recommendation}</p>
+                    {platformStatus?.gate_entry_tightening?.active && (
+                      <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs">
+                        <p className="text-amber-400 font-medium mb-1">
+                          Gate entry tightening active (WR{" "}
+                          {formatPct(platformStatus.gate_entry_tightening.win_rate)} &lt; 55%)
+                        </p>
+                        <div className="space-y-0.5 text-gray-400">
+                          <p>
+                            Min sentiment: {platformStatus.gate_entry_tightening.min_sentiment.toFixed(2)}
+                            {platformStatus.gate_entry_tightening.require_macd_bullish &&
+                              " · MACD bullish required"}
+                          </p>
+                          <p>
+                            PM max positions: {platformStatus.gate_entry_tightening.max_pm_open_positions}
+                            {platformStatus.gate_entry_tightening.min_composite_boost > 0 && (
+                              <span>
+                                {" "}
+                                · composite boost +{platformStatus.gate_entry_tightening.min_composite_boost.toFixed(2)}
+                              </span>
+                            )}
+                          </p>
+                        </div>
+                      </div>
+                    )}
                     {gateStatus.paused_bots && gateStatus.paused_bots.length > 0 && (
                       <p className="text-xs text-amber-500/90">
                         Gate excludes paused bots: {gateStatus.paused_bots.join(", ")}
