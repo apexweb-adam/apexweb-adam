@@ -10,6 +10,16 @@ import httpx
 
 GITHUB_REPO = os.environ.get("GITHUB_REPO", "apexweb-adam/apexweb-adam")
 GITHUB_API = f"https://api.github.com/repos/{GITHUB_REPO}/commits/main"
+PRODUCTION_DASHBOARD_URL = "https://apex-trading-dashboard-flame.vercel.app"
+VERIFIED_DASHBOARD_URL = os.environ.get(
+  "VERIFIED_DASHBOARD_URL",
+  "https://apex-trading-dashboard-q1o1x9nlh-apexweb-adams-projects.vercel.app",
+)
+VERIFIED_DEPLOYMENT_ID = os.environ.get(
+  "VERIFIED_VERCEL_DEPLOYMENT_ID",
+  "dpl_DFWFJtVnsfSLAkby6DWNLqUHYX7p",
+)
+EXPECTED_DASHBOARD_BUNDLE = "2026-08-27-r7"
 
 
 def deployed_git_commit() -> str | None:
@@ -62,6 +72,38 @@ async def fetch_commits_since(deployed_sha: str) -> list[dict[str, str]]:
     return []
 
 
+async def fetch_vercel_dashboard_bundle() -> dict[str, Any]:
+  """Probe production /api/config for dashboard bundle freshness."""
+  try:
+    async with httpx.AsyncClient(timeout=8.0) as client:
+      response = await client.get(f"{PRODUCTION_DASHBOARD_URL}/api/config")
+      if response.status_code != 200:
+        return {"vercel_bundle_stale": True, "vercel_bundle_revision": None}
+      cfg = response.json()
+      revision = cfg.get("bundleRevision")
+      active_gate = (cfg.get("features") or {}).get("activeGate") is True
+      current = revision == EXPECTED_DASHBOARD_BUNDLE and active_gate
+      out: dict[str, Any] = {
+        "vercel_bundle_stale": not current,
+        "vercel_bundle_revision": revision,
+        "dashboard_url": PRODUCTION_DASHBOARD_URL if current else VERIFIED_DASHBOARD_URL,
+      }
+      if not current:
+        out["verified_dashboard_url"] = VERIFIED_DASHBOARD_URL
+        out["vercel_promote_deployment_id"] = VERIFIED_DEPLOYMENT_ID
+        out["vercel_promote_url"] = (
+          "https://vercel.com/apexweb-adams-projects/apex-trading-dashboard/deployments"
+        )
+      return out
+  except Exception:
+    return {
+      "vercel_bundle_stale": True,
+      "verified_dashboard_url": VERIFIED_DASHBOARD_URL,
+      "vercel_promote_deployment_id": VERIFIED_DEPLOYMENT_ID,
+      "dashboard_url": VERIFIED_DASHBOARD_URL,
+    }
+
+
 async def build_deploy_status() -> dict[str, Any]:
   deployed = deployed_git_commit()
   latest = await fetch_latest_main_commit()
@@ -89,6 +131,14 @@ async def build_deploy_status() -> dict[str, Any]:
       summaries = [c["message"] for c in pending_changes[:3]]
       next_steps.append(f"Pending on main ({len(pending_changes)} commits): {'; '.join(summaries)}")
 
+  vercel = await fetch_vercel_dashboard_bundle()
+  if vercel.get("vercel_bundle_stale"):
+    next_steps.append(
+      "Vercel production dashboard bundle is stale — promote "
+      f"{vercel.get('vercel_promote_deployment_id', VERIFIED_DEPLOYMENT_ID)} in Vercel, "
+      f"or use verified preview: {vercel.get('verified_dashboard_url', VERIFIED_DASHBOARD_URL)}"
+    )
+
   return {
     "git_commit": deployed,
     "git_branch": os.environ.get("RENDER_GIT_BRANCH"),
@@ -99,4 +149,5 @@ async def build_deploy_status() -> dict[str, Any]:
     "pending_changes": pending_changes,
     "commits_behind": len(pending_changes),
     "next_steps": next_steps,
+    **vercel,
   }

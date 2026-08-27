@@ -50,8 +50,8 @@ A dashboard REST hívásokat runtime proxy-n keresztül továbbítja (`/api/back
 
 Live dashboard: https://apex-trading-dashboard-flame.vercel.app
 
-**Verified preview (full features, Aug 27 2026):** https://apex-trading-dashboard-9lqdftbaq-apexweb-adams-projects.vercel.app  
-(Promote `dpl_DkN4ec8gFdc3Jn1h6zJb3Uzun8N9` to production — requires `VERCEL_TOKEN` or manual promote in Vercel dashboard.)
+**Verified preview (full features, Aug 27 2026):** https://apex-trading-dashboard-q1o1x9nlh-apexweb-adams-projects.vercel.app  
+(Promote `dpl_DFWFJtVnsfSLAkby6DWNLqUHYX7p` to production — requires `VERCEL_TOKEN` or manual promote in Vercel dashboard.)
 
 ### GitHub Actions deploy secrets (CI)
 
@@ -64,7 +64,7 @@ Add these in **GitHub → repo → Settings → Secrets and variables → Action
 | `RENDER_DEPLOY_HOOK` | Auto-redeploy backend when stale (Render → apex-trading-backend → Settings → Deploy Hook) |
 | `RENDER_API_KEY` | Alternative backend deploy via Render API |
 
-**One-time production promote:** After adding `VERCEL_TOKEN`, run **Promote Vercel Dashboard to Production** (auto-runs on main dashboard pushes). Verified preview: `dpl_DkN4ec8gFdc3Jn1h6zJb3Uzun8N9`.
+**One-time production promote:** After adding `VERCEL_TOKEN`, run **Promote Vercel Dashboard to Production** (auto-runs on main dashboard pushes). Verified preview: `dpl_DFWFJtVnsfSLAkby6DWNLqUHYX7p`.
 
 Optional repo **variables** (defaults exist in workflow):
 

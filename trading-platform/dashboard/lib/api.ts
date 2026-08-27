@@ -260,6 +260,11 @@ export type PlatformDeployStatus = {
   render_blueprint: string;
   supabase_project: string;
   dashboard_url: string;
+  verified_dashboard_url?: string;
+  vercel_bundle_stale?: boolean;
+  vercel_bundle_revision?: string | null;
+  vercel_promote_deployment_id?: string;
+  vercel_promote_url?: string;
   git_commit?: string | null;
   latest_main_commit?: string | null;
   latest_main_message?: string | null;

@@ -82,7 +82,7 @@ jobs:
               print("Production bundle current:", expected)
               sys.exit(0)
           print("::warning::Production dashboard stale — missing bundleRevision/features.activeGate")
-          print("Promote preview dpl_DkN4ec8gFdc3Jn1h6zJb3Uzun8N9 or add VERCEL_TOKEN")
-          print("Verified preview: https://apex-trading-dashboard-9lqdftbaq-apexweb-adams-projects.vercel.app")
+          print("Promote preview dpl_DFWFJtVnsfSLAkby6DWNLqUHYX7p or add VERCEL_TOKEN")
+          print("Verified preview: https://apex-trading-dashboard-q1o1x9nlh-apexweb-adams-projects.vercel.app")
           sys.exit(0)
           PY

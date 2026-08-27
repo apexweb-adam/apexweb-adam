@@ -9,7 +9,7 @@ import urllib.error
 import urllib.request
 
 DASHBOARD = "https://apex-trading-dashboard-flame.vercel.app"
-VERIFIED_PREVIEW = "https://apex-trading-dashboard-9lqdftbaq-apexweb-adams-projects.vercel.app"
+VERIFIED_PREVIEW = "https://apex-trading-dashboard-q1o1x9nlh-apexweb-adams-projects.vercel.app"
 EXPECTED_BUNDLE = "2026-08-27-r7"
 MIN_TRADES = 100
 MIN_WIN_RATE = 0.55
