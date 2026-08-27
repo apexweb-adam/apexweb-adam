@@ -92,6 +92,43 @@ def _source_weight(bot_type: str, source: str) -> float:
   return BOT_SOURCE_WEIGHTS.get(bot_type, {}).get(source, DEFAULT_WEIGHT)
 
 
+# Extra multiplier when political items match structured event types for this bot.
+POLITICAL_EVENT_BOT_BOOST: dict[str, dict[str, float]] = {
+  "commodities": {
+    "tariff": 1.25,
+    "geopolitics": 1.2,
+    "energy": 1.25,
+    "safe_haven": 1.15,
+    "inflation": 1.1,
+    "monetary": 1.05,
+  },
+  "stocks_futures": {
+    "monetary": 1.2,
+    "tariff": 1.15,
+    "macro": 1.15,
+    "election": 1.1,
+    "inflation": 1.1,
+  },
+  "polymarket": {
+    "election": 1.25,
+    "geopolitics": 1.2,
+    "crypto_policy": 1.15,
+    "tariff": 1.1,
+  },
+  "crypto": {
+    "crypto_policy": 1.3,
+    "monetary": 1.05,
+  },
+}
+
+
+def _political_event_boost(bot_type: str, category: str) -> float:
+  if not category.startswith("political:"):
+    return 1.0
+  event_type = category.split(":", 1)[1]
+  return POLITICAL_EVENT_BOT_BOOST.get(bot_type, {}).get(event_type, 1.0)
+
+
 async def compute_bot_sentiment(
   session: AsyncSession,
   bot_type: str,
@@ -124,6 +161,8 @@ async def compute_bot_sentiment(
 
   for item in items:
     src_weight = _source_weight(bot_type, item.source)
+    if item.source == "political":
+      src_weight *= _political_event_boost(bot_type, item.category or "")
     relevance = max(0.1, min(1.0, item.relevance_score or 0.5))
     w = src_weight * relevance
     weighted_sum += item.sentiment * w
