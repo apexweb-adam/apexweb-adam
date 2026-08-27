@@ -109,8 +109,27 @@ async def ensure_daily_review_on_startup() -> None:
   await daily_review_job()
 
 
+async def ensure_verification_period_on_startup() -> None:
+  """Backfill verification start after deploy if paper state was reset without the setting."""
+  from sqlalchemy import func, select
+
+  from app.engines.platform_settings import get_verification_started_at, set_verification_started_at
+  from app.models.entities import Trade
+
+  async with SessionLocal() as session:
+    if await get_verification_started_at(session):
+      return
+    closed_trades = (
+      await session.execute(select(func.count(Trade.id)).where(Trade.action == "sell"))
+    ).scalar_one()
+    if closed_trades == 0:
+      started = await set_verification_started_at(session)
+      print(f"[Verification] Started profitability window at {started.isoformat()}")
+
+
 async def setup_scheduler() -> None:
   await init_db()
+  await ensure_verification_period_on_startup()
   async with SessionLocal() as session:
     from app.engines.strategy_migration import (
       ensure_polymarket_strategy,

@@ -24,3 +24,40 @@ jobs:
           echo "Render Blueprint autoDeploy from GitHub may still deploy — verify at:"
           echo "  https://apex-trading-backend.onrender.com/api/status (deploy.git_commit)"
           echo "Add Deploy Hook URL from Render → Settings → Deploy Hook to repo secrets."
+
+  trigger-render-api:
+    if: ${{ secrets.RENDER_DEPLOY_HOOK == '' && secrets.RENDER_API_KEY != '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Find apex-trading-backend service
+        id: find
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+        run: |
+          SERVICES=$(curl -fsS -H "Authorization: Bearer $RENDER_API_KEY" \
+            "https://api.render.com/v1/services?limit=100")
+          SERVICE_ID=$(echo "$SERVICES" | python3 -c "
+          import json, sys
+          data = json.load(sys.stdin)
+          for item in data:
+              svc = item.get('service') or item
+              if svc.get('name') == 'apex-trading-backend':
+                  print(svc['id'])
+                  break
+          ")
+          if [[ -z "$SERVICE_ID" ]]; then
+            echo "Service apex-trading-backend not found." >&2
+            exit 1
+          fi
+          echo "service_id=$SERVICE_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Trigger deploy via Render API
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+        run: |
+          curl -fsS -X POST \
+            -H "Authorization: Bearer $RENDER_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "{}" \
+            "https://api.render.com/v1/services/${{ steps.find.outputs.service_id }}/deploys"
+          echo "Deploy triggered via Render API"

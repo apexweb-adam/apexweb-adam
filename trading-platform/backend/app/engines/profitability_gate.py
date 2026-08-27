@@ -4,6 +4,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
+from app.engines.platform_settings import get_verification_started_at
 from app.models.entities import Portfolio, Trade
 
 
@@ -35,10 +36,15 @@ class ProfitabilityGate:
     first_trade = (
       await self.session.execute(select(func.min(Trade.executed_at)))
     ).scalar_one_or_none()
+    verification_start = await get_verification_started_at(self.session)
+    period_start = verification_start
     if first_trade:
       if first_trade.tzinfo is not None:
         first_trade = first_trade.replace(tzinfo=None)
-      days_trading = (datetime.utcnow() - first_trade).days
+      if period_start is None or first_trade < period_start:
+        period_start = first_trade
+    if period_start:
+      days_trading = (datetime.utcnow() - period_start).days
     else:
       days_trading = 0
 
@@ -102,6 +108,7 @@ class ProfitabilityGate:
       "profit_factor": round(profit_factor, 2) if profit_factor != float("inf") else None,
       "total_pnl": total_pnl,
       "days_trading": days_trading,
+      "verification_started_at": verification_start.isoformat() if verification_start else None,
       "checks": checks,
       "recommendation": (
         "READY for live trading review" if live_ready

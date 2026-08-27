@@ -268,6 +268,18 @@ export default function Dashboard() {
                         {profitability.live_trading_ready ? "READY" : "PAPER ONLY"}
                       </span>
                     </div>
+                    {profitability.verification_started_at && (
+                      <p className="text-xs text-gray-500">
+                        Verification day {(profitability.days_trading ?? 0) + 1} of 30
+                        {profitability.verification_started_at && (
+                          <span className="text-gray-600">
+                            {" "}
+                            · started{" "}
+                            {new Date(profitability.verification_started_at).toLocaleDateString()}
+                          </span>
+                        )}
+                      </p>
+                    )}
                     <p className="text-xs text-gray-500">{profitability.recommendation}</p>
                     <div className="space-y-1">
                       {Object.entries(profitability.checks).map(([key, check]) => (
