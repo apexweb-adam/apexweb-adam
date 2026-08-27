@@ -1,8 +1,10 @@
 # Render Blueprint — use Supabase for persistence (free tier has no disk support)
+# Canonical copy: repo root render.yaml (keep in sync)
 services:
   - type: web
     name: apex-trading-backend
     runtime: docker
+    rootDir: trading-platform
     dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
     plan: free
@@ -29,3 +31,7 @@ services:
         sync: false
       - key: POLYMARKET_DEPOSIT_ADDRESS
         sync: false
+      - key: RENDER_DEPLOY_HOOK
+        sync: false
+      - key: PLATFORM_REVISION
+        value: "2026-08-27-r5"

@@ -9,6 +9,8 @@ jobs:
   health:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+
       - name: Check production dashboard proxy
         run: |
           set -euo pipefail
@@ -51,42 +53,7 @@ jobs:
           "
 
       - name: Check active-bot profitability gate (excludes paused bots)
-        run: |
-          python3 << 'PY'
-          import json, urllib.request
-          DASH = "https://apex-trading-dashboard-flame.vercel.app"
-          def get(path):
-              with urllib.request.urlopen(f"{DASH}/api/backend/{path}", timeout=45) as r:
-                  return json.load(r)
-          api = get("profitability")
-          strategies = get("strategies")
-          portfolios = get("portfolios")
-          trades = get("trades?limit=200")
-          paused = api.get("paused_bots") or [s["bot_type"] for s in strategies if s.get("max_position_pct", 1) <= 0]
-          paused_set = set(paused)
-          sells = [t for t in trades if t.get("action") == "sell" and t.get("bot_type") not in paused_set]
-          active_pf = [p for p in portfolios if p.get("bot_type") not in paused_set]
-          winners = sum(1 for t in sells if t.get("is_winner") is True)
-          losers = sum(1 for t in sells if t.get("is_winner") is False)
-          wr = winners / (winners + losers) if winners + losers else 0
-          gp = sum(t.get("pnl", 0) for t in sells if t.get("is_winner") is True)
-          gl = abs(sum(t.get("pnl", 0) for t in sells if t.get("is_winner") is False))
-          pf = (gp / gl) if gl > 0 else (gp if gp > 0 else 0)
-          pnl = sum(p.get("total_pnl", 0) for p in active_pf)
-          print("Verification day %s | active trades %s | WR %.1f%% | PF %.2f | PnL $%.2f" % (
-            api.get("verification_day", "?"), len(sells), wr * 100, pf, pnl))
-          if paused:
-              print("Paused bots excluded:", ", ".join(paused))
-          print("Aggregate API PnL $%.2f (includes paused bot history)" % (api.get("total_pnl") or 0))
-          if pnl > 0 and (api.get("total_pnl") or 0) < 0:
-              print("::warning::Active bots profitable but aggregate gate fails until Render/Vercel deploy")
-          deploy = json.loads(urllib.request.urlopen(
-              "https://apex-trading-backend.onrender.com/api/status", timeout=45).read())
-          dep = deploy.get("deploy", {})
-          if dep.get("is_stale"):
-              print("::warning::Render stale — running %s, main %s" % (
-                  (dep.get("git_commit") or "")[:12], (dep.get("latest_main_commit") or "")[:12]))
-          PY
+        run: python3 trading-platform/scripts/active-bot-gate.py
 
       - name: Check profitability verification gate
         run: |

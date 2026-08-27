@@ -1,33 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import type { Portfolio, ProfitabilityStatus, StrategyConfig, Trade } from "@/lib/api";
-import { enrichProfitabilityStatus } from "@/lib/profitability";
+import { backendBase, fetchActiveGateStatus } from "@/lib/active-gate";
 
 export const dynamic = "force-dynamic";
-
-function backendBase(): string {
-  return (
-    process.env.BACKEND_URL ||
-    process.env.NEXT_PUBLIC_API_URL ||
-    "http://localhost:8000"
-  ).replace(/\/$/, "");
-}
-
-async function fetchBackendJson<T>(path: string): Promise<T> {
-  const res = await fetch(`${backendBase()}/api/${path}`, { cache: "no-store" });
-  if (!res.ok) throw new Error(`backend ${path}: ${res.status}`);
-  return res.json() as Promise<T>;
-}
-
-/** Enrich gate at the proxy when Render has not deployed paused-bot logic yet. */
-async function profitabilityWithActiveBots(): Promise<ProfitabilityStatus> {
-  const [profitability, strategies, portfolios, trades] = await Promise.all([
-    fetchBackendJson<ProfitabilityStatus>("profitability"),
-    fetchBackendJson<StrategyConfig[]>("strategies"),
-    fetchBackendJson<Portfolio[]>("portfolios"),
-    fetchBackendJson<Trade[]>("trades?limit=200"),
-  ]);
-  return enrichProfitabilityStatus(profitability, trades, portfolios, strategies) ?? profitability;
-}
 
 async function proxyRequest(req: NextRequest, pathSegments: string[]) {
   const path = pathSegments.join("/");
@@ -36,7 +10,7 @@ async function proxyRequest(req: NextRequest, pathSegments: string[]) {
 
   if (req.method === "GET" && path === "profitability" && !search) {
     try {
-      const enriched = await profitabilityWithActiveBots();
+      const enriched = await fetchActiveGateStatus();
       return NextResponse.json(enriched);
     } catch {
       // fall through to plain proxy
