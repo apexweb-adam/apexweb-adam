@@ -42,9 +42,11 @@ import type {
 type Tab = "overview" | "trades" | "positions" | "intelligence" | "learning" | "strategy";
 
 export default function Dashboard() {
-  const { stats, portfolios, bots, connected, lastUpdate, lastTrade } = useLiveData();
-  const { data: trades } = useAPI<Trade[]>("/trades?limit=50", 5000);
-  const { data: positions } = useAPI<Position[]>("/positions", 5000);
+  const { stats, portfolios, bots, positions: livePositions, trades: liveTrades, connected, lastUpdate, lastTrade } = useLiveData();
+  const { data: tradesRest } = useAPI<Trade[]>("/trades?limit=50", 30000);
+  const { data: positionsRest } = useAPI<Position[]>("/positions", 30000);
+  const trades = connected ? liveTrades : (tradesRest ?? []);
+  const positions = connected ? livePositions : (positionsRest ?? []);
   const { data: intelligence } = useAPI<IntelligenceItem[]>("/intelligence?limit=30", 15000);
   const { data: analyses } = useAPI<TradeAnalysis[]>("/analyses?limit=20", 15000);
   const { data: reviews } = useAPI<DailyReview[]>("/reviews?limit=10", 30000);

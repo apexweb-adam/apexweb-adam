@@ -394,25 +394,16 @@ async def get_platform_status(db: AsyncSession = Depends(get_db)) -> dict[str, A
   }
 
 
-from app.ws_manager import manager
-
-
 @router.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
+  from app.ws_manager import build_live_payload, manager
+
   await manager.connect(websocket)
   try:
     while True:
       async with SessionLocal() as db:
-        stats = await get_stats(db)
-        portfolios = await get_portfolios(db)
-        bots_data = await get_bots(db)
-      await websocket.send_json({
-        "type": "update",
-        "timestamp": datetime.utcnow().isoformat(),
-        "stats": stats,
-        "portfolios": portfolios,
-        "bots": bots_data,
-      })
+        payload = await build_live_payload(db)
+      await websocket.send_json(payload)
       await asyncio.sleep(2)
   except WebSocketDisconnect:
     manager.disconnect(websocket)
