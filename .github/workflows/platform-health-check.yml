@@ -26,6 +26,17 @@ jobs:
             d.get('total_equity'), d.get('total_pnl'), d.get('total_trades'), d.get('intelligence_items')))
           "
 
+      - name: Check backend deploy is current
+        run: |
+          LATEST=$(curl -fsS "https://api.github.com/repos/apexweb-adam/apexweb-adam/commits/main" | python3 -c "import json,sys; print(json.load(sys.stdin)['sha'][:12])")
+          DEPLOYED=$(curl -fsS "https://apex-trading-backend.onrender.com/api/status" | python3 -c "import json,sys; d=json.load(sys.stdin).get('deploy',{}); print((d.get('git_commit') or '?')[:12])")
+          echo "main=$LATEST deployed=$DEPLOYED"
+          if [[ "$DEPLOYED" != "$LATEST" && "$DEPLOYED" != "${LATEST:0:12}" ]]; then
+            echo "::warning::Render backend stale — deployed $DEPLOYED, main is $LATEST. Trigger manual deploy."
+          else
+            echo "Backend deploy matches main ($DEPLOYED)"
+          fi
+
       - name: Check backend status endpoint (via proxy)
         run: |
           curl -fsS "https://apex-trading-dashboard-flame.vercel.app/api/backend/status" | python3 -c "

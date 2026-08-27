@@ -217,9 +217,25 @@ export default function Dashboard() {
                   )}
                 </Card>
               )}
-              {platformStatus?.deploy && platformStatus.deploy.next_steps.length > 0 && (
+              {platformStatus?.deploy &&
+                (platformStatus.deploy.is_stale ||
+                  (platformStatus.deploy.next_steps?.length ?? 0) > 0) && (
                 <Card title="Production Deploy">
                   <div className="space-y-3">
+                    {platformStatus.deploy.is_stale && (
+                      <div className="rounded-lg border border-apex-gold/40 bg-apex-gold/10 px-3 py-2 text-xs text-apex-gold">
+                        Backend deploy is stale
+                        {platformStatus.deploy.stale_minutes != null && (
+                          <span> ({platformStatus.deploy.stale_minutes}m behind main)</span>
+                        )}
+                        {platformStatus.deploy.git_commit && platformStatus.deploy.latest_main_commit && (
+                          <div className="mt-1 font-mono text-[10px] text-gray-400">
+                            running {platformStatus.deploy.git_commit.slice(0, 12)} → main{" "}
+                            {platformStatus.deploy.latest_main_commit.slice(0, 12)}
+                          </div>
+                        )}
+                      </div>
+                    )}
                     <div className="flex flex-wrap gap-2 text-xs">
                       <span
                         className={cn(
@@ -236,11 +252,13 @@ export default function Dashboard() {
                         {platformStatus.intelligence.total_sources}
                       </span>
                     </div>
-                    <ul className="space-y-2 text-xs text-gray-400 list-disc list-inside">
-                      {platformStatus.deploy.next_steps.map((step) => (
-                        <li key={step}>{step}</li>
-                      ))}
-                    </ul>
+                    {(platformStatus.deploy.next_steps?.length ?? 0) > 0 && (
+                      <ul className="space-y-2 text-xs text-gray-400 list-disc list-inside">
+                        {platformStatus.deploy.next_steps.map((step) => (
+                          <li key={step}>{step}</li>
+                        ))}
+                      </ul>
+                    )}
                     <a
                       href={platformStatus.deploy.render_blueprint}
                       target="_blank"

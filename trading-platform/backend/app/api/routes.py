@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings, BOT_TYPES
 from app.database import SessionLocal, get_db, is_postgres
+from app.engines.deploy_status import build_deploy_status
 from app.engines.profitability_gate import ProfitabilityGate
 from app.engines.trade_stats import aggregate_win_rate
 from app.models.entities import (
@@ -370,6 +371,17 @@ async def get_platform_status(db: AsyncSession = Depends(get_db)) -> dict[str, A
   ).scalars().all()
 
   active_sources = sum(1 for s in sources if s["status"] in ("active", "degraded"))
+  deploy_info = await build_deploy_status()
+  base_next_steps = (
+    []
+    if is_postgres()
+    else [
+      "Deploy Render Blueprint from main (render.yaml has no disk — Supabase required)",
+      "Set DATABASE_URL to Supabase pooler URI — see SUPABASE_SETUP.md",
+      "Paste secrets from scripts/export-render-env.sh into Render Environment",
+      "Set Vercel BACKEND_URL + BACKEND_WS_URL to Render service URL",
+    ]
+  )
   return {
     "platform": "Apex Trading Platform",
     "version": "1.0.0",
@@ -424,24 +436,21 @@ async def get_platform_status(db: AsyncSession = Depends(get_db)) -> dict[str, A
       "render_blueprint": "https://render.com/deploy?repo=https://github.com/apexweb-adam/apexweb-adam",
       "supabase_project": "zzgmovjapeyauvpdpuqe",
       "dashboard_url": "https://apex-trading-dashboard-flame.vercel.app",
-      "git_commit": settings.render_git_commit or os.environ.get("RENDER_GIT_COMMIT") or None,
-      "git_branch": settings.render_git_branch or os.environ.get("RENDER_GIT_BRANCH") or None,
+      "git_commit": deploy_info.get("git_commit"),
+      "git_branch": deploy_info.get("git_branch"),
+      "latest_main_commit": deploy_info.get("latest_main_commit"),
+      "latest_main_message": deploy_info.get("latest_main_message"),
+      "is_stale": deploy_info.get("is_stale"),
+      "stale_minutes": deploy_info.get("stale_minutes"),
       "features": {
         "admin_risk_migrations": True,
         "admin_reset_paper_trading": True,
         "polymarket_position_cap": True,
         "startup_strategy_migration": True,
+        "aggregate_win_rate": True,
+        "breakeven_trade_handling": True,
       },
-      "next_steps": (
-        []
-        if is_postgres()
-        else [
-          "Deploy Render Blueprint from main (render.yaml has no disk — Supabase required)",
-          "Set DATABASE_URL to Supabase pooler URI — see SUPABASE_SETUP.md",
-          "Paste secrets from scripts/export-render-env.sh into Render Environment",
-          "Set Vercel BACKEND_URL + BACKEND_WS_URL to Render service URL",
-        ]
-      ),
+      "next_steps": base_next_steps + deploy_info.get("next_steps", []),
     },
   }
 
