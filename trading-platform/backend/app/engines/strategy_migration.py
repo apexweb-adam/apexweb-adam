@@ -69,6 +69,14 @@ async def adapt_for_gate_win_rate(session: AsyncSession) -> int:
 
 async def clamp_verification_strategy_params(session: AsyncSession) -> int:
   """Lower over-tightened signal thresholds so all bots can trade during verification."""
+  from app.engines.profitability_gate import ProfitabilityGate
+
+  gate = await ProfitabilityGate(session).evaluate()
+  gate_below_target = (
+    gate.get("total_trades", 0) >= 30
+    and (gate.get("win_rate") or 0) < ProfitabilityGate.MIN_WIN_RATE
+  )
+
   configs = list((await session.execute(select(StrategyConfig))).scalars().all())
   updated = 0
   for config in configs:
@@ -79,7 +87,7 @@ async def clamp_verification_strategy_params(session: AsyncSession) -> int:
     if config.min_signal_score > ceiling:
       config.min_signal_score = ceiling
       changed = True
-    if config.min_sentiment_score > 0.15:
+    if not gate_below_target and config.min_sentiment_score > 0.15:
       config.min_sentiment_score = 0.0
       changed = True
     if config.bot_type == "polymarket":
