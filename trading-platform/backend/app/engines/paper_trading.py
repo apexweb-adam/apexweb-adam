@@ -5,6 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
+from app.engines.price_validation import is_price_consistent
 from app.models.entities import BotState, Portfolio, Position, StrategyConfig, Trade
 
 
@@ -182,6 +183,8 @@ class PaperTradingEngine:
     for pos in positions:
       price = prices.get(pos.symbol)
       if not price:
+        continue
+      if not is_price_consistent(pos.entry_price, price):
         continue
 
       pos.current_price = price

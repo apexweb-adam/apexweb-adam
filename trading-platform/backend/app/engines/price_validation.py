@@ -32,3 +32,11 @@ def is_price_sane(symbol: str, price: float) -> bool:
     return True
   low, high = bounds
   return low <= price <= high
+
+
+def is_price_consistent(entry_price: float, current_price: float, max_move_pct: float = 0.20) -> bool:
+  """Reject single-tick jumps that usually mean stale fallback data, not real markets."""
+  if entry_price <= 0 or current_price <= 0:
+    return False
+  move = abs(current_price - entry_price) / entry_price
+  return move <= max_move_pct
