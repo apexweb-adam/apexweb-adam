@@ -1,0 +1,56 @@
+name: Promote Vercel Dashboard to Production
+
+# Promotes a validated preview deployment to production without rebuilding.
+# Requires VERCEL_TOKEN in GitHub secrets.
+
+on:
+  workflow_dispatch:
+    inputs:
+      deployment_id:
+        description: Vercel deployment ID to promote (default latest preview with active-gate)
+        required: false
+        default: "dpl_9mmWv1xwK7yzyk1aMzLLFMxLpp9h"
+      preview_url:
+        description: Preview URL to verify before promote
+        required: false
+        default: "https://apex-trading-dashboard-90czgdzsg-apexweb-adams-projects.vercel.app"
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID || 'team_K7OUE7uroVXeVUf42cUAQvAl' }}
+      VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID || 'prj_HGbG5vHgfutHi31QfXDqSsTnTAGv' }}
+      DEPLOYMENT_ID: ${{ inputs.deployment_id }}
+      PREVIEW_URL: ${{ inputs.preview_url }}
+    steps:
+      - name: Promote deployment to production
+        run: |
+          set -euo pipefail
+          if [ -z "${VERCEL_TOKEN:-}" ]; then
+            echo "::error::VERCEL_TOKEN secret is required. Create at https://vercel.com/account/tokens"
+            exit 1
+          fi
+          GATE=$(curl -fsS -o /dev/null -w "%{http_code}" "${PREVIEW_URL}/api/active-gate" || echo "000")
+          echo "Preview /api/active-gate HTTP $GATE"
+          if [[ "$GATE" != "200" ]]; then
+            echo "::warning::Preview missing /api/active-gate — promoting anyway (deployment_id=$DEPLOYMENT_ID)"
+          fi
+          HTTP=$(curl -fsS -o /tmp/promote.json -w "%{http_code}" -X POST \
+            "https://api.vercel.com/v10/projects/${VERCEL_PROJECT_ID}/promote/${DEPLOYMENT_ID}?teamId=${VERCEL_ORG_ID}" \
+            -H "Authorization: Bearer ${VERCEL_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d '{}')
+          echo "Promote API HTTP $HTTP"
+          cat /tmp/promote.json
+          if [[ "$HTTP" != "201" && "$HTTP" != "200" && "$HTTP" != "202" ]]; then
+            echo "::error::Vercel promote failed"
+            exit 1
+          fi
+          sleep 10
+          PROD_GATE=$(curl -fsS -o /dev/null -w "%{http_code}" "https://apex-trading-dashboard-flame.vercel.app/api/active-gate" || echo "000")
+          echo "Production /api/active-gate HTTP $PROD_GATE"
+          if [[ "$PROD_GATE" != "200" ]]; then
+            echo "::warning::Production still missing /api/active-gate — alias propagation may take a minute"
+          fi

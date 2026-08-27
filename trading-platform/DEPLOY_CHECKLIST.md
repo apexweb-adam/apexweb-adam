@@ -61,6 +61,8 @@ Add these in **GitHub → repo → Settings → Secrets and variables → Action
 | `RENDER_DEPLOY_HOOK` | Auto-redeploy backend when stale (Render → apex-trading-backend → Settings → Deploy Hook) |
 | `RENDER_API_KEY` | Alternative backend deploy via Render API |
 
+**One-time production promote:** After adding `VERCEL_TOKEN`, run the **Promote Vercel Dashboard to Production** workflow (Actions → workflow_dispatch). It promotes preview `dpl_9mmWv1xwK7yzyk1aMzLLFMxLpp9h` without rebuilding.
+
 Optional repo **variables** (defaults exist in workflow):
 
 | Variable | Value |
