@@ -15,7 +15,7 @@ import {
   TrendingUp,
   Zap,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useLiveData } from "@/lib/useLiveData";
 import { useAPI } from "@/lib/useAPI";
 import {
@@ -40,12 +40,14 @@ import type {
   IntelligenceSource,
   PlatformStatus,
 } from "@/lib/api";
+import { enrichProfitabilityStatus } from "@/lib/profitability";
 
 type Tab = "overview" | "trades" | "positions" | "intelligence" | "learning" | "strategy";
 
 export default function Dashboard() {
   const { stats, portfolios, bots, positions: livePositions, trades: liveTrades, connected, lastUpdate, lastTrade } = useLiveData();
   const { data: tradesRest } = useAPI<Trade[]>("/trades?limit=50", 30000);
+  const { data: gateTradesRest } = useAPI<Trade[]>("/trades?limit=200", 30000);
   const { data: positionsRest } = useAPI<Position[]>("/positions", 30000);
   const trades = connected ? liveTrades : (tradesRest ?? []);
   const positions = connected ? livePositions : (positionsRest ?? []);
@@ -62,6 +64,20 @@ export default function Dashboard() {
   const { data: intelSources } = useAPI<IntelligenceSource[]>("/intelligence/sources", 30000);
   const { data: platformStatus } = useAPI<PlatformStatus>("/status", 30000);
   const [tab, setTab] = useState<Tab>("overview");
+
+  const gateTrades = useMemo(() => {
+    const rest = gateTradesRest ?? tradesRest ?? [];
+    if (!connected || liveTrades.length === 0) return rest;
+    const byId = new Map<number, Trade>();
+    for (const t of rest) byId.set(t.id, t);
+    for (const t of liveTrades) byId.set(t.id, t);
+    return Array.from(byId.values());
+  }, [connected, liveTrades, gateTradesRest, tradesRest]);
+
+  const gateStatus = useMemo(
+    () => enrichProfitabilityStatus(profitability ?? undefined, gateTrades, portfolios, strategies),
+    [profitability, gateTrades, portfolios, strategies]
+  );
 
   const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
     { id: "overview", label: "Overview", icon: <BarChart3 size={16} /> },
@@ -132,7 +148,7 @@ export default function Dashboard() {
           />
           <StatCard
             label="Win Rate"
-            value={formatPct(profitability?.win_rate ?? stats?.avg_win_rate ?? 0)}
+            value={formatPct(gateStatus?.win_rate ?? stats?.avg_win_rate ?? 0)}
             icon={<BarChart3 size={18} className="text-apex-blue" />}
           />
           <StatCard
@@ -283,51 +299,51 @@ export default function Dashboard() {
                 </Card>
               )}
               <Card title="Profitability Gate">
-                {profitability ? (
+                {gateStatus ? (
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-gray-400">Live trading ready</span>
                       <span
                         className={cn(
                           "text-xs px-2 py-1 rounded-full font-medium",
-                          profitability.live_trading_ready
+                          gateStatus.live_trading_ready
                             ? "bg-apex-green/10 text-apex-green"
                             : "bg-apex-gold/10 text-apex-gold"
                         )}
                       >
-                        {profitability.live_trading_ready ? "READY" : "PAPER ONLY"}
+                        {gateStatus.live_trading_ready ? "READY" : "PAPER ONLY"}
                       </span>
                     </div>
-                    {profitability.verification_started_at && (
+                    {gateStatus.verification_started_at && (
                       <p className="text-xs text-gray-500">
-                        Verification day {profitability.verification_day ?? (profitability.days_trading ?? 0) + 1} of 30
-                        {profitability.verification_days_remaining != null && (
+                        Verification day {gateStatus.verification_day ?? (gateStatus.days_trading ?? 0) + 1} of 30
+                        {gateStatus.verification_days_remaining != null && (
                           <span className="text-gray-600">
                             {" "}
-                            · {profitability.verification_days_remaining} days remaining
+                            · {gateStatus.verification_days_remaining} days remaining
                           </span>
                         )}
                         <span className="text-gray-600">
                           {" "}
                           · started{" "}
-                          {new Date(profitability.verification_started_at).toLocaleDateString()}
+                          {new Date(gateStatus.verification_started_at).toLocaleDateString()}
                         </span>
                       </p>
                     )}
-                    <p className="text-xs text-gray-500">{profitability.recommendation}</p>
-                    {profitability.paused_bots && profitability.paused_bots.length > 0 && (
+                    <p className="text-xs text-gray-500">{gateStatus.recommendation}</p>
+                    {gateStatus.paused_bots && gateStatus.paused_bots.length > 0 && (
                       <p className="text-xs text-amber-500/90">
-                        Gate excludes paused bots: {profitability.paused_bots.join(", ")}
-                        {profitability.aggregate && (
+                        Gate excludes paused bots: {gateStatus.paused_bots.join(", ")}
+                        {gateStatus.aggregate && (
                           <span className="text-gray-500">
                             {" "}
-                            · all-bots PnL {profitability.aggregate.total_pnl.toFixed(2)}
+                            · all-bots PnL {gateStatus.aggregate.total_pnl.toFixed(2)}
                           </span>
                         )}
                       </p>
                     )}
                     <div className="space-y-1">
-                      {Object.entries(profitability.checks).map(([key, check]) => (
+                      {Object.entries(gateStatus.checks).map(([key, check]) => (
                         <div key={key} className="flex justify-between text-xs">
                           <span className="text-gray-500">{key.replace(/_/g, " ")}</span>
                           <span className={check.passed ? "text-apex-green" : "text-apex-red"}>
