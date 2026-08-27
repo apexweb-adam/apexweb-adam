@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
-from sqlalchemy import desc, select
+from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings, BOT_TYPES
@@ -22,6 +22,7 @@ from app.models.entities import (
   StrategyConfig,
   Trade,
   TradeAnalysis,
+  VerificationSnapshot,
 )
 
 router = APIRouter()
@@ -280,6 +281,33 @@ async def get_profitability(db: AsyncSession = Depends(get_db)) -> dict[str, Any
   return await gate.evaluate()
 
 
+@router.get("/verification/history")
+async def get_verification_history(
+  limit: int = 30,
+  db: AsyncSession = Depends(get_db),
+) -> list[dict[str, Any]]:
+  result = await db.execute(
+    select(VerificationSnapshot)
+    .order_by(desc(VerificationSnapshot.snapshot_date))
+    .limit(min(limit, 90))
+  )
+  snapshots = result.scalars().all()
+  return [
+    {
+      "snapshot_date": s.snapshot_date,
+      "verification_day": s.verification_day,
+      "total_trades": s.total_trades,
+      "win_rate": s.win_rate,
+      "profit_factor": s.profit_factor,
+      "total_pnl": s.total_pnl,
+      "performance_checks_passed": s.performance_checks_passed,
+      "live_trading_ready": s.live_trading_ready,
+      "created_at": s.created_at.isoformat() if s.created_at else None,
+    }
+    for s in snapshots
+  ]
+
+
 @router.get("/intelligence/sources")
 async def get_intelligence_sources(db: AsyncSession = Depends(get_db)) -> list[dict[str, Any]]:
   result = await db.execute(select(IntelligenceItem.source, IntelligenceItem.fetched_at))
@@ -369,6 +397,9 @@ async def get_platform_status(db: AsyncSession = Depends(get_db)) -> dict[str, A
   insights = (
     await db.execute(select(LearningInsight))
   ).scalars().all()
+  snapshot_count = (
+    await db.execute(select(func.count(VerificationSnapshot.id)))
+  ).scalar_one()
 
   active_sources = sum(1 for s in sources if s["status"] in ("active", "degraded"))
   deploy_info = await build_deploy_status()
@@ -404,6 +435,7 @@ async def get_platform_status(db: AsyncSession = Depends(get_db)) -> dict[str, A
       "daily_reviews": len(reviews),
       "insights_applied": sum(1 for i in insights if i.applied),
       "insights_total": len(insights),
+      "verification_snapshots": snapshot_count,
     },
     "integrations": {
       "tradingview_webhook": bool(settings.tradingview_webhook_secret),
@@ -420,6 +452,7 @@ async def get_platform_status(db: AsyncSession = Depends(get_db)) -> dict[str, A
       "content_study": "every 2 hours",
       "risk_migration": "every 15 min",
       "daily_review": "22:00 UTC",
+      "verification_snapshot": "23:00 UTC",
     },
     "deploy": {
       "database_persistent": is_postgres(),

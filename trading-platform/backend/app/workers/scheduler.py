@@ -42,6 +42,19 @@ async def daily_review_job() -> None:
       )
 
 
+async def verification_snapshot_job() -> None:
+  from app.engines.verification_snapshot import record_verification_snapshot
+
+  async with SessionLocal() as session:
+    snapshot = await record_verification_snapshot(session)
+    print(
+      f"[VerificationSnapshot] day {snapshot.verification_day}: "
+      f"{snapshot.total_trades} trades, WR {snapshot.win_rate:.1%}, "
+      f"PF {snapshot.profit_factor:.2f}, PnL ${snapshot.total_pnl:.2f}, "
+      f"perf_ok={snapshot.performance_checks_passed}"
+    )
+
+
 async def reset_daily_bot_stats_job() -> None:
   from sqlalchemy import update
 
@@ -160,10 +173,12 @@ async def setup_scheduler() -> None:
   scheduler.add_job(content_study_job, "interval", hours=2, id="content_study")
   scheduler.add_job(risk_migration_job, "interval", minutes=15, id="risk_migration")
   scheduler.add_job(daily_review_job, "cron", hour=22, minute=0, id="daily_review")
+  scheduler.add_job(verification_snapshot_job, "cron", hour=23, minute=0, id="verification_snapshot")
   scheduler.add_job(reset_daily_bot_stats_job, "cron", hour=0, minute=0, id="reset_daily_stats")
   scheduler.start()
 
   await intelligence_job()
   await content_study_job()
   await ensure_daily_review_on_startup()
+  await verification_snapshot_job()
   await start_bots()

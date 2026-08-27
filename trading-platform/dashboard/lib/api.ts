@@ -184,6 +184,18 @@ export type ProfitabilityStatus = {
   checks: Record<string, { required: unknown; actual: unknown; passed: boolean }>;
 };
 
+export type VerificationSnapshot = {
+  snapshot_date: string;
+  verification_day: number;
+  total_trades: number;
+  win_rate: number;
+  profit_factor: number;
+  total_pnl: number;
+  performance_checks_passed: boolean;
+  live_trading_ready: boolean;
+  created_at: string | null;
+};
+
 export type IntelligenceSource = {
   source: string;
   status: string;

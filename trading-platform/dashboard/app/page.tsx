@@ -36,6 +36,7 @@ import type {
   LearningInsight,
   StrategyConfig,
   ProfitabilityStatus,
+  VerificationSnapshot,
   IntelligenceSource,
   PlatformStatus,
 } from "@/lib/api";
@@ -54,6 +55,10 @@ export default function Dashboard() {
   const { data: insights } = useAPI<LearningInsight[]>("/insights?limit=20", 30000);
   const { data: strategies } = useAPI<StrategyConfig[]>("/strategies", 30000);
   const { data: profitability } = useAPI<ProfitabilityStatus>("/profitability", 15000);
+  const { data: verificationHistory } = useAPI<VerificationSnapshot[]>(
+    "/verification/history?limit=30",
+    60000
+  );
   const { data: intelSources } = useAPI<IntelligenceSource[]>("/intelligence/sources", 30000);
   const { data: platformStatus } = useAPI<PlatformStatus>("/status", 30000);
   const [tab, setTab] = useState<Tab>("overview");
@@ -313,6 +318,26 @@ export default function Dashboard() {
                         </div>
                       ))}
                     </div>
+                    {(verificationHistory ?? []).length > 0 && (
+                      <div className="pt-2 border-t border-apex-border">
+                        <p className="text-xs text-gray-500 mb-2">Daily verification log</p>
+                        <div className="space-y-1 max-h-32 overflow-y-auto">
+                          {(verificationHistory ?? []).slice(0, 7).map((snap) => (
+                            <div
+                              key={snap.snapshot_date}
+                              className="flex justify-between text-xs text-gray-400"
+                            >
+                              <span>
+                                Day {snap.verification_day} · {snap.total_trades} trades
+                              </span>
+                              <span className={snap.performance_checks_passed ? "text-apex-green" : "text-apex-red"}>
+                                {formatPct(snap.win_rate)} · PF {snap.profit_factor.toFixed(2)}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <p className="text-sm text-gray-500">Loading profitability status...</p>
