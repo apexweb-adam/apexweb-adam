@@ -55,8 +55,13 @@ async def reset_paper_trading(session: AsyncSession) -> dict:
 
   await session.commit()
 
+  from app.engines.platform_settings import set_verification_started_at
+
+  started_at = await set_verification_started_at(session)
+
   return {
     "bots_reset": len(BOT_TYPES),
     "initial_balance_per_bot": settings.initial_balance,
     "intel_items_kept": intel_before,
+    "verification_started_at": started_at.isoformat(),
   }
