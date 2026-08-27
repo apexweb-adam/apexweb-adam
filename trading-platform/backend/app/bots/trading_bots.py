@@ -295,8 +295,10 @@ class PolymarketBot(BaseBot):
         open_positions = await engine.get_open_positions()
         pm_open = len(open_positions)
         prices: dict[str, float] = {}
+        held_symbols = [p.symbol for p in open_positions]
+        scan_symbols = list(dict.fromkeys(held_symbols + symbols))
 
-        for symbol in symbols:
+        for symbol in scan_symbols:
           try:
             price, df = await self.fetch_price_data(symbol)
             if price <= 0 or not is_price_sane(symbol, price):
@@ -334,6 +336,9 @@ class PolymarketBot(BaseBot):
                   if won is False:
                     await self._analyze_loss(session, symbol)
                   self._register_symbol_cooldown(symbol, after_loss=won is False)
+              continue
+
+            if symbol not in symbols:
               continue
 
             cooldown = self._symbol_cooldown_until.get(symbol)
