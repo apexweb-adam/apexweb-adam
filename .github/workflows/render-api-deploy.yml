@@ -19,14 +19,57 @@ on:
 
 jobs:
   trigger-render-api:
-    if: ${{ secrets.RENDER_API_KEY != '' }}
     runs-on: ubuntu-latest
+    env:
+      RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+      RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+      CLEAR_CACHE: ${{ inputs.clear_cache || 'false' }}
     steps:
-      - name: Find apex-trading-backend service
-        id: find
-        env:
-          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+      - name: Trigger Render deploy
         run: |
+          set -euo pipefail
+          if [ -n "${RENDER_API_KEY:-}" ]; then
+            SERVICES=$(curl -fsS -H "Authorization: Bearer $RENDER_API_KEY" \
+              "https://api.render.com/v1/services?limit=100")
+            SERVICE_ID=$(echo "$SERVICES" | python3 -c "
+          import json, sys
+          data = json.load(sys.stdin)
+          for item in data:
+              svc = item.get('service') or item
+              if svc.get('name') == 'apex-trading-backend':
+                  print(svc['id'])
+                  break
+          ")
+            if [[ -z "$SERVICE_ID" ]]; then
+              echo "Service apex-trading-backend not found. Deploy via Render Blueprint first." >&2
+              exit 1
+            fi
+            BODY="{}"
+            if [[ "$CLEAR_CACHE" == "true" ]]; then
+              BODY='{"clearCache": true}'
+            fi
+            curl -fsS -X POST \
+              -H "Authorization: Bearer $RENDER_API_KEY" \
+              -H "Content-Type: application/json" \
+              -d "$BODY" \
+              "https://api.render.com/v1/services/${SERVICE_ID}/deploys"
+            echo "Deploy triggered for apex-trading-backend via API"
+          elif [ -n "${RENDER_DEPLOY_HOOK:-}" ]; then
+            curl -fsS -X POST "$RENDER_DEPLOY_HOOK"
+            echo "Triggered RENDER_DEPLOY_HOOK"
+          else
+            echo "::warning::RENDER_API_KEY and RENDER_DEPLOY_HOOK are not set — cannot trigger Render deploy from CI."
+            echo "Render Blueprint autoDeploy may still deploy from GitHub pushes."
+            echo "Verify: https://apex-trading-backend.onrender.com/api/status (deploy.git_commit vs latest_main_commit)"
+            echo "Manual deploy: Render Dashboard → apex-trading-backend → Manual Deploy"
+            echo "Or add Deploy Hook URL to GitHub secret RENDER_DEPLOY_HOOK (see trading-platform/RENDER_DEPLOY.md)"
+          fi
+
+      - name: Print service URL
+        run: |
+          if [ -z "${RENDER_API_KEY:-}" ]; then
+            exit 0
+          fi
           SERVICES=$(curl -fsS -H "Authorization: Bearer $RENDER_API_KEY" \
             "https://api.render.com/v1/services?limit=100")
           SERVICE_ID=$(echo "$SERVICES" | python3 -c "
@@ -38,46 +81,8 @@ jobs:
                   print(svc['id'])
                   break
           ")
-          if [[ -z "$SERVICE_ID" ]]; then
-            echo "Service apex-trading-backend not found. Deploy via Render Blueprint first." >&2
-            exit 1
-          fi
-          echo "service_id=$SERVICE_ID" >> "$GITHUB_OUTPUT"
-
-      - name: Trigger deploy
-        env:
-          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
-          CLEAR_CACHE: ${{ inputs.clear_cache }}
-        run: |
-          BODY="{}"
-          if [[ "$CLEAR_CACHE" == "true" ]]; then
-            BODY='{"clearCache": true}'
-          fi
-          curl -fsS -X POST \
-            -H "Authorization: Bearer $RENDER_API_KEY" \
-            -H "Content-Type: application/json" \
-            -d "$BODY" \
-            "https://api.render.com/v1/services/${{ steps.find.outputs.service_id }}/deploys"
-          echo "Deploy triggered for apex-trading-backend"
-
-      - name: Print service URL
-        env:
-          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
-        run: |
           SVC=$(curl -fsS -H "Authorization: Bearer $RENDER_API_KEY" \
-            "https://api.render.com/v1/services/${{ steps.find.outputs.service_id }}")
+            "https://api.render.com/v1/services/${SERVICE_ID}")
           URL=$(echo "$SVC" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('serviceDetails',{}).get('url','') or d.get('service',{}).get('serviceDetails',{}).get('url',''))")
           echo "Backend URL: $URL"
           echo "Set Vercel BACKEND_URL=$URL and BACKEND_WS_URL=${URL/https/wss}"
-
-  deploy-not-configured:
-    if: ${{ secrets.RENDER_API_KEY == '' && secrets.RENDER_DEPLOY_HOOK == '' }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Render deploy credentials missing
-        run: |
-          echo "::warning::RENDER_API_KEY and RENDER_DEPLOY_HOOK are not set — cannot trigger Render deploy from CI."
-          echo "Render Blueprint autoDeploy may still deploy from GitHub pushes."
-          echo "Verify: https://apex-trading-backend.onrender.com/api/status (deploy.git_commit vs latest_main_commit)"
-          echo "Manual deploy: Render Dashboard → apex-trading-backend → Manual Deploy"
-          echo "Or add Deploy Hook URL to GitHub secret RENDER_DEPLOY_HOOK (see trading-platform/RENDER_DEPLOY.md)"

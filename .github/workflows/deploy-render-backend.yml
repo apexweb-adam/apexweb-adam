@@ -12,21 +12,47 @@ on:
 jobs:
   trigger-render:
     runs-on: ubuntu-latest
+    env:
+      RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+      RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
     steps:
-      - name: Trigger Render deploy hook
-        if: ${{ secrets.RENDER_DEPLOY_HOOK != '' }}
-        run: curl -fsS -X POST "${{ secrets.RENDER_DEPLOY_HOOK }}"
-
-      - name: Deploy hook not configured
-        if: ${{ secrets.RENDER_DEPLOY_HOOK == '' && secrets.RENDER_API_KEY == '' }}
+      - name: Trigger Render deploy
         run: |
-          echo "::warning::Neither RENDER_DEPLOY_HOOK nor RENDER_API_KEY is set."
-          echo "Render Blueprint autoDeploy from GitHub may still deploy — verify:"
-          echo "  https://apex-trading-backend.onrender.com/api/status (deploy.git_commit vs latest_main_commit)"
-          echo "Add Deploy Hook URL from Render → Settings → Deploy Hook to repo secrets."
+          set -euo pipefail
+          if [ -n "${RENDER_DEPLOY_HOOK:-}" ]; then
+            curl -fsS -X POST "$RENDER_DEPLOY_HOOK"
+            echo "Triggered RENDER_DEPLOY_HOOK"
+          elif [ -n "${RENDER_API_KEY:-}" ]; then
+            SERVICES=$(curl -fsS -H "Authorization: Bearer $RENDER_API_KEY" \
+              "https://api.render.com/v1/services?limit=100")
+            SERVICE_ID=$(echo "$SERVICES" | python3 -c "
+          import json, sys
+          data = json.load(sys.stdin)
+          for item in data:
+              svc = item.get('service') or item
+              if svc.get('name') == 'apex-trading-backend':
+                  print(svc['id'])
+                  break
+          ")
+            if [[ -z "$SERVICE_ID" ]]; then
+              echo "Service apex-trading-backend not found." >&2
+              exit 1
+            fi
+            curl -fsS -X POST \
+              -H "Authorization: Bearer $RENDER_API_KEY" \
+              -H "Content-Type: application/json" \
+              -d "{}" \
+              "https://api.render.com/v1/services/${SERVICE_ID}/deploys"
+            echo "Deploy triggered via Render API"
+          else
+            echo "::warning::Neither RENDER_DEPLOY_HOOK nor RENDER_API_KEY is set."
+            echo "Render Blueprint autoDeploy from GitHub may still deploy — verify:"
+            echo "  https://apex-trading-backend.onrender.com/api/status (deploy.git_commit vs latest_main_commit)"
+            echo "Add Deploy Hook URL from Render → Settings → Deploy Hook to repo secrets."
+          fi
 
       - name: Verify production picked up backend deploy
-        if: ${{ secrets.RENDER_DEPLOY_HOOK == '' && secrets.RENDER_API_KEY == '' }}
+        if: always()
         run: |
           set -euo pipefail
           sleep 15
@@ -41,40 +67,3 @@ jobs:
           if [[ "$VERIFY" != "200" ]]; then
             echo "::warning::Verification snapshot endpoint HTTP $VERIFY — latest backend not live yet."
           fi
-
-  trigger-render-api:
-    if: ${{ secrets.RENDER_DEPLOY_HOOK == '' && secrets.RENDER_API_KEY != '' }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Find apex-trading-backend service
-        id: find
-        env:
-          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
-        run: |
-          SERVICES=$(curl -fsS -H "Authorization: Bearer $RENDER_API_KEY" \
-            "https://api.render.com/v1/services?limit=100")
-          SERVICE_ID=$(echo "$SERVICES" | python3 -c "
-          import json, sys
-          data = json.load(sys.stdin)
-          for item in data:
-              svc = item.get('service') or item
-              if svc.get('name') == 'apex-trading-backend':
-                  print(svc['id'])
-                  break
-          ")
-          if [[ -z "$SERVICE_ID" ]]; then
-            echo "Service apex-trading-backend not found." >&2
-            exit 1
-          fi
-          echo "service_id=$SERVICE_ID" >> "$GITHUB_OUTPUT"
-
-      - name: Trigger deploy via Render API
-        env:
-          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
-        run: |
-          curl -fsS -X POST \
-            -H "Authorization: Bearer $RENDER_API_KEY" \
-            -H "Content-Type: application/json" \
-            -d "{}" \
-            "https://api.render.com/v1/services/${{ steps.find.outputs.service_id }}/deploys"
-          echo "Deploy triggered via Render API"
