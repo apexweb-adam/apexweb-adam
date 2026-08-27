@@ -1,0 +1,22 @@
+# Render Environment Variables — copy-paste into Render dashboard
+# Generate fresh values: ./trading-platform/scripts/export-render-env.sh
+
+PAPER_TRADING_ONLY=true
+INITIAL_BALANCE=100000
+DATABASE_URL=sqlite+aiosqlite:///./data/trading.db
+CORS_ORIGINS=https://apex-trading-dashboard-flame.vercel.app,https://apex-trading-dashboard-apexweb-adams-projects.vercel.app
+
+# Required secrets (from your local .env — do not commit real values):
+NEWSAPI_KEY=<from .env>
+TWITTER_BEARER_TOKEN=<from .env>
+TRADINGVIEW_WEBHOOK_SECRET=apex_tv_EB9nj4sZ_8nZCIYY-38U8ci4IodUX4G2
+
+# Optional — Polymarket personal positions (only if you add wallet to .env):
+# POLYMARKET_WALLET_ADDRESS=0xYourProxyWallet
+
+# After Render deploy → Vercel (apex-trading-dashboard):
+BACKEND_URL=https://apex-trading-backend.onrender.com
+BACKEND_WS_URL=wss://apex-trading-backend.onrender.com
+
+# TradingView webhook URL (after Render deploy):
+# https://apex-trading-backend.onrender.com/api/webhooks/tradingview

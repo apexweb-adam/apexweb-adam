@@ -128,10 +128,17 @@ async def fetch_crypto_data(symbol: str, interval: str = "5m") -> tuple[float, p
     return cached, generate_synthetic_ohlcv(cached)
 
   defaults = {
-    "BTCUSDT": 95000, "ETHUSDT": 3200, "SOLUSDT": 180,
-    "DOGEUSDT": 0.25, "PEPEUSDT": 0.00001, "PAXGUSDT": 2650,
+    "BTCUSDT": 95000,
+    "ETHUSDT": 3200,
+    "SOLUSDT": 180,
+    "DOGEUSDT": 0.25,
+    "PEPEUSDT": 0.00001,
+    "PAXGUSDT": 4580,
+    "XAUUSDT": 4580,
   }
-  base = defaults.get(symbol, 100)
+  base = defaults.get(symbol)
+  if base is None:
+    return 0.0, None
   return base, generate_synthetic_ohlcv(base)
 
 
@@ -155,5 +162,7 @@ async def fetch_yfinance_data(symbol: str) -> tuple[float, pd.DataFrame | None]:
     "SPY": 580, "QQQ": 500, "ES=F": 5800, "NQ=F": 20500,
     "GC=F": 2650, "SI=F": 30, "CL=F": 75, "EURUSD=X": 1.08,
   }
-  base = cached if cached > 0 else defaults.get(symbol, 100)
+  base = cached if cached > 0 else defaults.get(symbol)
+  if base is None:
+    return 0.0, None
   return base, generate_synthetic_ohlcv(base)

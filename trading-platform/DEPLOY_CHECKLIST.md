@@ -57,7 +57,7 @@ Live dashboard: https://apex-trading-dashboard-flame.vercel.app
 
 Lásd: `TRADINGVIEW_SETUP.md`
 
-**Webhook secret (generálva neked):** `apex_tv_EB9nj4sZ_8nZCIYY-38U8ci4IodUX4G2`
+**Webhook secret (generálva):** `apex_tv_EB9nj4sZ_8nZCIYY-38U8ci4IodUX4G2` — ugyanaz legyen Render env-ben és az alert JSON-ban.
 
 **Webhook URL (backend deploy után):**
 ```
@@ -70,7 +70,7 @@ Alert Message mező (JSON):
   "secret": "apex_tv_EB9nj4sZ_8nZCIYY-38U8ci4IodUX4G2",
   "symbol": "{{ticker}}",
   "action": "{{strategy.order.action}}",
-  "message": "Alert {{ticker}} {{close}}"
+  "message": "Alert {{ticker}} at {{close}}"
 }
 ```
 
@@ -78,9 +78,9 @@ Alert Message mező (JSON):
 
 ## 5. Polymarket
 
-**Nincs szükség bejelentkezésre** a jelenlegi scannerhez — nyilvános API.
+**Nincs szükség bejelentkezésre** — a piaci scanner a nyilvános Gamma API-t használja (már fut).
 
-Ha mégis be akarsz lépni: https://polymarket.com (Google / email / MetaMask).
+Opcionális: ha megadod a proxy wallet címedet (`POLYMARKET_WALLET_ADDRESS=0x...` a `.env`-ben), a bot a saját pozícióidat is olvassa. Jelenleg nincs wallet beállítva — ez rendben van, nem kötelező.
 
 ---
 

@@ -10,6 +10,7 @@ from app.database import SessionLocal
 from app.engines.learning_engine import LearningEngine
 from app.engines.market_data import fetch_crypto_data, fetch_yfinance_data
 from app.engines.paper_trading import PaperTradingEngine
+from app.engines.price_validation import is_price_sane
 from app.engines.signal_engine import SignalEngine
 from app.models.entities import IntelligenceItem, Trade
 
@@ -71,7 +72,7 @@ class BaseBot(ABC):
 
       for symbol in symbols:
         price, df = await self.fetch_price_data(symbol)
-        if price <= 0:
+        if price <= 0 or not is_price_sane(symbol, price):
           continue
         prices[symbol] = price
 
