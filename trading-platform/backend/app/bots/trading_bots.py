@@ -123,7 +123,12 @@ class BaseBot(ABC):
                 await self._analyze_loss(session, symbol)
           continue
 
-        if self.bot_type in ("crypto", "commodities") and signal.macd_signal != "bullish":
+        macd_required = self.bot_type == "crypto" or (
+          gate_tightening.active
+          and gate_tightening.require_macd_bullish
+          and self.bot_type == "commodities"
+        )
+        if macd_required and signal.macd_signal != "bullish":
           continue
 
         if (

@@ -26,7 +26,7 @@ DEFAULT_VERIFIED_DASHBOARD_URL = (
   "https://apex-trading-dashboard-ekn183k28-apexweb-adams-projects.vercel.app"
 )
 DEFAULT_VERIFIED_DEPLOYMENT_ID = "dpl_42zPqzLoftwSZddPxVfp7ztRiVES"
-EXPECTED_DASHBOARD_BUNDLE = "2026-08-27-r9"
+EXPECTED_DASHBOARD_BUNDLE = "2026-08-27-r10"
 
 
 def configured_verified_dashboard_url() -> str:

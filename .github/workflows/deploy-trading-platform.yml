@@ -62,7 +62,7 @@ jobs:
       - name: Verify production dashboard bundle
         if: always()
         env:
-          EXPECTED_BUNDLE_REVISION: "2026-08-27-r9"
+          EXPECTED_BUNDLE_REVISION: "2026-08-27-r10"
         run: |
           set -euo pipefail
           PROD="https://apex-trading-dashboard-flame.vercel.app"
@@ -73,7 +73,7 @@ jobs:
           import json, os, sys
           with open("/tmp/prod-config.json") as f:
               cfg = json.load(f)
-          expected = os.environ.get("EXPECTED_BUNDLE_REVISION", "2026-08-27-r9")
+          expected = os.environ.get("EXPECTED_BUNDLE_REVISION", "2026-08-27-r10")
           ok = (
               cfg.get("bundleRevision") == expected
               and (cfg.get("features") or {}).get("activeGate") is True
