@@ -429,6 +429,7 @@ async def get_platform_status(db: AsyncSession = Depends(get_db)) -> dict[str, A
       "git_branch": settings.render_git_branch or os.environ.get("RENDER_GIT_BRANCH") or None,
       "features": {
         "admin_risk_migrations": True,
+        "admin_reset_paper_trading": True,
         "polymarket_position_cap": True,
         "startup_strategy_migration": True,
       },
@@ -483,6 +484,28 @@ async def apply_risk_migrations(payload: dict[str, Any], db: AsyncSession = Depe
     "status": "ok",
     "strategy_updated": strategy_updated,
     "positions_trimmed": trimmed,
+    "bot_versions_synced": synced,
+    "timestamp": datetime.utcnow().isoformat(),
+  }
+
+
+@router.post("/admin/reset-paper-trading")
+async def reset_paper_trading_admin(payload: dict[str, Any], db: AsyncSession = Depends(get_db)):
+  """Reset paper portfolios to $100k/bot; clears trades/positions/reviews, keeps intel + strategies."""
+  from app.engines.paper_reset import reset_paper_trading
+  from app.engines.strategy_migration import ensure_polymarket_strategy, sync_bot_strategy_versions
+
+  secret = payload.get("secret", "")
+  if not settings.tradingview_webhook_secret or secret != settings.tradingview_webhook_secret:
+    return {"status": "unauthorized"}
+
+  result = await reset_paper_trading(db)
+  strategy_updated = await ensure_polymarket_strategy(db)
+  synced = await sync_bot_strategy_versions(db)
+  return {
+    "status": "ok",
+    **result,
+    "strategy_updated": strategy_updated,
     "bot_versions_synced": synced,
     "timestamp": datetime.utcnow().isoformat(),
   }

@@ -73,6 +73,17 @@ if [[ "$CODE" == "200" ]]; then
   else
     echo "○ Render may be on stale build (admin endpoint HTTP $ADMIN_CODE) — trigger manual deploy"
   fi
+  RESET_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$RENDER/api/admin/reset-paper-trading" \
+    -H "Content-Type: application/json" -d '{"secret":""}' 2>/dev/null || echo "000")
+  if [[ "$RESET_CODE" == "200" || "$RESET_CODE" == "422" || "$RESET_CODE" == "404" ]]; then
+    if [[ "$RESET_CODE" == "404" ]]; then
+      echo "○ Render missing reset endpoint (HTTP 404) — deploy latest for clean verification reset"
+    else
+      check "Render backend has admin reset-paper-trading endpoint" 1
+    fi
+  else
+    echo "○ Render reset endpoint HTTP $RESET_CODE — trigger manual deploy"
+  fi
   STATUS_JSON=$(curl -sf "$RENDER/api/status" 2>/dev/null || echo "{}")
   REMOTE_COMMIT=$(echo "$STATUS_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin).get('deploy',{}).get('git_commit') or '')" 2>/dev/null || true)
   LOCAL_COMMIT=$(git -C "$(dirname "$0")/.." rev-parse --short HEAD 2>/dev/null || git rev-parse --short HEAD 2>/dev/null || echo "")
