@@ -7,6 +7,7 @@ from sqlalchemy import select
 
 from app.config import settings
 from app.database import SessionLocal
+from app.engines.gate_entry_guard import bot_min_sentiment, get_gate_entry_tightening
 from app.engines.integration_signals import get_integration_boost
 from app.engines.intelligence_scoring import compute_bot_sentiment
 from app.engines.learning_engine import LearningEngine
@@ -62,10 +63,17 @@ class BaseBot(ABC):
 
       engine = PaperTradingEngine(session, self.bot_type)
       strategy = await engine.get_strategy()
+      gate_tightening = await get_gate_entry_tightening(session)
       loss_streak = await engine.get_consecutive_losses()
       min_signal = strategy.min_signal_score
+      if gate_tightening.active:
+        min_signal = min(0.95, min_signal + gate_tightening.min_composite_boost)
       if loss_streak >= 3:
         min_signal = min(0.95, min_signal + 0.08)
+      min_sentiment = max(
+        strategy.min_sentiment_score,
+        bot_min_sentiment(self.bot_type, gate_tightening),
+      )
       strategy_params = {
         "rsi_oversold": strategy.rsi_oversold,
         "rsi_overbought": strategy.rsi_overbought,
@@ -104,11 +112,15 @@ class BaseBot(ABC):
                 await self._analyze_loss(session, symbol)
           continue
 
+        if gate_tightening.active and gate_tightening.require_macd_bullish:
+          if self.bot_type in ("crypto", "commodities") and signal.macd_signal != "bullish":
+            continue
+
         if (
           signal.direction == "buy"
           and signal.volume_confirmed
           and composite >= min_signal
-          and sentiment + integration_boost >= strategy.min_sentiment_score - 0.5
+          and sentiment + integration_boost >= min_sentiment - 0.5
         ):
           reason = f"Signal:{signal.score:.2f} Sentiment:{sentiment:.2f}"
           if sentiment_sources:
@@ -307,7 +319,14 @@ class PolymarketBot(BaseBot):
 
         engine = PaperTradingEngine(session, self.bot_type)
         strategy = await engine.get_strategy()
+        gate_tightening = await get_gate_entry_tightening(session)
         min_score = strategy.min_signal_score
+        if gate_tightening.active:
+          min_score = min(0.95, min_score + gate_tightening.min_composite_boost)
+        min_sentiment = max(
+          strategy.min_sentiment_score,
+          bot_min_sentiment(self.bot_type, gate_tightening),
+        )
         open_positions = await engine.get_open_positions()
         pm_open = len(open_positions)
         prices: dict[str, float] = {}
@@ -390,7 +409,7 @@ class PolymarketBot(BaseBot):
             if (
               pm_sig.direction == "buy"
               and composite >= min_score
-              and pm_sig.sentiment + integration_boost >= strategy.min_sentiment_score - 0.35
+              and pm_sig.sentiment + integration_boost >= min_sentiment - 0.35
             ):
               reason = f"PM:{pm_sig.reason}"
               if integration_reason:

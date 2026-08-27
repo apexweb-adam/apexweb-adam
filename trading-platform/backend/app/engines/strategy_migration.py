@@ -31,7 +31,7 @@ def cap_verification_signal_score(bot_type: str, score: float) -> float:
 
 
 async def adapt_for_gate_win_rate(session: AsyncSession) -> int:
-  """Raise min_signal_score toward verification ceiling when gate win rate is below target."""
+  """Raise min_signal_score and min_sentiment when gate win rate is below target."""
   from app.engines.profitability_gate import ProfitabilityGate
 
   gate = await ProfitabilityGate(session).evaluate()
@@ -46,12 +46,18 @@ async def adapt_for_gate_win_rate(session: AsyncSession) -> int:
     ceiling = VERIFICATION_SIGNAL_CEILINGS.get(config.bot_type)
     if ceiling is None:
       continue
-    if config.min_signal_score >= ceiling - 0.005:
-      continue
-    config.min_signal_score = min(ceiling, config.min_signal_score + 0.005)
-    config.version += 1
-    config.updated_at = datetime.utcnow()
-    updated += 1
+    changed = False
+    if config.min_signal_score < ceiling - 0.005:
+      config.min_signal_score = min(ceiling, config.min_signal_score + 0.01)
+      changed = True
+    sentiment_cap = 0.15
+    if config.min_sentiment_score < sentiment_cap - 0.005:
+      config.min_sentiment_score = min(sentiment_cap, config.min_sentiment_score + 0.02)
+      changed = True
+    if changed:
+      config.version += 1
+      config.updated_at = datetime.utcnow()
+      updated += 1
 
   if updated:
     await session.commit()
