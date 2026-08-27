@@ -7,6 +7,7 @@ from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
+from app.database import SessionLocal, get_db
 from app.engines.profitability_gate import ProfitabilityGate
 from app.models.entities import (
   BotState,
