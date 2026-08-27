@@ -27,7 +27,7 @@ jobs:
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
       VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID || 'team_K7OUE7uroVXeVUf42cUAQvAl' }}
       VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID || 'prj_HGbG5vHgfutHi31QfXDqSsTnTAGv' }}
-      EXPECTED_BUNDLE_REVISION: "2026-08-27-r9"
+      EXPECTED_BUNDLE_REVISION: "2026-08-27-r10"
     steps:
       - name: Skip if production already current
         id: freshness
@@ -40,7 +40,7 @@ jobs:
           import json, os
           with open("/tmp/prod-config.json") as f:
               cfg = json.load(f)
-          expected = os.environ.get("EXPECTED_BUNDLE_REVISION", "2026-08-27-r9")
+          expected = os.environ.get("EXPECTED_BUNDLE_REVISION", "2026-08-27-r10")
           rev = cfg.get("bundleRevision")
           features = cfg.get("features") or {}
           active_gate = features.get("activeGate") is True
@@ -71,7 +71,7 @@ jobs:
               -H "Authorization: Bearer ${VERCEL_TOKEN}" > /tmp/deployments.json
             python3 << 'PY'
           import json, os, urllib.request
-          expected = os.environ.get("EXPECTED_BUNDLE_REVISION", "2026-08-27-r9")
+          expected = os.environ.get("EXPECTED_BUNDLE_REVISION", "2026-08-27-r10")
           with open("/tmp/deployments.json") as f:
               data = json.load(f)
           for dep in data.get("deployments") or []:
@@ -125,7 +125,7 @@ jobs:
           import json, os, sys
           with open("/tmp/preview-config.json") as f:
               cfg = json.load(f)
-          expected = os.environ.get("EXPECTED_BUNDLE_REVISION", "2026-08-27-r9")
+          expected = os.environ.get("EXPECTED_BUNDLE_REVISION", "2026-08-27-r10")
           if cfg.get("bundleRevision") != expected:
               print(f"Preview bundleRevision mismatch: {cfg.get('bundleRevision')!r}")
               sys.exit(1)
@@ -153,7 +153,7 @@ jobs:
           import json, os, sys
           with open("/tmp/prod-config-after.json") as f:
               cfg = json.load(f)
-          expected = os.environ.get("EXPECTED_BUNDLE_REVISION", "2026-08-27-r9")
+          expected = os.environ.get("EXPECTED_BUNDLE_REVISION", "2026-08-27-r10")
           ok = (
               cfg.get("bundleRevision") == expected
               and (cfg.get("features") or {}).get("activeGate") is True
