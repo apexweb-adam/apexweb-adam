@@ -239,6 +239,13 @@ export default function Dashboard() {
                             {platformStatus.deploy.latest_main_commit.slice(0, 12)}
                           </div>
                         )}
+                        {(platformStatus.deploy.pending_changes?.length ?? 0) > 0 && (
+                          <ul className="mt-2 space-y-1 text-[10px] text-gray-400 list-disc list-inside">
+                            {platformStatus.deploy.pending_changes!.slice(0, 4).map((c) => (
+                              <li key={c.sha}>{c.message}</li>
+                            ))}
+                          </ul>
+                        )}
                       </div>
                     )}
                     <div className="flex flex-wrap gap-2 text-xs">

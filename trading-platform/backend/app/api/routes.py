@@ -475,6 +475,8 @@ async def get_platform_status(db: AsyncSession = Depends(get_db)) -> dict[str, A
       "latest_main_message": deploy_info.get("latest_main_message"),
       "is_stale": deploy_info.get("is_stale"),
       "stale_minutes": deploy_info.get("stale_minutes"),
+      "commits_behind": deploy_info.get("commits_behind"),
+      "pending_changes": deploy_info.get("pending_changes"),
       "features": {
         "admin_risk_migrations": True,
         "admin_reset_paper_trading": True,

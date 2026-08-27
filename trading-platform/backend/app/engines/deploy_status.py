@@ -38,11 +38,36 @@ async def fetch_latest_main_commit() -> dict[str, Any] | None:
     return None
 
 
+async def fetch_commits_since(deployed_sha: str) -> list[dict[str, str]]:
+  """List commits on main that are not in the deployed build."""
+  if not deployed_sha:
+    return []
+  try:
+    async with httpx.AsyncClient(timeout=8.0) as client:
+      response = await client.get(
+        f"https://api.github.com/repos/{GITHUB_REPO}/compare/{deployed_sha}...main",
+        headers={"Accept": "application/vnd.github+json"},
+      )
+      if response.status_code != 200:
+        return []
+      data = response.json()
+      return [
+        {
+          "sha": (c.get("sha") or "")[:12],
+          "message": (c.get("commit") or {}).get("message", "").split("\n")[0],
+        }
+        for c in data.get("commits") or []
+      ]
+  except Exception:
+    return []
+
+
 async def build_deploy_status() -> dict[str, Any]:
   deployed = deployed_git_commit()
   latest = await fetch_latest_main_commit()
   latest_sha = (latest or {}).get("sha")
   is_stale = bool(deployed and latest_sha and deployed != latest_sha)
+  pending_changes = await fetch_commits_since(deployed) if is_stale and deployed else []
 
   stale_minutes: int | None = None
   committed_at = (latest or {}).get("committed_at")
@@ -60,6 +85,9 @@ async def build_deploy_status() -> dict[str, Any]:
       f"but main is {latest_sha[:12] if latest_sha else '?'}. "
       "Trigger manual deploy in Render dashboard or set RENDER_DEPLOY_HOOK in GitHub secrets."
     )
+    if pending_changes:
+      summaries = [c["message"] for c in pending_changes[:3]]
+      next_steps.append(f"Pending on main ({len(pending_changes)} commits): {'; '.join(summaries)}")
 
   return {
     "git_commit": deployed,
@@ -68,5 +96,7 @@ async def build_deploy_status() -> dict[str, Any]:
     "latest_main_message": (latest or {}).get("message"),
     "is_stale": is_stale,
     "stale_minutes": stale_minutes,
+    "pending_changes": pending_changes,
+    "commits_behind": len(pending_changes),
     "next_steps": next_steps,
   }
