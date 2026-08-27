@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     polymarket_wallet_address: str = ""
     polymarket_deposit_address: str = ""
     polymarket_profile_url: str = "https://polymarket.com/@apexweb"
-    polymarket_max_markets: int = 30
+    polymarket_max_markets: int = 50
 
     # Bot tuning
     crypto_symbols: str = (

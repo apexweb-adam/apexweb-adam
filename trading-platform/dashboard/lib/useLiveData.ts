@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import {
+  fetchAPI,
   getWebSocketUrlAsync,
   type Stats,
   type Portfolio,
@@ -32,6 +33,27 @@ export function useLiveData(): LiveData {
   const [lastTrade, setLastTrade] = useState<Record<string, unknown> | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pollTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const refreshFromApi = useCallback(async () => {
+    try {
+      const [status, portfolios, bots, positions, trades] = await Promise.all([
+        fetchAPI<{ stats: Stats; timestamp: string }>("/status"),
+        fetchAPI<Portfolio[]>("/portfolios"),
+        fetchAPI<Bot[]>("/bots"),
+        fetchAPI<Position[]>("/positions"),
+        fetchAPI<Trade[]>("/trades?limit=50"),
+      ]);
+      if (status.stats) setStats(status.stats);
+      setPortfolios(portfolios);
+      setBots(bots);
+      setPositions(positions);
+      setTrades(trades);
+      if (status.timestamp) setLastUpdate(status.timestamp);
+    } catch {
+      // keep last good snapshot
+    }
+  }, []);
 
   const applyUpdate = useCallback((data: Record<string, unknown>) => {
     if (data.stats) setStats(data.stats as Stats);
@@ -78,11 +100,18 @@ export function useLiveData(): LiveData {
 
   useEffect(() => {
     void connect();
+    void refreshFromApi();
+    pollTimer.current = setInterval(() => {
+      if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+        void refreshFromApi();
+      }
+    }, 12_000);
     return () => {
       if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
+      if (pollTimer.current) clearInterval(pollTimer.current);
       wsRef.current?.close();
     };
-  }, [connect]);
+  }, [connect, refreshFromApi]);
 
   return { stats, portfolios, bots, positions, trades, connected, lastUpdate, lastTrade };
 }
