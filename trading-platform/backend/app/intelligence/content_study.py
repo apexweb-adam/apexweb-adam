@@ -2,6 +2,31 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.engines.learning_engine import LearningEngine
 
+# Keyword patterns extracted from YouTube/podcast titles → structured strategy impacts.
+YOUTUBE_IMPACT_PATTERNS: list[tuple[tuple[str, ...], str, float]] = [
+  (("rsi", "divergence"), "Lower RSI oversold threshold for divergence entries; require volume confirmation", 0.78),
+  (("support", "resistance"), "Favor entries near support levels; add S/R confirmation to signal engine", 0.8),
+  (("risk management", "position size"), "Tighten stop-loss to 1.5-2% max; reduce max position size", 0.88),
+  (("stop loss", "stop-loss"), "Tighten stop-loss; cut losses quickly on failed setups", 0.85),
+  (("trend following", "momentum"), "Increase momentum weight; let winners run with wider take-profit", 0.82),
+  (("sentiment", "social"), "Increase sentiment weight for crypto; monitor X/TikTok/Reddit feeds", 0.75),
+  (("gold", "commodit"), "Weight geopolitical news higher for commodities bot", 0.72),
+  (("crypto", "bitcoin", "ethereum"), "Increase sentiment weight for crypto bot on social signals", 0.74),
+  (("volume", "breakout"), "Require volume confirmation on breakout entries", 0.8),
+  (("revenge", "psychology", "discipline"), "After loss streaks raise signal threshold and halve position size", 0.85),
+  (("polymarket", "prediction market"), "Weight Polymarket intel for event-driven setups", 0.7),
+  (("day trad", "scalp"), "Focus on higher signal scores during day-trading sessions", 0.72),
+]
+
+
+def _extract_youtube_impact(title: str, content: str) -> tuple[str, float] | None:
+  text = f"{title} {content}".lower()
+  for keywords, impact, confidence in YOUTUBE_IMPACT_PATTERNS:
+    if all(kw in text for kw in keywords):
+      return impact, confidence
+  return None
+
+
 TRADING_KNOWLEDGE_BASE = [
   {
     "source_type": "youtube",
@@ -111,17 +136,22 @@ class ContentStudyEngine:
       .limit(10)
     )
     for item in youtube_result.scalars().all():
-      impact = (
-        f"YouTube intel on {item.symbols_mentioned or 'markets'}: "
-        f"favor {'long' if item.sentiment > 0 else 'cautious'} setups when sentiment aligns"
-      )
+      extracted = _extract_youtube_impact(item.title, item.content or "")
+      if extracted:
+        impact, confidence = extracted
+      else:
+        impact = (
+          f"YouTube intel on {item.symbols_mentioned or 'markets'}: "
+          f"favor {'long' if item.sentiment > 0 else 'cautious'} setups when sentiment aligns"
+        )
+        confidence = min(0.85, item.relevance_score)
       insight = await self.learner.apply_external_insight(
         source_type="youtube",
         title=item.title,
         url=item.url,
         takeaways=item.content[:500],
         impact=impact,
-        confidence=min(0.85, item.relevance_score),
+        confidence=confidence,
       )
       if insight.applied:
         item.applied = True

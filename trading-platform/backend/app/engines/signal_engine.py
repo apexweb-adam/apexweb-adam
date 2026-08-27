@@ -15,11 +15,45 @@ class SignalResult:
   momentum: float
   volatility: float
   volume_confirmed: bool
+  near_support: bool
+  rsi_divergence: str
   reason: str
 
 
 class SignalEngine:
-  """Technical analysis signal generator using RSI, MACD, momentum, volatility, and volume."""
+  """Technical analysis: RSI, MACD, momentum, S/R levels, RSI divergence, volume."""
+
+  def _swing_levels(self, close: pd.Series, lookback: int = 50) -> tuple[float | None, float | None]:
+    if len(close) < lookback:
+      lookback = len(close)
+    if lookback < 10:
+      return None, None
+    window = close.iloc[-lookback:]
+    support = float(window.min())
+    resistance = float(window.max())
+    return support, resistance
+
+  def _near_level(self, price: float, level: float | None, pct: float = 0.015) -> bool:
+    if level is None or level <= 0:
+      return False
+    return abs(price - level) / level <= pct
+
+  def _rsi_divergence(self, close: pd.Series, rsi: pd.Series, window: int = 14) -> str:
+    """Detect bullish/bearish RSI divergence over recent swings."""
+    if len(close) < window + 5 or len(rsi) < window + 5:
+      return "none"
+    c = close.iloc[-window:]
+    r = rsi.iloc[-window:]
+    mid = window // 2
+    c_first, c_second = float(c.iloc[:mid].min()), float(c.iloc[mid:].min())
+    r_first, r_second = float(r.iloc[:mid].min()), float(r.iloc[mid:].min())
+    if c_second < c_first and r_second > r_first + 2:
+      return "bullish"
+    c_first_h, c_second_h = float(c.iloc[:mid].max()), float(c.iloc[mid:].max())
+    r_first_h, r_second_h = float(r.iloc[:mid].max()), float(r.iloc[mid:].max())
+    if c_second_h > c_first_h and r_second_h < r_first_h - 2:
+      return "bearish"
+    return "none"
 
   def volume_confirmed(self, df: pd.DataFrame | None) -> bool:
     """Recent volume at or above 20-period average (content-study recommendation)."""
@@ -49,6 +83,8 @@ class SignalEngine:
         momentum=0.0,
         volatility=0.0,
         volume_confirmed=False,
+        near_support=False,
+        rsi_divergence="none",
         reason="Insufficient data",
       )
 
@@ -56,7 +92,8 @@ class SignalEngine:
     high = df["high"] if "high" in df.columns else df["High"]
     low = df["low"] if "low" in df.columns else df["Low"]
 
-    rsi = ta.momentum.RSIIndicator(close).rsi().iloc[-1]
+    rsi_series = ta.momentum.RSIIndicator(close).rsi()
+    rsi = rsi_series.iloc[-1]
     macd = ta.trend.MACD(close)
     macd_line = macd.macd().iloc[-1]
     macd_signal_line = macd.macd_signal().iloc[-1]
@@ -103,6 +140,34 @@ class SignalEngine:
       score *= 0.8
       reasons.append("High volatility - reduced confidence")
 
+    price = float(close.iloc[-1])
+    support, resistance = self._swing_levels(close)
+    near_support = self._near_level(price, support)
+    near_resistance = self._near_level(price, resistance)
+    divergence = self._rsi_divergence(close, rsi_series)
+
+    if near_support and direction in ("hold", "buy"):
+      score += 0.15
+      reasons.append(f"Near support ({support:.2f})")
+      if direction == "hold":
+        direction = "buy"
+    if near_resistance and direction in ("hold", "sell"):
+      score -= 0.15
+      reasons.append(f"Near resistance ({resistance:.2f})")
+      if direction == "hold":
+        direction = "sell"
+
+    if divergence == "bullish":
+      score += 0.2
+      reasons.append("RSI bullish divergence")
+      if direction == "hold":
+        direction = "buy"
+    elif divergence == "bearish":
+      score -= 0.2
+      reasons.append("RSI bearish divergence")
+      if direction == "hold":
+        direction = "sell"
+
     vol_ok = self.volume_confirmed(df)
     if direction == "buy" and not vol_ok:
       score *= 0.6
@@ -120,6 +185,8 @@ class SignalEngine:
       momentum=float(momentum),
       volatility=float(volatility) if not np.isnan(volatility) else 0.0,
       volume_confirmed=vol_ok,
+      near_support=near_support,
+      rsi_divergence=divergence,
       reason="; ".join(reasons) if reasons else "No clear signal",
     )
 
