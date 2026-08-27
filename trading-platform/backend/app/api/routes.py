@@ -557,6 +557,40 @@ async def run_daily_review_admin(payload: dict[str, Any]) -> dict[str, Any]:
   return {"status": "ok", "timestamp": datetime.utcnow().isoformat()}
 
 
+@router.post("/admin/set-bot-paused")
+async def set_bot_paused_admin(payload: dict[str, Any], db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
+  """Pause or resume a bot (requires webhook secret). Pausing PM sets max_position_pct to 0."""
+  from app.engines.platform_settings import set_bot_paused
+  from app.models.entities import StrategyConfig
+
+  secret = payload.get("secret", "")
+  if not settings.tradingview_webhook_secret or secret != settings.tradingview_webhook_secret:
+    return {"status": "unauthorized"}
+
+  bot_type = payload.get("bot_type", "")
+  if bot_type not in BOT_TYPES:
+    return {"status": "error", "message": f"Unknown bot_type: {bot_type}"}
+
+  paused = bool(payload.get("paused", True))
+  await set_bot_paused(db, bot_type, paused)
+
+  if bot_type == "polymarket":
+    result = await db.execute(select(StrategyConfig).where(StrategyConfig.bot_type == "polymarket"))
+    config = result.scalar_one_or_none()
+    if config:
+      config.max_position_pct = 0.0 if paused else settings.polymarket_max_position_pct
+      config.version += 1
+      config.updated_at = datetime.utcnow()
+      await db.commit()
+
+  return {
+    "status": "ok",
+    "bot_type": bot_type,
+    "paused": paused,
+    "timestamp": datetime.utcnow().isoformat(),
+  }
+
+
 @router.post("/admin/reset-paper-trading")
 async def reset_paper_trading_admin(payload: dict[str, Any], db: AsyncSession = Depends(get_db)):
   """Reset paper portfolios to $100k/bot; clears trades/positions/reviews, keeps intel + strategies."""

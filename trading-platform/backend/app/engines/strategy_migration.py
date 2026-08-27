@@ -70,6 +70,9 @@ async def ensure_polymarket_strategy(session: AsyncSession) -> bool:
     return True
 
   changed = False
+  if config.max_position_pct <= 0:
+    config.max_position_pct = settings.polymarket_max_position_pct
+    changed = True
   if config.max_position_pct > settings.polymarket_max_position_pct:
     config.max_position_pct = settings.polymarket_max_position_pct
     changed = True

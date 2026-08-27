@@ -295,9 +295,15 @@ class PolymarketBot(BaseBot):
 
     try:
       async with SessionLocal() as session:
+        from app.engines.platform_settings import is_bot_paused
+
+        if await is_bot_paused(session, self.bot_type):
+          await self._record_scan_result(len(symbols), [], "paused — no new trades")
+          return []
+
         engine = PaperTradingEngine(session, self.bot_type)
         strategy = await engine.get_strategy()
-        min_score = min(strategy.min_signal_score, 0.12)
+        min_score = strategy.min_signal_score
         open_positions = await engine.get_open_positions()
         pm_open = len(open_positions)
         prices: dict[str, float] = {}
