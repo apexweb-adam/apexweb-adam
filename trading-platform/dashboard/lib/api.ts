@@ -294,6 +294,7 @@ export type PlatformStatus = {
     tradingview_webhook_url?: string | null;
     tradingview_items?: number;
     tradingview_setup?: string | null;
+    tradingview_example_payload?: Record<string, string> | null;
   };
   learning?: {
     trade_analyses: number;

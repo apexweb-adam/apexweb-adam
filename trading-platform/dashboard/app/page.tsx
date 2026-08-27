@@ -416,6 +416,15 @@ export default function Dashboard() {
                                 {platformStatus.integrations.tradingview_webhook_url}
                               </p>
                             )}
+                            {platformStatus.integrations.tradingview_example_payload && (
+                              <pre className="mt-2 p-2 rounded bg-black/40 text-[10px] text-gray-400 overflow-x-auto">
+                                {JSON.stringify(
+                                  platformStatus.integrations.tradingview_example_payload,
+                                  null,
+                                  2
+                                )}
+                              </pre>
+                            )}
                           </div>
                         )}
                         {(platformStatus.deploy.next_steps?.length ?? 0) > 0 && (

@@ -95,20 +95,56 @@ def deployed_git_commit() -> str | None:
 
 
 async def fetch_latest_main_commit() -> dict[str, Any] | None:
+  for attempt in range(3):
+    try:
+      async with httpx.AsyncClient(timeout=10.0) as client:
+        response = await client.get(GITHUB_API, headers=GITHUB_HEADERS)
+        if response.status_code == 200:
+          data = response.json()
+          commit = data.get("commit") or {}
+          return {
+            "sha": data.get("sha"),
+            "message": (commit.get("message") or "").split("\n")[0],
+            "committed_at": (commit.get("author") or {}).get("date"),
+          }
+        if response.status_code == 403 and attempt < 2:
+          import asyncio
+          await asyncio.sleep(1.5 * (attempt + 1))
+          continue
+    except Exception:
+      if attempt < 2:
+        import asyncio
+        await asyncio.sleep(1.0)
+        continue
+  return None
+
+
+async def fetch_compare_to_main(deployed_sha: str) -> dict[str, Any] | None:
+  """Compare deployed SHA to main; used when commits/main API is rate-limited."""
+  if not deployed_sha:
+    return None
   try:
-    async with httpx.AsyncClient(timeout=8.0) as client:
+    async with httpx.AsyncClient(timeout=10.0) as client:
       response = await client.get(
-        GITHUB_API,
+        f"https://api.github.com/repos/{GITHUB_REPO}/compare/{deployed_sha}...main",
         headers=GITHUB_HEADERS,
       )
       if response.status_code != 200:
         return None
       data = response.json()
-      commit = data.get("commit") or {}
+      commits = data.get("commits") or []
+      head_sha = commits[-1].get("sha") if commits else None
       return {
-        "sha": data.get("sha"),
-        "message": (commit.get("message") or "").split("\n")[0],
-        "committed_at": (commit.get("author") or {}).get("date"),
+        "ahead_by": data.get("ahead_by", 0),
+        "status": data.get("status"),
+        "head_sha": head_sha,
+        "commits": [
+          {
+            "sha": (c.get("sha") or "")[:12],
+            "message": (c.get("commit") or {}).get("message", "").split("\n")[0],
+          }
+          for c in commits
+        ],
       }
   except Exception:
     return None
@@ -116,26 +152,8 @@ async def fetch_latest_main_commit() -> dict[str, Any] | None:
 
 async def fetch_commits_since(deployed_sha: str) -> list[dict[str, str]]:
   """List commits on main that are not in the deployed build."""
-  if not deployed_sha:
-    return []
-  try:
-    async with httpx.AsyncClient(timeout=8.0) as client:
-      response = await client.get(
-        f"https://api.github.com/repos/{GITHUB_REPO}/compare/{deployed_sha}...main",
-        headers=GITHUB_HEADERS,
-      )
-      if response.status_code != 200:
-        return []
-      data = response.json()
-      return [
-        {
-          "sha": (c.get("sha") or "")[:12],
-          "message": (c.get("commit") or {}).get("message", "").split("\n")[0],
-        }
-        for c in data.get("commits") or []
-      ]
-  except Exception:
-    return []
+  compare = await fetch_compare_to_main(deployed_sha)
+  return (compare or {}).get("commits") or []
 
 
 async def probe_production_proxy_operational() -> bool:
@@ -201,7 +219,19 @@ async def build_deploy_status() -> dict[str, Any]:
   latest = await fetch_latest_main_commit()
   latest_sha = (latest or {}).get("sha")
   is_stale = bool(deployed and latest_sha and deployed != latest_sha)
-  pending_changes = await fetch_commits_since(deployed) if is_stale and deployed else []
+  compare = await fetch_compare_to_main(deployed) if deployed else None
+  if deployed and not is_stale and compare and (compare.get("ahead_by") or 0) > 0:
+    is_stale = True
+    if not latest_sha and compare.get("head_sha"):
+      latest_sha = compare["head_sha"]
+      latest = latest or {
+        "sha": latest_sha,
+        "message": (compare.get("commits") or [{}])[-1].get("message", ""),
+        "committed_at": None,
+      }
+  pending_changes = compare.get("commits") if compare and is_stale else []
+  if is_stale and deployed and not pending_changes:
+    pending_changes = await fetch_commits_since(deployed)
 
   stale_minutes: int | None = None
   committed_at = (latest or {}).get("committed_at")

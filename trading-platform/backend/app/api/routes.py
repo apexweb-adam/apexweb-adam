@@ -537,6 +537,16 @@ async def get_platform_status(db: AsyncSession = Depends(get_db)) -> dict[str, A
         if settings.tradingview_webhook_secret and tv_items == 0
         else None
       ),
+      "tradingview_example_payload": (
+        {
+          "secret": "<TRADINGVIEW_WEBHOOK_SECRET>",
+          "symbol": "{{ticker}}",
+          "action": "{{strategy.order.action}}",
+          "message": "TradingView alert on {{ticker}}",
+        }
+        if settings.tradingview_webhook_secret
+        else None
+      ),
       "polymarket_market_scanner": True,
       "polymarket_account_hook": bool(
         settings.polymarket_wallet_address or settings.polymarket_deposit_address
