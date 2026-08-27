@@ -8,7 +8,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from sqlalchemy import delete, select
 
-from app.config import settings
+from app.config import settings, BOT_TYPES
 from app.database import SessionLocal, init_db
 from app.models.entities import (
   BotState,
@@ -31,7 +31,7 @@ async def reset() -> None:
     await session.execute(delete(Portfolio))
     await session.execute(delete(BotState))
 
-    for bot_type in ["crypto", "stocks_futures", "commodities"]:
+    for bot_type in BOT_TYPES:
       session.add(
         Portfolio(
           bot_type=bot_type,

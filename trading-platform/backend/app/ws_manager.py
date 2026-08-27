@@ -4,6 +4,7 @@ from fastapi import WebSocket
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import BOT_TYPES
 from app.database import SessionLocal
 from app.models.entities import BotState, IntelligenceItem, Portfolio, Position, Trade
 
@@ -62,7 +63,7 @@ async def build_live_payload(session: AsyncSession) -> dict:
       "open_positions": len(positions),
       "intelligence_items": len(intel),
       "mode": "paper_trading",
-      "bots_active": 3,
+      "bots_active": len(BOT_TYPES),
     },
     "portfolios": [
       {

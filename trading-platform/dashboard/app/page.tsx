@@ -174,7 +174,7 @@ export default function Dashboard() {
                     <BotCard key={bot.bot_type} bot={bot} />
                   ))}
                   {bots.length === 0 &&
-                    ["crypto", "stocks_futures", "commodities"].map((type) => (
+                    ["crypto", "stocks_futures", "commodities", "polymarket"].map((type) => (
                       <BotCard
                         key={type}
                         bot={{

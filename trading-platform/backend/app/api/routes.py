@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import settings
+from app.config import settings, BOT_TYPES
 from app.database import SessionLocal, get_db, is_postgres
 from app.engines.profitability_gate import ProfitabilityGate
 from app.models.entities import (
@@ -115,9 +115,8 @@ async def get_bots(db: AsyncSession = Depends(get_db)) -> list[dict[str, Any]]:
   states = result.scalars().all()
   if not states:
     return [
-      {"bot_type": "crypto", "status": "running", "last_action": "Initializing..."},
-      {"bot_type": "stocks_futures", "status": "running", "last_action": "Initializing..."},
-      {"bot_type": "commodities", "status": "running", "last_action": "Initializing..."},
+      {"bot_type": bt, "status": "running", "last_action": "Initializing..."}
+      for bt in BOT_TYPES
     ]
   return [
     {
@@ -332,7 +331,7 @@ async def get_stats(db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
     "open_positions": len(positions),
     "intelligence_items": len(intel),
     "mode": "paper_trading",
-    "bots_active": 3,
+    "bots_active": len(BOT_TYPES),
   }
 
 

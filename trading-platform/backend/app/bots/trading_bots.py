@@ -10,6 +10,7 @@ from app.database import SessionLocal
 from app.engines.integration_signals import get_integration_boost
 from app.engines.learning_engine import LearningEngine
 from app.engines.market_data import fetch_crypto_data, fetch_yfinance_data
+from app.engines.polymarket_data import fetch_polymarket_data, get_polymarket_symbols
 from app.engines.paper_trading import PaperTradingEngine
 from app.engines.price_validation import is_price_sane
 from app.engines.signal_engine import SignalEngine
@@ -203,3 +204,16 @@ class CommoditiesBot(BaseBot):
     if symbol.endswith("USDT"):
       return await fetch_crypto_data(symbol, "15m")
     return await fetch_yfinance_data(symbol)
+
+
+class PolymarketBot(BaseBot):
+  """Paper-trades Polymarket Yes shares — politics, crypto, sports, geopolitics, weather, etc."""
+
+  bot_type = "polymarket"
+  scan_interval = 45
+
+  async def get_symbols(self) -> list[str]:
+    return await get_polymarket_symbols()
+
+  async def fetch_price_data(self, symbol: str) -> tuple[float, pd.DataFrame | None]:
+    return await fetch_polymarket_data(symbol)

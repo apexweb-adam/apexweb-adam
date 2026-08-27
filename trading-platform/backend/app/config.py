@@ -25,9 +25,13 @@ class Settings(BaseSettings):
     polymarket_wallet_address: str = ""
     polymarket_deposit_address: str = ""
     polymarket_profile_url: str = "https://polymarket.com/@apexweb"
+    polymarket_max_markets: int = 30
 
     # Bot tuning
-    crypto_symbols: str = "BTCUSDT,ETHUSDT,SOLUSDT,DOGEUSDT,PEPEUSDT"
+    crypto_symbols: str = (
+      "BTCUSDT,ETHUSDT,SOLUSDT,DOGEUSDT,PEPEUSDT,BNBUSDT,XRPUSDT,ADAUSDT,"
+      "AVAXUSDT,LINKUSDT,MATICUSDT,SHIBUSDT,WIFUSDT,BONKUSDT"
+    )
     stock_symbols: str = "AAPL,MSFT,NVDA,TSLA,SPY,QQQ"
     futures_symbols: str = "ES=F,NQ=F"
     commodity_symbols: str = "GC=F,SI=F,CL=F,EURUSD=X"
@@ -47,3 +51,5 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+BOT_TYPES = ["crypto", "stocks_futures", "commodities", "polymarket"]

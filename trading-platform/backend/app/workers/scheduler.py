@@ -3,7 +3,8 @@ from datetime import datetime
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
-from app.bots.trading_bots import CommoditiesBot, CryptoBot, StocksFuturesBot
+from app.bots.trading_bots import CommoditiesBot, CryptoBot, PolymarketBot, StocksFuturesBot
+from app.config import BOT_TYPES
 from app.database import SessionLocal, init_db
 from app.intelligence.content_study import ContentStudyEngine
 from app.intelligence.extended_scanners import ExtendedIntelligenceScanner
@@ -33,7 +34,7 @@ async def daily_review_job() -> None:
   today = datetime.utcnow().strftime("%Y-%m-%d")
   async with SessionLocal() as session:
     learner = LearningEngine(session)
-    for bot_type in ["crypto", "stocks_futures", "commodities"]:
+    for bot_type in BOT_TYPES:
       review = await learner.run_daily_review(bot_type, today)
       print(
         f"[DailyReview] {bot_type}: {review.total_trades} trades, "
@@ -60,6 +61,7 @@ async def start_bots() -> None:
     "crypto": CryptoBot(),
     "stocks_futures": StocksFuturesBot(),
     "commodities": CommoditiesBot(),
+    "polymarket": PolymarketBot(),
   }
   for bot in bots.values():
     task = asyncio.create_task(bot.run_loop())
