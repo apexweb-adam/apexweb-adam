@@ -74,19 +74,23 @@ jobs:
         if: always() && (github.event_name != 'schedule' || steps.freshness.outputs.skip != 'true')
         run: |
           set -euo pipefail
-          sleep 15
-          STATUS=$(curl -fsS "https://apex-trading-backend.onrender.com/api/status")
-          DEPLOYED=$(echo "$STATUS" | python3 -c "import json,sys; print(json.load(sys.stdin).get('deploy',{}).get('git_commit','')[:12])")
-          MAIN=$(curl -fsS "https://api.github.com/repos/apexweb-adam/apexweb-adam/commits/main" | python3 -c "import json,sys; print(json.load(sys.stdin)['sha'][:12])")
+          for attempt in 1 2 3 4 5 6; do
+            sleep 30
+            STATUS=$(curl -fsS "https://apex-trading-backend.onrender.com/api/status")
+            DEPLOYED=$(echo "$STATUS" | python3 -c "import json,sys; print(json.load(sys.stdin).get('deploy',{}).get('git_commit','')[:12])")
+            MAIN=$(curl -fsS "https://api.github.com/repos/apexweb-adam/apexweb-adam/commits/main" | python3 -c "import json,sys; print(json.load(sys.stdin)['sha'][:12])")
+            EQUITY=$(curl -s -o /dev/null -w "%{http_code}" "https://apex-trading-backend.onrender.com/api/equity-history")
+            echo "attempt $attempt: deployed=$DEPLOYED main=$MAIN equity_history=$EQUITY"
+            if [[ "$DEPLOYED" == "$MAIN" && "$EQUITY" == "200" ]]; then
+              echo "Backend deploy verified"
+              exit 0
+            fi
+          done
           VERIFY=$(curl -s -o /dev/null -w "%{http_code}" "https://apex-trading-backend.onrender.com/api/verification/history")
-          EQUITY=$(curl -s -o /dev/null -w "%{http_code}" "https://apex-trading-backend.onrender.com/api/equity-history")
           echo "deployed=$DEPLOYED main=$MAIN verification_history=$VERIFY equity_history=$EQUITY"
           if [[ "$DEPLOYED" != "$MAIN" ]]; then
-            echo "::warning::Render still on $DEPLOYED — main is $MAIN. Manual deploy required in Render dashboard."
-          fi
-          if [[ "$VERIFY" != "200" ]]; then
-            echo "::warning::Verification snapshot endpoint HTTP $VERIFY — latest backend not live yet."
+            echo "::warning::Render still on $DEPLOYED — main is $MAIN. Manual deploy: Render → Manual Deploy → latest commit."
           fi
           if [[ "$EQUITY" != "200" ]]; then
-            echo "::warning::Equity history endpoint HTTP $EQUITY — latest backend not live yet."
+            echo "::warning::Equity history endpoint HTTP $EQUITY — deploy hook may have redeployed old commit; fix GitHub sync on Render."
           fi

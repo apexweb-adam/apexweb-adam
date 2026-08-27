@@ -50,6 +50,9 @@ A dashboard REST hívásokat runtime proxy-n keresztül továbbítja (`/api/back
 
 Live dashboard: https://apex-trading-dashboard-flame.vercel.app
 
+**Verified preview (full features, Aug 27 2026):** https://apex-trading-dashboard-rgj505p74-apexweb-adams-projects.vercel.app  
+(Promote `dpl_BgjaBovr48Aapq21KMS3wyAUsxa8` to production when Vercel rate limit resets.)
+
 ### GitHub Actions deploy secrets (CI)
 
 Add these in **GitHub → repo → Settings → Secrets and variables → Actions**:
@@ -61,7 +64,7 @@ Add these in **GitHub → repo → Settings → Secrets and variables → Action
 | `RENDER_DEPLOY_HOOK` | Auto-redeploy backend when stale (Render → apex-trading-backend → Settings → Deploy Hook) |
 | `RENDER_API_KEY` | Alternative backend deploy via Render API |
 
-**One-time production promote:** After adding `VERCEL_TOKEN`, run the **Promote Vercel Dashboard to Production** workflow (Actions → workflow_dispatch). It promotes preview `dpl_9mmWv1xwK7yzyk1aMzLLFMxLpp9h` without rebuilding.
+**One-time production promote:** After adding `VERCEL_TOKEN`, run **Promote Vercel Dashboard to Production** (auto-runs on main dashboard pushes). Verified preview: `dpl_BgjaBovr48Aapq21KMS3wyAUsxa8`.
 
 Optional repo **variables** (defaults exist in workflow):
 
@@ -70,11 +73,11 @@ Optional repo **variables** (defaults exist in workflow):
 | `VERCEL_ORG_ID` | `team_K7OUE7uroVXeVUf42cUAQvAl` |
 | `VERCEL_PROJECT_ID` | `prj_HGbG5vHgfutHi31QfXDqSsTnTAGv` |
 
-**If production is stale:** Render dashboard → Manual Deploy; Vercel → Promote latest preview (`dpl_CiDNLsj`) to Production.
+**If production is stale:** Render → Manual Deploy (only if `deploy.is_stale`); Vercel → Promote latest preview or add `VERCEL_TOKEN`.
 
-**Gate on stale Vercel prod:** `/api/backend/active-gate` works via the existing dashboard proxy even when `/api/active-gate` returns 404.
+**Gate on stale Vercel prod:** `/api/backend/active-gate` and `/api/backend/equity-history` work via proxy (backend must be current).
 
-Verify backend: `curl https://apex-trading-backend.onrender.com/api/status` — `deploy.git_commit` should match `latest_main_commit`.
+Verify backend: `curl https://apex-trading-backend.onrender.com/api/status` — `deploy.git_commit` should match `latest_main_commit`; `curl .../api/equity-history` should return 200.
 
 ---
 

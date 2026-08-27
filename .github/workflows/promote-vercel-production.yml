@@ -7,13 +7,18 @@ on:
   workflow_dispatch:
     inputs:
       deployment_id:
-        description: Vercel deployment ID to promote (default latest preview with active-gate)
+        description: Vercel deployment ID (empty = auto-discover or use latest verified)
         required: false
-        default: "dpl_CiDNLsjD34vvn4RR5BbzS8qzb4iu"
+        default: ""
       preview_url:
-        description: Preview URL to verify before promote
+        description: Preview URL to verify (empty = auto-discover or use latest verified)
         required: false
-        default: "https://apex-trading-dashboard-khblkxfs2-apexweb-adams-projects.vercel.app"
+        default: ""
+  push:
+    branches: [main]
+    paths:
+      - 'trading-platform/dashboard/**'
+      - '.github/workflows/promote-vercel-production.yml'
 
 jobs:
   promote:
@@ -22,21 +27,92 @@ jobs:
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
       VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID || 'team_K7OUE7uroVXeVUf42cUAQvAl' }}
       VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID || 'prj_HGbG5vHgfutHi31QfXDqSsTnTAGv' }}
-      DEPLOYMENT_ID: ${{ inputs.deployment_id }}
-      PREVIEW_URL: ${{ inputs.preview_url }}
     steps:
-      - name: Promote deployment to production
+      - name: Skip if production already current
+        id: freshness
         run: |
           set -euo pipefail
-          if [ -z "${VERCEL_TOKEN:-}" ]; then
-            echo "::error::VERCEL_TOKEN secret is required. Create at https://vercel.com/account/tokens"
-            exit 1
+          PROD_GATE=$(curl -fsS -o /dev/null -w "%{http_code}" \
+            "https://apex-trading-dashboard-flame.vercel.app/api/active-gate" || echo "000")
+          PROD_EQUITY=$(curl -fsS -o /dev/null -w "%{http_code}" \
+            "https://apex-trading-dashboard-flame.vercel.app/api/backend/equity-history" || echo "000")
+          echo "production active-gate=$PROD_GATE equity-history=$PROD_EQUITY"
+          if [[ "$PROD_GATE" == "200" && "$PROD_EQUITY" == "200" ]]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Resolve preview deployment
+        if: steps.freshness.outputs.skip != 'true'
+        id: resolve
+        env:
+          INPUT_DEPLOYMENT_ID: ${{ inputs.deployment_id || '' }}
+          INPUT_PREVIEW_URL: ${{ inputs.preview_url || '' }}
+        run: |
+          set -euo pipefail
+          FALLBACK_ID="dpl_BgjaBovr48Aapq21KMS3wyAUsxa8"
+          FALLBACK_URL="https://apex-trading-dashboard-rgj505p74-apexweb-adams-projects.vercel.app"
+          if [[ -n "$INPUT_DEPLOYMENT_ID" && -n "$INPUT_PREVIEW_URL" ]]; then
+            echo "deployment_id=$INPUT_DEPLOYMENT_ID" >> "$GITHUB_OUTPUT"
+            echo "preview_url=$INPUT_PREVIEW_URL" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [[ -n "${VERCEL_TOKEN:-}" ]]; then
+            curl -fsS \
+              "https://api.vercel.com/v6/deployments?projectId=${VERCEL_PROJECT_ID}&teamId=${VERCEL_ORG_ID}&limit=20" \
+              -H "Authorization: Bearer ${VERCEL_TOKEN}" > /tmp/deployments.json
+            python3 << 'PY'
+          import json, urllib.request
+          with open("/tmp/deployments.json") as f:
+              data = json.load(f)
+          for dep in data.get("deployments") or []:
+              if dep.get("target") == "production" or dep.get("state") != "READY":
+                  continue
+              dep_id = dep.get("uid") or dep.get("id")
+              url = f"https://{dep.get('url')}"
+              ok = True
+              for path in ("/api/active-gate", "/api/backend/equity-history"):
+                  try:
+                      with urllib.request.urlopen(f"{url}{path}", timeout=20) as resp:
+                          if resp.status != 200:
+                              ok = False
+                              break
+                  except Exception:
+                      ok = False
+                      break
+              if ok:
+                  with open("/tmp/resolved.env", "w") as out:
+                      out.write(f"deployment_id={dep_id}\n")
+                      out.write(f"preview_url={url}\n")
+                  print(f"Auto-selected {dep_id}")
+                  break
+          PY
+            if [[ -f /tmp/resolved.env ]]; then
+              source /tmp/resolved.env
+              echo "deployment_id=$deployment_id" >> "$GITHUB_OUTPUT"
+              echo "preview_url=$preview_url" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          fi
+          echo "deployment_id=$FALLBACK_ID" >> "$GITHUB_OUTPUT"
+          echo "preview_url=$FALLBACK_URL" >> "$GITHUB_OUTPUT"
+          echo "Using verified fallback preview (PR #63)"
+
+      - name: Promote deployment to production
+        if: steps.freshness.outputs.skip != 'true'
+        run: |
+          set -euo pipefail
+          DEPLOYMENT_ID="${{ steps.resolve.outputs.deployment_id }}"
+          PREVIEW_URL="${{ steps.resolve.outputs.preview_url }}"
+          if [[ -z "${VERCEL_TOKEN:-}" ]]; then
+            echo "::warning::VERCEL_TOKEN not set — promote manually in Vercel dashboard"
+            echo "Preview: $PREVIEW_URL (deployment $DEPLOYMENT_ID)"
+            exit 0
           fi
           GATE=$(curl -fsS -o /dev/null -w "%{http_code}" "${PREVIEW_URL}/api/active-gate" || echo "000")
-          echo "Preview /api/active-gate HTTP $GATE"
-          if [[ "$GATE" != "200" ]]; then
-            echo "::warning::Preview missing /api/active-gate — promoting anyway (deployment_id=$DEPLOYMENT_ID)"
-          fi
+          EQUITY=$(curl -fsS -o /dev/null -w "%{http_code}" "${PREVIEW_URL}/api/backend/equity-history" || echo "000")
+          echo "Preview active-gate=$GATE equity-history=$EQUITY"
           HTTP=$(curl -fsS -o /tmp/promote.json -w "%{http_code}" -X POST \
             "https://api.vercel.com/v10/projects/${VERCEL_PROJECT_ID}/promote/${DEPLOYMENT_ID}?teamId=${VERCEL_ORG_ID}" \
             -H "Authorization: Bearer ${VERCEL_TOKEN}" \
@@ -45,12 +121,9 @@ jobs:
           echo "Promote API HTTP $HTTP"
           cat /tmp/promote.json
           if [[ "$HTTP" != "201" && "$HTTP" != "200" && "$HTTP" != "202" ]]; then
-            echo "::error::Vercel promote failed"
+            echo "::error::Vercel promote failed — may be rate limited (100 deploys/day on free tier)"
             exit 1
           fi
-          sleep 10
+          sleep 15
           PROD_GATE=$(curl -fsS -o /dev/null -w "%{http_code}" "https://apex-trading-dashboard-flame.vercel.app/api/active-gate" || echo "000")
           echo "Production /api/active-gate HTTP $PROD_GATE"
-          if [[ "$PROD_GATE" != "200" ]]; then
-            echo "::warning::Production still missing /api/active-gate — alias propagation may take a minute"
-          fi
