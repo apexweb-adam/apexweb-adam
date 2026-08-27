@@ -37,6 +37,7 @@ import type {
   StrategyConfig,
   ProfitabilityStatus,
   IntelligenceSource,
+  PlatformStatus,
 } from "@/lib/api";
 
 type Tab = "overview" | "trades" | "positions" | "intelligence" | "learning" | "strategy";
@@ -54,6 +55,7 @@ export default function Dashboard() {
   const { data: strategies } = useAPI<StrategyConfig[]>("/strategies", 30000);
   const { data: profitability } = useAPI<ProfitabilityStatus>("/profitability", 15000);
   const { data: intelSources } = useAPI<IntelligenceSource[]>("/intelligence/sources", 30000);
+  const { data: platformStatus } = useAPI<PlatformStatus>("/status", 30000);
   const [tab, setTab] = useState<Tab>("overview");
 
   const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
@@ -193,6 +195,41 @@ export default function Dashboard() {
               </Card>
             </div>
             <div className="space-y-6">
+              {platformStatus?.deploy && platformStatus.deploy.next_steps.length > 0 && (
+                <Card title="Production Deploy">
+                  <div className="space-y-3">
+                    <div className="flex flex-wrap gap-2 text-xs">
+                      <span
+                        className={cn(
+                          "px-2 py-1 rounded-full",
+                          platformStatus.database.persistent
+                            ? "bg-apex-green/10 text-apex-green"
+                            : "bg-apex-gold/10 text-apex-gold"
+                        )}
+                      >
+                        DB: {platformStatus.database.engine}
+                      </span>
+                      <span className="px-2 py-1 rounded-full bg-apex-green/10 text-apex-green">
+                        Intel {platformStatus.intelligence.active_sources}/
+                        {platformStatus.intelligence.total_sources}
+                      </span>
+                    </div>
+                    <ul className="space-y-2 text-xs text-gray-400 list-disc list-inside">
+                      {platformStatus.deploy.next_steps.map((step) => (
+                        <li key={step}>{step}</li>
+                      ))}
+                    </ul>
+                    <a
+                      href={platformStatus.deploy.render_blueprint}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-block text-xs text-apex-gold hover:underline"
+                    >
+                      Open Render Blueprint →
+                    </a>
+                  </div>
+                </Card>
+              )}
               <Card title="Profitability Gate">
                 {profitability ? (
                   <div className="space-y-3">
