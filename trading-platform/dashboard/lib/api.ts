@@ -201,5 +201,12 @@ export type PlatformStatus = {
   platform: string;
   database: { engine: string; persistent: boolean };
   intelligence: { active_sources: number; total_sources: number };
+  scheduler?: Record<string, string>;
+  learning?: {
+    trade_analyses: number;
+    daily_reviews: number;
+    insights_applied: number;
+    insights_total: number;
+  };
   deploy?: PlatformDeployStatus;
 };

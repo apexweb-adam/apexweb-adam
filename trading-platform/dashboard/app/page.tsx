@@ -169,7 +169,7 @@ export default function Dashboard() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-6">
               <Card title="Bot Status">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
                   {bots.map((bot) => (
                     <BotCard key={bot.bot_type} bot={bot} />
                   ))}
@@ -195,6 +195,28 @@ export default function Dashboard() {
               </Card>
             </div>
             <div className="space-y-6">
+              {platformStatus?.scheduler && (
+                <Card title="Autonomous Operations">
+                  <div className="space-y-2">
+                    {Object.entries(platformStatus.scheduler).map(([key, value]) => (
+                      <div key={key} className="flex justify-between text-xs">
+                        <span className="text-gray-500">{key.replace(/_/g, " ")}</span>
+                        <span className="text-apex-green font-medium">{value}</span>
+                      </div>
+                    ))}
+                  </div>
+                  {platformStatus.learning && (
+                    <div className="mt-4 pt-4 border-t border-apex-border space-y-1 text-xs text-gray-500">
+                      <p>
+                        Learning: {platformStatus.learning.trade_analyses} post-mortems ·{" "}
+                        {platformStatus.learning.daily_reviews} daily reviews ·{" "}
+                        {platformStatus.learning.insights_applied}/{platformStatus.learning.insights_total}{" "}
+                        insights applied
+                      </p>
+                    </div>
+                  )}
+                </Card>
+              )}
               {platformStatus?.deploy && platformStatus.deploy.next_steps.length > 0 && (
                 <Card title="Production Deploy">
                   <div className="space-y-3">
