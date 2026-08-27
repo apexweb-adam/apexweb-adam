@@ -48,6 +48,8 @@ class ProfitabilityGate:
     else:
       days_trading = 0
 
+    verification_day = days_trading + 1 if period_start else 0
+
     checks = {
       "min_trades": {
         "required": self.MIN_TRADES,
@@ -108,6 +110,8 @@ class ProfitabilityGate:
       "profit_factor": round(profit_factor, 2) if profit_factor != float("inf") else None,
       "total_pnl": total_pnl,
       "days_trading": days_trading,
+      "verification_day": verification_day,
+      "verification_days_remaining": max(0, self.MIN_DAYS - days_trading),
       "verification_started_at": verification_start.isoformat() if verification_start else None,
       "checks": checks,
       "recommendation": (
