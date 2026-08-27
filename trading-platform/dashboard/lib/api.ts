@@ -191,6 +191,23 @@ export type ProfitabilityStatus = {
   };
 };
 
+/** Backend /api/active-gate shape (via /api/backend/active-gate proxy). */
+export type ActiveGateStatus = {
+  paused_bots?: string[];
+  active_bots: {
+    total_trades: number;
+    win_rate: number;
+    profit_factor: number | null;
+    total_pnl: number;
+  };
+  aggregate?: ProfitabilityStatus["aggregate"];
+  verification_day?: number;
+  verification_days_remaining?: number;
+  live_trading_ready?: boolean;
+  checks: ProfitabilityStatus["checks"];
+  recommendation: string;
+};
+
 export type VerificationSnapshot = {
   snapshot_date: string;
   verification_day: number;
