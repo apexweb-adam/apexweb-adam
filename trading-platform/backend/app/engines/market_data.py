@@ -57,11 +57,11 @@ async def fetch_binance(symbol: str, interval: str = "5m", limit: int = 100) -> 
         params={"symbol": symbol, "interval": interval, "limit": limit},
       )
       if klines.status_code != 200:
-        return price, generate_synthetic_ohlcv(price, limit)
+        return price, None
 
       data = klines.json()
       if len(data) < 30:
-        return price, generate_synthetic_ohlcv(price, limit)
+        return price, None
 
       df = pd.DataFrame(
         data,
@@ -109,7 +109,7 @@ async def fetch_coingecko(symbol: str) -> tuple[float, pd.DataFrame | None]:
         return price, df
 
       _price_cache[symbol] = price
-      return price, generate_synthetic_ohlcv(price)
+      return price, None
   except Exception:
     return 0.0, None
 
@@ -125,7 +125,7 @@ async def fetch_crypto_data(symbol: str, interval: str = "5m") -> tuple[float, p
 
   cached = _price_cache.get(symbol, 0)
   if cached > 0:
-    return cached, generate_synthetic_ohlcv(cached)
+    return cached, None
 
   return 0.0, None
 
@@ -158,7 +158,7 @@ async def fetch_yahoo_chart(symbol: str, interval: str = "1h", range_: str = "1m
       quote = chart.get("indicators", {}).get("quote", [{}])[0]
       if len(timestamps) < 30:
         _price_cache[symbol] = price
-        return price, generate_synthetic_ohlcv(price)
+        return price, None
 
       rows = []
       for i, ts in enumerate(timestamps):
@@ -176,7 +176,7 @@ async def fetch_yahoo_chart(symbol: str, interval: str = "1h", range_: str = "1m
 
       if len(rows) < 30:
         _price_cache[symbol] = price
-        return price, generate_synthetic_ohlcv(price)
+        return price, None
 
       df = pd.DataFrame(rows)
       for col in ["open", "high", "low", "close", "volume"]:
@@ -208,6 +208,6 @@ async def fetch_yfinance_data(symbol: str) -> tuple[float, pd.DataFrame | None]:
 
   cached = _price_cache.get(symbol, 0)
   if cached > 0:
-    return cached, generate_synthetic_ohlcv(cached)
+    return cached, None
 
   return 0.0, None

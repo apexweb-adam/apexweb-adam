@@ -421,7 +421,7 @@ async def get_intelligence_sources(db: AsyncSession = Depends(get_db)) -> list[d
       return "active"  # push webhook — no poll items until alerts fire
     if is_configured and not has_items and source == "x":
       if settings.newsapi_key and not settings.twitter_bearer_token:
-        return "active"  # NewsAPI social fallback fills X slot
+        return "degraded"  # NewsAPI social proxy — lower quality than native X API
       return "degraded"  # token set but API returned no data (often 402 billing)
     if is_configured or has_items:
       return "active"
