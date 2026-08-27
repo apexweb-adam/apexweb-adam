@@ -4,6 +4,7 @@ __pycache__/
 venv/
 .env
 data/
+deploy-prod.json
 
 # Node
 node_modules/
