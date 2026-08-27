@@ -27,6 +27,8 @@ if [[ -f "$ENV_FILE" ]]; then
   done < "$ENV_FILE"
 fi
 
+echo "# GitHub repo secret (Settings → Secrets → Actions) for auto-redeploy on backend push:"
+echo "# RENDER_DEPLOY_HOOK=<from Render → apex-trading-backend → Settings → Deploy Hook>"
 echo ""
 echo "# After deploy — Vercel (apex-trading-dashboard):"
 echo "BACKEND_URL=https://apex-trading-backend.onrender.com"
