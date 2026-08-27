@@ -16,10 +16,15 @@ bot_tasks: list[asyncio.Task] = []
 
 
 async def intelligence_job() -> None:
+  count = 0
   async with SessionLocal() as session:
     scanner = ExtendedIntelligenceScanner(session)
     count = await scanner.scan_all()
     print(f"[Intelligence] Scanned {count} new items at {datetime.utcnow().isoformat()}")
+  if count > 0:
+    from app.ws_manager import push_live_update
+
+    await push_live_update()
 
 
 async def content_study_job() -> None:
