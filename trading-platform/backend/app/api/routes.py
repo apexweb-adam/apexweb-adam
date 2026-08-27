@@ -116,29 +116,12 @@ async def get_trades(
 @router.get("/equity-history")
 async def get_equity_history(db: AsyncSession = Depends(get_db)) -> list[dict[str, Any]]:
   """Daily cumulative realized PnL from closed sells during verification."""
+  from app.engines.equity_history import build_equity_history
+
   result = await db.execute(
     select(Trade).where(Trade.action == "sell").order_by(Trade.executed_at)
   )
-  sells = result.scalars().all()
-  by_day: dict[str, float] = {}
-  for t in sells:
-    if not t.executed_at:
-      continue
-    day = t.executed_at.strftime("%Y-%m-%d")
-    by_day[day] = by_day.get(day, 0.0) + t.pnl
-
-  cumulative = 0.0
-  points: list[dict[str, Any]] = []
-  for day in sorted(by_day.keys()):
-    cumulative += by_day[day]
-    points.append(
-      {
-        "date": day,
-        "daily_pnl": round(by_day[day], 2),
-        "cumulative_pnl": round(cumulative, 2),
-      }
-    )
-  return points
+  return build_equity_history(list(result.scalars().all()))
 
 
 @router.get("/bots")

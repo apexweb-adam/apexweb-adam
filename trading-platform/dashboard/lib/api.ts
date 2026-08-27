@@ -169,6 +169,12 @@ export type StrategyConfig = {
   version: number;
 };
 
+export type EquityHistoryPoint = {
+  date: string;
+  daily_pnl: number;
+  cumulative_pnl: number;
+};
+
 export type ProfitabilityStatus = {
   live_trading_ready: boolean;
   paper_trading_only: boolean;
@@ -189,6 +195,7 @@ export type ProfitabilityStatus = {
     profit_factor: number | null;
     total_pnl: number;
   };
+  equity_history?: EquityHistoryPoint[];
 };
 
 /** Backend /api/active-gate shape (via /api/backend/active-gate proxy). */
@@ -218,12 +225,6 @@ export type VerificationSnapshot = {
   performance_checks_passed: boolean;
   live_trading_ready: boolean;
   created_at: string | null;
-};
-
-export type EquityHistoryPoint = {
-  date: string;
-  daily_pnl: number;
-  cumulative_pnl: number;
 };
 
 export type IntelligenceSource = {

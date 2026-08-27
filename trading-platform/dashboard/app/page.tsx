@@ -97,8 +97,11 @@ export default function Dashboard() {
     () => buildEquityHistoryFromTrades(gateTrades.filter((t) => t.action === "sell")),
     [gateTrades]
   );
-  const chartEquityHistory =
-    (equityHistory?.length ?? 0) > 0 ? equityHistory! : equityHistoryFromTrades;
+  const chartEquityHistory = useMemo(() => {
+    if ((equityHistory?.length ?? 0) > 0) return equityHistory!;
+    if ((profitability?.equity_history?.length ?? 0) > 0) return profitability!.equity_history!;
+    return equityHistoryFromTrades;
+  }, [equityHistory, profitability, equityHistoryFromTrades]);
 
   const gateStatus = useMemo(() => {
     if (activeGate?.active_bots) {
