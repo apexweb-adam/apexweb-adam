@@ -130,8 +130,41 @@ class ExtendedIntelligenceScanner(IntelligenceScanner):
           print(f"YouTube scan error for {channel_name}: {e}")
     return count
 
+  async def _scan_x_social_news_fallback(self) -> int:
+    """Social-style intel via NewsAPI when X tweet API is unavailable."""
+    if not settings.newsapi_key:
+      return 0
+    count = 0
+    async with httpx.AsyncClient(timeout=15) as client:
+      for query in X_SEARCH_QUERIES[:6]:
+        try:
+          response = await client.get(
+            "https://newsapi.org/v2/everything",
+            params={
+              "q": f"({query}) AND (twitter OR tweet OR x.com OR social media)",
+              "language": "en",
+              "sortBy": "publishedAt",
+              "pageSize": 5,
+              "apiKey": settings.newsapi_key,
+            },
+          )
+          if response.status_code != 200:
+            continue
+          for article in response.json().get("articles", []):
+            title = article.get("title") or ""
+            if not title:
+              continue
+            content = article.get("description") or title
+            url = article.get("url") or ""
+            if await self._add_item("x", f"[social-news] {title}", content, url):
+              count += 1
+        except Exception as e:
+          print(f"X news fallback error for '{query}': {e}")
+    return count
+
   async def _scan_x_twitter(self) -> int:
     count = 0
+    api_blocked = False
     headers = {"Authorization": f"Bearer {settings.twitter_bearer_token}"}
     async with httpx.AsyncClient(timeout=15) as client:
       for query in X_SEARCH_QUERIES:
@@ -145,6 +178,10 @@ class ExtendedIntelligenceScanner(IntelligenceScanner):
               "tweet.fields": "created_at,public_metrics",
             },
           )
+          if response.status_code in (402, 403):
+            api_blocked = True
+            print(f"X API error: {response.status_code}")
+            continue
           if response.status_code != 200:
             print(f"X API error: {response.status_code}")
             continue
@@ -158,6 +195,10 @@ class ExtendedIntelligenceScanner(IntelligenceScanner):
               count += 1
         except Exception as e:
           print(f"X scan error for '{query}': {e}")
+
+    if count == 0 and (api_blocked or settings.twitter_bearer_token):
+      print("[X] Using NewsAPI social fallback for X intel slot")
+      count += await self._scan_x_social_news_fallback()
     return count
 
   async def _scan_polymarket(self) -> int:
