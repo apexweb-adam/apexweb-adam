@@ -121,6 +121,8 @@ class BaseBot(ABC):
         if not action.get("is_winner", True):
           await self._analyze_loss(session, action.get("symbol", ""))
 
+    await self._record_scan_result(len(symbols), actions)
+
     if actions:
       from app.ws_manager import broadcast_trade, push_live_update
 
@@ -153,6 +155,24 @@ class BaseBot(ABC):
         session.add(state)
       state.last_scan_at = datetime.utcnow()
       state.status = "running"
+      if state.last_action.startswith("Paper reset"):
+        state.last_action = "Scanning markets"
+      state.updated_at = datetime.utcnow()
+      await session.commit()
+
+  async def _record_scan_result(self, symbol_count: int, actions: list[dict]) -> None:
+    if actions:
+      return
+    async with SessionLocal() as session:
+      result = await session.execute(
+        select(BotState).where(BotState.bot_type == self.bot_type)
+      )
+      state = result.scalar_one_or_none()
+      if not state:
+        return
+      if state.last_action.startswith(("BUY", "SELL", "PM:")):
+        return
+      state.last_action = f"Scanned {symbol_count} symbols — watching for signals"
       state.updated_at = datetime.utcnow()
       await session.commit()
 
@@ -334,6 +354,8 @@ class PolymarketBot(BaseBot):
         else:
           sym = action.get("symbol", "")
           self._register_symbol_cooldown(sym, after_loss=False)
+
+    await self._record_scan_result(len(symbols), actions)
 
     if actions:
       from app.ws_manager import broadcast_trade, push_live_update

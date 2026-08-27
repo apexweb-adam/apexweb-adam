@@ -58,18 +58,20 @@ async def reset_daily_bot_stats_job() -> None:
 async def risk_migration_job() -> None:
   async with SessionLocal() as session:
     from app.engines.strategy_migration import (
+      clamp_verification_strategy_params,
       ensure_polymarket_strategy,
       sync_bot_strategy_versions,
       trim_oversized_polymarket_positions,
     )
 
+    clamped = await clamp_verification_strategy_params(session)
     updated = await ensure_polymarket_strategy(session)
     trimmed = await trim_oversized_polymarket_positions(session)
     synced = await sync_bot_strategy_versions(session)
-    if updated or trimmed or synced:
+    if clamped or updated or trimmed or synced:
       print(
-        f"[RiskMigration] strategy_updated={updated} trimmed={trimmed} synced={synced} "
-        f"at {datetime.utcnow().isoformat()}"
+        f"[RiskMigration] clamped={clamped} strategy_updated={updated} trimmed={trimmed} "
+        f"synced={synced} at {datetime.utcnow().isoformat()}"
       )
 
 
@@ -132,11 +134,15 @@ async def setup_scheduler() -> None:
   await ensure_verification_period_on_startup()
   async with SessionLocal() as session:
     from app.engines.strategy_migration import (
+      clamp_verification_strategy_params,
       ensure_polymarket_strategy,
       sync_bot_strategy_versions,
       trim_oversized_polymarket_positions,
     )
 
+    clamped = await clamp_verification_strategy_params(session)
+    if clamped:
+      print(f"[Strategy] Clamped over-tight signal thresholds on {clamped} bot(s)")
     if await ensure_polymarket_strategy(session):
       print("[Strategy] Applied Polymarket risk caps on startup")
     trimmed = await trim_oversized_polymarket_positions(session)
