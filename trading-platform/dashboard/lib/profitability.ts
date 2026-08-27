@@ -1,5 +1,6 @@
 import type {
   ActiveGateStatus,
+  EquityHistoryPoint,
   Portfolio,
   ProfitabilityStatus,
   StrategyConfig,
@@ -31,6 +32,28 @@ function profitFactor(sells: Trade[]): number | null {
 export function inferPausedBots(strategies: StrategyConfig[] | undefined): string[] {
   if (!strategies?.length) return [];
   return strategies.filter((s) => s.max_position_pct <= 0).map((s) => s.bot_type);
+}
+
+/** Build daily cumulative PnL from closed sells when /api/equity-history is unavailable. */
+export function buildEquityHistoryFromTrades(trades: Trade[]): EquityHistoryPoint[] {
+  const byDay = new Map<string, number>();
+  for (const t of trades) {
+    if (t.action !== "sell" || !t.executed_at) continue;
+    const day = t.executed_at.slice(0, 10);
+    byDay.set(day, (byDay.get(day) ?? 0) + t.pnl);
+  }
+  let cumulative = 0;
+  const points: EquityHistoryPoint[] = [];
+  for (const date of [...byDay.keys()].sort()) {
+    const daily = byDay.get(date) ?? 0;
+    cumulative += daily;
+    points.push({
+      date,
+      daily_pnl: Math.round(daily * 100) / 100,
+      cumulative_pnl: Math.round(cumulative * 100) / 100,
+    });
+  }
+  return points;
 }
 
 /** Client-side active-bot gate when backend omits paused_bots (stale Render deploy). */
