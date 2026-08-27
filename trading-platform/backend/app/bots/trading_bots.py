@@ -174,7 +174,7 @@ class BaseBot(ABC):
       if state.last_action.startswith(("BUY", "SELL", "PM:")):
         return
       summary = detail or "watching for signals"
-      state.last_action = f"Scanned {symbol_count} symbols — {summary}"
+      state.last_action = f"Scanned {symbol_count} symbols — {summary}"[:200]
       state.updated_at = datetime.utcnow()
       await session.commit()
 
