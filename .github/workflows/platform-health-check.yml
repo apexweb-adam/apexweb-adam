@@ -73,16 +73,18 @@ jobs:
           "
 
       - name: Check active-bot gate endpoint (production proxy)
+        env:
+          VERIFIED_PREVIEW: "https://apex-trading-dashboard-q1o1x9nlh-apexweb-adams-projects.vercel.app"
         run: |
           set -euo pipefail
-          DASHBOARD="https://apex-trading-dashboard-flame.vercel.app"
-          GATE=$(curl -fsS -o /dev/null -w "%{http_code}" "$DASHBOARD/api/backend/active-gate" || echo "000")
+          PROD="https://apex-trading-dashboard-flame.vercel.app"
+          GATE=$(curl -fsS -o /dev/null -w "%{http_code}" "$PROD/api/backend/active-gate" || echo "000")
           echo "Production /api/backend/active-gate HTTP $GATE"
           if [[ "$GATE" != "200" ]]; then
             echo "::error::Active-bot gate unavailable on production proxy"
             exit 1
           fi
-          curl -fsS "$DASHBOARD/api/backend/active-gate" | python3 -c "
+          curl -fsS "$PROD/api/backend/active-gate" | python3 -c "
           import json,sys
           d=json.load(sys.stdin)
           assert d.get('active_bots'), d
@@ -91,9 +93,16 @@ jobs:
             a.get('total_trades'), (a.get('win_rate') or 0)*100,
             a.get('profit_factor'), a.get('total_pnl') or 0))
           "
-          NATIVE=$(curl -fsS -o /dev/null -w "%{http_code}" "$DASHBOARD/api/active-gate" || echo "000")
+          NATIVE=$(curl -fsS -o /dev/null -w "%{http_code}" "$PROD/api/active-gate" || echo "000")
+          PREVIEW="${VERIFIED_PREVIEW}"
           if [[ "$NATIVE" != "200" ]]; then
-            echo "::warning::Production /api/active-gate is $NATIVE — promote latest Vercel preview (see promote-vercel-production workflow)"
+            echo "::warning::Production /api/active-gate is $NATIVE — promote dpl_DFWFJtVnsfSLAkby6DWNLqUHYX7p"
+            PREVIEW_NATIVE=$(curl -fsS -o /dev/null -w "%{http_code}" "$PREVIEW/api/active-gate" || echo "000")
+            echo "Verified preview /api/active-gate HTTP $PREVIEW_NATIVE ($PREVIEW)"
+            if [[ "$PREVIEW_NATIVE" != "200" ]]; then
+              echo "::error::Verified preview native active-gate also unavailable"
+              exit 1
+            fi
           fi
 
       - name: Check equity-history endpoint (verification chart fallback)
