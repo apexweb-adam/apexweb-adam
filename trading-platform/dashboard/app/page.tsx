@@ -19,6 +19,10 @@ import { useState, useMemo, useEffect } from "react";
 import { useLiveData } from "@/lib/useLiveData";
 import { useAPI } from "@/lib/useAPI";
 import {
+  VERIFIED_PREVIEW_URL,
+  VERIFIED_PROMOTE_DEPLOYMENT_ID,
+} from "@/lib/deploy-health";
+import {
   botLabel,
   cn,
   formatCurrency,
@@ -202,15 +206,11 @@ export default function Dashboard() {
             >
               Promote in Vercel →
             </a>
-            {(platformStatus?.deploy?.verified_dashboard_url ||
-              "https://apex-trading-dashboard-fvmoq5oyj-apexweb-adams-projects.vercel.app") && (
+            {(platformStatus?.deploy?.verified_dashboard_url || VERIFIED_PREVIEW_URL) && (
               <>
                 {" "}
                 <a
-                  href={
-                    platformStatus?.deploy?.verified_dashboard_url ??
-                    "https://apex-trading-dashboard-fvmoq5oyj-apexweb-adams-projects.vercel.app"
-                  }
+                  href={platformStatus?.deploy?.verified_dashboard_url ?? VERIFIED_PREVIEW_URL}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="underline hover:text-white"
@@ -349,12 +349,11 @@ export default function Dashboard() {
                       <div className="rounded-lg border border-apex-gold/40 bg-apex-gold/10 px-3 py-2 text-xs text-apex-gold">
                         Vercel dashboard bundle stale — promote{" "}
                         {platformStatus?.deploy?.vercel_promote_deployment_id ??
-                          "dpl_8xcr2CHLWNyDHpHo5cSLsZn3YaU5"}{" "}
+                          VERIFIED_PROMOTE_DEPLOYMENT_ID}{" "}
                         for full features. Active-bot gate works via /api/backend/active-gate proxy.{" "}
                         <a
                           href={
-                            platformStatus?.deploy?.verified_dashboard_url ??
-                            "https://apex-trading-dashboard-fvmoq5oyj-apexweb-adams-projects.vercel.app"
+                            platformStatus?.deploy?.verified_dashboard_url ?? VERIFIED_PREVIEW_URL
                           }
                           target="_blank"
                           rel="noopener noreferrer"
