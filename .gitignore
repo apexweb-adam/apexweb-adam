@@ -1,0 +1,3 @@
+# Root-level npm artifacts (accidental installs outside trading-platform/)
+node_modules/
+package-lock.json
