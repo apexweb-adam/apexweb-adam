@@ -286,8 +286,11 @@ async def build_deploy_status() -> dict[str, Any]:
 
 async def recommended_dashboard_url() -> str:
   deploy = await build_deploy_status()
+  verified = deploy.get("verified_dashboard_url") or configured_verified_dashboard_url()
+  if deploy.get("vercel_bundle_stale") and verified:
+    return verified
   return (
     deploy.get("dashboard_url")
-    or deploy.get("verified_dashboard_url")
+    or verified
     or configured_verified_dashboard_url()
   )
