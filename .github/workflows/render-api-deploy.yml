@@ -1,0 +1,66 @@
+name: Render API Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      clear_cache:
+        description: Clear build cache before deploy
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+
+jobs:
+  deploy:
+    if: ${{ secrets.RENDER_API_KEY != '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Find apex-trading-backend service
+        id: find
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+        run: |
+          SERVICES=$(curl -fsS -H "Authorization: Bearer $RENDER_API_KEY" \
+            "https://api.render.com/v1/services?limit=100")
+          SERVICE_ID=$(echo "$SERVICES" | python3 -c "
+          import json, sys
+          data = json.load(sys.stdin)
+          for item in data:
+              svc = item.get('service') or item
+              if svc.get('name') == 'apex-trading-backend':
+                  print(svc['id'])
+                  break
+          ")
+          if [[ -z "$SERVICE_ID" ]]; then
+            echo "Service apex-trading-backend not found. Deploy via Render Blueprint first." >&2
+            exit 1
+          fi
+          echo "service_id=$SERVICE_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Trigger deploy
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          CLEAR_CACHE: ${{ inputs.clear_cache }}
+        run: |
+          BODY="{}"
+          if [[ "$CLEAR_CACHE" == "true" ]]; then
+            BODY='{"clearCache": true}'
+          fi
+          curl -fsS -X POST \
+            -H "Authorization: Bearer $RENDER_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "$BODY" \
+            "https://api.render.com/v1/services/${{ steps.find.outputs.service_id }}/deploys"
+          echo "Deploy triggered for apex-trading-backend"
+
+      - name: Print service URL
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+        run: |
+          SVC=$(curl -fsS -H "Authorization: Bearer $RENDER_API_KEY" \
+            "https://api.render.com/v1/services/${{ steps.find.outputs.service_id }}")
+          URL=$(echo "$SVC" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('serviceDetails',{}).get('url','') or d.get('service',{}).get('serviceDetails',{}).get('url',''))")
+          echo "Backend URL: $URL"
+          echo "Set Vercel BACKEND_URL=$URL and BACKEND_WS_URL=${URL/https/wss}"

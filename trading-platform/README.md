@@ -60,17 +60,23 @@ npm run dev
 - Auto-deploys from `main` → `trading-platform/dashboard` on Vercel
 
 **Backend (bots must run 24/7):**
-1. Go to [Render Dashboard](https://dashboard.render.com) → New → Blueprint
-2. Connect repo `apexweb-adam/apexweb-adam`, set root directory to `trading-platform`
-3. Render reads `render.yaml` — deploys `apex-trading-backend` with persistent disk
-4. Copy your Render URL (e.g. `https://apex-trading-backend.onrender.com`)
 
-**Connect dashboard to backend (Vercel project settings → Environment Variables):**
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/apexweb-adam/apexweb-adam)
+
+See [RENDER_DEPLOY.md](./RENDER_DEPLOY.md) for full steps. Summary:
+
+1. Click **Deploy to Render** above (uses root `render.yaml`)
+2. Paste env vars from `./scripts/export-render-env.sh` into Render dashboard
+3. Copy your Render URL (e.g. `https://apex-trading-backend.onrender.com`)
+
+**Connect dashboard to backend (Vercel → apex-trading-dashboard → Environment Variables):**
 ```
-NEXT_PUBLIC_API_URL=https://your-backend.onrender.com
-NEXT_PUBLIC_WS_URL=wss://your-backend.onrender.com
+BACKEND_URL=https://your-backend.onrender.com
+BACKEND_WS_URL=wss://your-backend.onrender.com
 ```
-Redeploy dashboard after setting these.
+Or run `./scripts/post-render-deploy.sh https://your-backend.onrender.com` for instructions.
+
+The dashboard proxies REST via `/api/backend/*` at runtime — no rebuild needed when backend URL changes.
 
 **Local Docker:**
 ```bash

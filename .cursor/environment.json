@@ -1,16 +1,11 @@
 {
   "name": "Apex Trading Platform",
-  "install": "cd trading-platform/backend && pip3 install -r requirements.txt && mkdir -p data && cd ../dashboard && npm ci",
+  "install": "cd trading-platform/backend && pip3 install -r requirements.txt && mkdir -p data && cd ../dashboard && npm ci && chmod +x ../scripts/*.sh",
   "terminals": [
     {
-      "name": "trading-backend",
-      "command": "cd trading-platform/backend && python3 -m uvicorn app.main:app --host 0.0.0.0 --port 8000",
-      "description": "FastAPI backend with 3 paper-trading bots, intelligence scanners, and WebSocket API"
-    },
-    {
-      "name": "backend-tunnel",
-      "command": "sleep 3 && cloudflared tunnel --url http://127.0.0.1:8000",
-      "description": "Public HTTPS tunnel for production dashboard (interim until Render deploy)"
+      "name": "trading-platform",
+      "command": "trading-platform/scripts/start-with-tunnel.sh",
+      "description": "Backend + Cloudflare tunnel for 24/7 paper trading (interim until Render deploy)"
     }
   ],
   "ports": [

@@ -18,13 +18,13 @@ Production backendnél ugyanezeket add hozzá Render/Railway **Environment Varia
 
 ## 2. Backend 24/7 — Render (ajánlott)
 
-1. Menj: https://dashboard.render.com
-2. **New** → **Blueprint**
-3. Repo: `apexweb-adam/apexweb-adam`
-4. **Root Directory:** `trading-platform`
-5. Render felismeri a `render.yaml`-t → **Apply**
-6. **Environment** fülön másold be a `.env` értékeket (Render nem olvassa a `.env`-et automatikusan)
-7. Deploy után másold ki az URL-t, pl. `https://apex-trading-backend.onrender.com`
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/apexweb-adam/apexweb-adam)
+
+Részletes lépések: `RENDER_DEPLOY.md`
+
+1. Kattints a **Deploy to Render** gombra (vagy Render → Blueprint → repo)
+2. Environment fülön: `./scripts/export-render-env.sh` kimenetét másold be
+3. Deploy után: `./scripts/post-render-deploy.sh https://YOUR-SERVICE.onrender.com`
 
 ### Railway alternatíva
 
