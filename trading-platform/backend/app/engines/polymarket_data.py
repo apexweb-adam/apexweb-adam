@@ -36,7 +36,7 @@ async def fetch_top_markets(limit: int | None = None) -> list[dict]:
         return _markets_cache[:cap] if _markets_cache else []
 
       markets = resp.json()
-      _markets_cache = [m for m in markets if m.get("slug")]
+      _markets_cache = [m for m in markets if m.get("slug") and is_macro_relevant_market(m)]
       _markets_cache_at = datetime.utcnow()
       return _markets_cache[:cap]
   except Exception as e:
@@ -55,6 +55,31 @@ def _parse_yes_price(market: dict) -> float:
 
 
 PM_SYMBOL_MAX_LEN = 64
+
+# Macro/political markets aligned with intel keywords — excludes sports noise
+MACRO_MARKET_KEYWORDS = [
+  "bitcoin", "btc", "crypto", "ethereum", "solana", "trump", "fed",
+  "tariff", "election", "gold", "oil", "recession", "rate cut", "inflation",
+  "gdp", "war", "sanction", "debt", "default", "sec", "etf", "halving",
+]
+
+SPORTS_MARKET_EXCLUDE = [
+  "mlb", "nba", "nfl", "nhl", "mls", "uefa", "atp", "wta", "f1", "formula",
+  "soccer", "football", "basketball", "baseball", "tennis", "golf", "cricket",
+  "champions league", "premier league", "world cup", "super bowl", "march madness",
+  "ncaa", "pga", "ufc", "boxing", "nascar", "olympics",
+]
+
+
+def is_macro_relevant_market(market: dict) -> bool:
+  """True when market question/slug matches macro/political themes (not sports)."""
+  text = " ".join(
+    str(market.get(k) or "")
+    for k in ("question", "slug", "description", "groupItemTitle")
+  ).lower()
+  if any(ex in text for ex in SPORTS_MARKET_EXCLUDE):
+    return False
+  return any(kw in text for kw in MACRO_MARKET_KEYWORDS)
 
 
 def pm_symbol(slug: str) -> str:

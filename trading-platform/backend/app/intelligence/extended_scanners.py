@@ -13,7 +13,10 @@ from app.intelligence.political_signals import (
   political_category,
 )
 from app.intelligence.scanner import (
+  CRYPTO_KEYWORDS,
+  COMMODITY_KEYWORDS,
   IntelligenceScanner,
+  STOCK_KEYWORDS,
   analyze_sentiment,
   categorize,
   extract_symbols,
@@ -66,6 +69,13 @@ POLYMARKET_KEYWORDS = [
   "bitcoin", "btc", "crypto", "ethereum", "solana", "trump", "fed",
   "tariff", "election", "gold", "oil", "recession", "rate cut",
 ]
+
+_TRADING_KEYWORDS = set(CRYPTO_KEYWORDS + STOCK_KEYWORDS + COMMODITY_KEYWORDS + POLYMARKET_KEYWORDS)
+
+
+def _is_trading_relevant(text: str) -> bool:
+  text_lower = text.lower()
+  return any(k in text_lower for k in _TRADING_KEYWORDS)
 
 
 class ExtendedIntelligenceScanner(IntelligenceScanner):
@@ -195,6 +205,11 @@ class ExtendedIntelligenceScanner(IntelligenceScanner):
               continue
             content = article.get("description") or title
             url = article.get("url") or ""
+            full_text = f"{title} {content}"
+            cat = categorize(full_text)
+            score = relevance_score(full_text, cat)
+            if score < 0.2 and not _is_trading_relevant(full_text):
+              continue
             if await self._add_item("x", f"[social-news] {title}", content, url):
               count += 1
         except Exception as e:
