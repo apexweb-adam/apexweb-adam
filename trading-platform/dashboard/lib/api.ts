@@ -172,6 +172,7 @@ export type StrategyConfig = {
 export type ProfitabilityStatus = {
   live_trading_ready: boolean;
   paper_trading_only: boolean;
+  paused_bots?: string[];
   total_trades: number;
   win_rate: number;
   profit_factor: number | null;
@@ -182,6 +183,12 @@ export type ProfitabilityStatus = {
   verification_started_at?: string | null;
   recommendation: string;
   checks: Record<string, { required: unknown; actual: unknown; passed: boolean }>;
+  aggregate?: {
+    total_trades: number;
+    win_rate: number;
+    profit_factor: number | null;
+    total_pnl: number;
+  };
 };
 
 export type VerificationSnapshot = {
