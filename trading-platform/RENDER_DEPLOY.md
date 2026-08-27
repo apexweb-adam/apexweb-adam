@@ -39,6 +39,7 @@ Already migrated on project `apexweb` (`zzgmovjapeyauvpdpuqe`): portfolios, trad
 
 - GitHub secret `RENDER_DEPLOY_HOOK` — auto-redeploy on backend pushes
 - GitHub secret `RENDER_API_KEY` — `render-api-deploy` workflow
+- Render env `RENDER_DEPLOY_HOOK` — same Deploy Hook URL; stale deploys self-trigger on startup (once/hour) and via `POST /api/admin/trigger-deploy`
 
 ## TradingView webhook (after Render live)
 

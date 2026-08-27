@@ -516,6 +516,7 @@ async def apply_risk_migrations(payload: dict[str, Any], db: AsyncSession = Depe
     fix_breakeven_trade_labels,
     dedupe_polymarket_positions,
     recalculate_portfolio_win_rates,
+    reconcile_portfolio_balances,
     sync_bot_strategy_versions,
     trim_oversized_polymarket_positions,
   )
@@ -526,6 +527,7 @@ async def apply_risk_migrations(payload: dict[str, Any], db: AsyncSession = Depe
 
   clamped = await clamp_verification_strategy_params(db)
   strategy_updated = await ensure_polymarket_strategy(db)
+  reconciled = await reconcile_portfolio_balances(db)
   trimmed = await trim_oversized_polymarket_positions(db)
   synced = await sync_bot_strategy_versions(db)
   breakeven_fixed = await fix_breakeven_trade_labels(db)
@@ -535,6 +537,7 @@ async def apply_risk_migrations(payload: dict[str, Any], db: AsyncSession = Depe
     "status": "ok",
     "strategies_clamped": clamped,
     "strategy_updated": strategy_updated,
+    "portfolios_reconciled": reconciled,
     "positions_trimmed": trimmed,
     "bot_versions_synced": synced,
     "breakeven_trades_fixed": breakeven_fixed,
@@ -589,6 +592,19 @@ async def set_bot_paused_admin(payload: dict[str, Any], db: AsyncSession = Depen
     "paused": paused,
     "timestamp": datetime.utcnow().isoformat(),
   }
+
+
+@router.post("/admin/trigger-deploy")
+async def trigger_deploy_admin(payload: dict[str, Any]) -> dict[str, Any]:
+  """Trigger Render redeploy when stale (requires webhook secret + RENDER_DEPLOY_HOOK env)."""
+  from app.engines.deploy_trigger import maybe_trigger_stale_redeploy
+
+  secret = payload.get("secret", "")
+  if not settings.tradingview_webhook_secret or secret != settings.tradingview_webhook_secret:
+    return {"status": "unauthorized"}
+
+  result = await maybe_trigger_stale_redeploy()
+  return {"status": "ok", **result, "timestamp": datetime.utcnow().isoformat()}
 
 
 @router.post("/admin/reset-paper-trading")

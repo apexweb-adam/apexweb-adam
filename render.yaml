@@ -32,3 +32,5 @@ services:
         sync: false
       - key: POLYMARKET_DEPOSIT_ADDRESS
         sync: false
+      - key: RENDER_DEPLOY_HOOK
+        sync: false

@@ -6,6 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
+from app.engines.platform_settings import is_bot_paused
 from app.models.entities import BotState, Portfolio, Position, StrategyConfig, Trade
 
 POLYMARKET_DEFAULTS = {
@@ -70,7 +71,8 @@ async def ensure_polymarket_strategy(session: AsyncSession) -> bool:
     return True
 
   changed = False
-  if config.max_position_pct <= 0:
+  paused = await is_bot_paused(session, "polymarket")
+  if config.max_position_pct <= 0 and not paused:
     config.max_position_pct = settings.polymarket_max_position_pct
     changed = True
   if config.max_position_pct > settings.polymarket_max_position_pct:
@@ -199,6 +201,53 @@ async def fix_breakeven_trade_labels(session: AsyncSession) -> int:
   if sells:
     await session.commit()
   return len(sells)
+
+
+async def reconcile_portfolio_balances(session: AsyncSession) -> int:
+  """Recompute balance/equity/total_pnl from the trade ledger after manual DB edits."""
+  portfolios = list((await session.execute(select(Portfolio))).scalars().all())
+  updated = 0
+  for portfolio in portfolios:
+    trades = list(
+      (
+        await session.execute(select(Trade).where(Trade.bot_type == portfolio.bot_type))
+      ).scalars().all()
+    )
+    buy_cost = sum(t.quantity * t.price for t in trades if t.action == "buy")
+    sell_proceeds = sum(t.quantity * t.price for t in trades if t.action == "sell")
+    expected_total_pnl = sum(t.pnl for t in trades if t.action == "sell")
+
+    open_positions = list(
+      (
+        await session.execute(
+          select(Position).where(
+            Position.bot_type == portfolio.bot_type,
+            Position.is_open.is_(True),
+          )
+        )
+      ).scalars().all()
+    )
+    open_market = sum(
+      p.quantity * (p.current_price or p.entry_price) for p in open_positions
+    )
+    expected_balance = settings.initial_balance - buy_cost + sell_proceeds
+    expected_equity = expected_balance + open_market
+
+    drift = (
+      abs(portfolio.balance - expected_balance) > 0.02
+      or abs(portfolio.equity - expected_equity) > 0.02
+      or abs(portfolio.total_pnl - expected_total_pnl) > 0.02
+    )
+    if drift:
+      portfolio.balance = expected_balance
+      portfolio.equity = expected_equity
+      portfolio.total_pnl = expected_total_pnl
+      portfolio.updated_at = datetime.utcnow()
+      updated += 1
+
+  if updated:
+    await session.commit()
+  return updated
 
 
 async def recalculate_portfolio_win_rates(session: AsyncSession) -> int:
