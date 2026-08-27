@@ -38,7 +38,7 @@ async def health() -> dict[str, str]:
 async def get_dashboard_url() -> dict[str, Any]:
   """Canonical CRM dashboard URL — verified preview when Vercel production bundle is stale."""
   deploy = await build_deploy_status()
-  recommended = deploy.get("dashboard_url") or deploy.get("verified_dashboard_url")
+  recommended = await recommended_dashboard_url()
   return {
     "recommended_url": recommended,
     "production_url": "https://apex-trading-dashboard-flame.vercel.app",

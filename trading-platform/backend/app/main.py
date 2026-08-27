@@ -83,9 +83,14 @@ async def crm_landing():
   pf_label = f"{pf:.2f}" if pf is not None else "n/a"
   rec = gate.get("recommendation", "")
 
-  if stale and proxy_ok:
+  if stale and url == deploy.get("verified_dashboard_url"):
     deploy_note = (
-      f"Production CRM is operational via backend proxy. "
+      f"Redirecting to verified preview with full CRM bundle (r9). "
+      f"Promote {promote_id} in Vercel to restore the -flame production alias."
+    )
+  elif stale and proxy_ok:
+    deploy_note = (
+      f"Production CRM proxy on -flame is operational but bundle is stale. "
       f"Promote {promote_id} in Vercel for native routes and newest UI."
     )
   elif stale:

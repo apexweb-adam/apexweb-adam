@@ -34,6 +34,10 @@ class Settings(BaseSettings):
     polymarket_reentry_cooldown_seconds: int = 1800
     polymarket_max_open_positions: int = 5
 
+    # Min hold before signal-based exit (stop-loss still immediate)
+    crypto_min_hold_seconds: int = 300
+    commodities_min_hold_seconds: int = 180
+
     # Bot tuning
     crypto_symbols: str = (
       "BTCUSDT,ETHUSDT,SOLUSDT,DOGEUSDT,PEPEUSDT,BNBUSDT,XRPUSDT,ADAUSDT,"

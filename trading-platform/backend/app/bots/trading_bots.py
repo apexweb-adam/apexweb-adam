@@ -18,6 +18,7 @@ from app.engines.polymarket_data import (
   find_pm_position,
   get_market_meta,
   get_polymarket_symbols,
+  is_macro_relevant_market,
 )
 from app.engines.polymarket_signals import analyze_polymarket
 from app.engines.paper_trading import PaperTradingEngine
@@ -101,7 +102,17 @@ class BaseBot(ABC):
         position = await engine.get_position(symbol)
 
         if position:
-          if signal.direction == "sell" or integration_boost < -0.1:
+          opened = position.opened_at
+          if opened and opened.tzinfo is not None:
+            opened = opened.replace(tzinfo=None)
+          held_seconds = (datetime.utcnow() - opened).total_seconds() if opened else 9999
+          min_hold = 0
+          if self.bot_type == "crypto":
+            min_hold = settings.crypto_min_hold_seconds
+          elif self.bot_type == "commodities":
+            min_hold = settings.commodities_min_hold_seconds
+          allow_signal_exit = held_seconds >= min_hold
+          if allow_signal_exit and (signal.direction == "sell" or integration_boost < -0.1):
             reason = f"Sell signal: {signal.reason}"
             if integration_reason:
               reason += f" | Integrations: {integration_reason}"
@@ -400,6 +411,9 @@ class PolymarketBot(BaseBot):
               continue
 
             if pm_open >= settings.polymarket_max_open_positions:
+              continue
+
+            if not meta or not is_macro_relevant_market(meta):
               continue
 
             if pm_sig.direction == "buy":
