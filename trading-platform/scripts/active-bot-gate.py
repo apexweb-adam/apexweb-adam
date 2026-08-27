@@ -9,7 +9,7 @@ import urllib.error
 import urllib.request
 
 PRODUCTION_DASHBOARD = "https://apex-trading-dashboard-flame.vercel.app"
-VERIFIED_PREVIEW = "https://apex-trading-dashboard-q1o1x9nlh-apexweb-adams-projects.vercel.app"
+VERIFIED_PREVIEW = "https://apex-trading-dashboard-fvmoq5oyj-apexweb-adams-projects.vercel.app"
 EXPECTED_BUNDLE = "2026-08-27-r7"
 
 
