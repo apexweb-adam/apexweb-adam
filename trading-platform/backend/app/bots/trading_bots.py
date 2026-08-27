@@ -160,8 +160,8 @@ class BaseBot(ABC):
     self.running = True
     while self.running:
       try:
-        await self.scan_and_trade()
         await self._record_scan_heartbeat()
+        await self.scan_and_trade()
       except Exception as e:
         print(f"[{self.bot_type}] Error in scan: {e}")
       await asyncio.sleep(self.scan_interval)
