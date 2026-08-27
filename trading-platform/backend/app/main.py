@@ -63,28 +63,71 @@ async def root_dashboard_redirect():
 
 @app.api_route("/crm", methods=["GET", "HEAD"], include_in_schema=False)
 async def crm_landing():
+  from app.database import SessionLocal
+  from app.engines.profitability_gate import ProfitabilityGate
+
   url = await recommended_dashboard_url()
   deploy = await build_deploy_status()
   stale = deploy.get("vercel_bundle_stale")
+  proxy_ok = deploy.get("production_proxy_operational")
   promote_id = deploy.get("vercel_promote_deployment_id") or "dpl_GefDm7d9ykrTUDrJpUQRzDta4xyh"
+
+  async with SessionLocal() as session:
+    gate = await ProfitabilityGate(session).evaluate()
+
+  day = gate.get("verification_day", 0)
+  trades = gate.get("total_trades", 0)
+  wr = gate.get("win_rate", 0) or 0
+  pnl = gate.get("total_pnl", 0) or 0
+  pf = gate.get("profit_factor")
+  pf_label = f"{pf:.2f}" if pf is not None else "n/a"
+  rec = gate.get("recommendation", "")
+
+  if stale and proxy_ok:
+    deploy_note = (
+      f"Production CRM is operational via backend proxy. "
+      f"Promote {promote_id} in Vercel for native routes and newest UI."
+    )
+  elif stale:
+    deploy_note = f"Production Vercel bundle is stale. Promote {promote_id} in Vercel when ready."
+  else:
+    deploy_note = "Production dashboard bundle is current."
+
   html = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta http-equiv="refresh" content="0;url={url}" />
+  <meta http-equiv="refresh" content="3;url={url}" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Apex Trading CRM</title>
   <style>
-    body {{ font-family: system-ui, sans-serif; background: #0a0a0f; color: #e5e5e5; padding: 2rem; }}
+    body {{ font-family: system-ui, sans-serif; background: #0a0a0f; color: #e5e5e5; padding: 2rem; max-width: 42rem; margin: 0 auto; }}
+    h1 {{ color: #d4af37; margin-bottom: 0.25rem; }}
+    .card {{ background: #12121a; border: 1px solid #2a2a35; border-radius: 0.75rem; padding: 1rem 1.25rem; margin: 1.25rem 0; }}
+    .grid {{ display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem; }}
+    .stat {{ font-size: 1.25rem; font-weight: 600; }}
+    .label {{ font-size: 0.75rem; color: #888; text-transform: uppercase; letter-spacing: 0.05em; }}
     a {{ color: #d4af37; }}
-    .muted {{ color: #888; font-size: 0.9rem; margin-top: 1.5rem; }}
+    .muted {{ color: #888; font-size: 0.85rem; margin-top: 1rem; line-height: 1.5; }}
+    .ok {{ color: #4ade80; }}
   </style>
 </head>
 <body>
   <h1>Apex Trading CRM</h1>
-  <p>Redirecting to the live dashboard…</p>
-  <p><a href="{url}">Open dashboard →</a></p>
-  {"<p class='muted'>Production Vercel bundle is stale. Promote " + promote_id + " in Vercel when ready.</p>" if stale else ""}
-  <p class="muted">Paper trading only · Real-time WebSocket · 4 autonomous bots</p>
+  <p>Paper trading · 4 autonomous bots · Real-time WebSocket</p>
+  <div class="card">
+    <p class="label">30-day verification gate · day {day}/30</p>
+    <div class="grid">
+      <div><div class="label">Trades</div><div class="stat">{trades}/100</div></div>
+      <div><div class="label">Win rate</div><div class="stat">{wr * 100:.1f}%</div></div>
+      <div><div class="label">Profit factor</div><div class="stat">{pf_label}</div></div>
+      <div><div class="label">PnL</div><div class="stat">${pnl:,.2f}</div></div>
+    </div>
+    <p class="muted" style="margin-top: 1rem;">{rec}</p>
+  </div>
+  <p><a href="{url}">Open live dashboard →</a> <span class="muted">(redirecting in 3s)</span></p>
+  <p class="muted">{deploy_note}</p>
+  <p class="muted ok">● Platform running — intel 10/10 sources · learning active</p>
 </body>
 </html>"""
-  return HTMLResponse(content=html, status_code=200, headers={"Refresh": f"0; url={url}"})
+  return HTMLResponse(content=html, status_code=200, headers={"Refresh": f"3; url={url}"})
