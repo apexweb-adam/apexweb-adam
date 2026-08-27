@@ -23,9 +23,9 @@ def github_headers() -> dict[str, str]:
   return headers
 PRODUCTION_DASHBOARD_URL = "https://apex-trading-dashboard-flame.vercel.app"
 DEFAULT_VERIFIED_DASHBOARD_URL = (
-  "https://apex-trading-dashboard-7zhc1azza-apexweb-adams-projects.vercel.app"
+  "https://apex-trading-dashboard-ekn183k28-apexweb-adams-projects.vercel.app"
 )
-DEFAULT_VERIFIED_DEPLOYMENT_ID = "dpl_35HJwCuB4czMbXFnWMdhfdGPbMsd"
+DEFAULT_VERIFIED_DEPLOYMENT_ID = "dpl_42zPqzLoftwSZddPxVfp7ztRiVES"
 EXPECTED_DASHBOARD_BUNDLE = "2026-08-27-r9"
 
 
