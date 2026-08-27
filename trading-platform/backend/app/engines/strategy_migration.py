@@ -30,6 +30,34 @@ def cap_verification_signal_score(bot_type: str, score: float) -> float:
   return min(score, ceiling)
 
 
+async def adapt_for_gate_win_rate(session: AsyncSession) -> int:
+  """Raise min_signal_score toward verification ceiling when gate win rate is below target."""
+  from app.engines.profitability_gate import ProfitabilityGate
+
+  gate = await ProfitabilityGate(session).evaluate()
+  if gate.get("total_trades", 0) < 30:
+    return 0
+  if (gate.get("win_rate") or 0) >= ProfitabilityGate.MIN_WIN_RATE:
+    return 0
+
+  configs = list((await session.execute(select(StrategyConfig))).scalars().all())
+  updated = 0
+  for config in configs:
+    ceiling = VERIFICATION_SIGNAL_CEILINGS.get(config.bot_type)
+    if ceiling is None:
+      continue
+    if config.min_signal_score >= ceiling - 0.005:
+      continue
+    config.min_signal_score = min(ceiling, config.min_signal_score + 0.005)
+    config.version += 1
+    config.updated_at = datetime.utcnow()
+    updated += 1
+
+  if updated:
+    await session.commit()
+  return updated
+
+
 async def clamp_verification_strategy_params(session: AsyncSession) -> int:
   """Lower over-tightened signal thresholds so all bots can trade during verification."""
   configs = list((await session.execute(select(StrategyConfig))).scalars().all())

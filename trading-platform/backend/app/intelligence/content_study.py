@@ -157,6 +157,37 @@ class ContentStudyEngine:
         item.applied = True
         applied += 1
 
+    event_result = await self.session.execute(
+      select(IntelligenceItem)
+      .where(
+        IntelligenceItem.applied.is_(False),
+        IntelligenceItem.source.in_(("political", "polymarket", "polymarket_account")),
+        IntelligenceItem.relevance_score > 0.3,
+      )
+      .order_by(IntelligenceItem.fetched_at.desc())
+      .limit(15)
+    )
+    for item in event_result.scalars().all():
+      if abs(item.sentiment) < 0.1:
+        continue
+      direction = "long" if item.sentiment > 0 else "cautious"
+      symbols = item.symbols_mentioned or "macro markets"
+      impact = (
+        f"Event intel ({item.source}): favor {direction} bias on {symbols} "
+        f"when prediction-market and price action align"
+      )
+      insight = await self.learner.apply_external_insight(
+        source_type=item.source,
+        title=item.title,
+        url=item.url or "",
+        takeaways=item.content[:500],
+        impact=impact,
+        confidence=min(0.75, item.relevance_score * (0.5 + abs(item.sentiment))),
+      )
+      if insight.applied:
+        item.applied = True
+        applied += 1
+
     result = await self.session.execute(
       select(IntelligenceItem)
       .where(IntelligenceItem.applied.is_(False), IntelligenceItem.relevance_score > 0.5)

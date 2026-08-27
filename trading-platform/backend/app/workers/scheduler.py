@@ -76,6 +76,7 @@ async def reset_daily_bot_stats_job() -> None:
 async def risk_migration_job() -> None:
   async with SessionLocal() as session:
     from app.engines.strategy_migration import (
+      adapt_for_gate_win_rate,
       clamp_verification_strategy_params,
       ensure_polymarket_strategy,
       sync_bot_strategy_versions,
@@ -83,14 +84,15 @@ async def risk_migration_job() -> None:
     )
 
     clamped = await clamp_verification_strategy_params(session)
+    adapted = await adapt_for_gate_win_rate(session)
     migrated = await migrate_symbol_columns(session)
     updated = await ensure_polymarket_strategy(session)
     trimmed = await trim_oversized_polymarket_positions(session)
     synced = await sync_bot_strategy_versions(session)
-    if clamped or updated or trimmed or synced:
+    if clamped or adapted or updated or trimmed or synced:
       print(
-        f"[RiskMigration] clamped={clamped} strategy_updated={updated} trimmed={trimmed} "
-        f"synced={synced} at {datetime.utcnow().isoformat()}"
+        f"[RiskMigration] clamped={clamped} gate_adapted={adapted} strategy_updated={updated} "
+        f"trimmed={trimmed} synced={synced} at {datetime.utcnow().isoformat()}"
       )
 
 
