@@ -468,6 +468,7 @@ async def websocket_endpoint(websocket: WebSocket):
 async def apply_risk_migrations(payload: dict[str, Any], db: AsyncSession = Depends(get_db)):
   """Apply Polymarket strategy caps and trim oversized positions (requires webhook secret)."""
   from app.engines.strategy_migration import (
+    clamp_verification_strategy_params,
     ensure_polymarket_strategy,
     sync_bot_strategy_versions,
     trim_oversized_polymarket_positions,
@@ -477,11 +478,13 @@ async def apply_risk_migrations(payload: dict[str, Any], db: AsyncSession = Depe
   if not settings.tradingview_webhook_secret or secret != settings.tradingview_webhook_secret:
     return {"status": "unauthorized"}
 
+  clamped = await clamp_verification_strategy_params(db)
   strategy_updated = await ensure_polymarket_strategy(db)
   trimmed = await trim_oversized_polymarket_positions(db)
   synced = await sync_bot_strategy_versions(db)
   return {
     "status": "ok",
+    "strategies_clamped": clamped,
     "strategy_updated": strategy_updated,
     "positions_trimmed": trimmed,
     "bot_versions_synced": synced,

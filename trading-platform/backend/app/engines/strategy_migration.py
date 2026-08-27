@@ -15,6 +15,42 @@ POLYMARKET_DEFAULTS = {
   "take_profit_pct": 0.08,
 }
 
+# Learning/content-study can inflate thresholds — cap during paper verification
+VERIFICATION_SIGNAL_CEILINGS = {
+  "crypto": 0.22,
+  "stocks_futures": 0.28,
+  "commodities": 0.28,
+  "polymarket": 0.25,
+}
+
+
+async def clamp_verification_strategy_params(session: AsyncSession) -> int:
+  """Lower over-tightened signal thresholds so all bots can trade during verification."""
+  configs = list((await session.execute(select(StrategyConfig))).scalars().all())
+  updated = 0
+  for config in configs:
+    ceiling = VERIFICATION_SIGNAL_CEILINGS.get(config.bot_type)
+    if ceiling is None:
+      continue
+    changed = False
+    if config.min_signal_score > ceiling:
+      config.min_signal_score = ceiling
+      changed = True
+    if config.min_sentiment_score > 0.15:
+      config.min_sentiment_score = 0.0
+      changed = True
+    if config.bot_type == "polymarket":
+      if config.max_position_pct > settings.polymarket_max_position_pct:
+        config.max_position_pct = settings.polymarket_max_position_pct
+        changed = True
+    if changed:
+      config.version += 1
+      config.updated_at = datetime.utcnow()
+      updated += 1
+  if updated:
+    await session.commit()
+  return updated
+
 
 async def ensure_polymarket_strategy(session: AsyncSession) -> bool:
   """Clamp Polymarket strategy to safe paper-trading limits. Returns True if updated."""
@@ -37,6 +73,9 @@ async def ensure_polymarket_strategy(session: AsyncSession) -> bool:
     changed = True
   if config.min_signal_score < 0.20:
     config.min_signal_score = 0.22
+    changed = True
+  if config.min_signal_score > VERIFICATION_SIGNAL_CEILINGS["polymarket"]:
+    config.min_signal_score = VERIFICATION_SIGNAL_CEILINGS["polymarket"]
     changed = True
 
   if changed:
