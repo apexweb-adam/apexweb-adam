@@ -447,6 +447,28 @@ async def websocket_endpoint(websocket: WebSocket):
     manager.disconnect(websocket)
 
 
+@router.post("/admin/apply-risk-migrations")
+async def apply_risk_migrations(payload: dict[str, Any], db: AsyncSession = Depends(get_db)):
+  """Apply Polymarket strategy caps and trim oversized positions (requires webhook secret)."""
+  from app.engines.strategy_migration import (
+    ensure_polymarket_strategy,
+    trim_oversized_polymarket_positions,
+  )
+
+  secret = payload.get("secret", "")
+  if not settings.tradingview_webhook_secret or secret != settings.tradingview_webhook_secret:
+    return {"status": "unauthorized"}
+
+  strategy_updated = await ensure_polymarket_strategy(db)
+  trimmed = await trim_oversized_polymarket_positions(db)
+  return {
+    "status": "ok",
+    "strategy_updated": strategy_updated,
+    "positions_trimmed": trimmed,
+    "timestamp": datetime.utcnow().isoformat(),
+  }
+
+
 @router.post("/webhooks/tradingview")
 async def tradingview_webhook(payload: dict[str, Any], db: AsyncSession = Depends(get_db)):
   from app.config import settings
