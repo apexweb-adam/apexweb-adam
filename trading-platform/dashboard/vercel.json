@@ -2,5 +2,9 @@
   "framework": "nextjs",
   "buildCommand": "npm run build",
   "installCommand": "npm install",
-  "outputDirectory": ".next"
+  "outputDirectory": ".next",
+  "env": {
+    "NEXT_PUBLIC_API_URL": "https://examine-translations-navy-featured.trycloudflare.com",
+    "NEXT_PUBLIC_WS_URL": "wss://examine-translations-navy-featured.trycloudflare.com"
+  }
 }

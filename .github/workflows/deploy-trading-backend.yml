@@ -1,0 +1,33 @@
+name: Deploy Trading Backend
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'trading-platform/backend/**'
+      - 'trading-platform/render.yaml'
+
+jobs:
+  deploy-railway:
+    if: ${{ secrets.RAILWAY_TOKEN != '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Railway CLI
+        run: npm i -g @railway/cli
+      - name: Deploy to Railway
+        working-directory: trading-platform/backend
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          railway link --project "${{ vars.RAILWAY_PROJECT_ID }}" 2>/dev/null || railway init --name apex-trading-backend
+          railway up --detach
+          railway variables set \
+            PAPER_TRADING_ONLY=true \
+            INITIAL_BALANCE=100000 \
+            DATABASE_URL=sqlite+aiosqlite:///./data/trading.db \
+            CORS_ORIGINS="https://apex-trading-dashboard-flame.vercel.app,https://apex-trading-dashboard-apexweb-adams-projects.vercel.app"
+          railway variables set NEWSAPI_KEY="${{ secrets.NEWSAPI_KEY }}"
+          railway variables set TWITTER_BEARER_TOKEN="${{ secrets.TWITTER_BEARER_TOKEN }}"
+          railway variables set TRADINGVIEW_WEBHOOK_SECRET="${{ secrets.TRADINGVIEW_WEBHOOK_SECRET }}"
