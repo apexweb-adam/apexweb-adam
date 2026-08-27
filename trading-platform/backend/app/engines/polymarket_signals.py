@@ -96,15 +96,20 @@ async def analyze_polymarket(
     score -= 0.30
     reasons.append("Yes price overbought (>0.72)")
     direction = "sell"
-  elif momentum < -0.025 and df is not None and len(df) >= 12:
+  elif momentum < -0.04 and df is not None and len(df) >= 15:
     score -= 0.30
     reasons.append(f"Yes momentum {momentum*100:.1f}% (real ticks)")
     direction = "sell"
 
-  if sentiment < -0.15 and direction != "sell":
+  if sentiment < -0.20 and direction != "sell":
     score -= 0.25
     reasons.append(f"Intel bearish ({sentiment:+.2f})")
     direction = "sell"
+
+  # Do not flip to sell on value-zone prices when intel is still bullish
+  if direction == "sell" and price < 0.55 and sentiment > 0.05:
+    direction = "hold"
+    reasons.append("Hold: value zone with bullish intel")
 
   score = max(-1.0, min(1.0, score + sentiment * 0.2 + momentum * 2))
   if direction == "hold" and score >= 0.15:

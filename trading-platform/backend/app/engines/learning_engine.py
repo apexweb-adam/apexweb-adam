@@ -166,6 +166,9 @@ class LearningEngine:
     if not config:
       return
 
+    from app.config import settings
+
+    pm_cap = settings.polymarket_max_position_pct
     changed = False
     for adj in adjustments:
       if "min_signal_score" in adj.lower():
@@ -175,10 +178,19 @@ class LearningEngine:
         config.min_sentiment_score = min(0.5, config.min_sentiment_score + 0.05)
         changed = True
       if "stop-loss" in adj.lower() or "tighten" in adj.lower():
-        config.stop_loss_pct = max(0.01, config.stop_loss_pct - 0.002)
+        floor = settings.polymarket_stop_loss_pct if bot_type == "polymarket" else 0.01
+        config.stop_loss_pct = max(floor, config.stop_loss_pct - 0.002)
         changed = True
       if "position size" in adj.lower() or "smaller positions" in adj.lower():
-        config.max_position_pct = max(0.02, config.max_position_pct - 0.005)
+        floor = pm_cap if bot_type == "polymarket" else 0.02
+        config.max_position_pct = max(floor, config.max_position_pct - 0.005)
+        if bot_type == "polymarket":
+          config.max_position_pct = min(config.max_position_pct, pm_cap)
+        changed = True
+
+    if bot_type == "polymarket":
+      if config.max_position_pct > pm_cap:
+        config.max_position_pct = pm_cap
         changed = True
 
     if changed:
@@ -230,6 +242,8 @@ class LearningEngine:
     return "; ".join(changes)
 
   async def _apply_insight_to_strategies(self, impact: str) -> None:
+    from app.config import settings
+
     result = await self.session.execute(select(StrategyConfig))
     configs = list(result.scalars().all())
 
@@ -238,8 +252,21 @@ class LearningEngine:
       if "rsi" in impact_lower and "oversold" in impact_lower:
         config.rsi_oversold = max(25, config.rsi_oversold - 2)
       if "stop" in impact_lower and "tight" in impact_lower:
-        config.stop_loss_pct = max(0.01, config.stop_loss_pct - 0.001)
+        floor = (
+          settings.polymarket_stop_loss_pct
+          if config.bot_type == "polymarket"
+          else 0.01
+        )
+        config.stop_loss_pct = max(floor, config.stop_loss_pct - 0.001)
       if "sentiment" in impact_lower:
         config.sentiment_weight = min(0.5, config.sentiment_weight + 0.05)
+      # Never raise Polymarket position size from external content (0–1 share math)
+      if "position" in impact_lower and config.bot_type != "polymarket":
+        if "reduce" in impact_lower or "smaller" in impact_lower or "2%" in impact_lower:
+          config.max_position_pct = max(0.03, config.max_position_pct - 0.005)
+      if config.bot_type == "polymarket":
+        config.max_position_pct = min(
+          config.max_position_pct, settings.polymarket_max_position_pct
+        )
       config.version += 1
       config.updated_at = datetime.utcnow()

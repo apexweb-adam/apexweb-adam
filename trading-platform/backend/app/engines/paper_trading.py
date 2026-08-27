@@ -40,7 +40,12 @@ class PaperTradingEngine:
     if not strategy:
       defaults = {}
       if self.bot_type == "polymarket":
-        defaults = {"max_position_pct": 0.02, "stop_loss_pct": 0.06, "min_signal_score": 0.18}
+        defaults = {
+          "max_position_pct": settings.polymarket_max_position_pct,
+          "stop_loss_pct": settings.polymarket_stop_loss_pct,
+          "min_signal_score": 0.22,
+          "take_profit_pct": 0.08,
+        }
       strategy = StrategyConfig(bot_type=self.bot_type, **defaults)
       self.session.add(strategy)
       await self.session.commit()
@@ -86,6 +91,12 @@ class PaperTradingEngine:
       return None
 
     position_value = portfolio.balance * strategy_cfg.max_position_pct
+    if self.bot_type == "polymarket":
+      position_value = min(
+        position_value,
+        settings.polymarket_max_position_usd,
+        portfolio.balance * settings.polymarket_max_position_pct,
+      )
     quantity = position_value / price if price > 0 else 0
     if quantity <= 0 or position_value > portfolio.balance:
       return None
