@@ -10,10 +10,16 @@ A platform **nyilvános Polymarket Gamma API**-t használ — nincs szükség be
 
 ## Bejelentkezés (opcionális)
 
-Ha **saját pozícióid / wallet** alapján akarsz jelet (jövőbeli feature), Polymarket fiók kell:
+Ha **saját pozícióid** alapján akarsz jelet, add meg a Polymarket **proxy wallet** címedet (nem kell API kulcs):
 
-1. Nyisd meg: https://polymarket.com
-2. **Sign in** → email / Google / wallet
-3. API kulcs jelenleg **nem kötelező** a read-only scannerhez
+1. Nyisd meg: https://polymarket.com → Sign in
+2. Profil → másold ki a wallet címet (0x...)
+3. Add hozzá a `.env`-hez:
 
-A jelenlegi bot **paper trading** módban nem kereskedik Polymarket-en — csak olvassa a prediction market odds-okat intelligencia jelként.
+```
+POLYMARKET_WALLET_ADDRESS=0xYourProxyWalletAddress
+```
+
+A bot olvassa a nyilvános Data API-t (`data-api.polymarket.com/positions`) — nincs szükség jelszóra vagy privát kulcsra.
+
+Ha mégis be akarsz lépni: https://polymarket.com (Google / email / MetaMask).

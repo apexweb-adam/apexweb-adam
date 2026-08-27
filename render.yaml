@@ -1,7 +1,10 @@
+# One-click deploy: https://dashboard.render.com → New → Blueprint → this repo
+# Set root directory to repository root (this file is at repo root).
 services:
   - type: web
     name: apex-trading-backend
     runtime: docker
+    rootDir: trading-platform
     dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
     plan: free

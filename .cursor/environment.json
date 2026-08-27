@@ -1,0 +1,15 @@
+{
+  "name": "Apex Trading Platform",
+  "install": "cd trading-platform/backend && pip3 install -r requirements.txt && mkdir -p data && cd ../dashboard && npm ci",
+  "terminals": [
+    {
+      "name": "trading-backend",
+      "command": "cd trading-platform/backend && python3 -m uvicorn app.main:app --host 0.0.0.0 --port 8000",
+      "description": "FastAPI backend with 3 paper-trading bots, intelligence scanners, and WebSocket API"
+    }
+  ],
+  "ports": [
+    { "name": "api", "port": 8000 },
+    { "name": "dashboard", "port": 3000 }
+  ]
+}

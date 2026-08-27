@@ -19,6 +19,8 @@ class Settings(BaseSettings):
     # Integrations
     tradingview_webhook_secret: str = ""
     polymarket_api_url: str = "https://gamma-api.polymarket.com"
+    polymarket_data_api_url: str = "https://data-api.polymarket.com"
+    polymarket_wallet_address: str = ""
 
     # Bot tuning
     crypto_symbols: str = "BTCUSDT,ETHUSDT,SOLUSDT,DOGEUSDT,PEPEUSDT"

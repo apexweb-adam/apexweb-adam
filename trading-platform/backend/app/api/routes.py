@@ -287,6 +287,7 @@ async def get_intelligence_sources(db: AsyncSession = Depends(get_db)) -> list[d
     "reddit": True,
     "youtube": True,
     "polymarket": True,
+    "polymarket_account": bool(settings.polymarket_wallet_address),
     "political": True,
     "tiktok": True,
     "tradingview": bool(settings.tradingview_webhook_secret),
@@ -301,7 +302,7 @@ async def get_intelligence_sources(db: AsyncSession = Depends(get_db)) -> list[d
       "items_collected": source_counts.get(source, 0),
       "last_fetched": source_latest.get(source, datetime.utcnow()).isoformat() if source in source_latest else None,
     }
-    for source in ["news", "reddit", "youtube", "x", "tiktok", "polymarket", "political", "tradingview", "newsapi"]
+    for source in ["news", "reddit", "youtube", "x", "tiktok", "polymarket", "polymarket_account", "political", "tradingview", "newsapi"]
   ]
 
 

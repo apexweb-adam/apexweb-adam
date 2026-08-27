@@ -59,6 +59,8 @@ class ExtendedIntelligenceScanner(IntelligenceScanner):
     count = await super().scan_all()
     count += await self._scan_youtube()
     count += await self._scan_polymarket()
+    if settings.polymarket_wallet_address:
+      count += await self._scan_polymarket_account()
     count += await self._scan_political()
     count += await self._scan_tiktok_news()
     if settings.twitter_bearer_token:
@@ -181,6 +183,64 @@ class ExtendedIntelligenceScanner(IntelligenceScanner):
             count += 1
     except Exception as e:
       print(f"Polymarket scan error: {e}")
+    return count
+
+  async def _scan_polymarket_account(self) -> int:
+    """Fetch user's open Polymarket positions via public Data API (no auth required)."""
+    count = 0
+    wallet = settings.polymarket_wallet_address.strip()
+    if not wallet:
+      return 0
+    try:
+      async with httpx.AsyncClient(timeout=15) as client:
+        response = await client.get(
+          f"{settings.polymarket_data_api_url}/positions",
+          params={"user": wallet, "limit": 25, "sortBy": "CASHPNL", "sortDirection": "DESC"},
+        )
+        if response.status_code != 200:
+          print(f"Polymarket account API error: {response.status_code}")
+          return 0
+
+        for pos in response.json():
+          title = pos.get("title", "Unknown market")
+          outcome = pos.get("outcome", "")
+          size = pos.get("size", 0)
+          cur_price = pos.get("curPrice", 0)
+          cash_pnl = pos.get("cashPnl", 0)
+          slug = pos.get("slug", pos.get("eventSlug", ""))
+          url = f"https://polymarket.com/event/{slug}" if slug else f"https://polymarket.com/profile/{wallet}"
+
+          content = (
+            f"Your position: {outcome} | Size: {size:.2f} | Price: {cur_price:.2f} | "
+            f"PnL: ${cash_pnl:,.2f}"
+          )
+          sentiment = 0.3 if cash_pnl > 0 else -0.3 if cash_pnl < 0 else 0.0
+
+          full_text = f"{title} {content}"
+          existing = await self.session.execute(
+            select(IntelligenceItem).where(
+              IntelligenceItem.source == "polymarket_account",
+              IntelligenceItem.title == f"[Your Position] {title[:450]}",
+            )
+          )
+          if existing.scalar_one_or_none():
+            continue
+
+          self.session.add(
+            IntelligenceItem(
+              source="polymarket_account",
+              category="political",
+              title=f"[Your Position] {title[:450]}",
+              content=content[:2000],
+              url=url[:1000],
+              sentiment=sentiment,
+              relevance_score=relevance_score(full_text, "political"),
+              symbols_mentioned=extract_symbols(full_text),
+            )
+          )
+          count += 1
+    except Exception as e:
+      print(f"Polymarket account scan error: {e}")
     return count
 
   async def _scan_political(self) -> int:
