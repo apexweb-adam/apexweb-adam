@@ -212,7 +212,7 @@ class PolymarketBot(BaseBot):
 
   bot_type = "polymarket"
   scan_interval = 45
-  _loss_cooldown_until: dict[str, datetime] = {}
+  _symbol_cooldown_until: dict[str, datetime] = {}
 
   async def get_symbols(self) -> list[str]:
     return await get_polymarket_symbols()
@@ -220,11 +220,15 @@ class PolymarketBot(BaseBot):
   async def fetch_price_data(self, symbol: str) -> tuple[float, pd.DataFrame | None]:
     return await fetch_polymarket_data(symbol)
 
-  def _register_loss_cooldown(self, symbol: str) -> None:
-    if symbol:
-      self._loss_cooldown_until[symbol] = datetime.utcnow() + timedelta(
-        seconds=settings.polymarket_loss_cooldown_seconds
-      )
+  def _register_symbol_cooldown(self, symbol: str, *, after_loss: bool) -> None:
+    if not symbol:
+      return
+    seconds = (
+      settings.polymarket_loss_cooldown_seconds
+      if after_loss
+      else settings.polymarket_reentry_cooldown_seconds
+    )
+    self._symbol_cooldown_until[symbol] = datetime.utcnow() + timedelta(seconds=seconds)
 
   async def scan_and_trade(self) -> list[dict]:
     actions: list[dict] = []
@@ -234,6 +238,8 @@ class PolymarketBot(BaseBot):
       engine = PaperTradingEngine(session, self.bot_type)
       strategy = await engine.get_strategy()
       min_score = min(strategy.min_signal_score, 0.12)
+      open_positions = await engine.get_open_positions()
+      pm_open = len(open_positions)
       prices: dict[str, float] = {}
 
       for symbol in symbols:
@@ -269,13 +275,17 @@ class PolymarketBot(BaseBot):
             result = await engine.sell(symbol, price, reason)
             if result:
               actions.append(result)
-              if not result.get("is_winner", True):
+              won = result.get("is_winner", True)
+              if not won:
                 await self._analyze_loss(session, symbol)
-                self._register_loss_cooldown(symbol)
+              self._register_symbol_cooldown(symbol, after_loss=not won)
           continue
 
-        cooldown = self._loss_cooldown_until.get(symbol)
+        cooldown = self._symbol_cooldown_until.get(symbol)
         if cooldown and datetime.utcnow() < cooldown:
+          continue
+
+        if pm_open >= settings.polymarket_max_open_positions:
           continue
 
         if (
@@ -296,6 +306,7 @@ class PolymarketBot(BaseBot):
           )
           if result:
             actions.append(result)
+            pm_open += 1
 
       stop_actions = await engine.update_positions(prices)
       actions.extend(stop_actions)
@@ -304,7 +315,10 @@ class PolymarketBot(BaseBot):
         if not action.get("is_winner", True):
           sym = action.get("symbol", "")
           await self._analyze_loss(session, sym)
-          self._register_loss_cooldown(sym)
+          self._register_symbol_cooldown(sym, after_loss=True)
+        else:
+          sym = action.get("symbol", "")
+          self._register_symbol_cooldown(sym, after_loss=False)
 
     if actions:
       from app.ws_manager import broadcast_trade, push_live_update

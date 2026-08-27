@@ -407,6 +407,7 @@ async def get_platform_status(db: AsyncSession = Depends(get_db)) -> dict[str, A
     "scheduler": {
       "intelligence_scan": "every 5 min",
       "content_study": "every 2 hours",
+      "risk_migration": "every 15 min",
       "daily_review": "22:00 UTC",
     },
     "deploy": {

@@ -93,9 +93,11 @@ class PaperTradingEngine:
     position_value = portfolio.balance * strategy_cfg.max_position_pct
     if self.bot_type == "polymarket":
       position_value = min(
-        position_value,
         settings.polymarket_max_position_usd,
-        portfolio.balance * settings.polymarket_max_position_pct,
+        portfolio.balance * min(
+          strategy_cfg.max_position_pct,
+          settings.polymarket_max_position_pct,
+        ),
       )
     quantity = position_value / price if price > 0 else 0
     if quantity <= 0 or position_value > portfolio.balance:
