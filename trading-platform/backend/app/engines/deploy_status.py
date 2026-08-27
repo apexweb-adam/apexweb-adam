@@ -11,15 +11,77 @@ import httpx
 GITHUB_REPO = os.environ.get("GITHUB_REPO", "apexweb-adam/apexweb-adam")
 GITHUB_API = f"https://api.github.com/repos/{GITHUB_REPO}/commits/main"
 PRODUCTION_DASHBOARD_URL = "https://apex-trading-dashboard-flame.vercel.app"
-VERIFIED_DASHBOARD_URL = os.environ.get(
-  "VERIFIED_DASHBOARD_URL",
-  "https://apex-trading-dashboard-fvmoq5oyj-apexweb-adams-projects.vercel.app",
+DEFAULT_VERIFIED_DASHBOARD_URL = (
+  "https://apex-trading-dashboard-fvmoq5oyj-apexweb-adams-projects.vercel.app"
 )
-VERIFIED_DEPLOYMENT_ID = os.environ.get(
-  "VERIFIED_VERCEL_DEPLOYMENT_ID",
-  "dpl_8xcr2CHLWNyDHpHo5cSLsZn3YaU5",
-)
+DEFAULT_VERIFIED_DEPLOYMENT_ID = "dpl_8xcr2CHLWNyDHpHo5cSLsZn3YaU5"
 EXPECTED_DASHBOARD_BUNDLE = "2026-08-27-r7"
+
+
+def configured_verified_dashboard_url() -> str:
+  return os.environ.get("VERIFIED_DASHBOARD_URL", DEFAULT_VERIFIED_DASHBOARD_URL)
+
+
+def configured_verified_deployment_id() -> str:
+  return os.environ.get("VERIFIED_VERCEL_DEPLOYMENT_ID", DEFAULT_VERIFIED_DEPLOYMENT_ID)
+
+
+def verified_dashboard_candidates() -> list[str]:
+  """Ordered dashboard URLs to probe when production bundle is stale."""
+  candidates: list[str] = []
+  seen: set[str] = set()
+
+  def add(url: str | None) -> None:
+    if not url:
+      return
+    normalized = url.strip().rstrip("/")
+    if normalized and normalized not in seen:
+      seen.add(normalized)
+      candidates.append(normalized)
+
+  add(configured_verified_dashboard_url())
+  for part in (os.environ.get("VERIFIED_DASHBOARD_FALLBACKS") or "").split(","):
+    add(part)
+  add(DEFAULT_VERIFIED_DASHBOARD_URL)
+  add("https://apex-trading-dashboard-apexweb-adams-projects.vercel.app")
+  return candidates
+
+
+def bundle_is_current(cfg: dict[str, Any]) -> bool:
+  revision = cfg.get("bundleRevision")
+  active_gate = (cfg.get("features") or {}).get("activeGate") is True
+  return revision == EXPECTED_DASHBOARD_BUNDLE and active_gate
+
+
+async def probe_dashboard_config(url: str) -> dict[str, Any] | None:
+  try:
+    async with httpx.AsyncClient(timeout=8.0) as client:
+      response = await client.get(f"{url}/api/config")
+      if response.status_code != 200:
+        return None
+      cfg = response.json()
+      return cfg if isinstance(cfg, dict) else None
+  except Exception:
+    return None
+
+
+async def discover_verified_dashboard() -> dict[str, Any]:
+  """Probe candidate preview URLs and return the first with the expected bundle."""
+  for url in verified_dashboard_candidates():
+    cfg = await probe_dashboard_config(url)
+    if cfg and bundle_is_current(cfg):
+      return {
+        "verified_dashboard_url": url,
+        "vercel_bundle_revision": cfg.get("bundleRevision"),
+        "discovered": url != configured_verified_dashboard_url(),
+      }
+
+  fallback = configured_verified_dashboard_url()
+  return {
+    "verified_dashboard_url": fallback,
+    "vercel_bundle_revision": None,
+    "discovered": False,
+  }
 
 
 def deployed_git_commit() -> str | None:
@@ -74,33 +136,40 @@ async def fetch_commits_since(deployed_sha: str) -> list[dict[str, str]]:
 
 async def fetch_vercel_dashboard_bundle() -> dict[str, Any]:
   """Probe production /api/config for dashboard bundle freshness."""
+  promote_id = configured_verified_deployment_id()
+  promote_url = (
+    "https://vercel.com/apexweb-adams-projects/apex-trading-dashboard/deployments"
+  )
+
   try:
-    async with httpx.AsyncClient(timeout=8.0) as client:
-      response = await client.get(f"{PRODUCTION_DASHBOARD_URL}/api/config")
-      if response.status_code != 200:
-        return {"vercel_bundle_stale": True, "vercel_bundle_revision": None}
-      cfg = response.json()
-      revision = cfg.get("bundleRevision")
-      active_gate = (cfg.get("features") or {}).get("activeGate") is True
-      current = revision == EXPECTED_DASHBOARD_BUNDLE and active_gate
-      out: dict[str, Any] = {
-        "vercel_bundle_stale": not current,
-        "vercel_bundle_revision": revision,
-        "dashboard_url": PRODUCTION_DASHBOARD_URL if current else VERIFIED_DASHBOARD_URL,
+    prod_cfg = await probe_dashboard_config(PRODUCTION_DASHBOARD_URL)
+    if prod_cfg and bundle_is_current(prod_cfg):
+      return {
+        "vercel_bundle_stale": False,
+        "vercel_bundle_revision": prod_cfg.get("bundleRevision"),
+        "dashboard_url": PRODUCTION_DASHBOARD_URL,
       }
-      if not current:
-        out["verified_dashboard_url"] = VERIFIED_DASHBOARD_URL
-        out["vercel_promote_deployment_id"] = VERIFIED_DEPLOYMENT_ID
-        out["vercel_promote_url"] = (
-          "https://vercel.com/apexweb-adams-projects/apex-trading-dashboard/deployments"
-        )
-      return out
-  except Exception:
+
+    discovered = await discover_verified_dashboard()
+    verified_url = discovered["verified_dashboard_url"]
     return {
       "vercel_bundle_stale": True,
-      "verified_dashboard_url": VERIFIED_DASHBOARD_URL,
-      "vercel_promote_deployment_id": VERIFIED_DEPLOYMENT_ID,
-      "dashboard_url": VERIFIED_DASHBOARD_URL,
+      "vercel_bundle_revision": (prod_cfg or {}).get("bundleRevision"),
+      "verified_dashboard_url": verified_url,
+      "verified_dashboard_discovered": discovered.get("discovered", False),
+      "verified_bundle_revision": discovered.get("vercel_bundle_revision"),
+      "vercel_promote_deployment_id": promote_id,
+      "vercel_promote_url": promote_url,
+      "dashboard_url": verified_url,
+    }
+  except Exception:
+    verified_url = configured_verified_dashboard_url()
+    return {
+      "vercel_bundle_stale": True,
+      "verified_dashboard_url": verified_url,
+      "vercel_promote_deployment_id": promote_id,
+      "vercel_promote_url": promote_url,
+      "dashboard_url": verified_url,
     }
 
 
@@ -133,10 +202,12 @@ async def build_deploy_status() -> dict[str, Any]:
 
   vercel = await fetch_vercel_dashboard_bundle()
   if vercel.get("vercel_bundle_stale"):
+    verified = vercel.get("verified_dashboard_url", configured_verified_dashboard_url())
+    promote_id = vercel.get("vercel_promote_deployment_id") or configured_verified_deployment_id()
     next_steps.append(
       "Vercel production dashboard bundle is stale — promote "
-      f"{vercel.get('vercel_promote_deployment_id', VERIFIED_DEPLOYMENT_ID)} in Vercel, "
-      f"or use verified preview: {vercel.get('verified_dashboard_url', VERIFIED_DASHBOARD_URL)}"
+      f"{promote_id} in Vercel, "
+      f"or use verified preview: {verified}"
     )
 
   return {
@@ -158,5 +229,5 @@ async def recommended_dashboard_url() -> str:
   return (
     deploy.get("dashboard_url")
     or deploy.get("verified_dashboard_url")
-    or VERIFIED_DASHBOARD_URL
+    or configured_verified_dashboard_url()
   )
