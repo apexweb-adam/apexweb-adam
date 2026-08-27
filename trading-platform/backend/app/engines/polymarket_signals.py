@@ -87,9 +87,9 @@ async def analyze_polymarket(
       score += 0.30
       reasons.append(f"Intel bullish ({sentiment:+.2f})")
       direction = "buy"
-    elif 0.12 <= price <= 0.38 and sentiment >= -0.05:
+    elif 0.12 <= price <= 0.38 and sentiment > 0.08:
       score += 0.20
-      reasons.append(f"Value zone Yes @ {price:.2f}")
+      reasons.append(f"Value zone Yes @ {price:.2f} (intel {sentiment:+.2f})")
       direction = "buy"
 
   if price >= 0.72:
@@ -112,7 +112,7 @@ async def analyze_polymarket(
     reasons.append("Hold: value zone with bullish intel")
 
   score = max(-1.0, min(1.0, score + sentiment * 0.2 + momentum * 2))
-  if direction == "hold" and score >= 0.15:
+  if direction == "hold" and score >= 0.28:
     direction = "buy"
   elif direction == "hold" and score <= -0.15:
     direction = "sell"

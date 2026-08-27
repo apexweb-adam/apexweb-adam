@@ -123,15 +123,14 @@ class BaseBot(ABC):
                 await self._analyze_loss(session, symbol)
           continue
 
-        if gate_tightening.active and gate_tightening.require_macd_bullish:
-          if self.bot_type in ("crypto", "commodities") and signal.macd_signal != "bullish":
-            continue
+        if self.bot_type in ("crypto", "commodities") and signal.macd_signal != "bullish":
+          continue
 
         if (
           signal.direction == "buy"
           and signal.volume_confirmed
           and composite >= min_signal
-          and sentiment + integration_boost >= min_sentiment - 0.5
+          and sentiment + integration_boost >= min_sentiment
         ):
           reason = f"Signal:{signal.score:.2f} Sentiment:{sentiment:.2f}"
           if sentiment_sources:
@@ -244,7 +243,7 @@ class CryptoBot(BaseBot):
     return [s.strip() for s in settings.crypto_symbols.split(",")]
 
   async def fetch_price_data(self, symbol: str) -> tuple[float, pd.DataFrame | None]:
-    return await fetch_crypto_data(symbol, "5m")
+    return await fetch_crypto_data(symbol, "15m")
 
 
 class StocksFuturesBot(BaseBot):
@@ -426,7 +425,7 @@ class PolymarketBot(BaseBot):
             if (
               pm_sig.direction == "buy"
               and composite >= min_score
-              and pm_sig.sentiment + integration_boost >= min_sentiment - 0.35
+              and pm_sig.sentiment + integration_boost >= min_sentiment
             ):
               reason = f"PM:{pm_sig.reason}"
               if integration_reason:
