@@ -70,7 +70,7 @@ async def crm_landing():
   deploy = await build_deploy_status()
   stale = deploy.get("vercel_bundle_stale")
   proxy_ok = deploy.get("production_proxy_operational")
-  promote_id = deploy.get("vercel_promote_deployment_id") or "dpl_GefDm7d9ykrTUDrJpUQRzDta4xyh"
+  promote_id = deploy.get("vercel_promote_deployment_id") or "dpl_35HJwCuB4czMbXFnWMdhfdGPbMsd"
 
   async with SessionLocal() as session:
     gate = await ProfitabilityGate(session).evaluate()
@@ -92,6 +92,16 @@ async def crm_landing():
     deploy_note = f"Production Vercel bundle is stale. Promote {promote_id} in Vercel when ready."
   else:
     deploy_note = "Production dashboard bundle is current."
+
+  backend_stale = deploy.get("is_stale")
+  backend_note = ""
+  if backend_stale:
+    running = (deploy.get("git_commit") or "?")[:12]
+    latest = (deploy.get("latest_main_commit") or "?")[:12]
+    backend_note = (
+      f"<p class='muted' style='color:#fbbf24;'>Backend deploy stale — running {running}, main is {latest}. "
+      "Manual deploy in Render or set RENDER_DEPLOY_HOOK.</p>"
+    )
 
   html = f"""<!DOCTYPE html>
 <html lang="en">
@@ -127,6 +137,7 @@ async def crm_landing():
   </div>
   <p><a href="{url}">Open live dashboard →</a> <span class="muted">(redirecting in 3s)</span></p>
   <p class="muted">{deploy_note}</p>
+  {backend_note}
   <p class="muted ok">● Platform running — intel 10/10 sources · learning active</p>
 </body>
 </html>"""

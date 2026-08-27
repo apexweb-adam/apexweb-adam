@@ -16,9 +16,9 @@ GITHUB_HEADERS = {
 }
 PRODUCTION_DASHBOARD_URL = "https://apex-trading-dashboard-flame.vercel.app"
 DEFAULT_VERIFIED_DASHBOARD_URL = (
-  "https://apex-trading-dashboard-m1fif9ruf-apexweb-adams-projects.vercel.app"
+  "https://apex-trading-dashboard-7zhc1azza-apexweb-adams-projects.vercel.app"
 )
-DEFAULT_VERIFIED_DEPLOYMENT_ID = "dpl_GefDm7d9ykrTUDrJpUQRzDta4xyh"
+DEFAULT_VERIFIED_DEPLOYMENT_ID = "dpl_35HJwCuB4czMbXFnWMdhfdGPbMsd"
 EXPECTED_DASHBOARD_BUNDLE = "2026-08-27-r9"
 
 
