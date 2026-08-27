@@ -25,6 +25,23 @@ jobs:
           echo "  https://apex-trading-backend.onrender.com/api/status (deploy.git_commit vs latest_main_commit)"
           echo "Add Deploy Hook URL from Render → Settings → Deploy Hook to repo secrets."
 
+      - name: Verify production picked up backend deploy
+        if: ${{ secrets.RENDER_DEPLOY_HOOK == '' && secrets.RENDER_API_KEY == '' }}
+        run: |
+          set -euo pipefail
+          sleep 15
+          STATUS=$(curl -fsS "https://apex-trading-backend.onrender.com/api/status")
+          DEPLOYED=$(echo "$STATUS" | python3 -c "import json,sys; print(json.load(sys.stdin).get('deploy',{}).get('git_commit','')[:12])")
+          MAIN=$(curl -fsS "https://api.github.com/repos/apexweb-adam/apexweb-adam/commits/main" | python3 -c "import json,sys; print(json.load(sys.stdin)['sha'][:12])")
+          VERIFY=$(curl -s -o /dev/null -w "%{http_code}" "https://apex-trading-backend.onrender.com/api/verification/history")
+          echo "deployed=$DEPLOYED main=$MAIN verification_history=$VERIFY"
+          if [[ "$DEPLOYED" != "$MAIN" ]]; then
+            echo "::warning::Render still on $DEPLOYED — main is $MAIN. Manual deploy required in Render dashboard."
+          fi
+          if [[ "$VERIFY" != "200" ]]; then
+            echo "::warning::Verification snapshot endpoint HTTP $VERIFY — latest backend not live yet."
+          fi
+
   trigger-render-api:
     if: ${{ secrets.RENDER_DEPLOY_HOOK == '' && secrets.RENDER_API_KEY != '' }}
     runs-on: ubuntu-latest
