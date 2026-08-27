@@ -73,6 +73,19 @@ async def reset_daily_bot_stats_job() -> None:
   print(f"[BotStats] Reset daily counters at {datetime.utcnow().isoformat()}")
 
 
+async def redeploy_check_job() -> None:
+  """Hourly: trigger Render redeploy when running build is behind main."""
+  from app.engines.deploy_trigger import maybe_trigger_stale_redeploy
+
+  result = await maybe_trigger_stale_redeploy()
+  if result.get("triggered"):
+    print(f"[Deploy] {result.get('message')}")
+  elif result.get("deploy", {}).get("is_stale"):
+    reason = result.get("reason", "unknown")
+    if reason not in ("cooldown",):
+      print(f"[Deploy] Stale ({reason}) — set RENDER_DEPLOY_HOOK on Render or GitHub secrets")
+
+
 async def risk_migration_job() -> None:
   async with SessionLocal() as session:
     from app.engines.strategy_migration import (
@@ -215,6 +228,7 @@ async def setup_scheduler() -> None:
   scheduler.add_job(intelligence_job, "interval", minutes=5, id="intelligence_scan")
   scheduler.add_job(content_study_job, "interval", hours=2, id="content_study")
   scheduler.add_job(risk_migration_job, "interval", minutes=15, id="risk_migration")
+  scheduler.add_job(redeploy_check_job, "interval", hours=1, id="redeploy_check")
   scheduler.add_job(daily_review_job, "cron", hour=22, minute=0, id="daily_review")
   scheduler.add_job(verification_snapshot_job, "cron", hour=23, minute=0, id="verification_snapshot")
   scheduler.add_job(reset_daily_bot_stats_job, "cron", hour=0, minute=0, id="reset_daily_stats")

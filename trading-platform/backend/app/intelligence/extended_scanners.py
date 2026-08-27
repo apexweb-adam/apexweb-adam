@@ -421,6 +421,11 @@ class ExtendedIntelligenceScanner(IntelligenceScanner):
             title = entry.get("title", "")
             content = entry.get("summary", "")
             link = entry.get("link", "")
+            full_text = f"{title} {content}"
+            cat = categorize(full_text)
+            score = relevance_score(full_text, cat)
+            if score < 0.2 and not _is_trading_relevant(full_text):
+              continue
             if await self._add_item("tiktok", title, content, link):
               count += 1
         except Exception as e:
