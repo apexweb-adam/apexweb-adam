@@ -151,3 +151,12 @@ async def build_deploy_status() -> dict[str, Any]:
     "next_steps": next_steps,
     **vercel,
   }
+
+
+async def recommended_dashboard_url() -> str:
+  deploy = await build_deploy_status()
+  return (
+    deploy.get("dashboard_url")
+    or deploy.get("verified_dashboard_url")
+    or VERIFIED_DASHBOARD_URL
+  )

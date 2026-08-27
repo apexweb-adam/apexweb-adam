@@ -4,13 +4,13 @@ from datetime import datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
-from fastapi.responses import RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings, BOT_TYPES
 from app.database import SessionLocal, get_db, is_postgres
-from app.engines.deploy_status import build_deploy_status
+from app.engines.deploy_status import build_deploy_status, recommended_dashboard_url
 from app.engines.profitability_gate import ProfitabilityGate
 from app.engines.trade_stats import aggregate_win_rate
 from app.models.entities import (
@@ -51,13 +51,10 @@ async def get_dashboard_url() -> dict[str, Any]:
   }
 
 
-@router.get("/dashboard", include_in_schema=False)
+@router.api_route("/dashboard", methods=["GET", "HEAD"], include_in_schema=False)
 async def redirect_dashboard():
   """Redirect browsers to the recommended CRM dashboard."""
-  deploy = await build_deploy_status()
-  url = deploy.get("dashboard_url") or deploy.get("verified_dashboard_url")
-  if not url:
-    url = "https://apex-trading-dashboard-q1o1x9nlh-apexweb-adams-projects.vercel.app"
+  url = await recommended_dashboard_url()
   return RedirectResponse(url=url, status_code=302)
 
 
