@@ -176,6 +176,23 @@ export default function Dashboard() {
             >
               Promote in Vercel →
             </a>
+            {(platformStatus?.deploy?.verified_dashboard_url ||
+              "https://apex-trading-dashboard-q1o1x9nlh-apexweb-adams-projects.vercel.app") && (
+              <>
+                {" "}
+                <a
+                  href={
+                    platformStatus?.deploy?.verified_dashboard_url ??
+                    "https://apex-trading-dashboard-q1o1x9nlh-apexweb-adams-projects.vercel.app"
+                  }
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline hover:text-white"
+                >
+                  Open verified preview →
+                </a>
+              </>
+            )}
             {dashConfig?.githubMainCommit && (
               <span className="ml-2 font-mono text-[10px] text-gray-500">
                 main {dashConfig.githubMainCommit}
@@ -304,8 +321,21 @@ export default function Dashboard() {
                   <div className="space-y-3">
                     {vercelStale && (
                       <div className="rounded-lg border border-apex-gold/40 bg-apex-gold/10 px-3 py-2 text-xs text-apex-gold">
-                        Vercel dashboard bundle stale — promote latest main for full features.
-                        Active-bot gate works via /api/backend/active-gate proxy.
+                        Vercel dashboard bundle stale — promote{" "}
+                        {platformStatus?.deploy?.vercel_promote_deployment_id ??
+                          "dpl_DFWFJtVnsfSLAkby6DWNLqUHYX7p"}{" "}
+                        for full features. Active-bot gate works via /api/backend/active-gate proxy.{" "}
+                        <a
+                          href={
+                            platformStatus?.deploy?.verified_dashboard_url ??
+                            "https://apex-trading-dashboard-q1o1x9nlh-apexweb-adams-projects.vercel.app"
+                          }
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="underline hover:text-white"
+                        >
+                          Use verified preview →
+                        </a>
                       </div>
                     )}
                     {platformStatus?.deploy?.is_stale && (

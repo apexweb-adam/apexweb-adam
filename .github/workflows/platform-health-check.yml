@@ -13,7 +13,7 @@ jobs:
 
       - name: Check production dashboard bundle and proxy
         env:
-          VERIFIED_PREVIEW: "https://apex-trading-dashboard-9lqdftbaq-apexweb-adams-projects.vercel.app"
+          VERIFIED_PREVIEW: "https://apex-trading-dashboard-q1o1x9nlh-apexweb-adams-projects.vercel.app"
         run: |
           set -euo pipefail
           DASHBOARD="https://apex-trading-dashboard-flame.vercel.app"
@@ -33,7 +33,7 @@ jobs:
               preview = os.environ.get("VERIFIED_PREVIEW", "")
               print(f"::warning::Production Vercel bundle stale (rev={cfg.get('bundleRevision')!r})")
               print(f"::warning::Use verified preview until promote: {preview}")
-              print("::warning::Promote dpl_DkN4ec8gFdc3Jn1h6zJb3Uzun8N9 or add VERCEL_TOKEN secret")
+              print("::warning::Promote dpl_DFWFJtVnsfSLAkby6DWNLqUHYX7p or add VERCEL_TOKEN secret")
           PY
           echo "Checking $DASHBOARD/api/config ..."
           curl -fsS "$DASHBOARD/api/config" | python3 -c "import json,sys; d=json.load(sys.stdin); assert d.get('apiUrl'), 'missing apiUrl'"
