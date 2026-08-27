@@ -16,12 +16,15 @@ from app.models.entities import (
 
 
 async def reset_paper_trading(session: AsyncSession) -> dict:
-  """Clear trades/positions/portfolios and re-seed $100k per bot. Keeps intel + strategy configs."""
+  """Clear trades/positions/portfolios and re-seed $100k per bot. Keeps intel, strategies, and learning insights."""
   intel_before = (
     await session.execute(select(func.count(IntelligenceItem.id)))
   ).scalar_one()
+  insights_before = (
+    await session.execute(select(func.count(LearningInsight.id)))
+  ).scalar_one()
 
-  for model in (TradeAnalysis, Trade, Position, DailyReview, LearningInsight):
+  for model in (TradeAnalysis, Trade, Position, DailyReview):
     await session.execute(delete(model))
   await session.execute(delete(Portfolio))
   await session.execute(delete(BotState))
@@ -63,5 +66,6 @@ async def reset_paper_trading(session: AsyncSession) -> dict:
     "bots_reset": len(BOT_TYPES),
     "initial_balance_per_bot": settings.initial_balance,
     "intel_items_kept": intel_before,
+    "learning_insights_kept": insights_before,
     "verification_started_at": started_at.isoformat(),
   }
