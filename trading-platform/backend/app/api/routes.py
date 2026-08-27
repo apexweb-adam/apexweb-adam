@@ -419,10 +419,14 @@ async def get_intelligence_sources(db: AsyncSession = Depends(get_db)) -> list[d
     is_configured = configured.get(source, has_items)
     if source == "tradingview" and is_configured:
       return "active"  # push webhook — no poll items until alerts fire
-    if is_configured and not has_items and source == "x":
+    if source == "x" and is_configured:
       if settings.newsapi_key and not settings.twitter_bearer_token:
         return "degraded"  # NewsAPI social proxy — lower quality than native X API
-      return "degraded"  # token set but API returned no data (often 402 billing)
+      if not has_items:
+        return "degraded"  # token set but API returned no data (often 402 billing)
+      return "active"
+    if source == "tiktok" and (is_configured or has_items):
+      return "degraded"  # Google News proxy — no native TikTok API
     if is_configured or has_items:
       return "active"
     return "pending"
@@ -485,6 +489,7 @@ async def get_platform_status(db: AsyncSession = Depends(get_db)) -> dict[str, A
 
   active_sources = sum(1 for s in sources if s["status"] in ("active", "degraded"))
   deploy_info = await build_deploy_status()
+  tv_items = next((s["items_collected"] for s in sources if s["source"] == "tradingview"), 0)
   base_next_steps = (
     []
     if is_postgres()
@@ -521,6 +526,17 @@ async def get_platform_status(db: AsyncSession = Depends(get_db)) -> dict[str, A
     },
     "integrations": {
       "tradingview_webhook": bool(settings.tradingview_webhook_secret),
+      "tradingview_webhook_url": (
+        "https://apex-trading-backend.onrender.com/api/webhooks/tradingview"
+        if settings.tradingview_webhook_secret
+        else None
+      ),
+      "tradingview_items": tv_items,
+      "tradingview_setup": (
+        "Configure TradingView alerts to POST JSON with secret, symbol, action to webhook URL"
+        if settings.tradingview_webhook_secret and tv_items == 0
+        else None
+      ),
       "polymarket_market_scanner": True,
       "polymarket_account_hook": bool(
         settings.polymarket_wallet_address or settings.polymarket_deposit_address
@@ -533,6 +549,7 @@ async def get_platform_status(db: AsyncSession = Depends(get_db)) -> dict[str, A
       "intelligence_scan": "every 5 min",
       "content_study": "every 2 hours",
       "risk_migration": "every 15 min",
+      "redeploy_check": "every 1 hour",
       "daily_review": "22:00 UTC",
       "verification_snapshot": "23:00 UTC",
     },
@@ -558,6 +575,7 @@ async def get_platform_status(db: AsyncSession = Depends(get_db)) -> dict[str, A
       "vercel_promote_url": deploy_info.get("vercel_promote_url"),
       "production_proxy_operational": deploy_info.get("production_proxy_operational"),
       "verified_bundle_revision": deploy_info.get("verified_bundle_revision"),
+      "platform_revision": os.environ.get("PLATFORM_REVISION"),
       "git_commit": deploy_info.get("git_commit"),
       "git_branch": deploy_info.get("git_branch"),
       "latest_main_commit": deploy_info.get("latest_main_commit"),
