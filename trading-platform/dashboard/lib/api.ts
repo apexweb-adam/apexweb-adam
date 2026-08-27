@@ -210,6 +210,20 @@ export type IntelligenceSource = {
   last_fetched: string | null;
 };
 
+export type DashboardConfig = {
+  apiUrl: string;
+  wsUrl: string;
+  mode: string;
+  bundleRevision?: string;
+  features?: {
+    activeGate?: boolean;
+    clientGateEnrichment?: boolean;
+    proxyGateEnrichment?: boolean;
+  };
+  githubMainCommit?: string | null;
+  promoteUrl?: string;
+};
+
 export type PlatformDeployStatus = {
   database_persistent: boolean;
   intelligence_complete: boolean;
