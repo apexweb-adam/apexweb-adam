@@ -127,6 +127,7 @@ async def setup_scheduler() -> None:
       clamp_verification_strategy_params,
       ensure_polymarket_strategy,
       fix_breakeven_trade_labels,
+      dedupe_polymarket_positions,
       migrate_symbol_columns,
       recalculate_portfolio_win_rates,
       sync_bot_strategy_versions,
@@ -141,6 +142,9 @@ async def setup_scheduler() -> None:
     portfolios_updated = await recalculate_portfolio_win_rates(session)
     if portfolios_updated:
       print(f"[Strategy] Recalculated win rates on {portfolios_updated} portfolio(s)")
+    pm_deduped = await dedupe_polymarket_positions(session)
+    if pm_deduped:
+      print(f"[Strategy] Closed {pm_deduped} duplicate Polymarket position(s)")
     clamped = await clamp_verification_strategy_params(session)
     if clamped:
       print(f"[Strategy] Clamped over-tight signal thresholds on {clamped} bot(s)")
