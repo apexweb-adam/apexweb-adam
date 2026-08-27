@@ -1,38 +1,49 @@
-# Permanent Backend Deploy (Render)
+# Permanent Backend Deploy (Render + Supabase)
 
-One-click deploy for 24/7 paper-trading bots with persistent SQLite storage.
+24/7 paper-trading bots with **Supabase Postgres** persistence (Render free tier has **no disk**).
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/apexweb-adam/apexweb-adam)
 
-## Steps
+## Quick deploy
 
-1. Click **Deploy to Render** above (or go to [Render Blueprint](https://dashboard.render.com/blueprints) → New → connect repo).
-2. Render reads root `render.yaml` and creates `apex-trading-backend`.
-3. In Render → **Environment**, paste secrets from:
-   ```bash
-   ./trading-platform/scripts/export-render-env.sh
-   ```
-4. Wait for deploy (first build ~3–5 min). Copy your service URL, e.g. `https://apex-trading-backend.onrender.com`.
-5. Wire dashboard:
+1. **Blueprint** → branch `main` → `render.yaml` at repo root  
+   If you see `disks are not supported for free tier` — pull latest `main` (disk block removed).
+
+2. **Environment variables** (Render → apex-trading-backend → Environment):
+
+   | Variable | Source |
+   |----------|--------|
+   | `DATABASE_URL` | [Supabase pooler URI](SUPABASE_SETUP.md) — **required** |
+   | `NEWSAPI_KEY`, `TWITTER_BEARER_TOKEN`, etc. | `./scripts/export-render-env.sh` |
+   | `POLYMARKET_API_KEY`, `POLYMARKET_WALLET_ADDRESS`, `POLYMARKET_DEPOSIT_ADDRESS` | Your `.env` |
+
+3. Deploy (~3–5 min first build). URL: `https://apex-trading-backend.onrender.com`
+
+4. **Wire Vercel dashboard:**
    ```bash
    ./trading-platform/scripts/post-render-deploy.sh https://apex-trading-backend.onrender.com
    ```
-6. Set `BACKEND_URL` and `BACKEND_WS_URL` on Vercel (see script output).
+   Set `BACKEND_URL` + `BACKEND_WS_URL` on Vercel → redeploy.
 
-## Optional: Auto-redeploy
+5. **Verify:**
+   ```bash
+   ./trading-platform/scripts/verify-deploy-ready.sh
+   curl https://apex-trading-backend.onrender.com/api/status
+   ```
 
-Add GitHub secret `RENDER_DEPLOY_HOOK` from Render → Settings → Deploy Hook.  
-Pushes to `main` that touch `trading-platform/backend/**` will trigger redeploy.
+## Supabase tables
 
-## Optional: Render API
+Already migrated on project `apexweb` (`zzgmovjapeyauvpdpuqe`): portfolios, trades, positions, intelligence_items, bot_states, etc.
 
-Add GitHub secret `RENDER_API_KEY` (from [Render Account Settings](https://dashboard.render.com/u/settings?add-api-key)) to enable the `render-api-deploy` workflow for programmatic deploy triggers.
+## Optional automation
 
-## Verify
+- GitHub secret `RENDER_DEPLOY_HOOK` — auto-redeploy on backend pushes
+- GitHub secret `RENDER_API_KEY` — `render-api-deploy` workflow
 
-```bash
-curl https://YOUR-SERVICE.onrender.com/api/health
-curl https://YOUR-SERVICE.onrender.com/api/stats
+## TradingView webhook (after Render live)
+
+```
+https://apex-trading-backend.onrender.com/api/webhooks/tradingview
 ```
 
-Dashboard should show **Live** at https://apex-trading-dashboard-flame.vercel.app after Vercel env is updated.
+Payload must include `"secret": "<TRADINGVIEW_WEBHOOK_SECRET>"`.

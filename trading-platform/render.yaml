@@ -27,3 +27,5 @@ services:
         sync: false
       - key: POLYMARKET_WALLET_ADDRESS
         sync: false
+      - key: POLYMARKET_DEPOSIT_ADDRESS
+        sync: false
