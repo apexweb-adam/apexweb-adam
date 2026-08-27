@@ -394,27 +394,7 @@ async def get_platform_status(db: AsyncSession = Depends(get_db)) -> dict[str, A
   }
 
 
-class ConnectionManager:
-  def __init__(self):
-    self.active: list[WebSocket] = []
-
-  async def connect(self, websocket: WebSocket) -> None:
-    await websocket.accept()
-    self.active.append(websocket)
-
-  def disconnect(self, websocket: WebSocket) -> None:
-    if websocket in self.active:
-      self.active.remove(websocket)
-
-  async def broadcast(self, data: dict) -> None:
-    for ws in self.active:
-      try:
-        await ws.send_json(data)
-      except Exception:
-        pass
-
-
-manager = ConnectionManager()
+from app.ws_manager import manager
 
 
 @router.websocket("/ws")
@@ -464,4 +444,7 @@ async def tradingview_webhook(payload: dict[str, Any], db: AsyncSession = Depend
   )
   db.add(item)
   await db.commit()
+  from app.ws_manager import push_live_update
+
+  await push_live_update()
   return {"status": "received", "symbol": symbol, "action": action}

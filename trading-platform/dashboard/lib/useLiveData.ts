@@ -9,6 +9,7 @@ type LiveData = {
   bots: Bot[];
   connected: boolean;
   lastUpdate: string | null;
+  lastTrade: Record<string, unknown> | null;
 };
 
 export function useLiveData(): LiveData {
@@ -17,6 +18,7 @@ export function useLiveData(): LiveData {
   const [bots, setBots] = useState<Bot[]>([]);
   const [connected, setConnected] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<string | null>(null);
+  const [lastTrade, setLastTrade] = useState<Record<string, unknown> | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -44,6 +46,9 @@ export function useLiveData(): LiveData {
           setPortfolios(data.portfolios);
           setBots(data.bots);
           setLastUpdate(data.timestamp);
+        } else if (data.type === "trade") {
+          setLastTrade(data.trade);
+          setLastUpdate(data.timestamp);
         }
       };
     } catch {
@@ -62,5 +67,5 @@ export function useLiveData(): LiveData {
     };
   }, [connect]);
 
-  return { stats, portfolios, bots, connected, lastUpdate };
+  return { stats, portfolios, bots, connected, lastUpdate, lastTrade };
 }

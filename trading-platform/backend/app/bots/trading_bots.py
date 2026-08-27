@@ -7,6 +7,7 @@ from sqlalchemy import select
 
 from app.config import settings
 from app.database import SessionLocal
+from app.engines.integration_signals import get_integration_boost
 from app.engines.learning_engine import LearningEngine
 from app.engines.market_data import fetch_crypto_data, fetch_yfinance_data
 from app.engines.paper_trading import PaperTradingEngine
@@ -79,12 +80,17 @@ class BaseBot(ABC):
         signal = self.signal_engine.analyze(symbol, df, strategy_params)
         sentiment = await self.get_sentiment_score(symbol)
         composite = self.signal_engine.composite_score(signal.score, sentiment, weights)
+        integration_boost, integration_reason = await get_integration_boost(session, symbol)
+        composite = max(0.0, composite + integration_boost)
 
         position = await engine.get_position(symbol)
 
         if position:
-          if signal.direction == "sell":
-            result = await engine.sell(symbol, price, f"Sell signal: {signal.reason}")
+          if signal.direction == "sell" or integration_boost < -0.1:
+            reason = f"Sell signal: {signal.reason}"
+            if integration_reason:
+              reason += f" | Integrations: {integration_reason}"
+            result = await engine.sell(symbol, price, reason)
             if result:
               actions.append(result)
               if not result.get("is_winner", True):
@@ -94,9 +100,12 @@ class BaseBot(ABC):
         if (
           signal.direction == "buy"
           and composite >= strategy.min_signal_score
-          and sentiment >= strategy.min_sentiment_score - 0.5
+          and sentiment + integration_boost >= strategy.min_sentiment_score - 0.5
         ):
-          reason = f"Signal:{signal.score:.2f} Sentiment:{sentiment:.2f} | {signal.reason}"
+          reason = f"Signal:{signal.score:.2f} Sentiment:{sentiment:.2f}"
+          if integration_reason:
+            reason += f" Integrations:{integration_boost:+.2f} ({integration_reason})"
+          reason += f" | {signal.reason}"
           result = await engine.buy(
             symbol, price, composite, sentiment, reason, strategy=f"v{strategy.version}"
           )
@@ -109,6 +118,13 @@ class BaseBot(ABC):
       for action in stop_actions:
         if not action.get("is_winner", True):
           await self._analyze_loss(session, action.get("symbol", ""))
+
+    if actions:
+      from app.ws_manager import broadcast_trade, push_live_update
+
+      for action in actions:
+        await broadcast_trade({**action, "bot_type": self.bot_type})
+      await push_live_update()
 
     return actions
 

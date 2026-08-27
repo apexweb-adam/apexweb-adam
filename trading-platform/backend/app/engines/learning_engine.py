@@ -120,9 +120,9 @@ class LearningEngine:
       select(LearningInsight).where(
         LearningInsight.source_url == url,
         LearningInsight.source_title == title,
-      )
+      ).limit(1)
     )
-    prior = existing.scalar_one_or_none()
+    prior = existing.scalars().first()
     if prior:
       return prior
 
