@@ -37,10 +37,13 @@ Already migrated on project `apexweb` (`zzgmovjapeyauvpdpuqe`): portfolios, trad
 
 ## Optional automation
 
-- GitHub secret `RENDER_DEPLOY_HOOK` — auto-redeploy on backend pushes
+- GitHub secret `RENDER_DEPLOY_HOOK` — auto-redeploy on backend pushes (`Deploy Backend to Render`, `render-keep-alive`)
 - GitHub secret `RENDER_API_KEY` — `render-api-deploy` workflow
-- Render env `RENDER_DEPLOY_HOOK` — same Deploy Hook URL; stale deploys self-trigger on startup (once/hour) and via `POST /api/admin/trigger-deploy`
+- GitHub secret `VERCEL_TOKEN` + `VERCEL_DEPLOY_HOOK` — production dashboard deploy (`Deploy Trading Platform`)
+- Render env `RENDER_DEPLOY_HOOK` — same Deploy Hook URL; stale deploys self-trigger on startup (once/hour) and via `POST /api/admin/trigger-deploy` (after latest backend is live)
 - Platform setting `render_deploy_hook` — set via `POST /api/admin/set-deploy-hook` or Supabase `platform_settings` (fallback when env var unset)
+
+**Staleness check:** `GET /api/status` → `deploy.is_stale`. When true, trigger Manual Deploy in Render or POST the Deploy Hook URL once.
 
 ## TradingView webhook (after Render live)
 

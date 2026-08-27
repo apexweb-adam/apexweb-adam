@@ -50,6 +50,28 @@ A dashboard REST hívásokat runtime proxy-n keresztül továbbítja (`/api/back
 
 Live dashboard: https://apex-trading-dashboard-flame.vercel.app
 
+### GitHub Actions deploy secrets (CI)
+
+Add these in **GitHub → repo → Settings → Secrets and variables → Actions**:
+
+| Secret | Purpose |
+|--------|---------|
+| `VERCEL_TOKEN` | Production dashboard deploy (`Deploy Trading Platform` workflow) |
+| `VERCEL_DEPLOY_HOOK` | Fallback: Vercel → apex-trading-dashboard → Settings → Git → Deploy Hooks (branch `main`) |
+| `RENDER_DEPLOY_HOOK` | Auto-redeploy backend when stale (Render → apex-trading-backend → Settings → Deploy Hook) |
+| `RENDER_API_KEY` | Alternative backend deploy via Render API |
+
+Optional repo **variables** (defaults exist in workflow):
+
+| Variable | Value |
+|----------|-------|
+| `VERCEL_ORG_ID` | `team_K7OUE7uroVXeVUf42cUAQvAl` |
+| `VERCEL_PROJECT_ID` | `prj_HGbG5vHgfutHi31QfXDqSsTnTAGv` |
+
+**If production is stale:** Render dashboard → Manual Deploy; Vercel → Promote latest `main` deployment to Production.
+
+Verify backend: `curl https://apex-trading-backend.onrender.com/api/status` — `deploy.git_commit` should match `latest_main_commit`.
+
 ---
 
 ## 4. TradingView webhook
