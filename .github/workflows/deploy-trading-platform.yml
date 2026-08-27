@@ -23,8 +23,8 @@ jobs:
           npm ci
           npm run build
         env:
-          NEXT_PUBLIC_API_URL: ${{ vars.TRADING_API_URL || 'http://localhost:8000' }}
-          NEXT_PUBLIC_WS_URL: ${{ vars.TRADING_WS_URL || 'ws://localhost:8000' }}
+          BACKEND_URL: ${{ vars.TRADING_API_URL || 'http://localhost:8000' }}
+          BACKEND_WS_URL: ${{ vars.TRADING_WS_URL || 'ws://localhost:8000' }}
       - name: Deploy to Vercel
         uses: amondnet/vercel-action@v25
         with:

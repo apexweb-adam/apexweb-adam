@@ -1,14 +1,45 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-const WS_URL = process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8000";
+const DEFAULT_API = "/api/backend";
+const DEFAULT_WS = "ws://localhost:8000";
+
+let wsUrlPromise: Promise<string> | null = null;
+
+async function resolveWsUrl(): Promise<string> {
+  if (typeof window === "undefined") {
+    return process.env.NEXT_PUBLIC_WS_URL || DEFAULT_WS;
+  }
+
+  if (!wsUrlPromise) {
+    wsUrlPromise = (async () => {
+      try {
+        const res = await fetch("/api/config", { cache: "no-store" });
+        if (!res.ok) throw new Error("config fetch failed");
+        const cfg = (await res.json()) as { wsUrl?: string };
+        if (cfg.wsUrl) return `${cfg.wsUrl.replace(/\/$/, "")}/api/ws`;
+      } catch {
+        // fall through
+      }
+      const fallback = process.env.NEXT_PUBLIC_WS_URL || DEFAULT_WS;
+      return `${fallback.replace(/\/$/, "")}/api/ws`;
+    })();
+  }
+
+  return wsUrlPromise;
+}
 
 export async function fetchAPI<T>(endpoint: string): Promise<T> {
-  const res = await fetch(`${API_URL}/api${endpoint}`, { cache: "no-store" });
+  const res = await fetch(`${DEFAULT_API}${endpoint}`, { cache: "no-store" });
   if (!res.ok) throw new Error(`API error: ${res.status}`);
   return res.json();
 }
 
 export function getWebSocketUrl(): string {
-  return `${WS_URL}/api/ws`;
+  // Sync fallback for SSR; client reconnects after config loads.
+  const fallback = process.env.NEXT_PUBLIC_WS_URL || DEFAULT_WS;
+  return `${fallback.replace(/\/$/, "")}/api/ws`;
+}
+
+export async function getWebSocketUrlAsync(): Promise<string> {
+  return resolveWsUrl();
 }
 
 export type Stats = {

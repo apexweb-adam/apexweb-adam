@@ -41,11 +41,13 @@ Production backendnél ugyanezeket add hozzá Render/Railway **Environment Varia
 Vercel → **apex-trading-dashboard** → Settings → Environment Variables:
 
 ```
-NEXT_PUBLIC_API_URL=https://YOUR-BACKEND.onrender.com
-NEXT_PUBLIC_WS_URL=wss://YOUR-BACKEND.onrender.com
+BACKEND_URL=https://YOUR-BACKEND.onrender.com
+BACKEND_WS_URL=wss://YOUR-BACKEND.onrender.com
 ```
 
-**Redeploy** a dashboardot (Deployments → Redeploy).
+A dashboard REST hívásokat runtime proxy-n keresztül továbbítja (`/api/backend/*`), így a backend URL Vercel env-ből olvasható újra-build nélkül is. A WebSocket közvetlenül a backendre csatlakozik.
+
+**Redeploy** csak akkor kell, ha a `vercel.json`-ban lévő alapértelmezett env-t is frissíted.
 
 Live dashboard: https://apex-trading-dashboard-flame.vercel.app
 

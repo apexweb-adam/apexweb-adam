@@ -2,5 +2,9 @@
   "buildCommand": "cd dashboard && npm install && npm run build",
   "outputDirectory": "dashboard/.next",
   "framework": "nextjs",
-  "installCommand": "cd dashboard && npm install"
+  "installCommand": "cd dashboard && npm install",
+  "env": {
+    "BACKEND_URL": "https://examine-translations-navy-featured.trycloudflare.com",
+    "BACKEND_WS_URL": "wss://examine-translations-navy-featured.trycloudflare.com"
+  }
 }

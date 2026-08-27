@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import { getWebSocketUrl, type Stats, type Portfolio, type Bot } from "./api";
+import { useEffect, useState, useCallback, useRef } from "react";
+import { getWebSocketUrlAsync, type Stats, type Portfolio, type Bot } from "./api";
 
 type LiveData = {
   stats: Stats | null;
@@ -17,32 +17,49 @@ export function useLiveData(): LiveData {
   const [bots, setBots] = useState<Bot[]>([]);
   const [connected, setConnected] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<string | null>(null);
+  const wsRef = useRef<WebSocket | null>(null);
+  const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const connect = useCallback(() => {
-    const ws = new WebSocket(getWebSocketUrl());
+  const connect = useCallback(async () => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) return;
 
-    ws.onopen = () => setConnected(true);
-    ws.onclose = () => {
+    try {
+      const url = await getWebSocketUrlAsync();
+      const ws = new WebSocket(url);
+      wsRef.current = ws;
+
+      ws.onopen = () => setConnected(true);
+      ws.onclose = () => {
+        setConnected(false);
+        wsRef.current = null;
+        reconnectTimer.current = setTimeout(() => {
+          void connect();
+        }, 3000);
+      };
+      ws.onerror = () => ws.close();
+      ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        if (data.type === "update") {
+          setStats(data.stats);
+          setPortfolios(data.portfolios);
+          setBots(data.bots);
+          setLastUpdate(data.timestamp);
+        }
+      };
+    } catch {
       setConnected(false);
-      setTimeout(connect, 3000);
-    };
-    ws.onerror = () => ws.close();
-    ws.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      if (data.type === "update") {
-        setStats(data.stats);
-        setPortfolios(data.portfolios);
-        setBots(data.bots);
-        setLastUpdate(data.timestamp);
-      }
-    };
-
-    return ws;
+      reconnectTimer.current = setTimeout(() => {
+        void connect();
+      }, 3000);
+    }
   }, []);
 
   useEffect(() => {
-    const ws = connect();
-    return () => ws.close();
+    void connect();
+    return () => {
+      if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
+      wsRef.current?.close();
+    };
   }, [connect]);
 
   return { stats, portfolios, bots, connected, lastUpdate };

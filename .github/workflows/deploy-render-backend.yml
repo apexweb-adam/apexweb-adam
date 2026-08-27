@@ -1,0 +1,18 @@
+name: Deploy Backend to Render
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'trading-platform/backend/**'
+      - 'render.yaml'
+      - 'trading-platform/render.yaml'
+
+jobs:
+  trigger-render:
+    if: ${{ secrets.RENDER_DEPLOY_HOOK != '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Render deploy
+        run: curl -fsS -X POST "${{ secrets.RENDER_DEPLOY_HOOK }}"
