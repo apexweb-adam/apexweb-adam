@@ -186,3 +186,20 @@ export type IntelligenceSource = {
   items_collected: number;
   last_fetched: string | null;
 };
+
+export type PlatformDeployStatus = {
+  database_persistent: boolean;
+  intelligence_complete: boolean;
+  env_configured: Record<string, boolean>;
+  render_blueprint: string;
+  supabase_project: string;
+  dashboard_url: string;
+  next_steps: string[];
+};
+
+export type PlatformStatus = {
+  platform: string;
+  database: { engine: string; persistent: boolean };
+  intelligence: { active_sources: number; total_sources: number };
+  deploy?: PlatformDeployStatus;
+};
