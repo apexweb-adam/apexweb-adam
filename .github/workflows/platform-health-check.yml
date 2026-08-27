@@ -49,3 +49,37 @@ jobs:
           print('Platform status OK:', d.get('platform'), 'sources:', d['intelligence']['active_sources'])
           print('Scheduler:', sched)
           "
+
+      - name: Check profitability verification gate
+        run: |
+          curl -fsS "https://apex-trading-dashboard-flame.vercel.app/api/backend/profitability" | python3 -c "
+          import json,sys
+          d=json.load(sys.stdin)
+          assert d.get('paper_trading_only') is True, 'paper_trading_only must stay enabled'
+          assert d.get('live_trading_ready') is False, 'live trading must remain disabled during verification'
+          checks = d.get('checks', {})
+          wr = checks.get('min_win_rate', {})
+          pf = checks.get('min_profit_factor', {})
+          trades = checks.get('min_trades', {})
+          days = checks.get('min_days', {})
+          pnl = checks.get('positive_pnl', {})
+          print('Verification day %s of 30 | trades %s/%s | WR %.1f%% | PF %s | PnL $%.2f' % (
+            d.get('verification_day', '?'),
+            trades.get('actual'), trades.get('required'),
+            (wr.get('actual') or 0) * 100,
+            pf.get('actual'),
+            pnl.get('actual') or 0,
+          ))
+          print('Recommendation:', d.get('recommendation'))
+          for key in ('min_win_rate', 'min_profit_factor', 'positive_pnl', 'paper_trading_only'):
+            c = checks.get(key, {})
+            if not c.get('passed'):
+              print('::warning::Profitability check failed: %s (required=%s actual=%s)' % (
+                key, c.get('required'), c.get('actual')))
+          deploy = json.loads(__import__('subprocess').check_output(
+            ['curl', '-fsS', 'https://apex-trading-backend.onrender.com/api/status'],
+            text=True,
+          )).get('deploy', {})
+          if deploy.get('is_stale'):
+            print('::warning::Backend deploy stale (%s min behind main)' % deploy.get('stale_minutes'))
+          "
