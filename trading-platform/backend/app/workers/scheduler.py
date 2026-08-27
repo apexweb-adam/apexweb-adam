@@ -97,19 +97,8 @@ def stop_bots() -> None:
 
 
 async def ensure_daily_review_on_startup() -> None:
-  """Run today's review if missing (e.g. fresh Render deploy before 22:00 UTC cron)."""
-  from sqlalchemy import select
-
-  from app.models.entities import DailyReview
-
-  today = datetime.utcnow().strftime("%Y-%m-%d")
-  async with SessionLocal() as session:
-    existing = await session.execute(
-      select(DailyReview.id).where(DailyReview.review_date == today).limit(1)
-    )
-    if existing.scalar_one_or_none():
-      return
-  await daily_review_job()
+  """Skip pre-session reviews on deploy — 22:00 UTC cron upserts the full day."""
+  return
 
 
 async def ensure_verification_period_on_startup() -> None:

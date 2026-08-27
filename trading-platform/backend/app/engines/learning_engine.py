@@ -90,20 +90,39 @@ class LearningEngine:
     conclusions = self._generate_conclusions(day_trades, losing, winning, patterns)
     strategy_changes = await self._generate_strategy_changes(bot_type, patterns, losing)
 
-    review = DailyReview(
-      bot_type=bot_type,
-      review_date=review_date,
-      total_trades=len(day_trades),
-      losing_trades=len(losing),
-      total_loss=total_loss,
-      total_profit=total_profit,
-      net_pnl=net_pnl,
-      win_rate=len(winning) / len(day_trades) if day_trades else 0,
-      patterns_found="; ".join(patterns),
-      conclusions=conclusions,
-      strategy_changes=strategy_changes,
+    existing = await self.session.execute(
+      select(DailyReview).where(
+        DailyReview.bot_type == bot_type,
+        DailyReview.review_date == review_date,
+      ).limit(1)
     )
-    self.session.add(review)
+    review = existing.scalar_one_or_none()
+    if review:
+      review.total_trades = len(day_trades)
+      review.losing_trades = len(losing)
+      review.total_loss = total_loss
+      review.total_profit = total_profit
+      review.net_pnl = net_pnl
+      review.win_rate = len(winning) / len(day_trades) if day_trades else 0
+      review.patterns_found = "; ".join(patterns)
+      review.conclusions = conclusions
+      review.strategy_changes = strategy_changes
+      review.created_at = datetime.utcnow()
+    else:
+      review = DailyReview(
+        bot_type=bot_type,
+        review_date=review_date,
+        total_trades=len(day_trades),
+        losing_trades=len(losing),
+        total_loss=total_loss,
+        total_profit=total_profit,
+        net_pnl=net_pnl,
+        win_rate=len(winning) / len(day_trades) if day_trades else 0,
+        patterns_found="; ".join(patterns),
+        conclusions=conclusions,
+        strategy_changes=strategy_changes,
+      )
+      self.session.add(review)
     await self.session.commit()
     return review
 
