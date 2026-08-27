@@ -1,5 +1,7 @@
+import { PRODUCTION_BACKEND_WS } from "./production-backend";
+
 const DEFAULT_API = "/api/backend";
-const DEFAULT_WS = "ws://localhost:8000";
+const DEFAULT_WS = PRODUCTION_BACKEND_WS;
 
 let wsUrlPromise: Promise<string> | null = null;
 
