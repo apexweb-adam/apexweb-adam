@@ -249,8 +249,10 @@ class LearningEngine:
 
     for config in configs:
       impact_lower = impact.lower()
+      changed = False
       if "rsi" in impact_lower and "oversold" in impact_lower:
         config.rsi_oversold = max(25, config.rsi_oversold - 2)
+        changed = True
       if "stop" in impact_lower and "tight" in impact_lower:
         floor = (
           settings.polymarket_stop_loss_pct
@@ -258,15 +260,20 @@ class LearningEngine:
           else 0.01
         )
         config.stop_loss_pct = max(floor, config.stop_loss_pct - 0.001)
+        changed = True
       if "sentiment" in impact_lower:
         config.sentiment_weight = min(0.5, config.sentiment_weight + 0.05)
+        changed = True
       # Never raise Polymarket position size from external content (0–1 share math)
       if "position" in impact_lower and config.bot_type != "polymarket":
         if "reduce" in impact_lower or "smaller" in impact_lower or "2%" in impact_lower:
           config.max_position_pct = max(0.03, config.max_position_pct - 0.005)
+          changed = True
       if config.bot_type == "polymarket":
-        config.max_position_pct = min(
-          config.max_position_pct, settings.polymarket_max_position_pct
-        )
-      config.version += 1
-      config.updated_at = datetime.utcnow()
+        capped = min(config.max_position_pct, settings.polymarket_max_position_pct)
+        if capped != config.max_position_pct:
+          config.max_position_pct = capped
+          changed = True
+      if changed:
+        config.version += 1
+        config.updated_at = datetime.utcnow()
