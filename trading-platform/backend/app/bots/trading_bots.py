@@ -160,8 +160,9 @@ class BaseBot(ABC):
       state.updated_at = datetime.utcnow()
       await session.commit()
 
-  async def _record_scan_result(self, symbol_count: int, actions: list[dict]) -> None:
-    if actions:
+  async def _record_scan_result(self, symbol_count: int, actions: list[dict], detail: str = "") -> None:
+    trade_actions = [a for a in actions if a.get("action") in ("buy", "sell")]
+    if trade_actions:
       return
     async with SessionLocal() as session:
       result = await session.execute(
@@ -172,7 +173,8 @@ class BaseBot(ABC):
         return
       if state.last_action.startswith(("BUY", "SELL", "PM:")):
         return
-      state.last_action = f"Scanned {symbol_count} symbols — watching for signals"
+      summary = detail or "watching for signals"
+      state.last_action = f"Scanned {symbol_count} symbols — {summary}"
       state.updated_at = datetime.utcnow()
       await session.commit()
 
@@ -268,6 +270,8 @@ class PolymarketBot(BaseBot):
   async def scan_and_trade(self) -> list[dict]:
     actions: list[dict] = []
     symbols = await self.get_symbols()
+    buy_candidates = 0
+    best_buy_score = 0.0
 
     async with SessionLocal() as session:
       engine = PaperTradingEngine(session, self.bot_type)
@@ -328,6 +332,8 @@ class PolymarketBot(BaseBot):
           and composite >= min_score
           and pm_sig.sentiment + integration_boost >= strategy.min_sentiment_score - 0.35
         ):
+          buy_candidates += 1
+          best_buy_score = max(best_buy_score, composite)
           reason = f"PM:{pm_sig.reason}"
           if integration_reason:
             reason += f" | {integration_reason}"
@@ -342,6 +348,9 @@ class PolymarketBot(BaseBot):
           if result:
             actions.append(result)
             pm_open += 1
+        elif pm_sig.direction == "buy":
+          buy_candidates += 1
+          best_buy_score = max(best_buy_score, composite)
 
       stop_actions = await engine.update_positions(prices)
       actions.extend(stop_actions)
@@ -355,7 +364,12 @@ class PolymarketBot(BaseBot):
           sym = action.get("symbol", "")
           self._register_symbol_cooldown(sym, after_loss=False)
 
-    await self._record_scan_result(len(symbols), actions)
+    pm_detail = (
+      f"{buy_candidates} buy signals (best {best_buy_score:.2f})"
+      if buy_candidates
+      else "no qualifying entries"
+    )
+    await self._record_scan_result(len(symbols), actions, pm_detail)
 
     if actions:
       from app.ws_manager import broadcast_trade, push_live_update

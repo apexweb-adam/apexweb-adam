@@ -270,14 +270,18 @@ export default function Dashboard() {
                     </div>
                     {profitability.verification_started_at && (
                       <p className="text-xs text-gray-500">
-                        Verification day {(profitability.days_trading ?? 0) + 1} of 30
-                        {profitability.verification_started_at && (
+                        Verification day {profitability.verification_day ?? (profitability.days_trading ?? 0) + 1} of 30
+                        {profitability.verification_days_remaining != null && (
                           <span className="text-gray-600">
                             {" "}
-                            · started{" "}
-                            {new Date(profitability.verification_started_at).toLocaleDateString()}
+                            · {profitability.verification_days_remaining} days remaining
                           </span>
                         )}
+                        <span className="text-gray-600">
+                          {" "}
+                          · started{" "}
+                          {new Date(profitability.verification_started_at).toLocaleDateString()}
+                        </span>
                       </p>
                     )}
                     <p className="text-xs text-gray-500">{profitability.recommendation}</p>
