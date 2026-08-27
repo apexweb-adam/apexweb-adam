@@ -402,7 +402,23 @@ export default function Dashboard() {
                             Intel {platformStatus.intelligence.active_sources}/
                             {platformStatus.intelligence.total_sources}
                           </span>
+                          {platformStatus.deploy.platform_revision && (
+                            <span className="px-2 py-1 rounded-full bg-gray-800 text-gray-400 font-mono">
+                              rev {platformStatus.deploy.platform_revision}
+                            </span>
+                          )}
                         </div>
+                        {platformStatus.integrations?.tradingview_setup && (
+                          <div className="rounded-lg border border-apex-border bg-apex-dark px-3 py-2 text-xs text-gray-400">
+                            <p className="text-apex-gold font-medium mb-1">TradingView webhook ready</p>
+                            <p>{platformStatus.integrations.tradingview_setup}</p>
+                            {platformStatus.integrations.tradingview_webhook_url && (
+                              <p className="mt-1 font-mono text-[10px] text-gray-500 break-all">
+                                {platformStatus.integrations.tradingview_webhook_url}
+                              </p>
+                            )}
+                          </div>
+                        )}
                         {(platformStatus.deploy.next_steps?.length ?? 0) > 0 && (
                           <ul className="space-y-2 text-xs text-gray-400 list-disc list-inside">
                             {platformStatus.deploy.next_steps.map((step) => (

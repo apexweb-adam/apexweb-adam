@@ -22,7 +22,7 @@ jobs:
           import json, os
           with open("/tmp/dash-config.json") as f:
               cfg = json.load(f)
-          expected = "2026-08-27-r8"
+          expected = "2026-08-27-r9"
           current = (
               cfg.get("bundleRevision") == expected
               and (cfg.get("features") or {}).get("activeGate") is True
