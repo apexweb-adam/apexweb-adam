@@ -75,6 +75,22 @@ def stop_bots() -> None:
     task.cancel()
 
 
+async def ensure_daily_review_on_startup() -> None:
+  """Run today's review if missing (e.g. fresh Render deploy before 22:00 UTC cron)."""
+  from sqlalchemy import select
+
+  from app.models.entities import DailyReview
+
+  today = datetime.utcnow().strftime("%Y-%m-%d")
+  async with SessionLocal() as session:
+    existing = await session.execute(
+      select(DailyReview.id).where(DailyReview.review_date == today).limit(1)
+    )
+    if existing.scalar_one_or_none():
+      return
+  await daily_review_job()
+
+
 async def setup_scheduler() -> None:
   await init_db()
   scheduler.add_job(intelligence_job, "interval", minutes=5, id="intelligence_scan")
@@ -85,4 +101,5 @@ async def setup_scheduler() -> None:
 
   await intelligence_job()
   await content_study_job()
+  await ensure_daily_review_on_startup()
   await start_bots()
