@@ -54,6 +54,9 @@ async def adapt_for_gate_win_rate(session: AsyncSession) -> int:
     if config.min_sentiment_score < sentiment_cap - 0.005:
       config.min_sentiment_score = min(sentiment_cap, config.min_sentiment_score + 0.02)
       changed = True
+    if config.bot_type == "polymarket" and config.stop_loss_pct > 0.03:
+      config.stop_loss_pct = 0.03
+      changed = True
     if changed:
       config.version += 1
       config.updated_at = datetime.utcnow()
