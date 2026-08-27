@@ -130,7 +130,69 @@ async def fetch_crypto_data(symbol: str, interval: str = "5m") -> tuple[float, p
   return 0.0, None
 
 
+YAHOO_HEADERS = {"User-Agent": "Mozilla/5.0 (compatible; ApexTrading/1.0)"}
+
+
+async def fetch_yahoo_chart(symbol: str, interval: str = "1h", range_: str = "1mo") -> tuple[float, pd.DataFrame | None]:
+  """Primary stock/futures/commodity feed — avoids yfinance + hardcoded fallback bugs."""
+  try:
+    async with httpx.AsyncClient(timeout=15, headers=YAHOO_HEADERS) as client:
+      resp = await client.get(
+        "https://query1.finance.yahoo.com/v8/finance/chart/" + symbol,
+        params={"interval": interval, "range": range_},
+      )
+      if resp.status_code != 200:
+        return 0.0, None
+
+      result = resp.json().get("chart", {}).get("result")
+      if not result:
+        return 0.0, None
+
+      chart = result[0]
+      meta = chart.get("meta", {})
+      price = float(meta.get("regularMarketPrice") or meta.get("previousClose") or 0)
+      if price <= 0:
+        return 0.0, None
+
+      timestamps = chart.get("timestamp") or []
+      quote = chart.get("indicators", {}).get("quote", [{}])[0]
+      if len(timestamps) < 30:
+        _price_cache[symbol] = price
+        return price, generate_synthetic_ohlcv(price)
+
+      rows = []
+      for i, ts in enumerate(timestamps):
+        close = quote.get("close", [None] * len(timestamps))[i]
+        if close is None:
+          continue
+        rows.append({
+          "timestamp": datetime.utcfromtimestamp(ts),
+          "open": quote.get("open", [close] * len(timestamps))[i] or close,
+          "high": quote.get("high", [close] * len(timestamps))[i] or close,
+          "low": quote.get("low", [close] * len(timestamps))[i] or close,
+          "close": close,
+          "volume": quote.get("volume", [0] * len(timestamps))[i] or 0,
+        })
+
+      if len(rows) < 30:
+        _price_cache[symbol] = price
+        return price, generate_synthetic_ohlcv(price)
+
+      df = pd.DataFrame(rows)
+      for col in ["open", "high", "low", "close", "volume"]:
+        df[col] = pd.to_numeric(df[col], errors="coerce")
+      df = df.dropna(subset=["close"])
+      _price_cache[symbol] = price
+      return price, df
+  except Exception:
+    return 0.0, None
+
+
 async def fetch_yfinance_data(symbol: str) -> tuple[float, pd.DataFrame | None]:
+  price, df = await fetch_yahoo_chart(symbol)
+  if price > 0 and df is not None:
+    return price, df
+
   try:
     import yfinance as yf
     ticker = yf.Ticker(symbol)
@@ -145,12 +207,7 @@ async def fetch_yfinance_data(symbol: str) -> tuple[float, pd.DataFrame | None]:
     pass
 
   cached = _price_cache.get(symbol, 0)
-  defaults = {
-    "AAPL": 230, "MSFT": 420, "NVDA": 130, "TSLA": 350,
-    "SPY": 580, "QQQ": 500, "ES=F": 5800, "NQ=F": 20500,
-    "GC=F": 2650, "SI=F": 30, "CL=F": 75, "EURUSD=X": 1.08,
-  }
-  base = cached if cached > 0 else defaults.get(symbol)
-  if base is None:
-    return 0.0, None
-  return base, generate_synthetic_ohlcv(base)
+  if cached > 0:
+    return cached, generate_synthetic_ohlcv(cached)
+
+  return 0.0, None
