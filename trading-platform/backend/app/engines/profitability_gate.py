@@ -82,6 +82,18 @@ class ProfitabilityGate:
     )
     live_ready = all_passed and total_trades >= self.MIN_TRADES
 
+    blockers: list[str] = []
+    if total_trades < self.MIN_TRADES:
+      blockers.append(f"{self.MIN_TRADES - total_trades} more trades")
+    if days_trading < self.MIN_DAYS:
+      blockers.append(f"{self.MIN_DAYS - days_trading} more days")
+    if total_pnl <= 0:
+      blockers.append("positive PnL")
+    if profit_factor < self.MIN_PROFIT_FACTOR:
+      blockers.append(f"profit factor ≥ {self.MIN_PROFIT_FACTOR}")
+    if win_rate < self.MIN_WIN_RATE:
+      blockers.append(f"win rate ≥ {self.MIN_WIN_RATE:.0%}")
+
     return {
       "live_trading_ready": live_ready,
       "paper_trading_only": settings.paper_trading_only,
@@ -89,9 +101,10 @@ class ProfitabilityGate:
       "win_rate": win_rate,
       "profit_factor": round(profit_factor, 2) if profit_factor != float("inf") else None,
       "total_pnl": total_pnl,
+      "days_trading": days_trading,
       "checks": checks,
       "recommendation": (
         "READY for live trading review" if live_ready
-        else f"Continue paper trading — need {max(0, self.MIN_TRADES - total_trades)} more trades"
+        else "Continue paper trading — need " + ", ".join(blockers)
       ),
     }

@@ -176,6 +176,7 @@ export type ProfitabilityStatus = {
   win_rate: number;
   profit_factor: number | null;
   total_pnl: number;
+  days_trading?: number;
   recommendation: string;
   checks: Record<string, { required: unknown; actual: unknown; passed: boolean }>;
 };
