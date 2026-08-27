@@ -7,6 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
+from app.engines.polymarket_data import is_macro_relevant_market
 from app.intelligence.political_signals import (
   classify_political_event,
   format_political_content,
@@ -267,6 +268,8 @@ class ExtendedIntelligenceScanner(IntelligenceScanner):
           return 0
 
         for market in response.json():
+          if not is_macro_relevant_market(market):
+            continue
           question = market.get("question", "")
           prices = json.loads(market.get("outcomePrices", "[]"))
           yes_price = float(prices[0]) if prices else 0.5
