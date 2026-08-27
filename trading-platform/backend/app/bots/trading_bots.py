@@ -178,6 +178,18 @@ class BaseBot(ABC):
       state.updated_at = datetime.utcnow()
       await session.commit()
 
+  async def _record_scan_failure(self, error: str) -> None:
+    async with SessionLocal() as session:
+      result = await session.execute(
+        select(BotState).where(BotState.bot_type == self.bot_type)
+      )
+      state = result.scalar_one_or_none()
+      if not state:
+        return
+      state.last_action = f"Scan error — {error[:120]}"
+      state.updated_at = datetime.utcnow()
+      await session.commit()
+
   async def run_loop(self) -> None:
     self.running = True
     while self.running:
@@ -186,6 +198,7 @@ class BaseBot(ABC):
         await self.scan_and_trade()
       except Exception as e:
         print(f"[{self.bot_type}] Error in scan: {e}")
+        await self._record_scan_failure(str(e))
       await asyncio.sleep(self.scan_interval)
 
   def stop(self) -> None:
@@ -272,103 +285,113 @@ class PolymarketBot(BaseBot):
     symbols = await self.get_symbols()
     buy_candidates = 0
     best_buy_score = 0.0
+    skipped = 0
 
-    async with SessionLocal() as session:
-      engine = PaperTradingEngine(session, self.bot_type)
-      strategy = await engine.get_strategy()
-      min_score = min(strategy.min_signal_score, 0.12)
-      open_positions = await engine.get_open_positions()
-      pm_open = len(open_positions)
-      prices: dict[str, float] = {}
+    try:
+      async with SessionLocal() as session:
+        engine = PaperTradingEngine(session, self.bot_type)
+        strategy = await engine.get_strategy()
+        min_score = min(strategy.min_signal_score, 0.12)
+        open_positions = await engine.get_open_positions()
+        pm_open = len(open_positions)
+        prices: dict[str, float] = {}
 
-      for symbol in symbols:
-        price, df = await self.fetch_price_data(symbol)
-        if price <= 0 or not is_price_sane(symbol, price):
-          continue
-        prices[symbol] = price
+        for symbol in symbols:
+          try:
+            price, df = await self.fetch_price_data(symbol)
+            if price <= 0 or not is_price_sane(symbol, price):
+              continue
+            prices[symbol] = price
 
-        meta = await get_market_meta(symbol)
-        question = (meta or {}).get("question", symbol)
-        pm_sig = await analyze_polymarket(session, symbol, price, df, question)
-        integration_boost, integration_reason = await get_integration_boost(session, symbol)
-        composite = pm_sig.score + integration_boost
+            meta = await get_market_meta(symbol)
+            question = (meta or {}).get("question", symbol)
+            pm_sig = await analyze_polymarket(session, symbol, price, df, question)
+            integration_boost, integration_reason = await get_integration_boost(session, symbol)
+            composite = pm_sig.score + integration_boost
 
-        position = await engine.get_position(symbol)
+            position = await engine.get_position(symbol)
 
-        if position:
-          opened = position.opened_at
-          if opened and opened.tzinfo is not None:
-            opened = opened.replace(tzinfo=None)
-          held_seconds = (datetime.utcnow() - opened).total_seconds() if opened else 9999
-          min_hold_seconds = settings.polymarket_min_hold_seconds
-          allow_signal_exit = (
-            held_seconds >= min_hold_seconds
-            and pm_sig.direction == "sell"
-            and pm_sig.sentiment <= 0.05
-            and (price >= 0.60 or (df is not None and len(df) >= 15))
-          )
-          if allow_signal_exit or integration_boost < -0.15:
-            reason = f"PM exit: {pm_sig.reason}"
-            if integration_reason:
-              reason += f" | {integration_reason}"
-            result = await engine.sell(symbol, price, reason)
-            if result:
-              actions.append(result)
-              won = result.get("is_winner", True)
-              if not won:
-                await self._analyze_loss(session, symbol)
-              self._register_symbol_cooldown(symbol, after_loss=not won)
-          continue
+            if position:
+              opened = position.opened_at
+              if opened and opened.tzinfo is not None:
+                opened = opened.replace(tzinfo=None)
+              held_seconds = (datetime.utcnow() - opened).total_seconds() if opened else 9999
+              min_hold_seconds = settings.polymarket_min_hold_seconds
+              allow_signal_exit = (
+                held_seconds >= min_hold_seconds
+                and pm_sig.direction == "sell"
+                and pm_sig.sentiment <= 0.05
+                and (price >= 0.60 or (df is not None and len(df) >= 15))
+              )
+              if allow_signal_exit or integration_boost < -0.15:
+                reason = f"PM exit: {pm_sig.reason}"
+                if integration_reason:
+                  reason += f" | {integration_reason}"
+                result = await engine.sell(symbol, price, reason)
+                if result:
+                  actions.append(result)
+                  won = result.get("is_winner", True)
+                  if not won:
+                    await self._analyze_loss(session, symbol)
+                  self._register_symbol_cooldown(symbol, after_loss=not won)
+              continue
 
-        cooldown = self._symbol_cooldown_until.get(symbol)
-        if cooldown and datetime.utcnow() < cooldown:
-          continue
+            cooldown = self._symbol_cooldown_until.get(symbol)
+            if cooldown and datetime.utcnow() < cooldown:
+              continue
 
-        if pm_open >= settings.polymarket_max_open_positions:
-          continue
+            if pm_open >= settings.polymarket_max_open_positions:
+              continue
 
-        if (
-          pm_sig.direction == "buy"
-          and composite >= min_score
-          and pm_sig.sentiment + integration_boost >= strategy.min_sentiment_score - 0.35
-        ):
-          buy_candidates += 1
-          best_buy_score = max(best_buy_score, composite)
-          reason = f"PM:{pm_sig.reason}"
-          if integration_reason:
-            reason += f" | {integration_reason}"
-          result = await engine.buy(
-            symbol,
-            price,
-            composite,
-            pm_sig.sentiment,
-            reason,
-            strategy=f"v{strategy.version}",
-          )
-          if result:
-            actions.append(result)
-            pm_open += 1
-        elif pm_sig.direction == "buy":
-          buy_candidates += 1
-          best_buy_score = max(best_buy_score, composite)
+            if pm_sig.direction == "buy":
+              buy_candidates += 1
+              best_buy_score = max(best_buy_score, composite)
 
-      stop_actions = await engine.update_positions(prices)
-      actions.extend(stop_actions)
+            if (
+              pm_sig.direction == "buy"
+              and composite >= min_score
+              and pm_sig.sentiment + integration_boost >= strategy.min_sentiment_score - 0.35
+            ):
+              reason = f"PM:{pm_sig.reason}"
+              if integration_reason:
+                reason += f" | {integration_reason}"
+              result = await engine.buy(
+                symbol,
+                price,
+                composite,
+                pm_sig.sentiment,
+                reason,
+                strategy=f"v{strategy.version}",
+              )
+              if result:
+                actions.append(result)
+                pm_open += 1
+          except Exception as e:
+            skipped += 1
+            print(f"[polymarket] skip {symbol}: {e}")
 
-      for action in stop_actions:
-        if not action.get("is_winner", True):
-          sym = action.get("symbol", "")
-          await self._analyze_loss(session, sym)
-          self._register_symbol_cooldown(sym, after_loss=True)
-        else:
-          sym = action.get("symbol", "")
-          self._register_symbol_cooldown(sym, after_loss=False)
+        stop_actions = await engine.update_positions(prices)
+        actions.extend(stop_actions)
+
+        for action in stop_actions:
+          if not action.get("is_winner", True):
+            sym = action.get("symbol", "")
+            await self._analyze_loss(session, sym)
+            self._register_symbol_cooldown(sym, after_loss=True)
+          else:
+            sym = action.get("symbol", "")
+            self._register_symbol_cooldown(sym, after_loss=False)
+    except Exception as e:
+      await self._record_scan_result(len(symbols), actions, f"failed — {e}")
+      raise
 
     pm_detail = (
       f"{buy_candidates} buy signals (best {best_buy_score:.2f})"
       if buy_candidates
       else "no qualifying entries"
     )
+    if skipped:
+      pm_detail += f", {skipped} skipped"
     await self._record_scan_result(len(symbols), actions, pm_detail)
 
     if actions:
