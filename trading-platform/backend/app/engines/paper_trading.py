@@ -71,6 +71,22 @@ class PaperTradingEngine:
     )
     return result.scalar_one_or_none()
 
+  async def get_consecutive_losses(self) -> int:
+    """Count trailing consecutive losing sells (breakeven does not break streak)."""
+    result = await self.session.execute(
+      select(Trade)
+      .where(Trade.bot_type == self.bot_type, Trade.action == "sell")
+      .order_by(Trade.executed_at.desc())
+      .limit(10)
+    )
+    streak = 0
+    for trade in result.scalars():
+      if trade.is_winner is False:
+        streak += 1
+      elif trade.is_winner is True:
+        break
+    return streak
+
   async def buy(
     self,
     symbol: str,
@@ -90,7 +106,12 @@ class PaperTradingEngine:
     if existing:
       return None
 
-    position_value = portfolio.balance * strategy_cfg.max_position_pct
+    position_pct = strategy_cfg.max_position_pct
+    loss_streak = await self.get_consecutive_losses()
+    if loss_streak >= 3:
+      position_pct *= 0.5
+
+    position_value = portfolio.balance * position_pct
     if self.bot_type == "polymarket":
       position_value = min(
         settings.polymarket_max_position_usd,

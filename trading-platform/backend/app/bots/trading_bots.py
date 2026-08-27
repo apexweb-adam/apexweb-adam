@@ -73,6 +73,10 @@ class BaseBot(ABC):
 
       engine = PaperTradingEngine(session, self.bot_type)
       strategy = await engine.get_strategy()
+      loss_streak = await engine.get_consecutive_losses()
+      min_signal = strategy.min_signal_score
+      if loss_streak >= 3:
+        min_signal = min(0.95, min_signal + 0.08)
       strategy_params = {
         "rsi_oversold": strategy.rsi_oversold,
         "rsi_overbought": strategy.rsi_overbought,
@@ -113,7 +117,8 @@ class BaseBot(ABC):
 
         if (
           signal.direction == "buy"
-          and composite >= strategy.min_signal_score
+          and signal.volume_confirmed
+          and composite >= min_signal
           and sentiment + integration_boost >= strategy.min_sentiment_score - 0.5
         ):
           reason = f"Signal:{signal.score:.2f} Sentiment:{sentiment:.2f}"
