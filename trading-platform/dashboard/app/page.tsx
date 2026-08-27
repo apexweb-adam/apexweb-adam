@@ -429,6 +429,8 @@ export default function Dashboard() {
                         "text-[10px] px-2 py-1 rounded-full font-medium uppercase",
                         src.status === "active"
                           ? "bg-apex-green/10 text-apex-green"
+                          : src.status === "degraded"
+                            ? "bg-apex-gold/10 text-apex-gold"
                           : src.status === "optional"
                             ? "bg-apex-gold/10 text-apex-gold"
                             : "bg-gray-800 text-gray-500"
