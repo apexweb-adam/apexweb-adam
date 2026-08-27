@@ -66,7 +66,7 @@ async def crm_landing():
   url = await recommended_dashboard_url()
   deploy = await build_deploy_status()
   stale = deploy.get("vercel_bundle_stale")
-  promote_id = deploy.get("vercel_promote_deployment_id") or "dpl_8xcr2CHLWNyDHpHo5cSLsZn3YaU5"
+  promote_id = deploy.get("vercel_promote_deployment_id") or "dpl_GefDm7d9ykrTUDrJpUQRzDta4xyh"
   html = f"""<!DOCTYPE html>
 <html lang="en">
 <head>

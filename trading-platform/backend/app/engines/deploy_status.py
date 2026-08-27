@@ -12,10 +12,10 @@ GITHUB_REPO = os.environ.get("GITHUB_REPO", "apexweb-adam/apexweb-adam")
 GITHUB_API = f"https://api.github.com/repos/{GITHUB_REPO}/commits/main"
 PRODUCTION_DASHBOARD_URL = "https://apex-trading-dashboard-flame.vercel.app"
 DEFAULT_VERIFIED_DASHBOARD_URL = (
-  "https://apex-trading-dashboard-fvmoq5oyj-apexweb-adams-projects.vercel.app"
+  "https://apex-trading-dashboard-m1fif9ruf-apexweb-adams-projects.vercel.app"
 )
-DEFAULT_VERIFIED_DEPLOYMENT_ID = "dpl_8xcr2CHLWNyDHpHo5cSLsZn3YaU5"
-EXPECTED_DASHBOARD_BUNDLE = "2026-08-27-r7"
+DEFAULT_VERIFIED_DEPLOYMENT_ID = "dpl_GefDm7d9ykrTUDrJpUQRzDta4xyh"
+EXPECTED_DASHBOARD_BUNDLE = "2026-08-27-r8"
 
 
 def configured_verified_dashboard_url() -> str:

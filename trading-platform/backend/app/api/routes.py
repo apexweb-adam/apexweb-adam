@@ -556,6 +556,8 @@ async def get_platform_status(db: AsyncSession = Depends(get_db)) -> dict[str, A
       "vercel_bundle_revision": deploy_info.get("vercel_bundle_revision"),
       "vercel_promote_deployment_id": deploy_info.get("vercel_promote_deployment_id"),
       "vercel_promote_url": deploy_info.get("vercel_promote_url"),
+      "production_proxy_operational": deploy_info.get("production_proxy_operational"),
+      "verified_bundle_revision": deploy_info.get("verified_bundle_revision"),
       "git_commit": deploy_info.get("git_commit"),
       "git_branch": deploy_info.get("git_branch"),
       "latest_main_commit": deploy_info.get("latest_main_commit"),
