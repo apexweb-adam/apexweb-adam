@@ -27,6 +27,8 @@ SYMBOL_PRICE_BOUNDS: dict[str, tuple[float, float]] = {
 def is_price_sane(symbol: str, price: float) -> bool:
   if price <= 0:
     return False
+  if symbol.startswith("PM:"):
+    return 0.02 <= price <= 0.98
   bounds = SYMBOL_PRICE_BOUNDS.get(symbol)
   if not bounds:
     return True

@@ -1,10 +1,9 @@
-import ssl
 from collections.abc import AsyncGenerator
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 
-from app.config import settings
+from app.config import settings, BOT_TYPES
 
 
 class Base(DeclarativeBase):
@@ -24,7 +23,7 @@ def _engine_kwargs(url: str) -> dict:
   normalized = normalize_database_url(url)
   kwargs: dict = {"echo": False}
   if normalized.startswith("postgresql+asyncpg://"):
-    kwargs["connect_args"] = {"ssl": ssl.create_default_context()}
+    kwargs["connect_args"] = {"ssl": "require"}
   return kwargs
 
 
@@ -56,7 +55,7 @@ async def init_db() -> None:
     await conn.run_sync(Base.metadata.create_all)
 
   async with SessionLocal() as session:
-    for bot_type in ["crypto", "stocks_futures", "commodities"]:
+    for bot_type in BOT_TYPES:
       result = await session.execute(select(Portfolio).where(Portfolio.bot_type == bot_type))
       if not result.scalar_one_or_none():
         session.add(Portfolio(bot_type=bot_type))

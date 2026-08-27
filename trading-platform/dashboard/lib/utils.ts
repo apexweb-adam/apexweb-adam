@@ -26,6 +26,7 @@ export function botLabel(type: string): string {
     crypto: "Crypto 24/7",
     stocks_futures: "Stocks & Futures",
     commodities: "Commodities 24/7",
+    polymarket: "Polymarket Predictions 24/7",
   };
   return labels[type] || type;
 }

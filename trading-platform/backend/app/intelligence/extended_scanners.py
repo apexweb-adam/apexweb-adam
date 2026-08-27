@@ -25,10 +25,15 @@ YOUTUBE_CHANNELS = [
 
 X_SEARCH_QUERIES = [
   "bitcoin OR btc OR crypto",
-  "solana OR memecoin",
-  "stock market OR nasdaq",
-  "trump tariff OR fed rate",
-  "gold price OR oil price",
+  "solana OR memecoin OR pepe",
+  "stock market OR nasdaq OR sp500",
+  "trump tariff OR fed rate OR inflation",
+  "gold price OR oil price OR commodities",
+  "iran OR geopolitics OR war market",
+  "esports OR sports betting OR nfl",
+  "ai OR tech stocks OR nvidia",
+  "economy OR recession OR gdp",
+  "polymarket OR prediction market",
 ]
 
 POLITICAL_QUERIES = [
@@ -36,7 +41,13 @@ POLITICAL_QUERIES = [
   "trump tariff",
   "trump crypto",
   "trump fed",
-  "trump executive order market",
+  "iran nuclear",
+  "israel gaza",
+  "ukraine russia",
+  "china taiwan",
+  "fed interest rate",
+  "election 2026",
+  "weather forecast economy",
 ]
 
 TIKTOK_GOOGLE_NEWS_QUERIES = [
@@ -155,18 +166,13 @@ class ExtendedIntelligenceScanner(IntelligenceScanner):
       async with httpx.AsyncClient(timeout=15) as client:
         response = await client.get(
           f"{settings.polymarket_api_url}/markets",
-          params={"active": "true", "limit": 50, "order": "volume24hr", "ascending": "false"},
+          params={"active": "true", "limit": 60, "order": "volume24hr", "ascending": "false"},
         )
         if response.status_code != 200:
           return 0
 
-        markets = response.json()
-        for market in markets:
+        for market in response.json():
           question = market.get("question", "")
-          q_lower = question.lower()
-          if not any(kw in q_lower for kw in POLYMARKET_KEYWORDS):
-            continue
-
           prices = json.loads(market.get("outcomePrices", "[]"))
           yes_price = float(prices[0]) if prices else 0.5
           sentiment = (yes_price - 0.5) * 2

@@ -21,7 +21,7 @@ jobs:
           import json,sys
           d=json.load(sys.stdin)
           assert d.get('mode')=='paper_trading', d
-          assert d.get('bots_active')==3, d
+          assert d.get('bots_active')==4, d
           print('OK: equity=%s pnl=%s trades=%s intel=%s' % (
             d.get('total_equity'), d.get('total_pnl'), d.get('total_trades'), d.get('intelligence_items')))
           "
