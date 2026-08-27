@@ -520,6 +520,7 @@ async def get_platform_status(db: AsyncSession = Depends(get_db)) -> dict[str, A
       "min_sentiment": gate_tightening.min_sentiment,
       "require_macd_bullish": gate_tightening.require_macd_bullish,
       "min_composite_boost": gate_tightening.min_composite_boost,
+      "max_pm_open_positions": gate_tightening.max_pm_open_positions,
     },
     "bots": bots,
     "intelligence": {
@@ -545,6 +546,11 @@ async def get_platform_status(db: AsyncSession = Depends(get_db)) -> dict[str, A
       "tradingview_setup": (
         "Configure TradingView alerts to POST JSON with secret, symbol, action to webhook URL"
         if settings.tradingview_webhook_secret and tv_items == 0
+        else None
+      ),
+      "tradingview_test_endpoint": (
+        "POST /api/admin/test-tradingview-webhook with secret to inject a sample alert"
+        if settings.tradingview_webhook_secret
         else None
       ),
       "tradingview_example_payload": (
@@ -811,3 +817,33 @@ async def tradingview_webhook(payload: dict[str, Any], db: AsyncSession = Depend
 
   await push_live_update()
   return {"status": "received", "symbol": symbol, "action": action}
+
+
+@router.post("/admin/test-tradingview-webhook")
+async def test_tradingview_webhook(payload: dict[str, Any], db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
+  """Inject a sample TradingView alert to verify webhook pipeline (requires webhook secret)."""
+  secret = payload.get("secret", "")
+  if not settings.tradingview_webhook_secret or secret != settings.tradingview_webhook_secret:
+    return {"status": "unauthorized"}
+
+  symbol = payload.get("symbol", "BTCUSDT")
+  action = payload.get("action", "buy")
+  sample = {
+    "secret": settings.tradingview_webhook_secret,
+    "symbol": symbol,
+    "action": action,
+    "message": payload.get("message", f"Test alert: {action} {symbol}"),
+  }
+  result = await tradingview_webhook(sample, db)
+  return {
+    "status": "ok",
+    "webhook_url": "https://apex-trading-backend.onrender.com/api/webhooks/tradingview",
+    "sample_payload": {
+      "secret": "<TRADINGVIEW_WEBHOOK_SECRET>",
+      "symbol": symbol,
+      "action": action,
+      "message": sample["message"],
+    },
+    "result": result,
+    "timestamp": datetime.utcnow().isoformat(),
+  }

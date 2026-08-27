@@ -338,6 +338,9 @@ class PolymarketBot(BaseBot):
           strategy.min_sentiment_score,
           bot_min_sentiment(self.bot_type, gate_tightening),
         )
+        pm_position_cap = settings.polymarket_max_open_positions
+        if gate_tightening.max_pm_open_positions is not None:
+          pm_position_cap = min(pm_position_cap, gate_tightening.max_pm_open_positions)
         open_positions = await engine.get_open_positions()
         pm_open = len(open_positions)
         prices: dict[str, float] = {}
@@ -410,7 +413,7 @@ class PolymarketBot(BaseBot):
             if cooldown and datetime.utcnow() < cooldown:
               continue
 
-            if pm_open >= settings.polymarket_max_open_positions:
+            if pm_open >= pm_position_cap:
               continue
 
             if not meta or not is_macro_relevant_market(meta):

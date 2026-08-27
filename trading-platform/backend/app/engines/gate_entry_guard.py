@@ -16,13 +16,14 @@ class GateEntryTightening:
   min_sentiment: float
   require_macd_bullish: bool
   min_composite_boost: float
+  max_pm_open_positions: int | None = None
 
 
 BOT_MIN_SENTIMENT = {
   "crypto": 0.10,
   "commodities": 0.06,
   "stocks_futures": 0.04,
-  "polymarket": 0.08,
+  "polymarket": 0.12,
 }
 
 
@@ -50,6 +51,7 @@ async def get_gate_entry_tightening(session: AsyncSession) -> GateEntryTightenin
     min_sentiment=0.04 + boost,
     require_macd_bullish=deficit >= 0.02,
     min_composite_boost=boost,
+    max_pm_open_positions=3 if deficit >= 0.02 else None,
   )
 
 
