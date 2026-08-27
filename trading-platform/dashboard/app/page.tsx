@@ -1,0 +1,655 @@
+"use client";
+
+import {
+  Activity,
+  BarChart3,
+  Bot,
+  Brain,
+  Circle,
+  DollarSign,
+  LineChart,
+  Newspaper,
+  Settings,
+  Shield,
+  TrendingDown,
+  TrendingUp,
+  Zap,
+} from "lucide-react";
+import { useState } from "react";
+import { useLiveData } from "@/lib/useLiveData";
+import { useAPI } from "@/lib/useAPI";
+import {
+  botLabel,
+  cn,
+  formatCurrency,
+  formatPct,
+  formatTime,
+  pnlColor,
+  sentimentColor,
+} from "@/lib/utils";
+import type {
+  Trade,
+  Position,
+  IntelligenceItem,
+  TradeAnalysis,
+  DailyReview,
+  LearningInsight,
+  StrategyConfig,
+  ProfitabilityStatus,
+  IntelligenceSource,
+} from "@/lib/api";
+
+type Tab = "overview" | "trades" | "positions" | "intelligence" | "learning" | "strategy";
+
+export default function Dashboard() {
+  const { stats, portfolios, bots, connected, lastUpdate } = useLiveData();
+  const { data: trades } = useAPI<Trade[]>("/trades?limit=50", 5000);
+  const { data: positions } = useAPI<Position[]>("/positions", 5000);
+  const { data: intelligence } = useAPI<IntelligenceItem[]>("/intelligence?limit=30", 15000);
+  const { data: analyses } = useAPI<TradeAnalysis[]>("/analyses?limit=20", 15000);
+  const { data: reviews } = useAPI<DailyReview[]>("/reviews?limit=10", 30000);
+  const { data: insights } = useAPI<LearningInsight[]>("/insights?limit=20", 30000);
+  const { data: strategies } = useAPI<StrategyConfig[]>("/strategies", 30000);
+  const { data: profitability } = useAPI<ProfitabilityStatus>("/profitability", 15000);
+  const { data: intelSources } = useAPI<IntelligenceSource[]>("/intelligence/sources", 30000);
+  const [tab, setTab] = useState<Tab>("overview");
+
+  const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
+    { id: "overview", label: "Overview", icon: <BarChart3 size={16} /> },
+    { id: "trades", label: "Trades", icon: <Activity size={16} /> },
+    { id: "positions", label: "Positions", icon: <LineChart size={16} /> },
+    { id: "intelligence", label: "Intelligence", icon: <Newspaper size={16} /> },
+    { id: "learning", label: "Learning", icon: <Brain size={16} /> },
+    { id: "strategy", label: "Strategy", icon: <Settings size={16} /> },
+  ];
+
+  return (
+    <div className="min-h-screen bg-apex-dark">
+      <header className="border-b border-apex-border bg-apex-card/50 backdrop-blur-sm sticky top-0 z-50">
+        <div className="max-w-[1600px] mx-auto px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-apex-gold to-apex-purple flex items-center justify-center">
+              <Zap className="text-apex-dark" size={20} />
+            </div>
+            <div>
+              <h1 className="text-lg font-bold text-white">Apex Trading Platform</h1>
+              <p className="text-xs text-gray-500">Multi-Market Paper Trading CRM</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-apex-green/10 border border-apex-green/20">
+              <Shield size={14} className="text-apex-green" />
+              <span className="text-xs text-apex-green font-medium">PAPER TRADING</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Circle
+                size={8}
+                className={cn("fill-current", connected ? "text-apex-green" : "text-apex-red")}
+              />
+              <span className="text-xs text-gray-400">
+                {connected ? "Live" : "Reconnecting..."}
+              </span>
+            </div>
+            {lastUpdate && (
+              <span className="text-xs text-gray-600">Updated {formatTime(lastUpdate)}</span>
+            )}
+          </div>
+        </div>
+      </header>
+
+      <div className="max-w-[1600px] mx-auto px-6 py-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-6">
+          <StatCard
+            label="Total Equity"
+            value={formatCurrency(stats?.total_equity ?? 0)}
+            icon={<DollarSign size={18} className="text-apex-gold" />}
+          />
+          <StatCard
+            label="Total P&L"
+            value={formatCurrency(stats?.total_pnl ?? 0)}
+            valueClass={pnlColor(stats?.total_pnl ?? 0)}
+            icon={
+              (stats?.total_pnl ?? 0) >= 0 ? (
+                <TrendingUp size={18} className="text-apex-green" />
+              ) : (
+                <TrendingDown size={18} className="text-apex-red" />
+              )
+            }
+          />
+          <StatCard
+            label="Win Rate"
+            value={formatPct(stats?.avg_win_rate ?? 0)}
+            icon={<BarChart3 size={18} className="text-apex-blue" />}
+          />
+          <StatCard
+            label="Total Trades"
+            value={String(stats?.total_trades ?? 0)}
+            icon={<Activity size={18} className="text-apex-purple" />}
+          />
+          <StatCard
+            label="Open Positions"
+            value={String(stats?.open_positions ?? 0)}
+            icon={<LineChart size={18} className="text-apex-gold" />}
+          />
+          <StatCard
+            label="Intel Items"
+            value={String(stats?.intelligence_items ?? 0)}
+            icon={<Newspaper size={18} className="text-apex-blue" />}
+          />
+        </div>
+
+        <div className="flex gap-2 mb-6 overflow-x-auto pb-1">
+          {tabs.map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              className={cn(
+                "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap",
+                tab === t.id
+                  ? "bg-apex-gold/10 text-apex-gold border border-apex-gold/30"
+                  : "bg-apex-card text-gray-400 border border-apex-border hover:text-white"
+              )}
+            >
+              {t.icon}
+              {t.label}
+            </button>
+          ))}
+        </div>
+
+        {tab === "overview" && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 space-y-6">
+              <Card title="Bot Status">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {bots.map((bot) => (
+                    <BotCard key={bot.bot_type} bot={bot} />
+                  ))}
+                  {bots.length === 0 &&
+                    ["crypto", "stocks_futures", "commodities"].map((type) => (
+                      <BotCard
+                        key={type}
+                        bot={{
+                          bot_type: type,
+                          status: "starting",
+                          last_action: "Initializing...",
+                          last_scan_at: null,
+                          trades_today: 0,
+                          pnl_today: 0,
+                          strategy_version: 1,
+                        }}
+                      />
+                    ))}
+                </div>
+              </Card>
+              <Card title="Recent Trades">
+                <TradesTable trades={(trades ?? []).slice(0, 10)} compact />
+              </Card>
+            </div>
+            <div className="space-y-6">
+              <Card title="Profitability Gate">
+                {profitability ? (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-400">Live trading ready</span>
+                      <span
+                        className={cn(
+                          "text-xs px-2 py-1 rounded-full font-medium",
+                          profitability.live_trading_ready
+                            ? "bg-apex-green/10 text-apex-green"
+                            : "bg-apex-gold/10 text-apex-gold"
+                        )}
+                      >
+                        {profitability.live_trading_ready ? "READY" : "PAPER ONLY"}
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-500">{profitability.recommendation}</p>
+                    <div className="space-y-1">
+                      {Object.entries(profitability.checks).map(([key, check]) => (
+                        <div key={key} className="flex justify-between text-xs">
+                          <span className="text-gray-500">{key.replace(/_/g, " ")}</span>
+                          <span className={check.passed ? "text-apex-green" : "text-apex-red"}>
+                            {String(check.actual)} / {String(check.required)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-500">Loading profitability status...</p>
+                )}
+              </Card>
+              <Card title="Portfolios">
+                {(portfolios ?? []).map((p) => (
+                  <div
+                    key={p.bot_type}
+                    className="flex justify-between items-center py-3 border-b border-apex-border last:border-0"
+                  >
+                    <div>
+                      <p className="text-sm font-medium text-white">{botLabel(p.bot_type)}</p>
+                      <p className="text-xs text-gray-500">
+                        {p.total_trades} trades · {formatPct(p.win_rate)} win rate
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-medium text-white">{formatCurrency(p.equity)}</p>
+                      <p className={cn("text-xs", pnlColor(p.total_pnl))}>
+                        {formatCurrency(p.total_pnl)}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+                {(portfolios ?? []).length === 0 && (
+                  <p className="text-sm text-gray-500 py-4">Bots initializing portfolios...</p>
+                )}
+              </Card>
+              <Card title="Latest Intelligence">
+                {(intelligence ?? []).slice(0, 5).map((item) => (
+                  <div key={item.id} className="py-2 border-b border-apex-border last:border-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-apex-border text-gray-400 uppercase">
+                        {item.source}
+                      </span>
+                      <span className={cn("text-[10px]", sentimentColor(item.sentiment))}>
+                        {item.sentiment > 0 ? "+" : ""}
+                        {item.sentiment.toFixed(2)}
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-300 line-clamp-2">{item.title}</p>
+                  </div>
+                ))}
+              </Card>
+            </div>
+          </div>
+        )}
+
+        {tab === "trades" && (
+          <Card title="All Trades">
+            <TradesTable trades={trades ?? []} />
+          </Card>
+        )}
+
+        {tab === "positions" && (
+          <Card title="Open Positions">
+            {(positions ?? []).length === 0 ? (
+              <p className="text-sm text-gray-500 py-8 text-center">
+                No open positions. Bots are scanning for opportunities...
+              </p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-gray-500 text-xs border-b border-apex-border">
+                      <th className="text-left py-3 px-2">Bot</th>
+                      <th className="text-left py-3 px-2">Symbol</th>
+                      <th className="text-right py-3 px-2">Qty</th>
+                      <th className="text-right py-3 px-2">Entry</th>
+                      <th className="text-right py-3 px-2">Current</th>
+                      <th className="text-right py-3 px-2">Unrealized P&L</th>
+                      <th className="text-right py-3 px-2">Stop Loss</th>
+                      <th className="text-right py-3 px-2">Take Profit</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(positions ?? []).map((p) => (
+                      <tr key={p.id} className="border-b border-apex-border/50">
+                        <td className="py-3 px-2 text-gray-400">{botLabel(p.bot_type)}</td>
+                        <td className="py-3 px-2 font-medium text-white">{p.symbol}</td>
+                        <td className="py-3 px-2 text-right text-gray-300">
+                          {p.quantity.toFixed(4)}
+                        </td>
+                        <td className="py-3 px-2 text-right text-gray-300">
+                          ${p.entry_price.toFixed(2)}
+                        </td>
+                        <td className="py-3 px-2 text-right text-white">
+                          ${p.current_price.toFixed(2)}
+                        </td>
+                        <td className={cn("py-3 px-2 text-right font-medium", pnlColor(p.unrealized_pnl))}>
+                          {formatCurrency(p.unrealized_pnl)}
+                        </td>
+                        <td className="py-3 px-2 text-right text-apex-red">
+                          ${p.stop_loss?.toFixed(2)}
+                        </td>
+                        <td className="py-3 px-2 text-right text-apex-green">
+                          ${p.take_profit?.toFixed(2)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </Card>
+        )}
+
+        {tab === "intelligence" && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card title="Market Intelligence Feed">
+              <div className="space-y-3 max-h-[700px] overflow-y-auto">
+                {(intelligence ?? []).map((item) => (
+                  <div
+                    key={item.id}
+                    className="p-3 rounded-lg bg-apex-dark border border-apex-border"
+                  >
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-apex-purple/20 text-apex-purple uppercase font-medium">
+                        {item.source}
+                      </span>
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-apex-border text-gray-400">
+                        {item.category}
+                      </span>
+                      <span className={cn("text-xs ml-auto", sentimentColor(item.sentiment))}>
+                        Sentiment: {item.sentiment > 0 ? "+" : ""}
+                        {item.sentiment.toFixed(2)}
+                      </span>
+                    </div>
+                    <p className="text-sm text-white font-medium mb-1">{item.title}</p>
+                    <p className="text-xs text-gray-500 line-clamp-2">{item.content}</p>
+                    {item.symbols_mentioned && (
+                      <p className="text-[10px] text-apex-gold mt-2">
+                        Symbols: {item.symbols_mentioned}
+                      </p>
+                    )}
+                    <p className="text-[10px] text-gray-600 mt-1">
+                      {formatTime(item.fetched_at)}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </Card>
+            <Card title="Intelligence Sources">
+              <div className="space-y-4">
+                {(intelSources ?? [
+                  { source: "news", status: "active", items_collected: 0, last_fetched: null },
+                  { source: "reddit", status: "active", items_collected: 0, last_fetched: null },
+                  { source: "youtube", status: "active", items_collected: 0, last_fetched: null },
+                  { source: "polymarket", status: "active", items_collected: 0, last_fetched: null },
+                  { source: "political", status: "active", items_collected: 0, last_fetched: null },
+                  { source: "tiktok", status: "active", items_collected: 0, last_fetched: null },
+                  { source: "x", status: "pending", items_collected: 0, last_fetched: null },
+                  { source: "tradingview", status: "pending", items_collected: 0, last_fetched: null },
+                  { source: "newsapi", status: "optional", items_collected: 0, last_fetched: null },
+                ]).map((src) => (
+                  <div
+                    key={src.source}
+                    className="flex items-center justify-between p-3 rounded-lg bg-apex-dark border border-apex-border"
+                  >
+                    <div>
+                      <p className="text-sm font-medium text-white uppercase">{src.source}</p>
+                      <p className="text-xs text-gray-500">
+                        {src.items_collected} items collected
+                        {src.last_fetched ? ` · last ${formatTime(src.last_fetched)}` : ""}
+                      </p>
+                    </div>
+                    <span
+                      className={cn(
+                        "text-[10px] px-2 py-1 rounded-full font-medium uppercase",
+                        src.status === "active"
+                          ? "bg-apex-green/10 text-apex-green"
+                          : src.status === "optional"
+                            ? "bg-apex-gold/10 text-apex-gold"
+                            : "bg-gray-800 text-gray-500"
+                      )}
+                    >
+                      {src.status}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          </div>
+        )}
+
+        {tab === "learning" && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card title="Loss Trade Analysis">
+              <div className="space-y-3 max-h-[500px] overflow-y-auto">
+                {(analyses ?? []).length === 0 ? (
+                  <p className="text-sm text-gray-500 py-4">No losing trades analyzed yet.</p>
+                ) : (
+                  (analyses ?? []).map((a) => (
+                    <div
+                      key={a.id}
+                      className="p-3 rounded-lg bg-apex-dark border border-apex-red/20"
+                    >
+                      <div className="flex justify-between mb-2">
+                        <span className="text-sm font-medium text-white">
+                          {a.symbol} ({botLabel(a.bot_type)})
+                        </span>
+                        <span className="text-sm text-apex-red">
+                          -{formatCurrency(a.loss_amount)}
+                        </span>
+                      </div>
+                      <p className="text-xs text-apex-red mb-1">
+                        <strong>Root cause:</strong> {a.root_cause}
+                      </p>
+                      <p className="text-xs text-gray-400 mb-1">
+                        <strong>Lesson:</strong> {a.lessons_learned}
+                      </p>
+                      <p className="text-xs text-apex-gold">
+                        <strong>Adjustment:</strong> {a.strategy_adjustment}
+                      </p>
+                    </div>
+                  ))
+                )}
+              </div>
+            </Card>
+            <Card title="Daily Reviews">
+              <div className="space-y-3 max-h-[500px] overflow-y-auto">
+                {(reviews ?? []).length === 0 ? (
+                  <p className="text-sm text-gray-500 py-4">
+                    Daily reviews run at 22:00 UTC. First review coming soon.
+                  </p>
+                ) : (
+                  (reviews ?? []).map((r) => (
+                    <div
+                      key={r.id}
+                      className="p-3 rounded-lg bg-apex-dark border border-apex-border"
+                    >
+                      <div className="flex justify-between mb-2">
+                        <span className="text-sm font-medium text-white">
+                          {botLabel(r.bot_type)} — {r.review_date}
+                        </span>
+                        <span className={cn("text-sm font-medium", pnlColor(r.net_pnl))}>
+                          {formatCurrency(r.net_pnl)}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-400">
+                        {r.total_trades} trades · {formatPct(r.win_rate)} win rate ·{" "}
+                        {r.losing_trades} losses
+                      </p>
+                      <p className="text-xs text-gray-300 mt-2">{r.conclusions}</p>
+                      <p className="text-xs text-apex-gold mt-1">{r.strategy_changes}</p>
+                    </div>
+                  ))
+                )}
+              </div>
+            </Card>
+            <Card title="External Knowledge Applied">
+              <div className="space-y-3 max-h-[500px] overflow-y-auto lg:col-span-2">
+                {(insights ?? []).map((i) => (
+                  <div
+                    key={i.id}
+                    className="p-3 rounded-lg bg-apex-dark border border-apex-border"
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-apex-blue/20 text-apex-blue uppercase">
+                        {i.source_type}
+                      </span>
+                      {i.applied && (
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-apex-green/10 text-apex-green">
+                          APPLIED
+                        </span>
+                      )}
+                      <span className="text-[10px] text-gray-500 ml-auto">
+                        Confidence: {(i.confidence * 100).toFixed(0)}%
+                      </span>
+                    </div>
+                    <p className="text-sm text-white font-medium">{i.source_title}</p>
+                    <p className="text-xs text-gray-400 mt-1">{i.key_takeaways}</p>
+                    <p className="text-xs text-apex-gold mt-1">Impact: {i.strategy_impact}</p>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          </div>
+        )}
+
+        {tab === "strategy" && (
+          <Card title="Strategy Configuration (Auto-Adapting)">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {(strategies ?? []).map((s) => (
+                <div
+                  key={s.bot_type}
+                  className="p-4 rounded-lg bg-apex-dark border border-apex-border"
+                >
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-sm font-bold text-white">{botLabel(s.bot_type)}</h3>
+                    <span className="text-[10px] px-2 py-1 rounded-full bg-apex-purple/20 text-apex-purple">
+                      v{s.version}
+                    </span>
+                  </div>
+                  <div className="space-y-2 text-xs">
+                    {[
+                      ["RSI Oversold", s.rsi_oversold],
+                      ["RSI Overbought", s.rsi_overbought],
+                      ["Min Signal Score", s.min_signal_score],
+                      ["Min Sentiment", s.min_sentiment_score],
+                      ["Stop Loss", `${(s.stop_loss_pct * 100).toFixed(1)}%`],
+                      ["Take Profit", `${(s.take_profit_pct * 100).toFixed(1)}%`],
+                      ["Max Position", `${(s.max_position_pct * 100).toFixed(1)}%`],
+                    ].map(([label, value]) => (
+                      <div key={String(label)} className="flex justify-between">
+                        <span className="text-gray-500">{label}</span>
+                        <span className="text-white font-medium">{value}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+              {(strategies ?? []).length === 0 && (
+                <p className="text-sm text-gray-500 col-span-3 py-4 text-center">
+                  Strategy configs will appear after bots initialize.
+                </p>
+              )}
+            </div>
+          </Card>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function StatCard({
+  label,
+  value,
+  icon,
+  valueClass,
+}: {
+  label: string;
+  value: string;
+  icon: React.ReactNode;
+  valueClass?: string;
+}) {
+  return (
+    <div className="p-4 rounded-xl bg-apex-card border border-apex-border">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-xs text-gray-500">{label}</span>
+        {icon}
+      </div>
+      <p className={cn("text-xl font-bold", valueClass || "text-white")}>{value}</p>
+    </div>
+  );
+}
+
+function Card({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="rounded-xl bg-apex-card border border-apex-border p-5">
+      <h2 className="text-sm font-bold text-white mb-4">{title}</h2>
+      {children}
+    </div>
+  );
+}
+
+function BotCard({ bot }: { bot: { bot_type: string; status: string; last_action: string; last_scan_at?: string | null; trades_today: number; pnl_today: number; strategy_version: number } }) {
+  return (
+    <div className="p-4 rounded-lg bg-apex-dark border border-apex-border">
+      <div className="flex items-center gap-2 mb-3">
+        <Bot size={16} className="text-apex-gold" />
+        <span className="text-sm font-bold text-white">{botLabel(bot.bot_type)}</span>
+        <span
+          className={cn(
+            "ml-auto text-[10px] px-2 py-0.5 rounded-full font-medium uppercase",
+            bot.status === "running"
+              ? "bg-apex-green/10 text-apex-green"
+              : "bg-apex-gold/10 text-apex-gold"
+          )}
+        >
+          {bot.status}
+        </span>
+      </div>
+      <p className="text-xs text-gray-400 mb-2 line-clamp-2">{bot.last_action}</p>
+      <div className="flex justify-between text-[10px] text-gray-500">
+        <span>{bot.trades_today} trades today</span>
+        <span>Strategy v{bot.strategy_version}</span>
+      </div>
+    </div>
+  );
+}
+
+function TradesTable({ trades, compact }: { trades: Trade[]; compact?: boolean }) {
+  if (trades.length === 0) {
+    return (
+      <p className="text-sm text-gray-500 py-8 text-center">
+        No trades yet. Bots are actively scanning markets...
+      </p>
+    );
+  }
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="text-gray-500 text-xs border-b border-apex-border">
+            <th className="text-left py-2 px-2">Time</th>
+            <th className="text-left py-2 px-2">Bot</th>
+            <th className="text-left py-2 px-2">Symbol</th>
+            <th className="text-left py-2 px-2">Action</th>
+            <th className="text-right py-2 px-2">Price</th>
+            {!compact && <th className="text-right py-2 px-2">Signal</th>}
+            <th className="text-right py-2 px-2">P&L</th>
+          </tr>
+        </thead>
+        <tbody>
+          {trades.map((t) => (
+            <tr key={t.id} className="border-b border-apex-border/50">
+              <td className="py-2 px-2 text-gray-500 text-xs">{formatTime(t.executed_at)}</td>
+              <td className="py-2 px-2 text-gray-400 text-xs">{botLabel(t.bot_type)}</td>
+              <td className="py-2 px-2 font-medium text-white">{t.symbol}</td>
+              <td className="py-2 px-2">
+                <span
+                  className={cn(
+                    "text-xs px-2 py-0.5 rounded font-medium uppercase",
+                    t.action === "buy"
+                      ? "bg-apex-green/10 text-apex-green"
+                      : "bg-apex-red/10 text-apex-red"
+                  )}
+                >
+                  {t.action}
+                </span>
+              </td>
+              <td className="py-2 px-2 text-right text-gray-300">${t.price.toFixed(2)}</td>
+              {!compact && (
+                <td className="py-2 px-2 text-right text-gray-400">
+                  {t.signal_score.toFixed(2)}
+                </td>
+              )}
+              <td className={cn("py-2 px-2 text-right font-medium", pnlColor(t.pnl))}>
+                {t.action === "sell" ? formatCurrency(t.pnl) : "—"}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
