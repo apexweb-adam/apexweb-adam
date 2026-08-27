@@ -46,6 +46,11 @@ async def build_live_payload(session: AsyncSession) -> dict:
     await session.execute(select(Trade).order_by(desc(Trade.executed_at)).limit(50))
   ).scalars().all()
   intel = (await session.execute(select(IntelligenceItem))).scalars().all()
+  recent_intel_rows = (
+    await session.execute(
+      select(IntelligenceItem).order_by(desc(IntelligenceItem.fetched_at)).limit(10)
+    )
+  ).scalars().all()
   states = (await session.execute(select(BotState))).scalars().all()
   strategy_versions = {
     c.bot_type: c.version
@@ -130,6 +135,18 @@ async def build_live_payload(session: AsyncSession) -> dict:
         "executed_at": t.executed_at.isoformat() if t.executed_at else None,
       }
       for t in recent_trades
+    ],
+    "recent_intel": [
+      {
+        "id": item.id,
+        "source": item.source,
+        "category": item.category,
+        "title": item.title,
+        "sentiment": item.sentiment,
+        "relevance_score": item.relevance_score,
+        "fetched_at": item.fetched_at.isoformat() if item.fetched_at else None,
+      }
+      for item in recent_intel_rows
     ],
   }
 
