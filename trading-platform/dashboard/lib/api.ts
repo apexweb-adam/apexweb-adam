@@ -210,6 +210,11 @@ export type IntelligenceSource = {
   last_fetched: string | null;
 };
 
+export type IntelRouting = {
+  bot_source_weights: Record<string, Record<string, number>>;
+  political_event_types: { type: string; assets: string[]; bots: string[] }[];
+};
+
 export type DashboardConfig = {
   apiUrl: string;
   wsUrl: string;

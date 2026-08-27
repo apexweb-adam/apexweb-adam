@@ -40,8 +40,11 @@ import type {
   IntelligenceSource,
   PlatformStatus,
   DashboardConfig,
+  IntelRouting,
 } from "@/lib/api";
 import { enrichProfitabilityStatus } from "@/lib/profitability";
+import { VerificationPnLChart } from "@/components/VerificationPnLChart";
+import { IntelRoutingPanel } from "@/components/IntelRoutingPanel";
 
 type Tab = "overview" | "trades" | "positions" | "intelligence" | "learning" | "strategy";
 
@@ -63,6 +66,7 @@ export default function Dashboard() {
     60000
   );
   const { data: intelSources } = useAPI<IntelligenceSource[]>("/intelligence/sources", 30000);
+  const { data: intelRouting } = useAPI<IntelRouting>("/intelligence/routing", 60000);
   const { data: platformStatus } = useAPI<PlatformStatus>("/status", 30000);
   const [tab, setTab] = useState<Tab>("overview");
   const [dashConfig, setDashConfig] = useState<DashboardConfig | null>(null);
@@ -396,7 +400,8 @@ export default function Dashboard() {
                     </div>
                     {(verificationHistory ?? []).length > 0 && (
                       <div className="pt-2 border-t border-apex-border">
-                        <p className="text-xs text-gray-500 mb-2">Daily verification log</p>
+                        <VerificationPnLChart snapshots={verificationHistory ?? []} />
+                        <p className="text-xs text-gray-500 mb-2 mt-3">Daily verification log</p>
                         <div className="space-y-1 max-h-32 overflow-y-auto">
                           {(verificationHistory ?? []).slice(0, 7).map((snap) => (
                             <div
@@ -598,6 +603,9 @@ export default function Dashboard() {
                   </div>
                 ))}
               </div>
+            </Card>
+            <Card title="Intel Source Routing">
+              <IntelRoutingPanel routing={intelRouting} />
             </Card>
           </div>
         )}

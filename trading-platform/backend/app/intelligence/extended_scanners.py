@@ -7,6 +7,11 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
+from app.intelligence.political_signals import (
+  classify_political_event,
+  format_political_content,
+  political_category,
+)
 from app.intelligence.scanner import (
   IntelligenceScanner,
   analyze_sentiment,
@@ -107,6 +112,38 @@ class ExtendedIntelligenceScanner(IntelligenceScanner):
         sentiment=analyze_sentiment(full_text),
         relevance_score=relevance_score(full_text, cat),
         symbols_mentioned=extract_symbols(full_text),
+      )
+    )
+    return True
+
+  async def _add_political_item(self, title: str, content: str, url: str) -> bool:
+    full_text = f"{title} {content}"
+    existing = await self.session.execute(
+      select(IntelligenceItem).where(
+        (IntelligenceItem.url == url[:1000]) | (IntelligenceItem.title == title[:500])
+      )
+    )
+    if existing.scalar_one_or_none():
+      return False
+
+    event_type, asset_symbols, target_bots = classify_political_event(full_text)
+    cat = political_category(event_type)
+    enriched_content = format_political_content(content, event_type, target_bots)
+    symbols = extract_symbols(full_text)
+    symbol_set = set(symbols.split(",")) if symbols else set()
+    symbol_set.update(asset_symbols)
+    symbols_combined = ",".join(sorted(s for s in symbol_set if s))
+
+    self.session.add(
+      IntelligenceItem(
+        source="political",
+        category=cat,
+        title=title[:500],
+        content=enriched_content,
+        url=url[:1000],
+        sentiment=analyze_sentiment(full_text),
+        relevance_score=relevance_score(full_text, "political"),
+        symbols_mentioned=symbols_combined[:200],
       )
     )
     return True
@@ -325,7 +362,7 @@ class ExtendedIntelligenceScanner(IntelligenceScanner):
             title = entry.get("title", "")
             content = entry.get("summary", "")
             link = entry.get("link", "")
-            if await self._add_item("political", title, content, link, "political"):
+            if await self._add_political_item(title, content, link):
               count += 1
         except Exception as e:
           print(f"Political scan error for '{query}': {e}")
@@ -341,7 +378,7 @@ class ExtendedIntelligenceScanner(IntelligenceScanner):
           title = data.get("title", "")
           selftext = data.get("selftext", "")
           url = f"https://reddit.com{data.get('permalink', '')}"
-          if await self._add_item("political", f"[Trump] {title}", selftext, url, "political"):
+          if await self._add_political_item(f"[Trump] {title}", selftext, url):
             count += 1
       except Exception as e:
         print(f"Political Reddit scan error: {e}")
