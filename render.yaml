@@ -1,5 +1,6 @@
 # One-click deploy: https://dashboard.render.com → New → Blueprint → this repo
 # Database: Supabase Postgres (free tier — no Render disk needed)
+# autoDeploy: pushes to main should redeploy apex-trading-backend
 services:
   - type: web
     name: apex-trading-backend

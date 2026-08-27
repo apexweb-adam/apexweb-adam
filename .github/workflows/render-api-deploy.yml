@@ -11,9 +11,14 @@ on:
         options:
           - "false"
           - "true"
+  push:
+    branches: [main]
+    paths:
+      - 'trading-platform/backend/**'
+      - 'render.yaml'
 
 jobs:
-  deploy:
+  trigger-render-api:
     if: ${{ secrets.RENDER_API_KEY != '' }}
     runs-on: ubuntu-latest
     steps:
@@ -64,3 +69,15 @@ jobs:
           URL=$(echo "$SVC" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('serviceDetails',{}).get('url','') or d.get('service',{}).get('serviceDetails',{}).get('url',''))")
           echo "Backend URL: $URL"
           echo "Set Vercel BACKEND_URL=$URL and BACKEND_WS_URL=${URL/https/wss}"
+
+  deploy-not-configured:
+    if: ${{ secrets.RENDER_API_KEY == '' && secrets.RENDER_DEPLOY_HOOK == '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Render deploy credentials missing
+        run: |
+          echo "::warning::RENDER_API_KEY and RENDER_DEPLOY_HOOK are not set — cannot trigger Render deploy from CI."
+          echo "Render Blueprint autoDeploy may still deploy from GitHub pushes."
+          echo "Verify: https://apex-trading-backend.onrender.com/api/status (deploy.git_commit vs latest_main_commit)"
+          echo "Manual deploy: Render Dashboard → apex-trading-backend → Manual Deploy"
+          echo "Or add Deploy Hook URL to GitHub secret RENDER_DEPLOY_HOOK (see trading-platform/RENDER_DEPLOY.md)"
