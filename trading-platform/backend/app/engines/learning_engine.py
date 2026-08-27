@@ -167,12 +167,15 @@ class LearningEngine:
       return
 
     from app.config import settings
+    from app.engines.strategy_migration import cap_verification_signal_score
 
     pm_cap = settings.polymarket_max_position_pct
     changed = False
     for adj in adjustments:
       if "min_signal_score" in adj.lower():
-        config.min_signal_score = min(0.9, config.min_signal_score + 0.05)
+        config.min_signal_score = cap_verification_signal_score(
+          bot_type, min(0.9, config.min_signal_score + 0.05)
+        )
         changed = True
       if "sentiment" in adj.lower() and "positive" in adj.lower():
         config.min_sentiment_score = min(0.5, config.min_sentiment_score + 0.05)

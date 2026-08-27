@@ -24,6 +24,11 @@ VERIFICATION_SIGNAL_CEILINGS = {
 }
 
 
+def cap_verification_signal_score(bot_type: str, score: float) -> float:
+  ceiling = VERIFICATION_SIGNAL_CEILINGS.get(bot_type, 0.9)
+  return min(score, ceiling)
+
+
 async def clamp_verification_strategy_params(session: AsyncSession) -> int:
   """Lower over-tightened signal thresholds so all bots can trade during verification."""
   configs = list((await session.execute(select(StrategyConfig))).scalars().all())
