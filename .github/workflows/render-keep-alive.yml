@@ -1,0 +1,28 @@
+name: Render Keep-Alive
+
+# Render free tier spins down after ~15 min idle — ping every 10 min so 24/7 bots stay running
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wake Render backend
+        run: |
+          set -euo pipefail
+          URL="https://apex-trading-backend.onrender.com"
+          curl -fsS --max-time 30 "$URL/api/health" | python3 -c "
+          import json,sys
+          d=json.load(sys.stdin)
+          assert d.get('status')=='ok', d
+          print('health OK', d.get('timestamp'))
+          "
+          # Light status pull keeps dashboard data fresh without heavy load
+          curl -fsS --max-time 45 "$URL/api/stats" | python3 -c "
+          import json,sys
+          d=json.load(sys.stdin)
+          print('bots_active=%s trades=%s mode=%s' % (d.get('bots_active'), d.get('total_trades'), d.get('mode')))
+          "
