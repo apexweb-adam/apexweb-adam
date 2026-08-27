@@ -2,6 +2,11 @@
   "buildCommand": "npm run build",
   "outputDirectory": ".next",
   "framework": "nextjs",
+  "git": {
+    "deploymentEnabled": {
+      "main": true
+    }
+  },
   "env": {
     "BACKEND_URL": "https://apex-trading-backend.onrender.com",
     "BACKEND_WS_URL": "wss://apex-trading-backend.onrender.com"
