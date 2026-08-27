@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { backendBase, fetchActiveGateStatus } from "@/lib/active-gate";
+import { backendBase, fetchActiveGateStatus, fetchEquityHistory } from "@/lib/active-gate";
 
 export const dynamic = "force-dynamic";
 
@@ -12,6 +12,15 @@ async function proxyRequest(req: NextRequest, pathSegments: string[]) {
     try {
       const enriched = await fetchActiveGateStatus();
       return NextResponse.json(enriched);
+    } catch {
+      // fall through to plain proxy
+    }
+  }
+
+  if (req.method === "GET" && path === "equity-history" && !search) {
+    try {
+      const history = await fetchEquityHistory();
+      return NextResponse.json(history);
     } catch {
       // fall through to plain proxy
     }

@@ -53,6 +53,9 @@ class ProfitabilityGate:
     active_portfolios = [p for p in portfolios if p.bot_type not in paused_set]
     active_metrics = self._trade_metrics(active_sells, active_portfolios)
     aggregate_metrics = self._trade_metrics(sells, portfolios)
+    from app.engines.equity_history import build_equity_history
+
+    equity_history = build_equity_history(sells)
 
     total_trades = active_metrics["total_trades"]
     win_rate = active_metrics["win_rate"]
@@ -156,4 +159,5 @@ class ProfitabilityGate:
         "profit_factor": aggregate_metrics["profit_factor"],
         "total_pnl": aggregate_metrics["total_pnl"],
       },
+      "equity_history": equity_history,
     }

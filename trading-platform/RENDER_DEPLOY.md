@@ -45,6 +45,16 @@ Already migrated on project `apexweb` (`zzgmovjapeyauvpdpuqe`): portfolios, trad
 
 **Staleness check:** `GET /api/status` → `deploy.is_stale`. When true, trigger Manual Deploy in Render or POST the Deploy Hook URL once.
 
+### Deploy hook vs GitHub sync
+
+The **Deploy Hook** triggers a redeploy of whatever commit Render last built from GitHub. If `deploy.git_commit` stays behind `latest_main_commit` after hook triggers:
+
+1. **Render Dashboard** → `apex-trading-backend` → **Manual Deploy** → **Deploy latest commit**
+2. Verify **Settings → Build & Deploy → Auto-Deploy** is ON and connected to `apexweb-adam/apexweb-adam` branch `main`
+3. Add `RENDER_API_KEY` to GitHub secrets for CI deploys with cache clear (Render → Account → API Keys)
+
+The keep-alive workflow (every 10 min) and deploy-render-backend (every 6h) auto-trigger the hook when stale.
+
 ## TradingView webhook (after Render live)
 
 ```

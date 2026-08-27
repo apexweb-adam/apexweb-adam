@@ -1,5 +1,5 @@
-import type { Portfolio, ProfitabilityStatus, StrategyConfig, Trade } from "./api";
-import { enrichProfitabilityStatus } from "./profitability";
+import type { EquityHistoryPoint, Portfolio, ProfitabilityStatus, StrategyConfig, Trade } from "./api";
+import { buildEquityHistoryFromTrades, enrichProfitabilityStatus } from "./profitability";
 
 export function backendBase(): string {
   return (
@@ -24,4 +24,16 @@ export async function fetchActiveGateStatus(): Promise<ProfitabilityStatus> {
     fetchBackendJson<Trade[]>("trades?limit=200"),
   ]);
   return enrichProfitabilityStatus(profitability, trades, portfolios, strategies) ?? profitability;
+}
+
+/** Equity curve from trades when backend /equity-history is not deployed yet. */
+export async function fetchEquityHistory(): Promise<EquityHistoryPoint[]> {
+  try {
+    const direct = await fetchBackendJson<EquityHistoryPoint[]>("equity-history");
+    if (direct.length > 0) return direct;
+  } catch {
+    /* fall through */
+  }
+  const trades = await fetchBackendJson<Trade[]>("trades?limit=500");
+  return buildEquityHistoryFromTrades(trades.filter((t) => t.action === "sell"));
 }
