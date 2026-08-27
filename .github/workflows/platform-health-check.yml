@@ -59,6 +59,21 @@ jobs:
             echo "Backend deploy matches main ($DEPLOYED)"
           fi
 
+      - name: Check CRM landing page (/crm)
+        run: |
+          set -euo pipefail
+          CRM=$(curl -fsS "https://apex-trading-backend.onrender.com/crm")
+          echo "$CRM" | python3 -c "
+          import sys
+          html = sys.stdin.read()
+          assert 'Apex Trading CRM' in html, 'missing CRM title'
+          assert 'dashboard' in html.lower(), 'missing dashboard link'
+          if 'verification gate' in html.lower():
+              print('OK: CRM landing shows verification gate stats')
+          else:
+              print('::warning::CRM landing is legacy redirect-only — backend deploy may be stale (PR #76+)')
+          "
+
       - name: Check backend status endpoint (via proxy)
         run: |
           curl -fsS "https://apex-trading-dashboard-flame.vercel.app/api/backend/status" | python3 -c "
