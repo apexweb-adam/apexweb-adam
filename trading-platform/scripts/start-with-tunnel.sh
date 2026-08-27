@@ -59,7 +59,13 @@ trap 'kill $WATCHDOG_PID 2>/dev/null || true' EXIT
 echo "Starting Cloudflare tunnel (auto-restarts on failure)..."
 echo "Set Vercel BACKEND_URL / BACKEND_WS_URL to the https://*.trycloudflare.com URL below."
 while true; do
-  cloudflared tunnel --url http://127.0.0.1:8000 || true
+  cloudflared tunnel --url http://127.0.0.1:8000 2>&1 | tee -a /tmp/cloudflared.log | while read -r line; do
+    echo "$line"
+    if [[ "$line" =~ https://[a-z0-9-]+\.trycloudflare\.com ]]; then
+      url=$(echo "$line" | rg -o 'https://[a-z0-9-]+\.trycloudflare\.com' | head -1)
+      echo "$url" > "$ROOT/.tunnel-url"
+    fi
+  done || true
   echo "[tunnel] Restarting in 5s..."
   sleep 5
 done

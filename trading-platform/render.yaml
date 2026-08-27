@@ -1,3 +1,4 @@
+# Render Blueprint — use Supabase for persistence (free tier has no disk support)
 services:
   - type: web
     name: apex-trading-backend
@@ -7,17 +8,13 @@ services:
     plan: free
     autoDeploy: true
     healthCheckPath: /api/health
-    disk:
-      name: trading-data
-      mountPath: /app/data
-      sizeGB: 1
     envVars:
       - key: PAPER_TRADING_ONLY
         value: "true"
       - key: INITIAL_BALANCE
         value: "100000"
       - key: DATABASE_URL
-        value: sqlite+aiosqlite:///./data/trading.db
+        sync: false
       - key: CORS_ORIGINS
         value: "https://apex-trading-dashboard-flame.vercel.app,https://apex-trading-dashboard-apexweb-adams-projects.vercel.app"
       - key: NEWSAPI_KEY
@@ -25,6 +22,8 @@ services:
       - key: TWITTER_BEARER_TOKEN
         sync: false
       - key: TRADINGVIEW_WEBHOOK_SECRET
+        sync: false
+      - key: POLYMARKET_API_KEY
         sync: false
       - key: POLYMARKET_WALLET_ADDRESS
         sync: false

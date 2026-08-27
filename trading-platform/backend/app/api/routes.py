@@ -7,7 +7,7 @@ from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.database import SessionLocal, get_db
+from app.database import SessionLocal, get_db, is_postgres
 from app.engines.profitability_gate import ProfitabilityGate
 from app.models.entities import (
   BotState,
@@ -287,7 +287,9 @@ async def get_intelligence_sources(db: AsyncSession = Depends(get_db)) -> list[d
     "reddit": True,
     "youtube": True,
     "polymarket": True,
-    "polymarket_account": bool(settings.polymarket_wallet_address),
+    "polymarket_account": bool(
+      settings.polymarket_wallet_address or settings.polymarket_deposit_address
+    ),
     "political": True,
     "tiktok": True,
     "tradingview": bool(settings.tradingview_webhook_secret),
@@ -356,6 +358,10 @@ async def get_platform_status(db: AsyncSession = Depends(get_db)) -> dict[str, A
     "version": "1.0.0",
     "timestamp": datetime.utcnow().isoformat(),
     "paper_trading_only": settings.paper_trading_only,
+    "database": {
+      "engine": "postgresql" if is_postgres() else "sqlite",
+      "persistent": is_postgres(),
+    },
     "stats": stats,
     "profitability_gate": profitability,
     "bots": bots,
@@ -373,7 +379,10 @@ async def get_platform_status(db: AsyncSession = Depends(get_db)) -> dict[str, A
     "integrations": {
       "tradingview_webhook": bool(settings.tradingview_webhook_secret),
       "polymarket_market_scanner": True,
-      "polymarket_account_hook": bool(settings.polymarket_wallet_address),
+      "polymarket_account_hook": bool(
+        settings.polymarket_wallet_address or settings.polymarket_deposit_address
+      ),
+      "polymarket_api_key": bool(settings.polymarket_api_key),
       "newsapi": bool(settings.newsapi_key),
       "twitter_x": bool(settings.twitter_bearer_token),
     },
@@ -385,27 +394,7 @@ async def get_platform_status(db: AsyncSession = Depends(get_db)) -> dict[str, A
   }
 
 
-class ConnectionManager:
-  def __init__(self):
-    self.active: list[WebSocket] = []
-
-  async def connect(self, websocket: WebSocket) -> None:
-    await websocket.accept()
-    self.active.append(websocket)
-
-  def disconnect(self, websocket: WebSocket) -> None:
-    if websocket in self.active:
-      self.active.remove(websocket)
-
-  async def broadcast(self, data: dict) -> None:
-    for ws in self.active:
-      try:
-        await ws.send_json(data)
-      except Exception:
-        pass
-
-
-manager = ConnectionManager()
+from app.ws_manager import manager
 
 
 @router.websocket("/ws")
@@ -437,7 +426,7 @@ async def tradingview_webhook(payload: dict[str, Any], db: AsyncSession = Depend
   from app.models.entities import IntelligenceItem
 
   secret = payload.get("secret", "")
-  if settings.tradingview_webhook_secret and secret != settings.tradingview_webhook_secret:
+  if not settings.tradingview_webhook_secret or secret != settings.tradingview_webhook_secret:
     return {"status": "unauthorized"}
 
   symbol = payload.get("symbol", payload.get("ticker", "UNKNOWN"))
@@ -455,4 +444,7 @@ async def tradingview_webhook(payload: dict[str, Any], db: AsyncSession = Depend
   )
   db.add(item)
   await db.commit()
+  from app.ws_manager import push_live_update
+
+  await push_live_update()
   return {"status": "received", "symbol": symbol, "action": action}

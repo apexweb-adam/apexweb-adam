@@ -1,18 +1,21 @@
 # Render Environment Variables — copy-paste into Render dashboard
 # Generate fresh values: ./trading-platform/scripts/export-render-env.sh
+# Database: Supabase (see SUPABASE_SETUP.md) — NOT sqlite on Render free tier
 
 PAPER_TRADING_ONLY=true
 INITIAL_BALANCE=100000
-DATABASE_URL=sqlite+aiosqlite:///./data/trading.db
+DATABASE_URL=postgresql+asyncpg://postgres.zzgmovjapeyauvpdpuqe:[YOUR-DB-PASSWORD]@aws-0-eu-west-1.pooler.supabase.com:6543/postgres
 CORS_ORIGINS=https://apex-trading-dashboard-flame.vercel.app,https://apex-trading-dashboard-apexweb-adams-projects.vercel.app
 
-# Required secrets (from your local .env — do not commit real values):
+# Required secrets (from your local .env):
 NEWSAPI_KEY=<from .env>
 TWITTER_BEARER_TOKEN=<from .env>
-TRADINGVIEW_WEBHOOK_SECRET=apex_tv_EB9nj4sZ_8nZCIYY-38U8ci4IodUX4G2
+TRADINGVIEW_WEBHOOK_SECRET=<from .env>
 
-# Optional — Polymarket personal positions (only if you add wallet to .env):
-# POLYMARKET_WALLET_ADDRESS=0xYourProxyWallet
+# Polymarket (10/10 intelligence sources)
+POLYMARKET_API_KEY=<from .env>
+POLYMARKET_WALLET_ADDRESS=0x52c4b5dc300020698a0272fae130b4e4c38df701
+POLYMARKET_DEPOSIT_ADDRESS=0xd1be70cf7310165ed63b5c3d9d55c7b0bb5493ba
 
 # After Render deploy → Vercel (apex-trading-dashboard):
 BACKEND_URL=https://apex-trading-backend.onrender.com

@@ -116,6 +116,16 @@ class LearningEngine:
     impact: str,
     confidence: float,
   ) -> LearningInsight:
+    existing = await self.session.execute(
+      select(LearningInsight).where(
+        LearningInsight.source_url == url,
+        LearningInsight.source_title == title,
+      ).limit(1)
+    )
+    prior = existing.scalars().first()
+    if prior:
+      return prior
+
     insight = LearningInsight(
       source_type=source_type,
       source_title=title,

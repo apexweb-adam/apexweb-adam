@@ -10,9 +10,10 @@ if [[ ! -f "$ENV_FILE" ]]; then
 fi
 
 echo "# Paste these into Render → apex-trading-backend → Environment"
+echo "# DATABASE_URL: use Supabase pooler URI — see SUPABASE_SETUP.md"
 echo "PAPER_TRADING_ONLY=true"
 echo "INITIAL_BALANCE=100000"
-echo "DATABASE_URL=sqlite+aiosqlite:///./data/trading.db"
+echo "DATABASE_URL=postgresql+asyncpg://postgres.zzgmovjapeyauvpdpuqe:[YOUR-DB-PASSWORD]@aws-0-eu-west-1.pooler.supabase.com:6543/postgres"
 echo "CORS_ORIGINS=https://apex-trading-dashboard-flame.vercel.app,https://apex-trading-dashboard-apexweb-adams-projects.vercel.app"
 
 while IFS= read -r line || [[ -n "$line" ]]; do
@@ -20,7 +21,7 @@ while IFS= read -r line || [[ -n "$line" ]]; do
   [[ -z "${line// }" ]] && continue
   key="${line%%=*}"
   case "$key" in
-    NEWSAPI_KEY|TWITTER_BEARER_TOKEN|TRADINGVIEW_WEBHOOK_SECRET|POLYMARKET_WALLET_ADDRESS)
+    NEWSAPI_KEY|TWITTER_BEARER_TOKEN|TRADINGVIEW_WEBHOOK_SECRET|POLYMARKET_API_KEY|POLYMARKET_WALLET_ADDRESS|POLYMARKET_DEPOSIT_ADDRESS)
       val="${line#*=}"
       if [[ -n "$val" ]]; then
         echo "$key=$val"

@@ -42,7 +42,7 @@ import type {
 type Tab = "overview" | "trades" | "positions" | "intelligence" | "learning" | "strategy";
 
 export default function Dashboard() {
-  const { stats, portfolios, bots, connected, lastUpdate } = useLiveData();
+  const { stats, portfolios, bots, connected, lastUpdate, lastTrade } = useLiveData();
   const { data: trades } = useAPI<Trade[]>("/trades?limit=50", 5000);
   const { data: positions } = useAPI<Position[]>("/positions", 5000);
   const { data: intelligence } = useAPI<IntelligenceItem[]>("/intelligence?limit=30", 15000);
@@ -90,6 +90,11 @@ export default function Dashboard() {
                 {connected ? "Live" : "Reconnecting..."}
               </span>
             </div>
+            {lastTrade && (
+              <span className="text-xs text-apex-gold animate-pulse">
+                {String(lastTrade.action ?? "trade").toUpperCase()} {String(lastTrade.symbol ?? "")}
+              </span>
+            )}
             {lastUpdate && (
               <span className="text-xs text-gray-600">Updated {formatTime(lastUpdate)}</span>
             )}

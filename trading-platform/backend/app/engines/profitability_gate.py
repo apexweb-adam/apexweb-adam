@@ -1,4 +1,6 @@
-from sqlalchemy import select
+from datetime import datetime
+
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
@@ -30,6 +32,11 @@ class ProfitabilityGate:
     profit_factor = gross_profit / gross_loss if gross_loss > 0 else float("inf") if gross_profit > 0 else 0
     total_pnl = sum(p.total_pnl for p in portfolios)
 
+    first_trade = (
+      await self.session.execute(select(func.min(Trade.executed_at)))
+    ).scalar_one_or_none()
+    days_trading = (datetime.utcnow() - first_trade).days if first_trade else 0
+
     checks = {
       "min_trades": {
         "required": self.MIN_TRADES,
@@ -51,6 +58,11 @@ class ProfitabilityGate:
         "actual": total_pnl,
         "passed": total_pnl > 0,
       },
+      "min_days": {
+        "required": self.MIN_DAYS,
+        "actual": days_trading,
+        "passed": days_trading >= self.MIN_DAYS,
+      },
       "paper_trading_only": {
         "required": True,
         "actual": settings.paper_trading_only,
@@ -58,7 +70,11 @@ class ProfitabilityGate:
       },
     }
 
-    all_passed = all(c["passed"] for c in checks.values() if c is not checks["paper_trading_only"])
+    all_passed = all(
+      c["passed"]
+      for key, c in checks.items()
+      if key != "paper_trading_only"
+    )
     live_ready = all_passed and total_trades >= self.MIN_TRADES
 
     return {

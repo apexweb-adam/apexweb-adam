@@ -165,6 +165,7 @@ class PaperTradingEngine:
     )
 
     self.session.add(trade)
+    await self._record_trade_pnl(pnl)
     await self._update_bot_state(f"SELL {symbol} @ {price:.4f} PnL: {pnl:.2f}")
     await self.session.commit()
     return {
@@ -221,3 +222,12 @@ class PaperTradingEngine:
     state.last_scan_at = datetime.utcnow()
     state.trades_today += 1
     state.updated_at = datetime.utcnow()
+
+  async def _record_trade_pnl(self, pnl: float) -> None:
+    result = await self.session.execute(
+      select(BotState).where(BotState.bot_type == self.bot_type)
+    )
+    state = result.scalar_one_or_none()
+    if state:
+      state.pnl_today += pnl
+      state.updated_at = datetime.utcnow()
