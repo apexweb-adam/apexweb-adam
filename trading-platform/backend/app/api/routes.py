@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
+from fastapi.responses import RedirectResponse
 from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -31,6 +32,33 @@ router = APIRouter()
 @router.get("/health")
 async def health() -> dict[str, str]:
   return {"status": "ok", "mode": "paper_trading", "timestamp": datetime.utcnow().isoformat()}
+
+
+@router.get("/dashboard-url")
+async def get_dashboard_url() -> dict[str, Any]:
+  """Canonical CRM dashboard URL — verified preview when Vercel production bundle is stale."""
+  deploy = await build_deploy_status()
+  recommended = deploy.get("dashboard_url") or deploy.get("verified_dashboard_url")
+  return {
+    "recommended_url": recommended,
+    "production_url": "https://apex-trading-dashboard-flame.vercel.app",
+    "verified_preview_url": deploy.get("verified_dashboard_url"),
+    "vercel_bundle_stale": deploy.get("vercel_bundle_stale"),
+    "vercel_bundle_revision": deploy.get("vercel_bundle_revision"),
+    "vercel_promote_deployment_id": deploy.get("vercel_promote_deployment_id"),
+    "vercel_promote_url": deploy.get("vercel_promote_url"),
+    "next_steps": deploy.get("next_steps", []),
+  }
+
+
+@router.get("/dashboard", include_in_schema=False)
+async def redirect_dashboard():
+  """Redirect browsers to the recommended CRM dashboard."""
+  deploy = await build_deploy_status()
+  url = deploy.get("dashboard_url") or deploy.get("verified_dashboard_url")
+  if not url:
+    url = "https://apex-trading-dashboard-q1o1x9nlh-apexweb-adams-projects.vercel.app"
+  return RedirectResponse(url=url, status_code=302)
 
 
 @router.get("/portfolios")

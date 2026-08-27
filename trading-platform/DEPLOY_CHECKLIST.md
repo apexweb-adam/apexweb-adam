@@ -51,6 +51,8 @@ A dashboard REST hívásokat runtime proxy-n keresztül továbbítja (`/api/back
 **Operational dashboard (full features):** https://apex-trading-dashboard-q1o1x9nlh-apexweb-adams-projects.vercel.app  
 (`bundleRevision` r7, native `/api/active-gate`, equity chart — use this until production is promoted.)
 
+**Backend redirect (always current):** https://apex-trading-backend.onrender.com/dashboard → recommended dashboard URL
+
 Legacy production alias (stale bundle): https://apex-trading-dashboard-flame.vercel.app  
 (Promote `dpl_DFWFJtVnsfSLAkby6DWNLqUHYX7p` in [Vercel deployments](https://vercel.com/apexweb-adams-projects/apex-trading-dashboard/deployments) or add `VERCEL_TOKEN` to GitHub secrets.)
 
