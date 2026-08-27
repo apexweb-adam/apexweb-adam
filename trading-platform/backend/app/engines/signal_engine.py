@@ -14,11 +14,29 @@ class SignalResult:
   macd_signal: str
   momentum: float
   volatility: float
+  volume_confirmed: bool
   reason: str
 
 
 class SignalEngine:
-  """Technical analysis signal generator using RSI, MACD, momentum, and volatility."""
+  """Technical analysis signal generator using RSI, MACD, momentum, volatility, and volume."""
+
+  def volume_confirmed(self, df: pd.DataFrame | None) -> bool:
+    """Recent volume at or above 20-period average (content-study recommendation)."""
+    if df is None or len(df) < 21:
+      return True
+    vol = None
+    if "volume" in df.columns:
+      vol = df["volume"]
+    elif "Volume" in df.columns:
+      vol = df["Volume"]
+    if vol is None:
+      return True
+    recent = float(vol.iloc[-1])
+    avg = float(vol.iloc[-21:-1].mean())
+    if avg <= 0:
+      return True
+    return recent >= avg * 0.8
 
   def analyze(self, symbol: str, df: pd.DataFrame, strategy_params: dict) -> SignalResult:
     if df is None or len(df) < 30:
@@ -30,6 +48,7 @@ class SignalEngine:
         macd_signal="neutral",
         momentum=0.0,
         volatility=0.0,
+        volume_confirmed=False,
         reason="Insufficient data",
       )
 
@@ -84,6 +103,11 @@ class SignalEngine:
       score *= 0.8
       reasons.append("High volatility - reduced confidence")
 
+    vol_ok = self.volume_confirmed(df)
+    if direction == "buy" and not vol_ok:
+      score *= 0.6
+      reasons.append("Low volume — reduced confidence")
+
     score = max(-1.0, min(1.0, score))
     macd_signal = "bullish" if macd_hist > 0 else "bearish" if macd_hist < 0 else "neutral"
 
@@ -95,6 +119,7 @@ class SignalEngine:
       macd_signal=macd_signal,
       momentum=float(momentum),
       volatility=float(volatility) if not np.isnan(volatility) else 0.0,
+      volume_confirmed=vol_ok,
       reason="; ".join(reasons) if reasons else "No clear signal",
     )
 

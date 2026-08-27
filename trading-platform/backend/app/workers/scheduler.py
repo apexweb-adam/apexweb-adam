@@ -110,8 +110,32 @@ def stop_bots() -> None:
 
 
 async def ensure_daily_review_on_startup() -> None:
-  """Skip pre-session reviews on deploy — 22:00 UTC cron upserts the full day."""
-  return
+  """Backfill today's review after deploy if trades occurred but 22:00 UTC cron hasn't run."""
+  from sqlalchemy import func, select
+
+  from app.models.entities import DailyReview, Trade
+
+  today = datetime.utcnow().strftime("%Y-%m-%d")
+  day_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+
+  async with SessionLocal() as session:
+    review_count = (
+      await session.execute(
+        select(func.count(DailyReview.id)).where(DailyReview.review_date == today)
+      )
+    ).scalar_one()
+    sells_today = (
+      await session.execute(
+        select(func.count(Trade.id)).where(
+          Trade.action == "sell",
+          Trade.executed_at >= day_start,
+        )
+      )
+    ).scalar_one()
+
+  if sells_today > 0 and review_count < len(BOT_TYPES):
+    print(f"[DailyReview] Startup backfill — {sells_today} sells today, {review_count} review(s)")
+    await daily_review_job()
 
 
 async def ensure_verification_period_on_startup() -> None:

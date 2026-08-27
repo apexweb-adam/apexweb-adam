@@ -98,6 +98,35 @@ class ContentStudyEngine:
 
     from app.models.entities import IntelligenceItem
 
+    applied = 0
+
+    youtube_result = await self.session.execute(
+      select(IntelligenceItem)
+      .where(
+        IntelligenceItem.applied.is_(False),
+        IntelligenceItem.source == "youtube",
+        IntelligenceItem.relevance_score > 0.4,
+      )
+      .order_by(IntelligenceItem.fetched_at.desc())
+      .limit(10)
+    )
+    for item in youtube_result.scalars().all():
+      impact = (
+        f"YouTube intel on {item.symbols_mentioned or 'markets'}: "
+        f"favor {'long' if item.sentiment > 0 else 'cautious'} setups when sentiment aligns"
+      )
+      insight = await self.learner.apply_external_insight(
+        source_type="youtube",
+        title=item.title,
+        url=item.url,
+        takeaways=item.content[:500],
+        impact=impact,
+        confidence=min(0.85, item.relevance_score),
+      )
+      if insight.applied:
+        item.applied = True
+        applied += 1
+
     result = await self.session.execute(
       select(IntelligenceItem)
       .where(IntelligenceItem.applied.is_(False), IntelligenceItem.relevance_score > 0.5)
@@ -105,7 +134,6 @@ class ContentStudyEngine:
       .limit(20)
     )
     items = list(result.scalars().all())
-    applied = 0
 
     for item in items:
       if abs(item.sentiment) > 0.3 and item.relevance_score > 0.6:
