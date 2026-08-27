@@ -62,39 +62,75 @@ def pm_symbol(slug: str) -> str:
   return f"PM:{slug[:max_slug]}"
 
 
+def _match_stored_slug(stored: str, full_slug: str) -> bool:
+  """Match truncated PM: slug prefix against full Polymarket slug."""
+  if not stored or not full_slug:
+    return False
+  if full_slug == stored:
+    return True
+  return full_slug.startswith(stored)
+
+
+async def _find_market_by_slug(stored_slug: str) -> dict | None:
+  """Resolve market for a possibly truncated slug prefix."""
+  markets = await fetch_top_markets(limit=max(settings.polymarket_max_markets, 200))
+  for m in markets:
+    s = m.get("slug", "")
+    if _match_stored_slug(stored_slug, s):
+      return m
+
+  try:
+    async with httpx.AsyncClient(timeout=15) as client:
+      resp = await client.get(
+        f"{settings.polymarket_api_url}/markets",
+        params={
+          "active": "true",
+          "closed": "false",
+          "limit": 200,
+          "order": "volume24hr",
+          "ascending": "false",
+        },
+      )
+      if resp.status_code == 200:
+        for m in resp.json():
+          s = m.get("slug", "")
+          if s and _match_stored_slug(stored_slug, s):
+            return m
+      resp = await client.get(
+        f"{settings.polymarket_api_url}/markets",
+        params={"slug": stored_slug, "limit": 1},
+      )
+      if resp.status_code == 200 and resp.json():
+        return resp.json()[0]
+  except Exception as e:
+    print(f"Polymarket slug resolve error for {stored_slug[:24]}: {e}")
+  return None
+
+
 async def fetch_polymarket_data(symbol: str) -> tuple[float, pd.DataFrame | None]:
   """Symbol format PM:{slug}. Price = Yes share price (0–1)."""
   if not symbol.startswith("PM:"):
     return 0.0, None
 
   slug = symbol[3:]
-  markets = await fetch_top_markets()
-  market = next((m for m in markets if m.get("slug") == slug or m.get("slug", "").startswith(slug)), None)
-
-  if not market:
-    async with httpx.AsyncClient(timeout=15) as client:
-      resp = await client.get(
-        f"{settings.polymarket_api_url}/markets",
-        params={"slug": slug, "limit": 1},
-      )
-      if resp.status_code == 200 and resp.json():
-        market = resp.json()[0]
+  market = await _find_market_by_slug(slug)
 
   if not market:
     return 0.0, None
 
+  full_slug = market.get("slug", slug)
   price = _parse_yes_price(market)
-  if price <= 0.01 or price >= 0.99:
+  if price <= 0 or price >= 1:
     return 0.0, None
 
   now = datetime.utcnow()
-  hist = _pm_history.setdefault(slug, [])
+  hist = _pm_history.setdefault(full_slug, [])
   hist.append((now, price))
-  _pm_history[slug] = [(t, p) for t, p in hist if t > now - timedelta(hours=48)][-200:]
+  _pm_history[full_slug] = [(t, p) for t, p in hist if t > now - timedelta(hours=48)][-200:]
 
-  if len(_pm_history[slug]) >= 10:
+  if len(_pm_history[full_slug]) >= 10:
     rows = []
-    for ts, p in _pm_history[slug]:
+    for ts, p in _pm_history[full_slug]:
       rows.append({
         "timestamp": ts,
         "open": p,
@@ -120,16 +156,7 @@ async def get_market_meta(symbol: str) -> dict | None:
   if not symbol.startswith("PM:"):
     return None
   slug = symbol[3:]
-  markets = await fetch_top_markets()
-  for m in markets:
-    s = m.get("slug", "")
-    if s == slug or s.startswith(slug):
-      return m
-  async with httpx.AsyncClient(timeout=15) as client:
-    resp = await client.get(
-      f"{settings.polymarket_api_url}/markets",
-      params={"slug": slug, "limit": 1},
-    )
-    if resp.status_code == 200 and resp.json():
-      return resp.json()[0]
+  market = await _find_market_by_slug(slug)
+  if market:
+    return market
   return None

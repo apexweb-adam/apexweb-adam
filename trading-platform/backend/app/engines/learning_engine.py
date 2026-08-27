@@ -68,9 +68,12 @@ class LearningEngine:
 
     losing = [t for t in day_trades if t.is_winner is False]
     winning = [t for t in day_trades if t.is_winner is True]
+    breakeven = [t for t in day_trades if t.is_winner is None]
     total_loss = sum(t.pnl for t in losing)
     total_profit = sum(t.pnl for t in winning)
     net_pnl = total_profit + total_loss
+    decided = len(winning) + len(losing)
+    day_win_rate = len(winning) / decided if decided else 0
 
     patterns: list[str] = []
     if len(losing) > len(winning) and len(day_trades) > 0:
@@ -87,7 +90,7 @@ class LearningEngine:
     if low_signal_losses:
       patterns.append(f"{len(low_signal_losses)} losses had weak signals (<0.5)")
 
-    conclusions = self._generate_conclusions(day_trades, losing, winning, patterns)
+    conclusions = self._generate_conclusions(day_trades, losing, winning, patterns, breakeven)
     strategy_changes = await self._generate_strategy_changes(bot_type, patterns, losing)
 
     existing = await self.session.execute(
@@ -103,7 +106,7 @@ class LearningEngine:
       review.total_loss = total_loss
       review.total_profit = total_profit
       review.net_pnl = net_pnl
-      review.win_rate = len(winning) / len(day_trades) if day_trades else 0
+      review.win_rate = day_win_rate
       review.patterns_found = "; ".join(patterns)
       review.conclusions = conclusions
       review.strategy_changes = strategy_changes
@@ -117,7 +120,7 @@ class LearningEngine:
         total_loss=total_loss,
         total_profit=total_profit,
         net_pnl=net_pnl,
-        win_rate=len(winning) / len(day_trades) if day_trades else 0,
+        win_rate=day_win_rate,
         patterns_found="; ".join(patterns),
         conclusions=conclusions,
         strategy_changes=strategy_changes,
@@ -225,12 +228,18 @@ class LearningEngine:
     losing: list,
     winning: list,
     patterns: list[str],
+    breakeven: list | None = None,
   ) -> str:
     if not day_trades:
       return "No trades executed today. Bots are scanning for opportunities."
 
-    win_rate = len(winning) / len(day_trades) * 100
-    conclusions = [f"Daily win rate: {win_rate:.1f}% ({len(winning)}W / {len(losing)}L)"]
+    breakeven = breakeven or []
+    decided = len(winning) + len(losing)
+    win_rate = (len(winning) / decided * 100) if decided else 0
+    record = f"{len(winning)}W / {len(losing)}L"
+    if breakeven:
+      record += f" / {len(breakeven)}BE"
+    conclusions = [f"Daily win rate: {win_rate:.1f}% ({record})"]
 
     if win_rate < 50:
       conclusions.append("Below target win rate - strategy parameters will be tightened")
