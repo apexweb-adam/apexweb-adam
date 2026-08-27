@@ -215,6 +215,8 @@ export type PlatformDeployStatus = {
   latest_main_message?: string | null;
   is_stale?: boolean;
   stale_minutes?: number | null;
+  commits_behind?: number;
+  pending_changes?: { sha: string; message: string }[];
   next_steps: string[];
 };
 

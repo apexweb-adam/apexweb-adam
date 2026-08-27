@@ -66,6 +66,12 @@ RENDER="https://apex-trading-backend.onrender.com"
 CODE=$(curl -s -o /dev/null -w "%{http_code}" "$RENDER/api/health" 2>/dev/null || echo "000")
 if [[ "$CODE" == "200" ]]; then
   check "Render backend live ($RENDER)" 1
+  VERIFY_HIST=$(curl -s -o /dev/null -w "%{http_code}" "$RENDER/api/verification/history" 2>/dev/null || echo "000")
+  if [[ "$VERIFY_HIST" == "200" ]]; then
+    check "Verification snapshot endpoint live" 1
+  else
+    echo "○ Verification history HTTP $VERIFY_HIST — deploy latest for 30-day audit trail"
+  fi
   ADMIN_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$RENDER/api/admin/apply-risk-migrations" \
     -H "Content-Type: application/json" -d '{"secret":""}' 2>/dev/null || echo "000")
   if [[ "$ADMIN_CODE" == "200" || "$ADMIN_CODE" == "422" ]]; then
