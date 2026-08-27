@@ -134,6 +134,14 @@ async def ensure_verification_period_on_startup() -> None:
 
 async def setup_scheduler() -> None:
   await init_db()
+  from app.engines.deploy_trigger import maybe_trigger_stale_redeploy
+
+  redeploy = await maybe_trigger_stale_redeploy()
+  if redeploy.get("triggered"):
+    print(f"[Deploy] {redeploy.get('message')}")
+  elif redeploy.get("deploy", {}).get("is_stale"):
+    print(f"[Deploy] Stale ({redeploy.get('reason')}) — manual deploy or set RENDER_DEPLOY_HOOK on Render")
+
   await ensure_verification_period_on_startup()
   async with SessionLocal() as session:
     from app.engines.strategy_migration import (
@@ -143,12 +151,16 @@ async def setup_scheduler() -> None:
       dedupe_polymarket_positions,
       migrate_symbol_columns,
       recalculate_portfolio_win_rates,
+      reconcile_portfolio_balances,
       sync_bot_strategy_versions,
       trim_oversized_polymarket_positions,
     )
 
     if await migrate_symbol_columns(session):
       print("[Strategy] Widened symbol columns to VARCHAR(64) for Polymarket slugs")
+    reconciled = await reconcile_portfolio_balances(session)
+    if reconciled:
+      print(f"[Strategy] Reconciled balance/equity on {reconciled} portfolio(s)")
     breakeven_fixed = await fix_breakeven_trade_labels(session)
     if breakeven_fixed:
       print(f"[Strategy] Relabeled {breakeven_fixed} breakeven trade(s)")
