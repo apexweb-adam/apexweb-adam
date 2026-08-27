@@ -31,6 +31,8 @@ class Settings(BaseSettings):
     polymarket_stop_loss_pct: float = 0.04
     polymarket_min_hold_seconds: int = 900
     polymarket_loss_cooldown_seconds: int = 3600
+    polymarket_reentry_cooldown_seconds: int = 1800
+    polymarket_max_open_positions: int = 5
 
     # Bot tuning
     crypto_symbols: str = (
