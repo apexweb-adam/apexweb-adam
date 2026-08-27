@@ -113,9 +113,16 @@ async def get_trades(
 async def get_bots(db: AsyncSession = Depends(get_db)) -> list[dict[str, Any]]:
   result = await db.execute(select(BotState))
   states = result.scalars().all()
+  config_result = await db.execute(select(StrategyConfig))
+  strategy_versions = {c.bot_type: c.version for c in config_result.scalars().all()}
   if not states:
     return [
-      {"bot_type": bt, "status": "running", "last_action": "Initializing..."}
+      {
+        "bot_type": bt,
+        "status": "running",
+        "last_action": "Initializing...",
+        "strategy_version": strategy_versions.get(bt, 1),
+      }
       for bt in BOT_TYPES
     ]
   return [
@@ -126,7 +133,7 @@ async def get_bots(db: AsyncSession = Depends(get_db)) -> list[dict[str, Any]]:
       "last_scan_at": s.last_scan_at.isoformat() if s.last_scan_at else None,
       "trades_today": s.trades_today,
       "pnl_today": s.pnl_today,
-      "strategy_version": s.current_strategy_version,
+      "strategy_version": strategy_versions.get(s.bot_type, s.current_strategy_version),
     }
     for s in states
   ]
@@ -452,6 +459,7 @@ async def apply_risk_migrations(payload: dict[str, Any], db: AsyncSession = Depe
   """Apply Polymarket strategy caps and trim oversized positions (requires webhook secret)."""
   from app.engines.strategy_migration import (
     ensure_polymarket_strategy,
+    sync_bot_strategy_versions,
     trim_oversized_polymarket_positions,
   )
 
@@ -461,10 +469,12 @@ async def apply_risk_migrations(payload: dict[str, Any], db: AsyncSession = Depe
 
   strategy_updated = await ensure_polymarket_strategy(db)
   trimmed = await trim_oversized_polymarket_positions(db)
+  synced = await sync_bot_strategy_versions(db)
   return {
     "status": "ok",
     "strategy_updated": strategy_updated,
     "positions_trimmed": trimmed,
+    "bot_versions_synced": synced,
     "timestamp": datetime.utcnow().isoformat(),
   }
 

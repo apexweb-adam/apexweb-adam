@@ -96,6 +96,7 @@ async def setup_scheduler() -> None:
   async with SessionLocal() as session:
     from app.engines.strategy_migration import (
       ensure_polymarket_strategy,
+      sync_bot_strategy_versions,
       trim_oversized_polymarket_positions,
     )
 
@@ -104,6 +105,9 @@ async def setup_scheduler() -> None:
     trimmed = await trim_oversized_polymarket_positions(session)
     if trimmed:
       print(f"[Strategy] Trimmed {trimmed} oversized Polymarket position(s)")
+    synced = await sync_bot_strategy_versions(session)
+    if synced:
+      print(f"[Strategy] Synced strategy version on {synced} bot(s)")
   scheduler.add_job(intelligence_job, "interval", minutes=5, id="intelligence_scan")
   scheduler.add_job(content_study_job, "interval", hours=2, id="content_study")
   scheduler.add_job(daily_review_job, "cron", hour=22, minute=0, id="daily_review")

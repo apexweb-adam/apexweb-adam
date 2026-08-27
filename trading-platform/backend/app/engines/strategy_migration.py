@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.models.entities import Portfolio, Position, StrategyConfig
+from app.models.entities import BotState, Portfolio, Position, StrategyConfig
 
 POLYMARKET_DEFAULTS = {
   "max_position_pct": settings.polymarket_max_position_pct,
@@ -93,3 +93,22 @@ async def trim_oversized_polymarket_positions(session: AsyncSession) -> int:
     await session.commit()
 
   return trimmed
+
+
+async def sync_bot_strategy_versions(session: AsyncSession) -> int:
+  """Align BotState.current_strategy_version with StrategyConfig.version."""
+  configs = {
+    c.bot_type: c.version
+    for c in (await session.execute(select(StrategyConfig))).scalars().all()
+  }
+  states = list((await session.execute(select(BotState))).scalars().all())
+  updated = 0
+  for state in states:
+    version = configs.get(state.bot_type)
+    if version is not None and state.current_strategy_version != version:
+      state.current_strategy_version = version
+      state.updated_at = datetime.utcnow()
+      updated += 1
+  if updated:
+    await session.commit()
+  return updated
