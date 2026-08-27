@@ -76,6 +76,19 @@ jobs:
             echo "::warning::Production /api/active-gate is $NATIVE — promote latest Vercel preview (see promote-vercel-production workflow)"
           fi
 
+      - name: Check equity-history endpoint (verification chart fallback)
+        run: |
+          set -euo pipefail
+          for base in "https://apex-trading-backend.onrender.com" "https://apex-trading-dashboard-flame.vercel.app/api/backend"; do
+            CODE=$(curl -sS -o /tmp/equity.json -w "%{http_code}" "$base/equity-history" || echo "000")
+            echo "$base/equity-history HTTP $CODE"
+            if [[ "$CODE" == "200" ]]; then
+              python3 -c "import json; d=json.load(open('/tmp/equity.json')); print('OK: %s day(s) of equity history' % len(d))"
+              exit 0
+            fi
+          done
+          echo "::warning::equity-history unavailable — backend deploy may be stale (PR #60+)"
+
       - name: Check active-bot profitability gate (excludes paused bots)
         run: python3 trading-platform/scripts/active-bot-gate.py
 
