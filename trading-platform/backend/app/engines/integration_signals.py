@@ -12,6 +12,10 @@ MAX_AGE_HOURS = 24
 
 
 def _normalize_symbol(symbol: str) -> set[str]:
+  if symbol.upper().startswith("PM:"):
+    slug = symbol[3:].lower().replace("-", " ")
+    parts = {w for w in slug.split() if len(w) > 3}
+    return parts | {slug.replace(" ", ""), symbol.upper()}
   clean = symbol.upper().replace("=F", "").replace("=X", "").replace("USDT", "")
   aliases = {clean, symbol.upper()}
   if clean in ("BTC", "BITCOIN"):

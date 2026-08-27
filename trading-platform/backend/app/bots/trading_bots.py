@@ -10,7 +10,8 @@ from app.database import SessionLocal
 from app.engines.integration_signals import get_integration_boost
 from app.engines.learning_engine import LearningEngine
 from app.engines.market_data import fetch_crypto_data, fetch_yfinance_data
-from app.engines.polymarket_data import fetch_polymarket_data, get_polymarket_symbols
+from app.engines.polymarket_data import fetch_polymarket_data, get_market_meta, get_polymarket_symbols
+from app.engines.polymarket_signals import analyze_polymarket
 from app.engines.paper_trading import PaperTradingEngine
 from app.engines.price_validation import is_price_sane
 from app.engines.signal_engine import SignalEngine
@@ -217,3 +218,74 @@ class PolymarketBot(BaseBot):
 
   async def fetch_price_data(self, symbol: str) -> tuple[float, pd.DataFrame | None]:
     return await fetch_polymarket_data(symbol)
+
+  async def scan_and_trade(self) -> list[dict]:
+    actions: list[dict] = []
+    symbols = await self.get_symbols()
+
+    async with SessionLocal() as session:
+      engine = PaperTradingEngine(session, self.bot_type)
+      strategy = await engine.get_strategy()
+      min_score = min(strategy.min_signal_score, 0.12)
+      prices: dict[str, float] = {}
+
+      for symbol in symbols:
+        price, df = await self.fetch_price_data(symbol)
+        if price <= 0 or not is_price_sane(symbol, price):
+          continue
+        prices[symbol] = price
+
+        meta = await get_market_meta(symbol)
+        question = (meta or {}).get("question", symbol)
+        pm_sig = await analyze_polymarket(session, symbol, price, df, question)
+        integration_boost, integration_reason = await get_integration_boost(session, symbol)
+        composite = pm_sig.score + integration_boost
+
+        position = await engine.get_position(symbol)
+
+        if position:
+          if pm_sig.direction == "sell" or integration_boost < -0.12:
+            reason = f"PM exit: {pm_sig.reason}"
+            if integration_reason:
+              reason += f" | {integration_reason}"
+            result = await engine.sell(symbol, price, reason)
+            if result:
+              actions.append(result)
+              if not result.get("is_winner", True):
+                await self._analyze_loss(session, symbol)
+          continue
+
+        if (
+          pm_sig.direction == "buy"
+          and composite >= min_score
+          and pm_sig.sentiment + integration_boost >= strategy.min_sentiment_score - 0.35
+        ):
+          reason = f"PM:{pm_sig.reason}"
+          if integration_reason:
+            reason += f" | {integration_reason}"
+          result = await engine.buy(
+            symbol,
+            price,
+            composite,
+            pm_sig.sentiment,
+            reason,
+            strategy=f"v{strategy.version}",
+          )
+          if result:
+            actions.append(result)
+
+      stop_actions = await engine.update_positions(prices)
+      actions.extend(stop_actions)
+
+      for action in stop_actions:
+        if not action.get("is_winner", True):
+          await self._analyze_loss(session, action.get("symbol", ""))
+
+    if actions:
+      from app.ws_manager import broadcast_trade, push_live_update
+
+      for action in actions:
+        await broadcast_trade({**action, "bot_type": self.bot_type})
+      await push_live_update()
+
+    return actions

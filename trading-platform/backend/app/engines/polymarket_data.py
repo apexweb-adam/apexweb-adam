@@ -109,3 +109,23 @@ async def fetch_polymarket_data(symbol: str) -> tuple[float, pd.DataFrame | None
 async def get_polymarket_symbols() -> list[str]:
   markets = await fetch_top_markets()
   return [pm_symbol(m["slug"]) for m in markets if m.get("slug")]
+
+
+async def get_market_meta(symbol: str) -> dict | None:
+  """Return gamma market dict for PM:{slug} symbol."""
+  if not symbol.startswith("PM:"):
+    return None
+  slug = symbol[3:]
+  markets = await fetch_top_markets()
+  for m in markets:
+    s = m.get("slug", "")
+    if s == slug or s.startswith(slug):
+      return m
+  async with httpx.AsyncClient(timeout=15) as client:
+    resp = await client.get(
+      f"{settings.polymarket_api_url}/markets",
+      params={"slug": slug, "limit": 1},
+    )
+    if resp.status_code == 200 and resp.json():
+      return resp.json()[0]
+  return None
