@@ -61,17 +61,28 @@ jobs:
 
       - name: Verify production dashboard bundle
         if: always()
+        env:
+          EXPECTED_BUNDLE_REVISION: "2026-08-27-r7"
         run: |
           set -euo pipefail
+          PROD="https://apex-trading-dashboard-flame.vercel.app"
           MAIN=$(curl -fsS "https://api.github.com/repos/apexweb-adam/apexweb-adam/commits/main" | python3 -c "import json,sys; print(json.load(sys.stdin)['sha'][:12])")
-          PAGE=$(curl -fsS "https://apex-trading-dashboard-flame.vercel.app/")
-          echo "main=$MAIN"
-          GATE=$(curl -fsS -o /dev/null -w "%{http_code}" "https://apex-trading-dashboard-flame.vercel.app/api/active-gate" || echo "000")
-          if [[ "$GATE" == "200" ]]; then
-            echo "Production has /api/active-gate endpoint"
-            curl -fsS "https://apex-trading-dashboard-flame.vercel.app/api/active-gate" | python3 -c "import json,sys; d=json.load(sys.stdin); print('active PnL $%.2f' % d['active_bots']['total_pnl'])"
-          elif echo "$PAGE" | grep -q "excludes paused"; then
-            echo "Production has client-side active-bot gate"
-          else
-            echo "::warning::Production dashboard stale — missing /api/active-gate and client gate. Promote latest main in Vercel."
-          fi
+          curl -fsS "$PROD/api/config" -o /tmp/prod-config.json || echo "{}" > /tmp/prod-config.json
+          echo "main=$MAIN config=$(cat /tmp/prod-config.json)"
+          python3 << 'PY'
+          import json, os, sys
+          with open("/tmp/prod-config.json") as f:
+              cfg = json.load(f)
+          expected = os.environ.get("EXPECTED_BUNDLE_REVISION", "2026-08-27-r7")
+          ok = (
+              cfg.get("bundleRevision") == expected
+              and (cfg.get("features") or {}).get("activeGate") is True
+          )
+          if ok:
+              print("Production bundle current:", expected)
+              sys.exit(0)
+          print("::warning::Production dashboard stale — missing bundleRevision/features.activeGate")
+          print("Promote preview dpl_DkN4ec8gFdc3Jn1h6zJb3Uzun8N9 or add VERCEL_TOKEN")
+          print("Verified preview: https://apex-trading-dashboard-9lqdftbaq-apexweb-adams-projects.vercel.app")
+          sys.exit(0)
+          PY

@@ -27,21 +27,28 @@ jobs:
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
       VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID || 'team_K7OUE7uroVXeVUf42cUAQvAl' }}
       VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID || 'prj_HGbG5vHgfutHi31QfXDqSsTnTAGv' }}
+      EXPECTED_BUNDLE_REVISION: "2026-08-27-r7"
     steps:
       - name: Skip if production already current
         id: freshness
         run: |
           set -euo pipefail
-          PROD_GATE=$(curl -fsS -o /dev/null -w "%{http_code}" \
-            "https://apex-trading-dashboard-flame.vercel.app/api/active-gate" || echo "000")
-          PROD_EQUITY=$(curl -fsS -o /dev/null -w "%{http_code}" \
-            "https://apex-trading-dashboard-flame.vercel.app/api/backend/equity-history" || echo "000")
-          echo "production active-gate=$PROD_GATE equity-history=$PROD_EQUITY"
-          if [[ "$PROD_GATE" == "200" && "$PROD_EQUITY" == "200" ]]; then
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "skip=false" >> "$GITHUB_OUTPUT"
-          fi
+          PROD_URL="https://apex-trading-dashboard-flame.vercel.app"
+          curl -fsS "${PROD_URL}/api/config" -o /tmp/prod-config.json || echo "{}" > /tmp/prod-config.json
+          cat /tmp/prod-config.json
+          python3 << 'PY'
+          import json, os
+          with open("/tmp/prod-config.json") as f:
+              cfg = json.load(f)
+          expected = os.environ.get("EXPECTED_BUNDLE_REVISION", "2026-08-27-r7")
+          rev = cfg.get("bundleRevision")
+          features = cfg.get("features") or {}
+          active_gate = features.get("activeGate") is True
+          current = rev == expected and active_gate
+          print(f"bundleRevision={rev!r} expected={expected!r} activeGate={active_gate}")
+          with open(os.environ["GITHUB_OUTPUT"], "a") as out:
+              out.write(f"skip={'true' if current else 'false'}\n")
+          PY
 
       - name: Resolve preview deployment
         if: steps.freshness.outputs.skip != 'true'
@@ -51,8 +58,8 @@ jobs:
           INPUT_PREVIEW_URL: ${{ inputs.preview_url || '' }}
         run: |
           set -euo pipefail
-          FALLBACK_ID="dpl_BgjaBovr48Aapq21KMS3wyAUsxa8"
-          FALLBACK_URL="https://apex-trading-dashboard-rgj505p74-apexweb-adams-projects.vercel.app"
+          FALLBACK_ID="dpl_DkN4ec8gFdc3Jn1h6zJb3Uzun8N9"
+          FALLBACK_URL="https://apex-trading-dashboard-9lqdftbaq-apexweb-adams-projects.vercel.app"
           if [[ -n "$INPUT_DEPLOYMENT_ID" && -n "$INPUT_PREVIEW_URL" ]]; then
             echo "deployment_id=$INPUT_DEPLOYMENT_ID" >> "$GITHUB_OUTPUT"
             echo "preview_url=$INPUT_PREVIEW_URL" >> "$GITHUB_OUTPUT"
@@ -63,7 +70,8 @@ jobs:
               "https://api.vercel.com/v6/deployments?projectId=${VERCEL_PROJECT_ID}&teamId=${VERCEL_ORG_ID}&limit=20" \
               -H "Authorization: Bearer ${VERCEL_TOKEN}" > /tmp/deployments.json
             python3 << 'PY'
-          import json, urllib.request
+          import json, os, urllib.request
+          expected = os.environ.get("EXPECTED_BUNDLE_REVISION", "2026-08-27-r7")
           with open("/tmp/deployments.json") as f:
               data = json.load(f)
           for dep in data.get("deployments") or []:
@@ -71,16 +79,16 @@ jobs:
                   continue
               dep_id = dep.get("uid") or dep.get("id")
               url = f"https://{dep.get('url')}"
-              ok = True
-              for path in ("/api/active-gate", "/api/backend/equity-history"):
-                  try:
-                      with urllib.request.urlopen(f"{url}{path}", timeout=20) as resp:
-                          if resp.status != 200:
-                              ok = False
-                              break
-                  except Exception:
-                      ok = False
-                      break
+              ok = False
+              try:
+                  with urllib.request.urlopen(f"{url}/api/config", timeout=20) as resp:
+                      cfg = json.loads(resp.read().decode())
+                  ok = (
+                      cfg.get("bundleRevision") == expected
+                      and (cfg.get("features") or {}).get("activeGate") is True
+                  )
+              except Exception:
+                  ok = False
               if ok:
                   with open("/tmp/resolved.env", "w") as out:
                       out.write(f"deployment_id={dep_id}\n")
@@ -97,7 +105,7 @@ jobs:
           fi
           echo "deployment_id=$FALLBACK_ID" >> "$GITHUB_OUTPUT"
           echo "preview_url=$FALLBACK_URL" >> "$GITHUB_OUTPUT"
-          echo "Using verified fallback preview (PR #63)"
+          echo "Using verified fallback preview (PR #65)"
 
       - name: Promote deployment to production
         if: steps.freshness.outputs.skip != 'true'
@@ -111,8 +119,20 @@ jobs:
             exit 0
           fi
           GATE=$(curl -fsS -o /dev/null -w "%{http_code}" "${PREVIEW_URL}/api/active-gate" || echo "000")
-          EQUITY=$(curl -fsS -o /dev/null -w "%{http_code}" "${PREVIEW_URL}/api/backend/equity-history" || echo "000")
-          echo "Preview active-gate=$GATE equity-history=$EQUITY"
+          curl -fsS "${PREVIEW_URL}/api/config" -o /tmp/preview-config.json || echo "{}" > /tmp/preview-config.json
+          echo "Preview active-gate=$GATE config=$(cat /tmp/preview-config.json)"
+          python3 << 'PY'
+          import json, os, sys
+          with open("/tmp/preview-config.json") as f:
+              cfg = json.load(f)
+          expected = os.environ.get("EXPECTED_BUNDLE_REVISION", "2026-08-27-r7")
+          if cfg.get("bundleRevision") != expected:
+              print(f"Preview bundleRevision mismatch: {cfg.get('bundleRevision')!r}")
+              sys.exit(1)
+          if not (cfg.get("features") or {}).get("activeGate"):
+              print("Preview missing features.activeGate")
+              sys.exit(1)
+          PY
           HTTP=$(curl -fsS -o /tmp/promote.json -w "%{http_code}" -X POST \
             "https://api.vercel.com/v10/projects/${VERCEL_PROJECT_ID}/promote/${DEPLOYMENT_ID}?teamId=${VERCEL_ORG_ID}" \
             -H "Authorization: Bearer ${VERCEL_TOKEN}" \
@@ -125,5 +145,20 @@ jobs:
             exit 1
           fi
           sleep 15
+          curl -fsS "https://apex-trading-dashboard-flame.vercel.app/api/config" -o /tmp/prod-config-after.json || echo "{}" > /tmp/prod-config-after.json
+          cat /tmp/prod-config-after.json
           PROD_GATE=$(curl -fsS -o /dev/null -w "%{http_code}" "https://apex-trading-dashboard-flame.vercel.app/api/active-gate" || echo "000")
           echo "Production /api/active-gate HTTP $PROD_GATE"
+          python3 << 'PY'
+          import json, os, sys
+          with open("/tmp/prod-config-after.json") as f:
+              cfg = json.load(f)
+          expected = os.environ.get("EXPECTED_BUNDLE_REVISION", "2026-08-27-r7")
+          ok = (
+              cfg.get("bundleRevision") == expected
+              and (cfg.get("features") or {}).get("activeGate") is True
+          )
+          if not ok:
+              print(f"Production still stale: bundleRevision={cfg.get('bundleRevision')!r}")
+          sys.exit(0 if ok else 1)
+          PY

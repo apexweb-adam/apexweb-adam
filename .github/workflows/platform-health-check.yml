@@ -11,10 +11,30 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Check production dashboard proxy
+      - name: Check production dashboard bundle and proxy
+        env:
+          VERIFIED_PREVIEW: "https://apex-trading-dashboard-9lqdftbaq-apexweb-adams-projects.vercel.app"
         run: |
           set -euo pipefail
           DASHBOARD="https://apex-trading-dashboard-flame.vercel.app"
+          curl -fsS "$DASHBOARD/api/config" -o /tmp/dash-config.json || echo "{}" > /tmp/dash-config.json
+          python3 << 'PY'
+          import json, os
+          with open("/tmp/dash-config.json") as f:
+              cfg = json.load(f)
+          expected = "2026-08-27-r7"
+          current = (
+              cfg.get("bundleRevision") == expected
+              and (cfg.get("features") or {}).get("activeGate") is True
+          )
+          if current:
+              print(f"Production dashboard bundle OK ({expected})")
+          else:
+              preview = os.environ.get("VERIFIED_PREVIEW", "")
+              print(f"::warning::Production Vercel bundle stale (rev={cfg.get('bundleRevision')!r})")
+              print(f"::warning::Use verified preview until promote: {preview}")
+              print("::warning::Promote dpl_DkN4ec8gFdc3Jn1h6zJb3Uzun8N9 or add VERCEL_TOKEN secret")
+          PY
           echo "Checking $DASHBOARD/api/config ..."
           curl -fsS "$DASHBOARD/api/config" | python3 -c "import json,sys; d=json.load(sys.stdin); assert d.get('apiUrl'), 'missing apiUrl'"
           echo "Checking $DASHBOARD/api/backend/stats ..."

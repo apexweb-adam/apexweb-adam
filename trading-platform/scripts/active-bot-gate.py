@@ -9,6 +9,8 @@ import urllib.error
 import urllib.request
 
 DASHBOARD = "https://apex-trading-dashboard-flame.vercel.app"
+VERIFIED_PREVIEW = "https://apex-trading-dashboard-9lqdftbaq-apexweb-adams-projects.vercel.app"
+EXPECTED_BUNDLE = "2026-08-27-r7"
 MIN_TRADES = 100
 MIN_WIN_RATE = 0.55
 MIN_PROFIT_FACTOR = 1.3
@@ -103,7 +105,25 @@ def compute_local() -> dict:
     }
 
 
+def check_bundle_stale() -> None:
+    try:
+        with urllib.request.urlopen(f"{DASHBOARD}/api/config", timeout=20) as resp:
+            cfg = json.load(resp)
+        ok = (
+            cfg.get("bundleRevision") == EXPECTED_BUNDLE
+            and (cfg.get("features") or {}).get("activeGate") is True
+        )
+        if not ok:
+            print(
+                f"Note: production bundle stale — full UI at {VERIFIED_PREVIEW}",
+                file=sys.stderr,
+            )
+    except Exception:
+        pass
+
+
 def main() -> int:
+    check_bundle_stale()
     out = fetch_active_gate() or compute_local()
 
     print(json.dumps(out, indent=2))
