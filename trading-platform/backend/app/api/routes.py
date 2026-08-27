@@ -334,6 +334,57 @@ async def get_stats(db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
   }
 
 
+@router.get("/status")
+async def get_platform_status(db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
+  stats = await get_stats(db)
+  profitability = await get_profitability(db)
+  sources = await get_intelligence_sources(db)
+  bots = await get_bots(db)
+  analyses = (
+    await db.execute(select(TradeAnalysis))
+  ).scalars().all()
+  reviews = (
+    await db.execute(select(DailyReview))
+  ).scalars().all()
+  insights = (
+    await db.execute(select(LearningInsight))
+  ).scalars().all()
+
+  active_sources = sum(1 for s in sources if s["status"] == "active")
+  return {
+    "platform": "Apex Trading Platform",
+    "version": "1.0.0",
+    "timestamp": datetime.utcnow().isoformat(),
+    "paper_trading_only": settings.paper_trading_only,
+    "stats": stats,
+    "profitability_gate": profitability,
+    "bots": bots,
+    "intelligence": {
+      "active_sources": active_sources,
+      "total_sources": len(sources),
+      "sources": sources,
+    },
+    "learning": {
+      "trade_analyses": len(analyses),
+      "daily_reviews": len(reviews),
+      "insights_applied": sum(1 for i in insights if i.applied),
+      "insights_total": len(insights),
+    },
+    "integrations": {
+      "tradingview_webhook": bool(settings.tradingview_webhook_secret),
+      "polymarket_market_scanner": True,
+      "polymarket_account_hook": bool(settings.polymarket_wallet_address),
+      "newsapi": bool(settings.newsapi_key),
+      "twitter_x": bool(settings.twitter_bearer_token),
+    },
+    "scheduler": {
+      "intelligence_scan": "every 5 min",
+      "content_study": "every 2 hours",
+      "daily_review": "22:00 UTC",
+    },
+  }
+
+
 class ConnectionManager:
   def __init__(self):
     self.active: list[WebSocket] = []

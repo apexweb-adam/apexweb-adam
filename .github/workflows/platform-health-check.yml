@@ -1,0 +1,37 @@
+name: Platform Health Check
+
+on:
+  schedule:
+    - cron: "0 */6 * * *"
+  workflow_dispatch:
+
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check production dashboard proxy
+        run: |
+          set -euo pipefail
+          DASHBOARD="https://apex-trading-dashboard-flame.vercel.app"
+          echo "Checking $DASHBOARD/api/config ..."
+          curl -fsS "$DASHBOARD/api/config" | python3 -c "import json,sys; d=json.load(sys.stdin); assert d.get('apiUrl'), 'missing apiUrl'"
+          echo "Checking $DASHBOARD/api/backend/stats ..."
+          STATS=$(curl -fsS "$DASHBOARD/api/backend/stats")
+          echo "$STATS" | python3 -c "
+          import json,sys
+          d=json.load(sys.stdin)
+          assert d.get('mode')=='paper_trading', d
+          assert d.get('bots_active')==3, d
+          print('OK: equity=%s pnl=%s trades=%s intel=%s' % (
+            d.get('total_equity'), d.get('total_pnl'), d.get('total_trades'), d.get('intelligence_items')))
+          "
+
+      - name: Check backend status endpoint (via proxy)
+        run: |
+          curl -fsS "https://apex-trading-dashboard-flame.vercel.app/api/backend/status" | python3 -c "
+          import json,sys
+          d=json.load(sys.stdin)
+          assert d.get('paper_trading_only') is True
+          assert d['intelligence']['active_sources'] >= 8
+          print('Platform status OK:', d.get('platform'), 'sources:', d['intelligence']['active_sources'])
+          "

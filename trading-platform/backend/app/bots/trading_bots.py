@@ -165,9 +165,12 @@ class StocksFuturesBot(BaseBot):
     now = datetime.utcnow()
     weekday = now.weekday()
     hour = now.hour
+    minute = now.minute
     if weekday >= 5:
       return []
-    if hour < 14 or hour > 21:
+    # US regular session ~9:30–16:00 ET (13:30–21:00 UTC summer / 14:30–22:00 UTC winter)
+    minutes = hour * 60 + minute
+    if minutes < 13 * 60 + 30 or minutes > 21 * 60:
       return []
     return await super().scan_and_trade()
 
