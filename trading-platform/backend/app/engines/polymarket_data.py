@@ -67,7 +67,14 @@ def pm_symbols_match(a: str, b: str) -> bool:
   if not a.startswith("PM:") or not b.startswith("PM:"):
     return a == b
   sa, sb = a[3:], b[3:]
-  return sa == sb or sa.startswith(sb) or sb.startswith(sa)
+  if sa == sb or sa.startswith(sb) or sb.startswith(sa):
+    return True
+  # VARCHAR truncation can clip the same slug at different lengths (-bps-a vs -bps-after)
+  min_len = min(len(sa), len(sb))
+  for length in range(min_len, 29, -1):
+    if sa[:length] == sb[:length]:
+      return True
+  return False
 
 
 def canonical_pm_symbol(symbol: str, market: dict | None) -> str:
