@@ -446,7 +446,7 @@ async def tradingview_webhook(payload: dict[str, Any], db: AsyncSession = Depend
   from app.models.entities import IntelligenceItem
 
   secret = payload.get("secret", "")
-  if settings.tradingview_webhook_secret and secret != settings.tradingview_webhook_secret:
+  if not settings.tradingview_webhook_secret or secret != settings.tradingview_webhook_secret:
     return {"status": "unauthorized"}
 
   symbol = payload.get("symbol", payload.get("ticker", "UNKNOWN"))

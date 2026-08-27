@@ -83,6 +83,12 @@ class BaseBot(ABC):
         position = await engine.get_position(symbol)
 
         if position:
+          if signal.direction == "sell":
+            result = await engine.sell(symbol, price, f"Sell signal: {signal.reason}")
+            if result:
+              actions.append(result)
+              if not result.get("is_winner", True):
+                await self._analyze_loss(session, symbol)
           continue
 
         if (
@@ -96,13 +102,6 @@ class BaseBot(ABC):
           )
           if result:
             actions.append(result)
-
-        elif signal.direction == "sell" and position:
-          result = await engine.sell(symbol, price, f"Sell signal: {signal.reason}")
-          if result:
-            actions.append(result)
-            if not result.get("is_winner", True):
-              await self._analyze_loss(session, symbol)
 
       stop_actions = await engine.update_positions(prices)
       actions.extend(stop_actions)

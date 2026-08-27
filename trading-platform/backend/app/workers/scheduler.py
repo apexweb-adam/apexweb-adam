@@ -41,6 +41,19 @@ async def daily_review_job() -> None:
       )
 
 
+async def reset_daily_bot_stats_job() -> None:
+  from sqlalchemy import update
+
+  from app.models.entities import BotState
+
+  async with SessionLocal() as session:
+    await session.execute(
+      update(BotState).values(trades_today=0, pnl_today=0.0, updated_at=datetime.utcnow())
+    )
+    await session.commit()
+  print(f"[BotStats] Reset daily counters at {datetime.utcnow().isoformat()}")
+
+
 async def start_bots() -> None:
   global bots, bot_tasks
   bots = {
@@ -65,6 +78,7 @@ async def setup_scheduler() -> None:
   scheduler.add_job(intelligence_job, "interval", minutes=5, id="intelligence_scan")
   scheduler.add_job(content_study_job, "interval", hours=2, id="content_study")
   scheduler.add_job(daily_review_job, "cron", hour=22, minute=0, id="daily_review")
+  scheduler.add_job(reset_daily_bot_stats_job, "cron", hour=0, minute=0, id="reset_daily_stats")
   scheduler.start()
 
   await intelligence_job()
