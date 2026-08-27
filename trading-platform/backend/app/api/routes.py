@@ -335,6 +335,20 @@ async def get_verification_history(
   ]
 
 
+@router.get("/intelligence/routing")
+async def get_intelligence_routing() -> dict[str, Any]:
+  from app.engines.intelligence_scoring import BOT_SOURCE_WEIGHTS
+  from app.intelligence.political_signals import POLITICAL_EVENT_PATTERNS
+
+  return {
+    "bot_source_weights": BOT_SOURCE_WEIGHTS,
+    "political_event_types": [
+      {"type": event_type, "assets": assets, "bots": bots}
+      for _, event_type, assets, bots in POLITICAL_EVENT_PATTERNS
+    ],
+  }
+
+
 @router.get("/intelligence/sources")
 async def get_intelligence_sources(db: AsyncSession = Depends(get_db)) -> list[dict[str, Any]]:
   result = await db.execute(select(IntelligenceItem.source, IntelligenceItem.fetched_at))

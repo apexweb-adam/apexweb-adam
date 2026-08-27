@@ -1,4 +1,10 @@
-import type { Portfolio, ProfitabilityStatus, StrategyConfig, Trade } from "./api";
+import type {
+  ActiveGateStatus,
+  Portfolio,
+  ProfitabilityStatus,
+  StrategyConfig,
+  Trade,
+} from "./api";
 
 const MIN_TRADES = 100;
 const MIN_WIN_RATE = 0.55;
@@ -111,5 +117,29 @@ export function enrichProfitabilityStatus(
       profit_factor: api.profit_factor,
       total_pnl: api.total_pnl,
     },
+  };
+}
+
+/** Map backend active-gate response to dashboard profitability shape. */
+export function activeGateToProfitability(
+  gate: ActiveGateStatus,
+  base?: ProfitabilityStatus
+): ProfitabilityStatus {
+  const ab = gate.active_bots;
+  return {
+    live_trading_ready: gate.live_trading_ready ?? false,
+    paper_trading_only: base?.paper_trading_only ?? true,
+    paused_bots: gate.paused_bots,
+    total_trades: ab.total_trades,
+    win_rate: ab.win_rate,
+    profit_factor: ab.profit_factor,
+    total_pnl: ab.total_pnl,
+    days_trading: base?.days_trading,
+    verification_day: gate.verification_day,
+    verification_days_remaining: gate.verification_days_remaining,
+    verification_started_at: base?.verification_started_at,
+    recommendation: gate.recommendation,
+    checks: gate.checks,
+    aggregate: gate.aggregate,
   };
 }

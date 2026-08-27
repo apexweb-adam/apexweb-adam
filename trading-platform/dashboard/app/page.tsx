@@ -40,8 +40,12 @@ import type {
   IntelligenceSource,
   PlatformStatus,
   DashboardConfig,
+  IntelRouting,
+  ActiveGateStatus,
 } from "@/lib/api";
-import { enrichProfitabilityStatus } from "@/lib/profitability";
+import { enrichProfitabilityStatus, activeGateToProfitability } from "@/lib/profitability";
+import { VerificationPnLChart } from "@/components/VerificationPnLChart";
+import { IntelRoutingPanel } from "@/components/IntelRoutingPanel";
 
 type Tab = "overview" | "trades" | "positions" | "intelligence" | "learning" | "strategy";
 
@@ -58,11 +62,13 @@ export default function Dashboard() {
   const { data: insights } = useAPI<LearningInsight[]>("/insights?limit=20", 30000);
   const { data: strategies } = useAPI<StrategyConfig[]>("/strategies", 30000);
   const { data: profitability } = useAPI<ProfitabilityStatus>("/profitability", 15000);
+  const { data: activeGate } = useAPI<ActiveGateStatus>("/active-gate", 15000);
   const { data: verificationHistory } = useAPI<VerificationSnapshot[]>(
     "/verification/history?limit=30",
     60000
   );
   const { data: intelSources } = useAPI<IntelligenceSource[]>("/intelligence/sources", 30000);
+  const { data: intelRouting } = useAPI<IntelRouting>("/intelligence/routing", 60000);
   const { data: platformStatus } = useAPI<PlatformStatus>("/status", 30000);
   const [tab, setTab] = useState<Tab>("overview");
   const [dashConfig, setDashConfig] = useState<DashboardConfig | null>(null);
@@ -85,10 +91,17 @@ export default function Dashboard() {
     return Array.from(byId.values());
   }, [connected, liveTrades, gateTradesRest, tradesRest]);
 
-  const gateStatus = useMemo(
-    () => enrichProfitabilityStatus(profitability ?? undefined, gateTrades, portfolios, strategies),
-    [profitability, gateTrades, portfolios, strategies]
-  );
+  const gateStatus = useMemo(() => {
+    if (activeGate?.active_bots) {
+      return activeGateToProfitability(activeGate, profitability ?? undefined);
+    }
+    return enrichProfitabilityStatus(
+      profitability ?? undefined,
+      gateTrades,
+      portfolios,
+      strategies
+    );
+  }, [activeGate, profitability, gateTrades, portfolios, strategies]);
 
   const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
     { id: "overview", label: "Overview", icon: <BarChart3 size={16} /> },
@@ -141,14 +154,15 @@ export default function Dashboard() {
       {vercelStale && (
         <div className="bg-apex-gold/15 border-b border-apex-gold/30 px-6 py-2">
           <p className="max-w-[1600px] mx-auto text-xs text-apex-gold">
-            Dashboard deploy is stale — active-bot gate and client enrichment missing.{" "}
+            Dashboard bundle is stale — promote latest main in Vercel for native /api/active-gate.
+            Gate metrics still load via backend proxy.{" "}
             <a
               href={dashConfig?.promoteUrl ?? "https://vercel.com/apexweb-adams-projects/apex-trading-dashboard/deployments"}
               target="_blank"
               rel="noopener noreferrer"
               className="underline hover:text-white"
             >
-              Promote latest main in Vercel →
+              Promote in Vercel →
             </a>
             {dashConfig?.githubMainCommit && (
               <span className="ml-2 font-mono text-[10px] text-gray-500">
@@ -277,8 +291,9 @@ export default function Dashboard() {
                 <Card title="Production Deploy">
                   <div className="space-y-3">
                     {vercelStale && (
-                      <div className="rounded-lg border border-apex-red/40 bg-apex-red/10 px-3 py-2 text-xs text-apex-red">
-                        Vercel dashboard stale — promote latest main deployment for /api/active-gate
+                      <div className="rounded-lg border border-apex-gold/40 bg-apex-gold/10 px-3 py-2 text-xs text-apex-gold">
+                        Vercel dashboard bundle stale — promote latest main for full features.
+                        Active-bot gate works via /api/backend/active-gate proxy.
                       </div>
                     )}
                     {platformStatus?.deploy?.is_stale && (
@@ -396,7 +411,8 @@ export default function Dashboard() {
                     </div>
                     {(verificationHistory ?? []).length > 0 && (
                       <div className="pt-2 border-t border-apex-border">
-                        <p className="text-xs text-gray-500 mb-2">Daily verification log</p>
+                        <VerificationPnLChart snapshots={verificationHistory ?? []} />
+                        <p className="text-xs text-gray-500 mb-2 mt-3">Daily verification log</p>
                         <div className="space-y-1 max-h-32 overflow-y-auto">
                           {(verificationHistory ?? []).slice(0, 7).map((snap) => (
                             <div
@@ -598,6 +614,9 @@ export default function Dashboard() {
                   </div>
                 ))}
               </div>
+            </Card>
+            <Card title="Intel Source Routing">
+              <IntelRoutingPanel routing={intelRouting} />
             </Card>
           </div>
         )}

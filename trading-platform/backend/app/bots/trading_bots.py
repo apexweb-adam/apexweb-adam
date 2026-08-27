@@ -8,6 +8,7 @@ from sqlalchemy import select
 from app.config import settings
 from app.database import SessionLocal
 from app.engines.integration_signals import get_integration_boost
+from app.engines.intelligence_scoring import compute_bot_sentiment
 from app.engines.learning_engine import LearningEngine
 from app.engines.market_data import fetch_crypto_data, fetch_yfinance_data
 from app.engines.polymarket_data import (
@@ -21,7 +22,7 @@ from app.engines.polymarket_signals import analyze_polymarket
 from app.engines.paper_trading import PaperTradingEngine
 from app.engines.price_validation import is_price_sane
 from app.engines.signal_engine import SignalEngine
-from app.models.entities import BotState, IntelligenceItem, Trade
+from app.models.entities import BotState, Trade
 
 
 class BaseBot(ABC):
@@ -41,24 +42,12 @@ class BaseBot(ABC):
     pass
 
   async def get_sentiment_score(self, symbol: str) -> float:
-    async with SessionLocal() as session:
-      clean = symbol.replace("USDT", "").replace("=F", "").replace("=X", "")
-      result = await session.execute(
-        select(IntelligenceItem)
-        .where(IntelligenceItem.symbols_mentioned.contains(clean))
-        .order_by(IntelligenceItem.fetched_at.desc())
-        .limit(10)
-      )
-      items = list(result.scalars().all())
-      if not items:
-        result = await session.execute(
-          select(IntelligenceItem).order_by(IntelligenceItem.fetched_at.desc()).limit(20)
-        )
-        items = list(result.scalars().all())
+    score, _ = await self.get_sentiment_detail(symbol)
+    return score
 
-      if not items:
-        return 0.0
-      return sum(i.sentiment for i in items) / len(items)
+  async def get_sentiment_detail(self, symbol: str) -> tuple[float, str]:
+    async with SessionLocal() as session:
+      return await compute_bot_sentiment(session, self.bot_type, symbol)
 
   async def scan_and_trade(self) -> list[dict]:
     actions: list[dict] = []
@@ -96,7 +85,7 @@ class BaseBot(ABC):
         prices[symbol] = price
 
         signal = self.signal_engine.analyze(symbol, df, strategy_params)
-        sentiment = await self.get_sentiment_score(symbol)
+        sentiment, sentiment_sources = await self.get_sentiment_detail(symbol)
         composite = self.signal_engine.composite_score(signal.score, sentiment, weights)
         integration_boost, integration_reason = await get_integration_boost(session, symbol)
         composite = max(0.0, composite + integration_boost)
@@ -122,6 +111,8 @@ class BaseBot(ABC):
           and sentiment + integration_boost >= strategy.min_sentiment_score - 0.5
         ):
           reason = f"Signal:{signal.score:.2f} Sentiment:{sentiment:.2f}"
+          if sentiment_sources:
+            reason += f" Intel:[{sentiment_sources}]"
           if integration_reason:
             reason += f" Integrations:{integration_boost:+.2f} ({integration_reason})"
           reason += f" | {signal.reason}"
