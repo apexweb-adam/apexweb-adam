@@ -1,6 +1,6 @@
 import asyncio
 from abc import ABC, abstractmethod
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import pandas as pd
 from sqlalchemy import select
@@ -212,12 +212,19 @@ class PolymarketBot(BaseBot):
 
   bot_type = "polymarket"
   scan_interval = 45
+  _loss_cooldown_until: dict[str, datetime] = {}
 
   async def get_symbols(self) -> list[str]:
     return await get_polymarket_symbols()
 
   async def fetch_price_data(self, symbol: str) -> tuple[float, pd.DataFrame | None]:
     return await fetch_polymarket_data(symbol)
+
+  def _register_loss_cooldown(self, symbol: str) -> None:
+    if symbol:
+      self._loss_cooldown_until[symbol] = datetime.utcnow() + timedelta(
+        seconds=settings.polymarket_loss_cooldown_seconds
+      )
 
   async def scan_and_trade(self) -> list[dict]:
     actions: list[dict] = []
@@ -248,10 +255,14 @@ class PolymarketBot(BaseBot):
           if opened and opened.tzinfo is not None:
             opened = opened.replace(tzinfo=None)
           held_seconds = (datetime.utcnow() - opened).total_seconds() if opened else 9999
-          min_hold_seconds = 900  # 15 min before signal exit (stops still apply)
-          if held_seconds >= min_hold_seconds and (
-            pm_sig.direction == "sell" or integration_boost < -0.12
-          ):
+          min_hold_seconds = settings.polymarket_min_hold_seconds
+          allow_signal_exit = (
+            held_seconds >= min_hold_seconds
+            and pm_sig.direction == "sell"
+            and pm_sig.sentiment <= 0.05
+            and (price >= 0.60 or (df is not None and len(df) >= 15))
+          )
+          if allow_signal_exit or integration_boost < -0.15:
             reason = f"PM exit: {pm_sig.reason}"
             if integration_reason:
               reason += f" | {integration_reason}"
@@ -260,6 +271,11 @@ class PolymarketBot(BaseBot):
               actions.append(result)
               if not result.get("is_winner", True):
                 await self._analyze_loss(session, symbol)
+                self._register_loss_cooldown(symbol)
+          continue
+
+        cooldown = self._loss_cooldown_until.get(symbol)
+        if cooldown and datetime.utcnow() < cooldown:
           continue
 
         if (
@@ -286,7 +302,9 @@ class PolymarketBot(BaseBot):
 
       for action in stop_actions:
         if not action.get("is_winner", True):
-          await self._analyze_loss(session, action.get("symbol", ""))
+          sym = action.get("symbol", "")
+          await self._analyze_loss(session, sym)
+          self._register_loss_cooldown(sym)
 
     if actions:
       from app.ws_manager import broadcast_trade, push_live_update

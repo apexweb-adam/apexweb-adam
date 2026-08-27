@@ -26,6 +26,11 @@ class Settings(BaseSettings):
     polymarket_deposit_address: str = ""
     polymarket_profile_url: str = "https://polymarket.com/@apexweb"
     polymarket_max_markets: int = 50
+    polymarket_max_position_pct: float = 0.01
+    polymarket_max_position_usd: float = 500.0
+    polymarket_stop_loss_pct: float = 0.04
+    polymarket_min_hold_seconds: int = 900
+    polymarket_loss_cooldown_seconds: int = 3600
 
     # Bot tuning
     crypto_symbols: str = (
