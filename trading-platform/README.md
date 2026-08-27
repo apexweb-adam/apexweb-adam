@@ -55,19 +55,26 @@ npm run dev
 
 ### Deployment (24/7 Live Dashboard)
 
-**Backend (bots must run 24/7):**
-```bash
-# Render.com — connect repo, set root to trading-platform, use render.yaml
-# Or Docker on Railway/Fly.io:
-cd trading-platform && docker compose up backend
-```
+**Live CRM Dashboard (production):**
+- https://apex-trading-dashboard-flame.vercel.app
+- Auto-deploys from `main` → `trading-platform/dashboard` on Vercel
 
-**Dashboard (Vercel/Netlify):**
-```bash
-# Root directory: trading-platform/dashboard
-# Environment variables:
+**Backend (bots must run 24/7):**
+1. Go to [Render Dashboard](https://dashboard.render.com) → New → Blueprint
+2. Connect repo `apexweb-adam/apexweb-adam`, set root directory to `trading-platform`
+3. Render reads `render.yaml` — deploys `apex-trading-backend` with persistent disk
+4. Copy your Render URL (e.g. `https://apex-trading-backend.onrender.com`)
+
+**Connect dashboard to backend (Vercel project settings → Environment Variables):**
+```
 NEXT_PUBLIC_API_URL=https://your-backend.onrender.com
 NEXT_PUBLIC_WS_URL=wss://your-backend.onrender.com
+```
+Redeploy dashboard after setting these.
+
+**Local Docker:**
+```bash
+cd trading-platform && docker compose up --build
 ```
 
 | Service | Platform | Notes |

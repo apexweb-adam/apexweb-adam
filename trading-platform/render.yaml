@@ -6,6 +6,10 @@ services:
     dockerContext: ./backend
     plan: free
     healthCheckPath: /api/health
+    disk:
+      name: trading-data
+      mountPath: /app/data
+      sizeGB: 1
     envVars:
       - key: PAPER_TRADING_ONLY
         value: "true"
@@ -14,7 +18,7 @@ services:
       - key: DATABASE_URL
         value: sqlite+aiosqlite:///./data/trading.db
       - key: CORS_ORIGINS
-        sync: false
+        value: "https://apex-trading-dashboard-flame.vercel.app,https://apex-trading-dashboard-apexweb-adams-projects.vercel.app"
       - key: NEWSAPI_KEY
         sync: false
       - key: TWITTER_BEARER_TOKEN
