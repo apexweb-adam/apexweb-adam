@@ -39,5 +39,7 @@ services:
         sync: false
       - key: RENDER_DEPLOY_HOOK
         sync: false
+      - key: GITHUB_TOKEN
+        sync: false
       - key: PLATFORM_REVISION
-        value: "2026-08-27-r29"
+        value: "2026-08-27-r30"
