@@ -1,12 +1,9 @@
 import type { EquityHistoryPoint, Portfolio, ProfitabilityStatus, StrategyConfig, Trade } from "./api";
 import { buildEquityHistoryFromTrades, enrichProfitabilityStatus } from "./profitability";
+import { resolveBackendHttpUrl } from "./production-backend";
 
 export function backendBase(): string {
-  return (
-    process.env.BACKEND_URL ||
-    process.env.NEXT_PUBLIC_API_URL ||
-    "http://localhost:8000"
-  ).replace(/\/$/, "");
+  return resolveBackendHttpUrl();
 }
 
 async function fetchBackendJson<T>(path: string): Promise<T> {

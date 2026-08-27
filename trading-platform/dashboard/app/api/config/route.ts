@@ -1,23 +1,15 @@
 import { NextResponse } from "next/server";
 import { DASHBOARD_BUNDLE_REVISION, DASHBOARD_FEATURES } from "@/lib/deploy-health";
+import { resolveBackendHttpUrl, resolveBackendWsUrl } from "@/lib/production-backend";
 
 export const dynamic = "force-dynamic";
 
 function backendHttpUrl(): string {
-  return (
-    process.env.BACKEND_URL ||
-    process.env.NEXT_PUBLIC_API_URL ||
-    "http://localhost:8000"
-  ).replace(/\/$/, "");
+  return resolveBackendHttpUrl();
 }
 
 function backendWsUrl(): string {
-  const explicit =
-    process.env.BACKEND_WS_URL || process.env.NEXT_PUBLIC_WS_URL || "";
-  if (explicit) return explicit.replace(/\/$/, "");
-
-  const http = backendHttpUrl();
-  return http.replace(/^http:\/\//, "ws://").replace(/^https:\/\//, "wss://");
+  return resolveBackendWsUrl(backendHttpUrl());
 }
 
 export async function GET() {
