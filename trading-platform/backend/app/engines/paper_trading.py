@@ -206,20 +206,27 @@ class PaperTradingEngine:
       price = prices.get(pos.symbol)
       if not price:
         continue
-      if not is_price_consistent(pos.entry_price, price):
+
+      # Stop-loss / take-profit always run — large adverse moves must not be skipped
+      # by the stale-price guard (common on Polymarket sports markets).
+      if pos.stop_loss and price <= pos.stop_loss:
+        exit_price = pos.stop_loss
+        result = await self.sell(pos.symbol, exit_price, f"Stop loss triggered at {exit_price:.4f}")
+        if result:
+          actions.append(result)
+        continue
+      if pos.take_profit and price >= pos.take_profit:
+        result = await self.sell(pos.symbol, price, f"Take profit triggered at {price:.4f}")
+        if result:
+          actions.append(result)
+        continue
+
+      max_move = 0.50 if pos.symbol.startswith("PM:") else 0.20
+      if not is_price_consistent(pos.entry_price, price, max_move_pct=max_move):
         continue
 
       pos.current_price = price
       pos.unrealized_pnl = (price - pos.entry_price) * pos.quantity
-
-      if pos.stop_loss and price <= pos.stop_loss:
-        result = await self.sell(pos.symbol, price, f"Stop loss triggered at {price:.4f}")
-        if result:
-          actions.append(result)
-      elif pos.take_profit and price >= pos.take_profit:
-        result = await self.sell(pos.symbol, price, f"Take profit triggered at {price:.4f}")
-        if result:
-          actions.append(result)
 
     portfolio = await self.get_portfolio()
     open_positions = await self.get_open_positions()

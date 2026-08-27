@@ -322,6 +322,20 @@ class PolymarketBot(BaseBot):
             position = find_pm_position(open_positions, symbol)
 
             if position:
+              if position.stop_loss and price <= position.stop_loss:
+                exit_price = position.stop_loss
+                result = await engine.sell(
+                  position.symbol,
+                  exit_price,
+                  f"Stop loss triggered at {exit_price:.4f}",
+                )
+                if result:
+                  actions.append(result)
+                  if result.get("is_winner") is False:
+                    await self._analyze_loss(session, symbol)
+                  self._register_symbol_cooldown(symbol, after_loss=result.get("is_winner") is False)
+                continue
+
               opened = position.opened_at
               if opened and opened.tzinfo is not None:
                 opened = opened.replace(tzinfo=None)
