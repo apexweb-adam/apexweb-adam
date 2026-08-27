@@ -95,7 +95,7 @@ class BaseBot(ABC):
             result = await engine.sell(symbol, price, reason)
             if result:
               actions.append(result)
-              if not result.get("is_winner", True):
+              if result.get("is_winner") is False:
                 await self._analyze_loss(session, symbol)
           continue
 
@@ -118,7 +118,7 @@ class BaseBot(ABC):
       actions.extend(stop_actions)
 
       for action in stop_actions:
-        if not action.get("is_winner", True):
+        if action.get("is_winner") is False:
           await self._analyze_loss(session, action.get("symbol", ""))
 
     await self._record_scan_result(len(symbols), actions)
@@ -330,10 +330,10 @@ class PolymarketBot(BaseBot):
                 result = await engine.sell(symbol, price, reason)
                 if result:
                   actions.append(result)
-                  won = result.get("is_winner", True)
-                  if not won:
+                  won = result.get("is_winner")
+                  if won is False:
                     await self._analyze_loss(session, symbol)
-                  self._register_symbol_cooldown(symbol, after_loss=not won)
+                  self._register_symbol_cooldown(symbol, after_loss=won is False)
               continue
 
             cooldown = self._symbol_cooldown_until.get(symbol)
@@ -374,7 +374,7 @@ class PolymarketBot(BaseBot):
         actions.extend(stop_actions)
 
         for action in stop_actions:
-          if not action.get("is_winner", True):
+          if action.get("is_winner") is False:
             sym = action.get("symbol", "")
             await self._analyze_loss(session, sym)
             self._register_symbol_cooldown(sym, after_loss=True)

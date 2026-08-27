@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.models.entities import BotState, Portfolio, Position, StrategyConfig
+from app.models.entities import BotState, Portfolio, Position, StrategyConfig, Trade
 
 POLYMARKET_DEFAULTS = {
   "max_position_pct": settings.polymarket_max_position_pct,
@@ -172,6 +172,55 @@ async def sync_bot_strategy_versions(session: AsyncSession) -> int:
     if version is not None and state.current_strategy_version != version:
       state.current_strategy_version = version
       state.updated_at = datetime.utcnow()
+      updated += 1
+  if updated:
+    await session.commit()
+  return updated
+
+
+async def fix_breakeven_trade_labels(session: AsyncSession) -> int:
+  """Relabel zero-PnL sells as breakeven (not losses) for accurate win-rate tracking."""
+  sells = list(
+    (
+      await session.execute(
+        select(Trade).where(
+          Trade.action == "sell",
+          Trade.pnl == 0,
+          Trade.is_winner.is_(False),
+        )
+      )
+    ).scalars().all()
+  )
+  for trade in sells:
+    trade.is_winner = None
+  if sells:
+    await session.commit()
+  return len(sells)
+
+
+async def recalculate_portfolio_win_rates(session: AsyncSession) -> int:
+  """Reconcile portfolio win_rate / winning_trades from closed sell records."""
+  portfolios = list((await session.execute(select(Portfolio))).scalars().all())
+  updated = 0
+  for portfolio in portfolios:
+    sells = list(
+      (
+        await session.execute(
+          select(Trade).where(
+            Trade.bot_type == portfolio.bot_type,
+            Trade.action == "sell",
+          )
+        )
+      ).scalars().all()
+    )
+    winning = sum(1 for t in sells if t.is_winner is True)
+    total = len(sells)
+    win_rate = winning / total if total else 0.0
+    if portfolio.total_trades != total or portfolio.winning_trades != winning or portfolio.win_rate != win_rate:
+      portfolio.total_trades = total
+      portfolio.winning_trades = winning
+      portfolio.win_rate = win_rate
+      portfolio.updated_at = datetime.utcnow()
       updated += 1
   if updated:
     await session.commit()

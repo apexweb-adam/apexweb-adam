@@ -127,7 +127,7 @@ export default function Dashboard() {
           />
           <StatCard
             label="Win Rate"
-            value={formatPct(stats?.avg_win_rate ?? 0)}
+            value={formatPct(profitability?.win_rate ?? stats?.avg_win_rate ?? 0)}
             icon={<BarChart3 size={18} className="text-apex-blue" />}
           />
           <StatCard

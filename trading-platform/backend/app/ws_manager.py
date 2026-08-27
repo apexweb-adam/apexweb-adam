@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import BOT_TYPES
 from app.database import SessionLocal
+from app.engines.trade_stats import aggregate_win_rate
 from app.models.entities import BotState, IntelligenceItem, Portfolio, Position, StrategyConfig, Trade
 
 
@@ -54,7 +55,7 @@ async def build_live_payload(session: AsyncSession) -> dict:
   total_equity = sum(p.equity for p in portfolios)
   total_pnl = sum(p.total_pnl for p in portfolios)
   total_trades = sum(p.total_trades for p in portfolios)
-  avg_win_rate = sum(p.win_rate for p in portfolios) / len(portfolios) if portfolios else 0
+  avg_win_rate = aggregate_win_rate(sell_trades)
 
   return {
     "type": "update",

@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.engines.platform_settings import get_verification_started_at
+from app.engines.trade_stats import aggregate_win_rate
 from app.models.entities import Portfolio, Trade
 
 
@@ -24,10 +25,10 @@ class ProfitabilityGate:
     sells = (await self.session.execute(select(Trade).where(Trade.action == "sell"))).scalars().all()
 
     total_trades = len(sells)
-    winners = [t for t in sells if t.is_winner]
+    winners = [t for t in sells if t.is_winner is True]
     losers = [t for t in sells if t.is_winner is False]
 
-    win_rate = len(winners) / total_trades if total_trades else 0
+    win_rate = aggregate_win_rate(sells)
     gross_profit = sum(t.pnl for t in winners)
     gross_loss = abs(sum(t.pnl for t in losers))
     profit_factor = gross_profit / gross_loss if gross_loss > 0 else float("inf") if gross_profit > 0 else 0

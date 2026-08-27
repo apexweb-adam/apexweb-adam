@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings, BOT_TYPES
 from app.database import SessionLocal, get_db, is_postgres
 from app.engines.profitability_gate import ProfitabilityGate
+from app.engines.trade_stats import aggregate_win_rate
 from app.models.entities import (
   BotState,
   DailyReview,
@@ -338,9 +339,7 @@ async def get_stats(db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
   total_equity = sum(p.equity for p in portfolios)
   total_pnl = sum(p.total_pnl for p in portfolios)
   total_trades = sum(p.total_trades for p in portfolios)
-  avg_win_rate = (
-    sum(p.win_rate for p in portfolios) / len(portfolios) if portfolios else 0
-  )
+  avg_win_rate = aggregate_win_rate(trades)
 
   return {
     "total_equity": total_equity,
@@ -470,6 +469,8 @@ async def apply_risk_migrations(payload: dict[str, Any], db: AsyncSession = Depe
   from app.engines.strategy_migration import (
     clamp_verification_strategy_params,
     ensure_polymarket_strategy,
+    fix_breakeven_trade_labels,
+    recalculate_portfolio_win_rates,
     sync_bot_strategy_versions,
     trim_oversized_polymarket_positions,
   )
@@ -482,12 +483,16 @@ async def apply_risk_migrations(payload: dict[str, Any], db: AsyncSession = Depe
   strategy_updated = await ensure_polymarket_strategy(db)
   trimmed = await trim_oversized_polymarket_positions(db)
   synced = await sync_bot_strategy_versions(db)
+  breakeven_fixed = await fix_breakeven_trade_labels(db)
+  portfolios_updated = await recalculate_portfolio_win_rates(db)
   return {
     "status": "ok",
     "strategies_clamped": clamped,
     "strategy_updated": strategy_updated,
     "positions_trimmed": trimmed,
     "bot_versions_synced": synced,
+    "breakeven_trades_fixed": breakeven_fixed,
+    "portfolios_recalculated": portfolios_updated,
     "timestamp": datetime.utcnow().isoformat(),
   }
 

@@ -152,12 +152,17 @@ class PaperTradingEngine:
     exit_value = position.quantity * price
     pnl = exit_value - entry_value
     pnl_pct = (pnl / entry_value) * 100 if entry_value else 0
-    is_winner = pnl > 0
+    if pnl > 0:
+      is_winner = True
+    elif pnl < 0:
+      is_winner = False
+    else:
+      is_winner = None
 
     portfolio.balance += exit_value
     portfolio.total_pnl += pnl
     portfolio.total_trades += 1
-    if is_winner:
+    if is_winner is True:
       portfolio.winning_trades += 1
     portfolio.win_rate = (
       portfolio.winning_trades / portfolio.total_trades if portfolio.total_trades else 0
