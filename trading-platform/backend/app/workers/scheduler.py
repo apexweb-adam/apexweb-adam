@@ -126,13 +126,21 @@ async def setup_scheduler() -> None:
     from app.engines.strategy_migration import (
       clamp_verification_strategy_params,
       ensure_polymarket_strategy,
+      fix_breakeven_trade_labels,
       migrate_symbol_columns,
+      recalculate_portfolio_win_rates,
       sync_bot_strategy_versions,
       trim_oversized_polymarket_positions,
     )
 
     if await migrate_symbol_columns(session):
       print("[Strategy] Widened symbol columns to VARCHAR(64) for Polymarket slugs")
+    breakeven_fixed = await fix_breakeven_trade_labels(session)
+    if breakeven_fixed:
+      print(f"[Strategy] Relabeled {breakeven_fixed} breakeven trade(s)")
+    portfolios_updated = await recalculate_portfolio_win_rates(session)
+    if portfolios_updated:
+      print(f"[Strategy] Recalculated win rates on {portfolios_updated} portfolio(s)")
     clamped = await clamp_verification_strategy_params(session)
     if clamped:
       print(f"[Strategy] Clamped over-tight signal thresholds on {clamped} bot(s)")
