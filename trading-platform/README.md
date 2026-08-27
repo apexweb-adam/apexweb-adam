@@ -53,12 +53,51 @@ npm install
 npm run dev
 ```
 
-## Deployment (24/7 Live Dashboard)
+### Deployment (24/7 Live Dashboard)
+
+**Backend (bots must run 24/7):**
+```bash
+# Render.com — connect repo, set root to trading-platform, use render.yaml
+# Or Docker on Railway/Fly.io:
+cd trading-platform && docker compose up backend
+```
+
+**Dashboard (Vercel/Netlify):**
+```bash
+# Root directory: trading-platform/dashboard
+# Environment variables:
+NEXT_PUBLIC_API_URL=https://your-backend.onrender.com
+NEXT_PUBLIC_WS_URL=wss://your-backend.onrender.com
+```
 
 | Service | Platform | Notes |
 |---------|----------|-------|
-| Backend | Railway, Render, Fly.io | Docker image, persistent volume for SQLite |
-| Dashboard | Vercel, Netlify | Set `NEXT_PUBLIC_API_URL` and `NEXT_PUBLIC_WS_URL` |
+| Backend | Render, Railway, Fly.io | Docker, persistent volume for SQLite |
+| Dashboard | Vercel, Netlify | Set API/WS URLs to backend |
+
+### Intelligence Sources (Active)
+
+| Source | Status | What it monitors |
+|--------|--------|------------------|
+| RSS News | Active | CoinDesk, Reuters |
+| Reddit | Active | crypto, WSB, politics |
+| YouTube | Active | Coin Bureau, Benjamin Cowen, Chart Guys |
+| Polymarket | Active | Crypto, Trump, Fed, election markets |
+| Political | Active | Trump tariffs, Google News, Reddit |
+| TikTok | Active | Trading sentiment via Google News |
+| X/Twitter | Needs token | Real-time social sentiment |
+| TradingView | Webhook ready | Your existing alerts |
+| NewsAPI | Optional | Enhanced news coverage |
+
+### Profitability Gate
+
+Live trading is blocked until ALL checks pass:
+- 100+ paper trades
+- 55%+ win rate
+- 1.3+ profit factor
+- Positive total P&L
+
+Check status: `GET /api/profitability`
 
 ## Important Disclaimer
 

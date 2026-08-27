@@ -35,6 +35,8 @@ import type {
   DailyReview,
   LearningInsight,
   StrategyConfig,
+  ProfitabilityStatus,
+  IntelligenceSource,
 } from "@/lib/api";
 
 type Tab = "overview" | "trades" | "positions" | "intelligence" | "learning" | "strategy";
@@ -48,6 +50,8 @@ export default function Dashboard() {
   const { data: reviews } = useAPI<DailyReview[]>("/reviews?limit=10", 30000);
   const { data: insights } = useAPI<LearningInsight[]>("/insights?limit=20", 30000);
   const { data: strategies } = useAPI<StrategyConfig[]>("/strategies", 30000);
+  const { data: profitability } = useAPI<ProfitabilityStatus>("/profitability", 15000);
+  const { data: intelSources } = useAPI<IntelligenceSource[]>("/intelligence/sources", 30000);
   const [tab, setTab] = useState<Tab>("overview");
 
   const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
@@ -182,6 +186,38 @@ export default function Dashboard() {
               </Card>
             </div>
             <div className="space-y-6">
+              <Card title="Profitability Gate">
+                {profitability ? (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-400">Live trading ready</span>
+                      <span
+                        className={cn(
+                          "text-xs px-2 py-1 rounded-full font-medium",
+                          profitability.live_trading_ready
+                            ? "bg-apex-green/10 text-apex-green"
+                            : "bg-apex-gold/10 text-apex-gold"
+                        )}
+                      >
+                        {profitability.live_trading_ready ? "READY" : "PAPER ONLY"}
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-500">{profitability.recommendation}</p>
+                    <div className="space-y-1">
+                      {Object.entries(profitability.checks).map(([key, check]) => (
+                        <div key={key} className="flex justify-between text-xs">
+                          <span className="text-gray-500">{key.replace(/_/g, " ")}</span>
+                          <span className={check.passed ? "text-apex-green" : "text-apex-red"}>
+                            {String(check.actual)} / {String(check.required)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-500">Loading profitability status...</p>
+                )}
+              </Card>
               <Card title="Portfolios">
                 {(portfolios ?? []).map((p) => (
                   <div
@@ -322,22 +358,27 @@ export default function Dashboard() {
             </Card>
             <Card title="Intelligence Sources">
               <div className="space-y-4">
-                {[
-                  { name: "RSS News Feeds", sources: "CoinDesk, Reuters Business", status: "active" },
-                  { name: "Reddit", sources: "r/cryptocurrency, r/wallstreetbets, r/CryptoMarkets, r/StockMarket, r/politics", status: "active" },
-                  { name: "NewsAPI", sources: "Crypto, Stocks, Commodities queries", status: "optional" },
-                  { name: "X / Twitter", sources: "Bearer token required", status: "pending" },
-                  { name: "YouTube", sources: "Trading strategy knowledge base", status: "active" },
-                  { name: "Polymarket", sources: "Prediction market signals", status: "pending" },
-                  { name: "TradingView", sources: "Webhook alerts", status: "pending" },
-                ].map((src) => (
+                {(intelSources ?? [
+                  { source: "news", status: "active", items_collected: 0, last_fetched: null },
+                  { source: "reddit", status: "active", items_collected: 0, last_fetched: null },
+                  { source: "youtube", status: "active", items_collected: 0, last_fetched: null },
+                  { source: "polymarket", status: "active", items_collected: 0, last_fetched: null },
+                  { source: "political", status: "active", items_collected: 0, last_fetched: null },
+                  { source: "tiktok", status: "active", items_collected: 0, last_fetched: null },
+                  { source: "x", status: "pending", items_collected: 0, last_fetched: null },
+                  { source: "tradingview", status: "pending", items_collected: 0, last_fetched: null },
+                  { source: "newsapi", status: "optional", items_collected: 0, last_fetched: null },
+                ]).map((src) => (
                   <div
-                    key={src.name}
+                    key={src.source}
                     className="flex items-center justify-between p-3 rounded-lg bg-apex-dark border border-apex-border"
                   >
                     <div>
-                      <p className="text-sm font-medium text-white">{src.name}</p>
-                      <p className="text-xs text-gray-500">{src.sources}</p>
+                      <p className="text-sm font-medium text-white uppercase">{src.source}</p>
+                      <p className="text-xs text-gray-500">
+                        {src.items_collected} items collected
+                        {src.last_fetched ? ` · last ${formatTime(src.last_fetched)}` : ""}
+                      </p>
                     </div>
                     <span
                       className={cn(

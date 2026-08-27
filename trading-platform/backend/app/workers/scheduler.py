@@ -6,7 +6,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from app.bots.trading_bots import CommoditiesBot, CryptoBot, StocksFuturesBot
 from app.database import SessionLocal, init_db
 from app.intelligence.content_study import ContentStudyEngine
-from app.intelligence.scanner import IntelligenceScanner
+from app.intelligence.extended_scanners import ExtendedIntelligenceScanner
 from app.engines.learning_engine import LearningEngine
 
 scheduler = AsyncIOScheduler()
@@ -16,7 +16,7 @@ bot_tasks: list[asyncio.Task] = []
 
 async def intelligence_job() -> None:
   async with SessionLocal() as session:
-    scanner = IntelligenceScanner(session)
+    scanner = ExtendedIntelligenceScanner(session)
     count = await scanner.scan_all()
     print(f"[Intelligence] Scanned {count} new items at {datetime.utcnow().isoformat()}")
 

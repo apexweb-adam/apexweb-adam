@@ -1,0 +1,14 @@
+[build]
+  base = "dashboard"
+  command = "npm run build"
+  publish = "dashboard/.next"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+[[redirects]]
+  from = "/api/*"
+  to = ":BACKEND_URL/api/:splat"
+  status = 200
+  force = true
+  conditions = {Role = ["backend-proxy"]}

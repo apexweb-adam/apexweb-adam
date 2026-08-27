@@ -137,3 +137,21 @@ export type StrategyConfig = {
   max_position_pct: number;
   version: number;
 };
+
+export type ProfitabilityStatus = {
+  live_trading_ready: boolean;
+  paper_trading_only: boolean;
+  total_trades: number;
+  win_rate: number;
+  profit_factor: number | null;
+  total_pnl: number;
+  recommendation: string;
+  checks: Record<string, { required: unknown; actual: unknown; passed: boolean }>;
+};
+
+export type IntelligenceSource = {
+  source: string;
+  status: string;
+  items_collected: number;
+  last_fetched: string | null;
+};

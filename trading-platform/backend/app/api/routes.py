@@ -6,7 +6,8 @@ from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import SessionLocal, get_db
+from app.config import settings
+from app.engines.profitability_gate import ProfitabilityGate
 from app.models.entities import (
   BotState,
   DailyReview,
@@ -260,6 +261,46 @@ async def get_strategies(db: AsyncSession = Depends(get_db)) -> list[dict[str, A
       "updated_at": c.updated_at.isoformat() if c.updated_at else None,
     }
     for c in configs
+  ]
+
+
+@router.get("/profitability")
+async def get_profitability(db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
+  gate = ProfitabilityGate(db)
+  return await gate.evaluate()
+
+
+@router.get("/intelligence/sources")
+async def get_intelligence_sources(db: AsyncSession = Depends(get_db)) -> list[dict[str, Any]]:
+  result = await db.execute(select(IntelligenceItem.source, IntelligenceItem.fetched_at))
+  rows = result.all()
+  source_counts: dict[str, int] = {}
+  source_latest: dict[str, datetime] = {}
+  for source, fetched_at in rows:
+    source_counts[source] = source_counts.get(source, 0) + 1
+    if source not in source_latest or (fetched_at and fetched_at > source_latest[source]):
+      source_latest[source] = fetched_at
+
+  configured = {
+    "news": True,
+    "reddit": True,
+    "youtube": True,
+    "polymarket": True,
+    "political": True,
+    "tiktok": True,
+    "tradingview": bool(settings.tradingview_webhook_secret),
+    "x": bool(settings.twitter_bearer_token),
+    "newsapi": bool(settings.newsapi_key),
+  }
+
+  return [
+    {
+      "source": source,
+      "status": "active" if configured.get(source, source_counts.get(source, 0) > 0) else "pending",
+      "items_collected": source_counts.get(source, 0),
+      "last_fetched": source_latest.get(source, datetime.utcnow()).isoformat() if source in source_latest else None,
+    }
+    for source in ["news", "reddit", "youtube", "x", "tiktok", "polymarket", "political", "tradingview", "newsapi"]
   ]
 
 
