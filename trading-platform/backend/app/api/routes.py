@@ -479,6 +479,7 @@ async def apply_risk_migrations(payload: dict[str, Any], db: AsyncSession = Depe
     clamp_verification_strategy_params,
     ensure_polymarket_strategy,
     fix_breakeven_trade_labels,
+    dedupe_polymarket_positions,
     recalculate_portfolio_win_rates,
     sync_bot_strategy_versions,
     trim_oversized_polymarket_positions,
@@ -494,6 +495,7 @@ async def apply_risk_migrations(payload: dict[str, Any], db: AsyncSession = Depe
   synced = await sync_bot_strategy_versions(db)
   breakeven_fixed = await fix_breakeven_trade_labels(db)
   portfolios_updated = await recalculate_portfolio_win_rates(db)
+  pm_deduped = await dedupe_polymarket_positions(db)
   return {
     "status": "ok",
     "strategies_clamped": clamped,
@@ -502,6 +504,7 @@ async def apply_risk_migrations(payload: dict[str, Any], db: AsyncSession = Depe
     "bot_versions_synced": synced,
     "breakeven_trades_fixed": breakeven_fixed,
     "portfolios_recalculated": portfolios_updated,
+    "polymarket_duplicates_closed": pm_deduped,
     "timestamp": datetime.utcnow().isoformat(),
   }
 

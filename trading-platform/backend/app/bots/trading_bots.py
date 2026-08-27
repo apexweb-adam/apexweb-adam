@@ -10,7 +10,13 @@ from app.database import SessionLocal
 from app.engines.integration_signals import get_integration_boost
 from app.engines.learning_engine import LearningEngine
 from app.engines.market_data import fetch_crypto_data, fetch_yfinance_data
-from app.engines.polymarket_data import fetch_polymarket_data, get_market_meta, get_polymarket_symbols
+from app.engines.polymarket_data import (
+  canonical_pm_symbol,
+  fetch_polymarket_data,
+  find_pm_position,
+  get_market_meta,
+  get_polymarket_symbols,
+)
 from app.engines.polymarket_signals import analyze_polymarket
 from app.engines.paper_trading import PaperTradingEngine
 from app.engines.price_validation import is_price_sane
@@ -303,15 +309,17 @@ class PolymarketBot(BaseBot):
             price, df = await self.fetch_price_data(symbol)
             if price <= 0 or not is_price_sane(symbol, price):
               continue
-            prices[symbol] = price
 
             meta = await get_market_meta(symbol)
+            symbol = canonical_pm_symbol(symbol, meta)
+            prices[symbol] = price
+
             question = (meta or {}).get("question", symbol)
             pm_sig = await analyze_polymarket(session, symbol, price, df, question)
             integration_boost, integration_reason = await get_integration_boost(session, symbol)
             composite = pm_sig.score + integration_boost
 
-            position = await engine.get_position(symbol)
+            position = find_pm_position(open_positions, symbol)
 
             if position:
               opened = position.opened_at
@@ -329,7 +337,7 @@ class PolymarketBot(BaseBot):
                 reason = f"PM exit: {pm_sig.reason}"
                 if integration_reason:
                   reason += f" | {integration_reason}"
-                result = await engine.sell(symbol, price, reason)
+                result = await engine.sell(position.symbol, price, reason)
                 if result:
                   actions.append(result)
                   won = result.get("is_winner")
@@ -339,6 +347,9 @@ class PolymarketBot(BaseBot):
               continue
 
             if symbol not in symbols:
+              continue
+
+            if find_pm_position(open_positions, symbol):
               continue
 
             cooldown = self._symbol_cooldown_until.get(symbol)

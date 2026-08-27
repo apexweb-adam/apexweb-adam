@@ -225,3 +225,54 @@ async def recalculate_portfolio_win_rates(session: AsyncSession) -> int:
   if updated:
     await session.commit()
   return updated
+
+
+async def dedupe_polymarket_positions(session: AsyncSession) -> int:
+  """Close duplicate open PM positions that share the same market under different slug truncations."""
+  from app.engines.polymarket_data import pm_symbols_match
+
+  result = await session.execute(
+    select(Position).where(
+      Position.bot_type == "polymarket",
+      Position.is_open.is_(True),
+    )
+  )
+  positions = list(result.scalars().all())
+  if len(positions) < 2:
+    return 0
+
+  groups: list[list[Position]] = []
+  for pos in positions:
+    for group in groups:
+      if pm_symbols_match(group[0].symbol, pos.symbol):
+        group.append(pos)
+        break
+    else:
+      groups.append([pos])
+
+  portfolio = (
+    await session.execute(select(Portfolio).where(Portfolio.bot_type == "polymarket"))
+  ).scalar_one_or_none()
+  if not portfolio:
+    return 0
+
+  closed = 0
+  for group in groups:
+    if len(group) <= 1:
+      continue
+    group.sort(key=lambda p: p.opened_at or datetime.min)
+    for dup in group[1:]:
+      refund = dup.quantity * dup.entry_price
+      portfolio.balance += refund
+      dup.is_open = False
+      dup.unrealized_pnl = 0.0
+      closed += 1
+
+  if closed:
+    open_remaining = [p for p in positions if p.is_open]
+    portfolio.equity = portfolio.balance + sum(
+      p.quantity * (p.current_price or p.entry_price) for p in open_remaining
+    )
+    portfolio.updated_at = datetime.utcnow()
+    await session.commit()
+  return closed

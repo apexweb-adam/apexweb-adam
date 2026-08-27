@@ -62,6 +62,29 @@ def pm_symbol(slug: str) -> str:
   return f"PM:{slug[:max_slug]}"
 
 
+def pm_symbols_match(a: str, b: str) -> bool:
+  """True when two PM: symbols refer to the same market (truncation-safe)."""
+  if not a.startswith("PM:") or not b.startswith("PM:"):
+    return a == b
+  sa, sb = a[3:], b[3:]
+  return sa == sb or sa.startswith(sb) or sb.startswith(sa)
+
+
+def canonical_pm_symbol(symbol: str, market: dict | None) -> str:
+  """Normalize to a single canonical symbol using the market's full slug."""
+  if market and market.get("slug"):
+    return pm_symbol(market["slug"])
+  return symbol
+
+
+def find_pm_position(positions: list, symbol: str):
+  """Find open position matching symbol, including truncated slug variants."""
+  for pos in positions:
+    if pm_symbols_match(pos.symbol, symbol):
+      return pos
+  return None
+
+
 def _match_stored_slug(stored: str, full_slug: str) -> bool:
   """Match truncated PM: slug prefix against full Polymarket slug."""
   if not stored or not full_slug:
