@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import BOT_TYPES
 from app.database import SessionLocal
-from app.models.entities import BotState, IntelligenceItem, Portfolio, Position, Trade
+from app.models.entities import BotState, IntelligenceItem, Portfolio, Position, StrategyConfig, Trade
 
 
 class ConnectionManager:
@@ -46,6 +46,10 @@ async def build_live_payload(session: AsyncSession) -> dict:
   ).scalars().all()
   intel = (await session.execute(select(IntelligenceItem))).scalars().all()
   states = (await session.execute(select(BotState))).scalars().all()
+  strategy_versions = {
+    c.bot_type: c.version
+    for c in (await session.execute(select(StrategyConfig))).scalars().all()
+  }
 
   total_equity = sum(p.equity for p in portfolios)
   total_pnl = sum(p.total_pnl for p in portfolios)
@@ -86,7 +90,7 @@ async def build_live_payload(session: AsyncSession) -> dict:
         "last_scan_at": s.last_scan_at.isoformat() if s.last_scan_at else None,
         "trades_today": s.trades_today,
         "pnl_today": s.pnl_today,
-        "strategy_version": s.current_strategy_version,
+        "strategy_version": strategy_versions.get(s.bot_type, s.current_strategy_version),
       }
       for s in states
     ] if states else [],
