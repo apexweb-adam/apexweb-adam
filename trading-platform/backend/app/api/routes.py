@@ -489,6 +489,9 @@ async def get_platform_status(db: AsyncSession = Depends(get_db)) -> dict[str, A
 
   active_sources = sum(1 for s in sources if s["status"] in ("active", "degraded"))
   deploy_info = await build_deploy_status()
+  from app.engines.gate_entry_guard import get_gate_entry_tightening
+
+  gate_tightening = await get_gate_entry_tightening(db)
   tv_items = next((s["items_collected"] for s in sources if s["source"] == "tradingview"), 0)
   base_next_steps = (
     []
@@ -511,6 +514,13 @@ async def get_platform_status(db: AsyncSession = Depends(get_db)) -> dict[str, A
     },
     "stats": stats,
     "profitability_gate": profitability,
+    "gate_entry_tightening": {
+      "active": gate_tightening.active,
+      "win_rate": gate_tightening.win_rate,
+      "min_sentiment": gate_tightening.min_sentiment,
+      "require_macd_bullish": gate_tightening.require_macd_bullish,
+      "min_composite_boost": gate_tightening.min_composite_boost,
+    },
     "bots": bots,
     "intelligence": {
       "active_sources": active_sources,
@@ -631,6 +641,7 @@ async def websocket_endpoint(websocket: WebSocket):
 async def apply_risk_migrations(payload: dict[str, Any], db: AsyncSession = Depends(get_db)):
   """Apply Polymarket strategy caps and trim oversized positions (requires webhook secret)."""
   from app.engines.strategy_migration import (
+    adapt_for_gate_win_rate,
     clamp_verification_strategy_params,
     ensure_polymarket_strategy,
     fix_breakeven_trade_labels,
@@ -646,6 +657,7 @@ async def apply_risk_migrations(payload: dict[str, Any], db: AsyncSession = Depe
     return {"status": "unauthorized"}
 
   clamped = await clamp_verification_strategy_params(db)
+  gate_adapted = await adapt_for_gate_win_rate(db)
   strategy_updated = await ensure_polymarket_strategy(db)
   reconciled = await reconcile_portfolio_balances(db)
   trimmed = await trim_oversized_polymarket_positions(db)
@@ -656,6 +668,7 @@ async def apply_risk_migrations(payload: dict[str, Any], db: AsyncSession = Depe
   return {
     "status": "ok",
     "strategies_clamped": clamped,
+    "gate_adapted": gate_adapted,
     "strategy_updated": strategy_updated,
     "portfolios_reconciled": reconciled,
     "positions_trimmed": trimmed,
