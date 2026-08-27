@@ -65,6 +65,7 @@ async def risk_migration_job() -> None:
     )
 
     clamped = await clamp_verification_strategy_params(session)
+    migrated = await migrate_symbol_columns(session)
     updated = await ensure_polymarket_strategy(session)
     trimmed = await trim_oversized_polymarket_positions(session)
     synced = await sync_bot_strategy_versions(session)
@@ -136,10 +137,13 @@ async def setup_scheduler() -> None:
     from app.engines.strategy_migration import (
       clamp_verification_strategy_params,
       ensure_polymarket_strategy,
+      migrate_symbol_columns,
       sync_bot_strategy_versions,
       trim_oversized_polymarket_positions,
     )
 
+    if await migrate_symbol_columns(session):
+      print("[Strategy] Widened symbol columns to VARCHAR(64) for Polymarket slugs")
     clamped = await clamp_verification_strategy_params(session)
     if clamped:
       print(f"[Strategy] Clamped over-tight signal thresholds on {clamped} bot(s)")

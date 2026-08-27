@@ -139,6 +139,26 @@ async def trim_oversized_polymarket_positions(session: AsyncSession) -> int:
   return trimmed
 
 
+async def migrate_symbol_columns(session: AsyncSession) -> bool:
+  """Widen symbol columns for Polymarket slugs (PM: + up to 61 chars)."""
+  from sqlalchemy import text
+
+  from app.database import is_postgres
+
+  if not is_postgres():
+    return False
+
+  altered = False
+  for table in ("positions", "trades", "trade_analyses"):
+    await session.execute(
+      text(f"ALTER TABLE {table} ALTER COLUMN symbol TYPE VARCHAR(64)")
+    )
+    altered = True
+  if altered:
+    await session.commit()
+  return altered
+
+
 async def sync_bot_strategy_versions(session: AsyncSession) -> int:
   """Align BotState.current_strategy_version with StrategyConfig.version."""
   configs = {

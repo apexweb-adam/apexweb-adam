@@ -54,8 +54,12 @@ def _parse_yes_price(market: dict) -> float:
   return 0.0
 
 
+PM_SYMBOL_MAX_LEN = 64
+
+
 def pm_symbol(slug: str) -> str:
-  return f"PM:{slug[:48]}"
+  max_slug = PM_SYMBOL_MAX_LEN - 3  # "PM:"
+  return f"PM:{slug[:max_slug]}"
 
 
 async def fetch_polymarket_data(symbol: str) -> tuple[float, pd.DataFrame | None]:

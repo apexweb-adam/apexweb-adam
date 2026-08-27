@@ -26,7 +26,7 @@ class Position(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     bot_type: Mapped[str] = mapped_column(String(50), index=True)
-    symbol: Mapped[str] = mapped_column(String(30), index=True)
+    symbol: Mapped[str] = mapped_column(String(64), index=True)
     side: Mapped[str] = mapped_column(String(10))
     quantity: Mapped[float] = mapped_column(Float)
     entry_price: Mapped[float] = mapped_column(Float)
@@ -43,7 +43,7 @@ class Trade(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     bot_type: Mapped[str] = mapped_column(String(50), index=True)
-    symbol: Mapped[str] = mapped_column(String(30), index=True)
+    symbol: Mapped[str] = mapped_column(String(64), index=True)
     side: Mapped[str] = mapped_column(String(10))
     action: Mapped[str] = mapped_column(String(10))
     quantity: Mapped[float] = mapped_column(Float)
@@ -64,7 +64,7 @@ class TradeAnalysis(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     trade_id: Mapped[int] = mapped_column(Integer, index=True)
     bot_type: Mapped[str] = mapped_column(String(50))
-    symbol: Mapped[str] = mapped_column(String(30))
+    symbol: Mapped[str] = mapped_column(String(64))
     loss_amount: Mapped[float] = mapped_column(Float)
     root_cause: Mapped[str] = mapped_column(Text)
     market_context: Mapped[str] = mapped_column(Text)
