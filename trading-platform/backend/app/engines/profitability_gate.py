@@ -1,10 +1,11 @@
 from datetime import datetime
+from typing import Any
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.engines.platform_settings import get_verification_started_at
+from app.engines.platform_settings import get_paused_bot_types, get_verification_started_at
 from app.engines.trade_stats import aggregate_win_rate
 from app.models.entities import Portfolio, Trade
 
@@ -20,19 +21,43 @@ class ProfitabilityGate:
   def __init__(self, session: AsyncSession):
     self.session = session
 
-  async def evaluate(self) -> dict:
-    portfolios = (await self.session.execute(select(Portfolio))).scalars().all()
-    sells = (await self.session.execute(select(Trade).where(Trade.action == "sell"))).scalars().all()
-
-    total_trades = len(sells)
+  def _trade_metrics(
+    self,
+    sells: list[Trade],
+    portfolios: list[Portfolio],
+  ) -> dict[str, Any]:
     winners = [t for t in sells if t.is_winner is True]
     losers = [t for t in sells if t.is_winner is False]
-
     win_rate = aggregate_win_rate(sells)
     gross_profit = sum(t.pnl for t in winners)
     gross_loss = abs(sum(t.pnl for t in losers))
     profit_factor = gross_profit / gross_loss if gross_loss > 0 else float("inf") if gross_profit > 0 else 0
     total_pnl = sum(p.total_pnl for p in portfolios)
+    return {
+      "total_trades": len(sells),
+      "win_rate": win_rate,
+      "profit_factor": round(profit_factor, 2) if profit_factor != float("inf") else None,
+      "total_pnl": total_pnl,
+      "_profit_factor_raw": profit_factor,
+    }
+
+  async def evaluate(self) -> dict:
+    portfolios = list((await self.session.execute(select(Portfolio))).scalars().all())
+    sells = list(
+      (await self.session.execute(select(Trade).where(Trade.action == "sell"))).scalars().all()
+    )
+    paused_bots = await get_paused_bot_types(self.session)
+    paused_set = set(paused_bots)
+
+    active_sells = [t for t in sells if t.bot_type not in paused_set]
+    active_portfolios = [p for p in portfolios if p.bot_type not in paused_set]
+    active_metrics = self._trade_metrics(active_sells, active_portfolios)
+    aggregate_metrics = self._trade_metrics(sells, portfolios)
+
+    total_trades = active_metrics["total_trades"]
+    win_rate = active_metrics["win_rate"]
+    profit_factor = active_metrics["_profit_factor_raw"]
+    total_pnl = active_metrics["total_pnl"]
 
     first_trade = (
       await self.session.execute(select(func.min(Trade.executed_at)))
@@ -65,7 +90,7 @@ class ProfitabilityGate:
       },
       "min_profit_factor": {
         "required": self.MIN_PROFIT_FACTOR,
-        "actual": round(profit_factor, 2) if profit_factor != float("inf") else "inf",
+        "actual": active_metrics["profit_factor"] if profit_factor != float("inf") else "inf",
         "passed": profit_factor >= self.MIN_PROFIT_FACTOR,
       },
       "positive_pnl": {
@@ -104,20 +129,31 @@ class ProfitabilityGate:
     if win_rate < self.MIN_WIN_RATE:
       blockers.append(f"win rate ≥ {self.MIN_WIN_RATE:.0%}")
 
+    recommendation = (
+      "READY for live trading review" if live_ready
+      else "Continue paper trading — need " + ", ".join(blockers)
+    )
+    if paused_bots:
+      recommendation += f" (excludes paused: {', '.join(paused_bots)})"
+
     return {
       "live_trading_ready": live_ready,
       "paper_trading_only": settings.paper_trading_only,
+      "paused_bots": paused_bots,
       "total_trades": total_trades,
       "win_rate": win_rate,
-      "profit_factor": round(profit_factor, 2) if profit_factor != float("inf") else None,
+      "profit_factor": active_metrics["profit_factor"],
       "total_pnl": total_pnl,
       "days_trading": days_trading,
       "verification_day": verification_day,
       "verification_days_remaining": verification_days_remaining,
       "verification_started_at": verification_start.isoformat() if verification_start else None,
       "checks": checks,
-      "recommendation": (
-        "READY for live trading review" if live_ready
-        else "Continue paper trading — need " + ", ".join(blockers)
-      ),
+      "recommendation": recommendation,
+      "aggregate": {
+        "total_trades": aggregate_metrics["total_trades"],
+        "win_rate": aggregate_metrics["win_rate"],
+        "profit_factor": aggregate_metrics["profit_factor"],
+        "total_pnl": aggregate_metrics["total_pnl"],
+      },
     }

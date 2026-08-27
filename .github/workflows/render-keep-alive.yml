@@ -26,3 +26,30 @@ jobs:
           d=json.load(sys.stdin)
           print('bots_active=%s trades=%s mode=%s' % (d.get('bots_active'), d.get('total_trades'), d.get('mode')))
           "
+
+      - name: Check deploy staleness
+        env:
+          RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+        run: |
+          set -euo pipefail
+          URL="https://apex-trading-backend.onrender.com"
+          curl -fsS --max-time 45 "$URL/api/status" -o /tmp/render-status.json
+          python3 << 'PY'
+          import json, os, sys, urllib.request
+          with open("/tmp/render-status.json") as f:
+              d = json.load(f)
+          dep = d.get("deploy", {})
+          stale = dep.get("is_stale")
+          deployed = (dep.get("git_commit") or "")[:12]
+          main = (dep.get("latest_main_commit") or "")[:12]
+          print(f"deploy={deployed} main={main} stale={stale}")
+          if not stale:
+              sys.exit(0)
+          hook = os.environ.get("RENDER_DEPLOY_HOOK", "").strip()
+          if hook:
+              req = urllib.request.Request(hook, method="POST")
+              with urllib.request.urlopen(req, timeout=30) as resp:
+                  print("Triggered RENDER_DEPLOY_HOOK", resp.status)
+          else:
+              print("::warning::Render deploy stale — set RENDER_DEPLOY_HOOK in GitHub secrets or manual deploy")
+          PY

@@ -315,6 +315,17 @@ export default function Dashboard() {
                       </p>
                     )}
                     <p className="text-xs text-gray-500">{profitability.recommendation}</p>
+                    {profitability.paused_bots && profitability.paused_bots.length > 0 && (
+                      <p className="text-xs text-amber-500/90">
+                        Gate excludes paused bots: {profitability.paused_bots.join(", ")}
+                        {profitability.aggregate && (
+                          <span className="text-gray-500">
+                            {" "}
+                            · all-bots PnL {profitability.aggregate.total_pnl.toFixed(2)}
+                          </span>
+                        )}
+                      </p>
+                    )}
                     <div className="space-y-1">
                       {Object.entries(profitability.checks).map(([key, check]) => (
                         <div key={key} className="flex justify-between text-xs">

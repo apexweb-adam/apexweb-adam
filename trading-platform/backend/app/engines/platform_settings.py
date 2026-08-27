@@ -14,6 +14,16 @@ async def is_bot_paused(session: AsyncSession, bot_type: str) -> bool:
   return raw == "true"
 
 
+async def get_paused_bot_types(session: AsyncSession) -> list[str]:
+  from app.config import BOT_TYPES
+
+  paused: list[str] = []
+  for bot_type in BOT_TYPES:
+    if await is_bot_paused(session, bot_type):
+      paused.append(bot_type)
+  return paused
+
+
 async def set_bot_paused(session: AsyncSession, bot_type: str, paused: bool) -> None:
   await set_platform_setting(session, f"{BOT_PAUSED_PREFIX}{bot_type}", "true" if paused else "false")
 
