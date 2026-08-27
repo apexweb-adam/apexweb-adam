@@ -48,10 +48,11 @@ A dashboard REST hívásokat runtime proxy-n keresztül továbbítja (`/api/back
 
 **Redeploy** csak akkor kell, ha a `vercel.json`-ban lévő alapértelmezett env-t is frissíted.
 
-Live dashboard: https://apex-trading-dashboard-flame.vercel.app
+**Operational dashboard (full features):** https://apex-trading-dashboard-q1o1x9nlh-apexweb-adams-projects.vercel.app  
+(`bundleRevision` r7, native `/api/active-gate`, equity chart — use this until production is promoted.)
 
-**Verified preview (full features, Aug 27 2026):** https://apex-trading-dashboard-q1o1x9nlh-apexweb-adams-projects.vercel.app  
-(Promote `dpl_DFWFJtVnsfSLAkby6DWNLqUHYX7p` to production — requires `VERCEL_TOKEN` or manual promote in Vercel dashboard.)
+Legacy production alias (stale bundle): https://apex-trading-dashboard-flame.vercel.app  
+(Promote `dpl_DFWFJtVnsfSLAkby6DWNLqUHYX7p` in [Vercel deployments](https://vercel.com/apexweb-adams-projects/apex-trading-dashboard/deployments) or add `VERCEL_TOKEN` to GitHub secrets.)
 
 ### GitHub Actions deploy secrets (CI)
 

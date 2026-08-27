@@ -8,9 +8,27 @@ import sys
 import urllib.error
 import urllib.request
 
-DASHBOARD = "https://apex-trading-dashboard-flame.vercel.app"
+PRODUCTION_DASHBOARD = "https://apex-trading-dashboard-flame.vercel.app"
 VERIFIED_PREVIEW = "https://apex-trading-dashboard-q1o1x9nlh-apexweb-adams-projects.vercel.app"
 EXPECTED_BUNDLE = "2026-08-27-r7"
+
+
+def resolve_dashboard() -> str:
+  """Use verified preview when production bundle is stale."""
+  try:
+    with urllib.request.urlopen(f"{PRODUCTION_DASHBOARD}/api/config", timeout=20) as resp:
+      cfg = json.load(resp)
+    if (
+      cfg.get("bundleRevision") == EXPECTED_BUNDLE
+      and (cfg.get("features") or {}).get("activeGate") is True
+    ):
+      return PRODUCTION_DASHBOARD
+  except Exception:
+    pass
+  return VERIFIED_PREVIEW
+
+
+DASHBOARD = PRODUCTION_DASHBOARD
 MIN_TRADES = 100
 MIN_WIN_RATE = 0.55
 MIN_PROFIT_FACTOR = 1.3
@@ -123,7 +141,12 @@ def check_bundle_stale() -> None:
 
 
 def main() -> int:
-    check_bundle_stale()
+    global DASHBOARD
+    DASHBOARD = resolve_dashboard()
+    if DASHBOARD != PRODUCTION_DASHBOARD:
+        print(f"Using verified preview dashboard: {DASHBOARD}", file=sys.stderr)
+    else:
+        check_bundle_stale()
     out = fetch_active_gate() or compute_local()
 
     print(json.dumps(out, indent=2))
