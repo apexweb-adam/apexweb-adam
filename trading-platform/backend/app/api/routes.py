@@ -492,6 +492,19 @@ async def apply_risk_migrations(payload: dict[str, Any], db: AsyncSession = Depe
   }
 
 
+@router.post("/admin/run-daily-review")
+async def run_daily_review_admin(payload: dict[str, Any]) -> dict[str, Any]:
+  """Upsert today's daily reviews for all bots (requires webhook secret)."""
+  from app.workers.scheduler import daily_review_job
+
+  secret = payload.get("secret", "")
+  if not settings.tradingview_webhook_secret or secret != settings.tradingview_webhook_secret:
+    return {"status": "unauthorized"}
+
+  await daily_review_job()
+  return {"status": "ok", "timestamp": datetime.utcnow().isoformat()}
+
+
 @router.post("/admin/reset-paper-trading")
 async def reset_paper_trading_admin(payload: dict[str, Any], db: AsyncSession = Depends(get_db)):
   """Reset paper portfolios to $100k/bot; clears trades/positions/reviews, keeps intel + strategies."""
