@@ -391,6 +391,32 @@ async def get_platform_status(db: AsyncSession = Depends(get_db)) -> dict[str, A
       "content_study": "every 2 hours",
       "daily_review": "22:00 UTC",
     },
+    "deploy": {
+      "database_persistent": is_postgres(),
+      "intelligence_complete": active_sources >= len(sources),
+      "env_configured": {
+        "newsapi": bool(settings.newsapi_key),
+        "twitter": bool(settings.twitter_bearer_token),
+        "tradingview": bool(settings.tradingview_webhook_secret),
+        "polymarket_wallet": bool(
+          settings.polymarket_wallet_address or settings.polymarket_deposit_address
+        ),
+        "polymarket_api": bool(settings.polymarket_api_key),
+      },
+      "render_blueprint": "https://render.com/deploy?repo=https://github.com/apexweb-adam/apexweb-adam",
+      "supabase_project": "zzgmovjapeyauvpdpuqe",
+      "dashboard_url": "https://apex-trading-dashboard-flame.vercel.app",
+      "next_steps": (
+        []
+        if is_postgres()
+        else [
+          "Deploy Render Blueprint from main (render.yaml has no disk — Supabase required)",
+          "Set DATABASE_URL to Supabase pooler URI — see SUPABASE_SETUP.md",
+          "Paste secrets from scripts/export-render-env.sh into Render Environment",
+          "Set Vercel BACKEND_URL + BACKEND_WS_URL to Render service URL",
+        ]
+      ),
+    },
   }
 
 
