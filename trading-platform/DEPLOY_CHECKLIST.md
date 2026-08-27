@@ -1,0 +1,92 @@
+# 24/7 Deploy — lépésről lépésre
+
+## 1. API kulcsok (már beállítva lokálisan)
+
+A `trading-platform/.env` fájlban megvannak. **Ne commitold gitbe.**
+
+Production backendnél ugyanezeket add hozzá Render/Railway **Environment Variables** menüben.
+
+| Változó | Mit csinál |
+|---------|------------|
+| `NEWSAPI_KEY` | NewsAPI hírek |
+| `TWITTER_BEARER_TOKEN` | X/Twitter sentiment |
+| `TRADINGVIEW_WEBHOOK_SECRET` | TradingView alertek |
+| `PAPER_TRADING_ONLY` | `true` — ne változtasd |
+| `CORS_ORIGINS` | Vercel dashboard URL-ek |
+
+---
+
+## 2. Backend 24/7 — Render (ajánlott)
+
+1. Menj: https://dashboard.render.com
+2. **New** → **Blueprint**
+3. Repo: `apexweb-adam/apexweb-adam`
+4. **Root Directory:** `trading-platform`
+5. Render felismeri a `render.yaml`-t → **Apply**
+6. **Environment** fülön másold be a `.env` értékeket (Render nem olvassa a `.env`-et automatikusan)
+7. Deploy után másold ki az URL-t, pl. `https://apex-trading-backend.onrender.com`
+
+### Railway alternatíva
+
+1. https://railway.app → New Project → Deploy from GitHub
+2. Root: `trading-platform/backend`
+3. Dockerfile deploy
+4. Add persistent volume: `/app/data`
+5. Ugyanazok az env var-ok
+
+---
+
+## 3. Dashboard → Backend összekötés (Vercel)
+
+Vercel → **apex-trading-dashboard** → Settings → Environment Variables:
+
+```
+NEXT_PUBLIC_API_URL=https://YOUR-BACKEND.onrender.com
+NEXT_PUBLIC_WS_URL=wss://YOUR-BACKEND.onrender.com
+```
+
+**Redeploy** a dashboardot (Deployments → Redeploy).
+
+Live dashboard: https://apex-trading-dashboard-flame.vercel.app
+
+---
+
+## 4. TradingView webhook
+
+Lásd: `TRADINGVIEW_SETUP.md`
+
+**Webhook secret (generálva neked):** `apex_tv_EB9nj4sZ_8nZCIYY-38U8ci4IodUX4G2`
+
+**Webhook URL (backend deploy után):**
+```
+https://YOUR-BACKEND.onrender.com/api/webhooks/tradingview
+```
+
+Alert Message mező (JSON):
+```json
+{
+  "secret": "apex_tv_EB9nj4sZ_8nZCIYY-38U8ci4IodUX4G2",
+  "symbol": "{{ticker}}",
+  "action": "{{strategy.order.action}}",
+  "message": "Alert {{ticker}} {{close}}"
+}
+```
+
+---
+
+## 5. Polymarket
+
+**Nincs szükség bejelentkezésre** a jelenlegi scannerhez — nyilvános API.
+
+Ha mégis be akarsz lépni: https://polymarket.com (Google / email / MetaMask).
+
+---
+
+## 6. Paper mode — hetekig futás
+
+- `PAPER_TRADING_ONLY=true` maradjon
+- Dashboard → **Profitability Gate** mutatja a win rate-et
+- Napi review: 22:00 UTC
+- Live trading csak ha: 100+ trade, 55%+ win rate, 1.3+ profit factor
+
+Ellenőrzés: `GET /api/profitability`
