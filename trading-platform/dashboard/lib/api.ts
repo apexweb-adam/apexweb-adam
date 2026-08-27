@@ -273,6 +273,7 @@ export type PlatformDeployStatus = {
   vercel_bundle_revision?: string | null;
   vercel_promote_deployment_id?: string;
   vercel_promote_url?: string;
+  platform_revision?: string | null;
   git_commit?: string | null;
   latest_main_commit?: string | null;
   latest_main_message?: string | null;
@@ -288,6 +289,12 @@ export type PlatformStatus = {
   database: { engine: string; persistent: boolean };
   intelligence: { active_sources: number; total_sources: number };
   scheduler?: Record<string, string>;
+  integrations?: {
+    tradingview_webhook?: boolean;
+    tradingview_webhook_url?: string | null;
+    tradingview_items?: number;
+    tradingview_setup?: string | null;
+  };
   learning?: {
     trade_analyses: number;
     daily_reviews: number;

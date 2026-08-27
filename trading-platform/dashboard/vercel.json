@@ -16,6 +16,6 @@
   "env": {
     "BACKEND_URL": "https://apex-trading-backend.onrender.com",
     "BACKEND_WS_URL": "wss://apex-trading-backend.onrender.com",
-    "PLATFORM_BUNDLE_REVISION": "2026-08-27-r8"
+    "PLATFORM_BUNDLE_REVISION": "2026-08-27-r9"
   }
 }
