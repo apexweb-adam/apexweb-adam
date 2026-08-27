@@ -296,12 +296,23 @@ async def get_intelligence_sources(db: AsyncSession = Depends(get_db)) -> list[d
     "newsapi": bool(settings.newsapi_key),
   }
 
+  def _status(source: str) -> str:
+    has_items = source_counts.get(source, 0) > 0
+    is_configured = configured.get(source, has_items)
+    if source == "tradingview" and is_configured:
+      return "active"  # push webhook — no poll items until alerts fire
+    if is_configured and not has_items and source == "x":
+      return "degraded"  # token set but API returned no data (often 402 billing)
+    if is_configured or has_items:
+      return "active"
+    return "pending"
+
   return [
     {
       "source": source,
-      "status": "active" if configured.get(source, source_counts.get(source, 0) > 0) else "pending",
+      "status": _status(source),
       "items_collected": source_counts.get(source, 0),
-      "last_fetched": source_latest.get(source, datetime.utcnow()).isoformat() if source in source_latest else None,
+      "last_fetched": source_latest.get(source).isoformat() if source in source_latest else None,
     }
     for source in ["news", "reddit", "youtube", "x", "tiktok", "polymarket", "polymarket_account", "political", "tradingview", "newsapi"]
   ]
@@ -351,7 +362,7 @@ async def get_platform_status(db: AsyncSession = Depends(get_db)) -> dict[str, A
     await db.execute(select(LearningInsight))
   ).scalars().all()
 
-  active_sources = sum(1 for s in sources if s["status"] == "active")
+  active_sources = sum(1 for s in sources if s["status"] in ("active", "degraded"))
   return {
     "platform": "Apex Trading Platform",
     "version": "1.0.0",
