@@ -42,6 +42,7 @@ import type {
   DashboardConfig,
   IntelRouting,
   ActiveGateStatus,
+  EquityHistoryPoint,
 } from "@/lib/api";
 import { enrichProfitabilityStatus, activeGateToProfitability } from "@/lib/profitability";
 import { VerificationPnLChart } from "@/components/VerificationPnLChart";
@@ -67,6 +68,7 @@ export default function Dashboard() {
     "/verification/history?limit=30",
     60000
   );
+  const { data: equityHistory } = useAPI<EquityHistoryPoint[]>("/equity-history", 60000);
   const { data: intelSources } = useAPI<IntelligenceSource[]>("/intelligence/sources", 30000);
   const { data: intelRouting } = useAPI<IntelRouting>("/intelligence/routing", 60000);
   const { data: platformStatus } = useAPI<PlatformStatus>("/status", 30000);
@@ -409,9 +411,12 @@ export default function Dashboard() {
                         </div>
                       ))}
                     </div>
-                    {(verificationHistory ?? []).length > 0 && (
+                    {((verificationHistory ?? []).length > 0 || (equityHistory ?? []).length > 0) && (
                       <div className="pt-2 border-t border-apex-border">
-                        <VerificationPnLChart snapshots={verificationHistory ?? []} />
+                        <VerificationPnLChart
+                          snapshots={verificationHistory ?? []}
+                          equityHistory={equityHistory ?? []}
+                        />
                         <p className="text-xs text-gray-500 mb-2 mt-3">Daily verification log</p>
                         <div className="space-y-1 max-h-32 overflow-y-auto">
                           {(verificationHistory ?? []).slice(0, 7).map((snap) => (

@@ -220,6 +220,12 @@ export type VerificationSnapshot = {
   created_at: string | null;
 };
 
+export type EquityHistoryPoint = {
+  date: string;
+  daily_pnl: number;
+  cumulative_pnl: number;
+};
+
 export type IntelligenceSource = {
   source: string;
   status: string;
