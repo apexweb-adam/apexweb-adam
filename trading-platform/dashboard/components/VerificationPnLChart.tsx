@@ -8,27 +8,64 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import type { VerificationSnapshot } from "@/lib/api";
+import type { EquityHistoryPoint, VerificationSnapshot } from "@/lib/api";
 import { formatCurrency } from "@/lib/utils";
 
-export function VerificationPnLChart({ snapshots }: { snapshots: VerificationSnapshot[] }) {
-  if (!snapshots.length) return null;
+type ChartPoint = {
+  label: string;
+  pnl: number;
+  daily?: number;
+};
 
-  const points = [...snapshots]
-    .sort((a, b) => a.verification_day - b.verification_day)
-    .map((s) => ({
-      day: `D${s.verification_day}`,
-      pnl: Math.round(s.total_pnl * 100) / 100,
-      trades: s.total_trades,
-      wr: Math.round(s.win_rate * 1000) / 10,
+function buildPoints(
+  snapshots: VerificationSnapshot[],
+  equityHistory: EquityHistoryPoint[]
+): ChartPoint[] {
+  if (snapshots.length >= 2) {
+    return [...snapshots]
+      .sort((a, b) => a.verification_day - b.verification_day)
+      .map((s) => ({
+        label: `D${s.verification_day}`,
+        pnl: Math.round(s.total_pnl * 100) / 100,
+      }));
+  }
+  if (equityHistory.length > 0) {
+    return equityHistory.map((p) => ({
+      label: p.date.slice(5),
+      pnl: p.cumulative_pnl,
+      daily: p.daily_pnl,
     }));
+  }
+  if (snapshots.length === 1) {
+    const s = snapshots[0];
+    return [{ label: `D${s.verification_day}`, pnl: Math.round(s.total_pnl * 100) / 100 }];
+  }
+  return [];
+}
+
+export function VerificationPnLChart({
+  snapshots,
+  equityHistory = [],
+}: {
+  snapshots: VerificationSnapshot[];
+  equityHistory?: EquityHistoryPoint[];
+}) {
+  const points = buildPoints(snapshots, equityHistory);
+  if (!points.length) return null;
+
+  const title =
+    snapshots.length >= 2
+      ? "Verification PnL trend"
+      : equityHistory.length > 0
+        ? "Daily equity curve (realized PnL)"
+        : "Verification PnL";
 
   return (
     <div className="mt-3 h-36">
-      <p className="text-[10px] text-gray-500 mb-2 uppercase tracking-wide">Verification PnL trend</p>
+      <p className="text-[10px] text-gray-500 mb-2 uppercase tracking-wide">{title}</p>
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={points} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
-          <XAxis dataKey="day" tick={{ fill: "#6b7280", fontSize: 10 }} axisLine={false} tickLine={false} />
+          <XAxis dataKey="label" tick={{ fill: "#6b7280", fontSize: 10 }} axisLine={false} tickLine={false} />
           <YAxis
             tick={{ fill: "#6b7280", fontSize: 10 }}
             axisLine={false}
@@ -43,9 +80,14 @@ export function VerificationPnLChart({ snapshots }: { snapshots: VerificationSna
               borderRadius: 8,
               fontSize: 11,
             }}
-            formatter={(value: number, name: string) => {
-              if (name === "pnl") return [formatCurrency(value), "PnL"];
-              if (name === "wr") return [`${value}%`, "Win rate"];
+            formatter={(value: number, name: string, props: { payload?: ChartPoint }) => {
+              if (name === "pnl") {
+                const daily = props.payload?.daily;
+                if (daily != null) {
+                  return [formatCurrency(value) + ` (day ${formatCurrency(daily)})`, "Cumulative"];
+                }
+                return [formatCurrency(value), "PnL"];
+              }
               return [value, name];
             }}
             labelFormatter={(label) => `${label}`}
