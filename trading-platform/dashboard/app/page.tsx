@@ -481,6 +481,31 @@ export default function Dashboard() {
                             )}
                           </div>
                         )}
+                        {(platformStatus.integrations?.wallet_tracker_webhook ||
+                          platformStatus.integrations?.wallet_tracker) && (
+                          <div className="rounded-lg border border-apex-border bg-apex-dark px-3 py-2 text-xs text-gray-400">
+                            <p className="text-apex-gold font-medium mb-1">
+                              Wallet tracker {platformStatus.integrations.wallet_tracker ? "active" : "webhook ready"}
+                            </p>
+                            {platformStatus.integrations.wallet_tracker_webhook_url && (
+                              <p className="font-mono text-[10px] text-gray-500 break-all">
+                                {platformStatus.integrations.wallet_tracker_webhook_url}
+                              </p>
+                            )}
+                            <p className="mt-1 text-[10px] text-gray-500">
+                              On-chain whale scan + external monitor ingest (Arkham, Nansen, custom)
+                            </p>
+                            {platformStatus.integrations.wallet_tracker_example_payload && (
+                              <pre className="mt-2 p-2 rounded bg-black/40 text-[10px] text-gray-400 overflow-x-auto">
+                                {JSON.stringify(
+                                  platformStatus.integrations.wallet_tracker_example_payload,
+                                  null,
+                                  2
+                                )}
+                              </pre>
+                            )}
+                          </div>
+                        )}
                         {(platformStatus.deploy.next_steps?.length ?? 0) > 0 && (
                           <ul className="space-y-2 text-xs text-gray-400 list-disc list-inside">
                             {platformStatus.deploy.next_steps.map((step) => (
@@ -895,6 +920,8 @@ export default function Dashboard() {
                   { source: "reddit", status: "active", items_collected: 0, last_fetched: null },
                   { source: "youtube", status: "active", items_collected: 0, last_fetched: null },
                   { source: "polymarket", status: "active", items_collected: 0, last_fetched: null },
+                  { source: "polymarket_account", status: "active", items_collected: 0, last_fetched: null },
+                  { source: "wallet_tracker", status: "active", items_collected: 0, last_fetched: null },
                   { source: "political", status: "active", items_collected: 0, last_fetched: null },
                   { source: "tiktok", status: "active", items_collected: 0, last_fetched: null },
                   { source: "x", status: "pending", items_collected: 0, last_fetched: null },

@@ -7,6 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
+from app.intelligence.wallet_tracker import wallet_tracker_configured
 from app.models.entities import IntelligenceItem
 
 INTEL_SOURCE_ORDER = [
@@ -65,7 +66,7 @@ async def build_intel_sources(session: AsyncSession) -> list[dict[str, Any]]:
     "polymarket_account": bool(
       settings.polymarket_wallet_address or settings.polymarket_deposit_address
     ),
-    "wallet_tracker": bool(settings.wallet_tracker_addresses)
+    "wallet_tracker": wallet_tracker_configured()
     or bool(settings.tradingview_webhook_secret),
     "political": True,
     "tiktok": True,

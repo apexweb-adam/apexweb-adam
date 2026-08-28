@@ -362,6 +362,12 @@ export type PlatformStatus = {
     tradingview_setup?: string | null;
     tradingview_test_endpoint?: string | null;
     tradingview_example_payload?: Record<string, string> | null;
+    wallet_tracker?: boolean;
+    wallet_tracker_webhook?: boolean;
+    wallet_tracker_webhook_url?: string | null;
+    wallet_tracker_example_payload?: Record<string, unknown> | null;
+    reddit_oauth?: boolean;
+    twitter_x?: boolean;
   };
   learning?: {
     trade_analyses: number;

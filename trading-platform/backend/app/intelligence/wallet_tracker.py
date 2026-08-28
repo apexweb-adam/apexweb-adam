@@ -34,9 +34,32 @@ _TOKEN_SYMBOL_MAP = {
   "STETH": "ETH",
 }
 
+# Public on-chain wallets commonly tracked for market-moving flows (opt-in via settings).
+DEFAULT_WHALE_ADDRESSES = (
+  "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045",  # vitalik.eth
+  "0x171e6ba0f64ccc9fe7dafbea59f35bafbcdafe94",  # Wintermute
+  "0x47ac0Fb4F2D84898e4D9E7fE6e9230db20AEad85",  # Binance-Peg hot wallet
+)
+
 
 def parse_wallet_addresses(raw: str) -> list[str]:
   return [a.strip().lower() for a in raw.split(",") if a.strip().startswith("0x")]
+
+
+def tracked_wallet_addresses() -> list[str]:
+  """Configured addresses plus optional curated defaults for out-of-box whale tracking."""
+  custom = parse_wallet_addresses(settings.wallet_tracker_addresses)
+  if custom:
+    return custom
+  if settings.wallet_tracker_use_defaults:
+    return [a.lower() for a in DEFAULT_WHALE_ADDRESSES]
+  return []
+
+
+def wallet_tracker_configured() -> bool:
+  return bool(parse_wallet_addresses(settings.wallet_tracker_addresses)) or (
+    settings.wallet_tracker_use_defaults and bool(DEFAULT_WHALE_ADDRESSES)
+  )
 
 
 def _token_value_usd(value_raw: str, decimals: str | int, symbol: str) -> float:
@@ -86,7 +109,7 @@ def _transfer_sentiment(
 
 async def scan_wallet_tracker(session: AsyncSession) -> int:
   """Poll Etherscan token transfers for configured whale/smart-money addresses."""
-  addresses = parse_wallet_addresses(settings.wallet_tracker_addresses)
+  addresses = tracked_wallet_addresses()
   if not addresses:
     return 0
 

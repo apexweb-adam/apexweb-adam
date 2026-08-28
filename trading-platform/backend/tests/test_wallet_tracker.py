@@ -1,7 +1,7 @@
 """Tests for on-chain wallet tracker and webhook ingest."""
 
 import asyncio
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from app.intelligence.wallet_tracker import (
   _transfer_sentiment,
@@ -13,6 +13,35 @@ from app.intelligence.wallet_tracker import (
 def test_parse_wallet_addresses():
   raw = "0xABC123, 0xdef456, not-an-address"
   assert parse_wallet_addresses(raw) == ["0xabc123", "0xdef456"]
+
+
+def test_tracked_wallet_addresses_custom_overrides_defaults():
+  from app.intelligence.wallet_tracker import tracked_wallet_addresses
+
+  with patch("app.intelligence.wallet_tracker.settings") as mock_settings:
+    mock_settings.wallet_tracker_addresses = "0xCustom123"
+    mock_settings.wallet_tracker_use_defaults = True
+    assert tracked_wallet_addresses() == ["0xcustom123"]
+
+
+def test_tracked_wallet_addresses_defaults_when_enabled():
+  from app.intelligence.wallet_tracker import DEFAULT_WHALE_ADDRESSES, tracked_wallet_addresses
+
+  with patch("app.intelligence.wallet_tracker.settings") as mock_settings:
+    mock_settings.wallet_tracker_addresses = ""
+    mock_settings.wallet_tracker_use_defaults = True
+    assert tracked_wallet_addresses() == [a.lower() for a in DEFAULT_WHALE_ADDRESSES]
+
+
+def test_wallet_tracker_configured():
+  from app.intelligence.wallet_tracker import wallet_tracker_configured
+
+  with patch("app.intelligence.wallet_tracker.settings") as mock_settings:
+    mock_settings.wallet_tracker_addresses = ""
+    mock_settings.wallet_tracker_use_defaults = True
+    assert wallet_tracker_configured() is True
+    mock_settings.wallet_tracker_use_defaults = False
+    assert wallet_tracker_configured() is False
 
 
 def test_transfer_sentiment_accumulation():
