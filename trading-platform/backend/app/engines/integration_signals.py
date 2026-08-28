@@ -62,7 +62,12 @@ async def get_integration_boost(session: AsyncSession, symbol: str) -> tuple[flo
     weight = 0.15 if item.source == "tradingview" else 0.10
     if item.source == "polymarket_account":
       weight = 0.12
-    boost += item.sentiment * weight * min(1.0, item.relevance_score)
+    fetched = item.fetched_at
+    if fetched and fetched.tzinfo is not None:
+      fetched = fetched.replace(tzinfo=None)
+    age_hours = (datetime.utcnow() - fetched).total_seconds() / 3600 if fetched else MAX_AGE_HOURS
+    freshness = max(0.25, 1.0 - age_hours / MAX_AGE_HOURS)
+    boost += item.sentiment * weight * min(1.0, item.relevance_score) * freshness
     tag = item.source.replace("_", " ")
     reasons.append(f"{tag}:{item.sentiment:+.2f}")
 

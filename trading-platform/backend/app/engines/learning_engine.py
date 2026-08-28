@@ -85,6 +85,8 @@ class LearningEngine:
     if loss_symbols:
       worst = max(loss_symbols, key=loss_symbols.get)
       patterns.append(f"Most losses on {worst} ({loss_symbols[worst]} trades)")
+      if loss_symbols[worst] >= 2:
+        patterns.append(f"Gate skip recommended for {worst} until win rate recovers")
 
     low_signal_losses = [t for t in losing if t.signal_score < 0.5]
     if low_signal_losses:

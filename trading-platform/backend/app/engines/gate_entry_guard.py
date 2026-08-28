@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
+import re
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -39,6 +40,9 @@ UNDERPERFORMER_MIN_TRADES = 15
 UNDERPERFORMER_MAX_WIN_RATE = 0.40
 CHRONIC_LOSER_MIN_TRADES = 3
 CHRONIC_LOSER_MAX_WIN_RATE = 0.35
+RECENT_LOSER_DAYS = 7
+RECENT_LOSER_MIN_LOSSES = 2
+REVIEW_LOSER_DAYS = 3
 PROVEN_WINNER_MIN_TRADES = 2
 PROVEN_WINNER_MIN_WIN_RATE = 0.50
 
@@ -96,6 +100,76 @@ async def get_chronic_loser_symbols(
     if counts["wins"] / decided < max_win_rate:
       blocked.add(symbol)
   return frozenset(blocked)
+
+
+async def get_recent_loser_symbols(
+  session: AsyncSession,
+  bot_type: str,
+  *,
+  days: int = RECENT_LOSER_DAYS,
+  min_losses: int = RECENT_LOSER_MIN_LOSSES,
+) -> frozenset[str]:
+  """Symbols with multiple recent losses and no wins — skip during gate."""
+  from app.models.entities import Trade
+
+  cutoff = datetime.utcnow() - timedelta(days=days)
+  result = await session.execute(
+    select(Trade.symbol, Trade.is_winner).where(
+      Trade.bot_type == bot_type,
+      Trade.action == "sell",
+      Trade.executed_at >= cutoff,
+    )
+  )
+  stats: dict[str, dict[str, int]] = {}
+  for symbol, is_winner in result.all():
+    if not symbol:
+      continue
+    bucket = stats.setdefault(symbol, {"wins": 0, "losses": 0})
+    if is_winner is True:
+      bucket["wins"] += 1
+    elif is_winner is False:
+      bucket["losses"] += 1
+
+  blocked: set[str] = set()
+  for symbol, counts in stats.items():
+    if counts["losses"] >= min_losses and counts["wins"] == 0:
+      blocked.add(symbol)
+  return frozenset(blocked)
+
+
+async def get_review_blocked_symbols(
+  session: AsyncSession,
+  bot_type: str,
+  *,
+  days: int = REVIEW_LOSER_DAYS,
+) -> frozenset[str]:
+  """Symbols flagged as worst daily losers in recent post-mortems."""
+  from app.models.entities import DailyReview
+
+  cutoff = (datetime.utcnow() - timedelta(days=days)).strftime("%Y-%m-%d")
+  result = await session.execute(
+    select(DailyReview.patterns_found).where(
+      DailyReview.bot_type == bot_type,
+      DailyReview.review_date >= cutoff,
+      DailyReview.losing_trades >= 2,
+    )
+  )
+  blocked: set[str] = set()
+  pattern = re.compile(r"Most losses on (\S+)")
+  for (patterns_found,) in result.all():
+    if not patterns_found:
+      continue
+    for match in pattern.finditer(patterns_found):
+      blocked.add(match.group(1).rstrip(",.)"))
+  return frozenset(blocked)
+
+
+async def get_gate_skip_symbols(session: AsyncSession, bot_type: str) -> frozenset[str]:
+  """Union of chronic, recent, and daily-review loser symbols during gate."""
+  chronic = await get_chronic_loser_symbols(session, bot_type)
+  recent = await get_recent_loser_symbols(session, bot_type)
+  review = await get_review_blocked_symbols(session, bot_type)
+  return chronic | recent | review
 
 
 async def get_proven_winner_symbols(
@@ -185,12 +259,17 @@ async def build_gate_ws_payload(session: AsyncSession) -> dict[str, Any]:
   profitability = await ProfitabilityGate(session).evaluate()
 
   chronic_loser_symbols: dict[str, list[str]] = {}
+  recent_loser_symbols: dict[str, list[str]] = {}
   proven_winner_symbols: dict[str, list[str]] = {}
   if gate_tightening.active:
     for bot_type in BOT_TYPES:
-      losers = await get_chronic_loser_symbols(session, bot_type)
-      if losers:
-        chronic_loser_symbols[bot_type] = sorted(losers)
+      skip = await get_gate_skip_symbols(session, bot_type)
+      chronic = await get_chronic_loser_symbols(session, bot_type)
+      recent = await get_recent_loser_symbols(session, bot_type)
+      if skip:
+        chronic_loser_symbols[bot_type] = sorted(skip)
+      if recent - chronic:
+        recent_loser_symbols[bot_type] = sorted(recent - chronic)
       winners = await get_proven_winner_symbols(session, bot_type)
       if winners:
         proven_winner_symbols[bot_type] = sorted(winners)
@@ -210,6 +289,7 @@ async def build_gate_ws_payload(session: AsyncSession) -> dict[str, Any]:
       "max_stocks_open_positions": gate_tightening.max_stocks_open_positions,
       "blocked_new_entries": sorted(gate_tightening.blocked_new_entries),
       "chronic_loser_symbols": chronic_loser_symbols,
+      "recent_loser_symbols": recent_loser_symbols,
       "proven_winner_symbols": proven_winner_symbols,
       "stocks_proven_winners_only": bool(
         gate_tightening.active and proven_winner_symbols.get("stocks_futures")

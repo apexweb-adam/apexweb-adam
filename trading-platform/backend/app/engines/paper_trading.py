@@ -120,6 +120,8 @@ class PaperTradingEngine:
           settings.polymarket_max_position_pct,
         ),
       )
+      if loss_streak >= 3:
+        position_value *= 0.5
     quantity = position_value / price if price > 0 else 0
     if quantity <= 0 or position_value > portfolio.balance:
       return None
