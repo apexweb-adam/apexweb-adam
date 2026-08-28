@@ -3,5 +3,10 @@
   "installCommand": "npm ci",
   "framework": "nextjs",
   "rootDirectory": "trading-platform/dashboard",
-  "ignoreCommand": "git diff --quiet HEAD^ HEAD -- trading-platform/dashboard vercel.json .github/workflows/deploy-trading-platform.yml"
+  "ignoreCommand": "git diff --quiet HEAD^ HEAD -- trading-platform/dashboard vercel.json .github/workflows/deploy-trading-platform.yml",
+  "git": {
+    "deploymentEnabled": {
+      "main": false
+    }
+  }
 }
