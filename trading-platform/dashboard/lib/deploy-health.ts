@@ -12,4 +12,5 @@ export const DASHBOARD_FEATURES = {
   proxyGateEnrichment: true,
   intelRouting: true,
   equityChart: true,
+  verificationProgress: true,
 } as const;
