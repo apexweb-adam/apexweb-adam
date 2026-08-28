@@ -12,6 +12,7 @@ from app.engines.gate_entry_guard import (
   get_gate_entry_tightening,
   get_gate_skip_symbols,
   get_proven_winner_symbols,
+  shadow_min_signal_boost,
   stocks_gate_entry_sentiment_ok,
   stocks_in_us_session,
 )
@@ -106,8 +107,8 @@ class BaseBot(ABC):
       from app.engines.gate_entry_guard import (
         SHADOW_MAX_OPEN,
         SHADOW_MIN_SENTIMENT_BOOST,
-        SHADOW_MIN_SIGNAL_BOOST,
         SHADOW_POSITION_SCALE,
+        shadow_min_signal_boost,
       )
       from app.engines.platform_settings import is_bot_paused
 
@@ -132,9 +133,10 @@ class BaseBot(ABC):
       else:
         symbols = held_symbols
       loss_streak = await engine.get_consecutive_losses()
+      early_verification_boost = False
       min_signal = strategy.min_signal_score
       if shadow_mode:
-        min_signal = min(0.95, min_signal + SHADOW_MIN_SIGNAL_BOOST)
+        min_signal = min(0.95, min_signal + shadow_min_signal_boost(self.bot_type))
       if gate_tightening.active and self.bot_type != "stocks_futures":
         min_signal = min(0.95, min_signal + gate_tightening.min_composite_boost)
       if loss_streak >= 3:
@@ -158,6 +160,7 @@ class BaseBot(ABC):
         if active_trades < 30 and active_wr >= ProfitabilityGate.MIN_WIN_RATE:
           min_signal = max(0.08, min_signal - 0.04)
           min_sentiment = max(0.0, min_sentiment - 0.03)
+          early_verification_boost = True
       shadow_open_cap = SHADOW_MAX_OPEN.get(self.bot_type) if shadow_mode else None
       strategy_params = {
         "rsi_oversold": strategy.rsi_oversold,
@@ -308,7 +311,7 @@ class BaseBot(ABC):
           gate_tightening.active
           and gate_tightening.require_macd_bullish
           and self.bot_type == "commodities"
-        )
+        ) or (shadow_mode and self.bot_type == "commodities")
         if macd_required and signal.macd_signal != "bullish":
           continue
 
@@ -364,6 +367,14 @@ class BaseBot(ABC):
           volume_required = (
             signal.volume_confirmed
             or integration_boost > 0.03
+            or bool(integration_reason and "tradingview" in integration_reason.lower())
+          )
+        if early_verification_boost and self.bot_type == "stocks_futures":
+          volume_required = (
+            signal.volume_confirmed
+            or composite >= entry_min_signal + 0.03
+            or integration_boost > 0.02
+            or signal.macd_signal == "bullish"
             or bool(integration_reason and "tradingview" in integration_reason.lower())
           )
 
@@ -631,8 +642,8 @@ class PolymarketBot(BaseBot):
         from app.engines.gate_entry_guard import (
           SHADOW_MAX_OPEN,
           SHADOW_MIN_SENTIMENT_BOOST,
-          SHADOW_MIN_SIGNAL_BOOST,
           SHADOW_POSITION_SCALE,
+          shadow_min_signal_boost,
         )
         from app.engines.platform_settings import is_bot_paused
 
@@ -647,7 +658,7 @@ class PolymarketBot(BaseBot):
         )
         min_score = strategy.min_signal_score
         if shadow_mode:
-          min_score = min(0.95, min_score + SHADOW_MIN_SIGNAL_BOOST)
+          min_score = min(0.95, min_score + shadow_min_signal_boost(self.bot_type))
         if gate_tightening.active:
           min_score = min(0.95, min_score + gate_tightening.min_composite_boost)
         min_sentiment = max(

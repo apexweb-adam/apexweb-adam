@@ -1,6 +1,16 @@
 """Tests for gate entry tightening helpers."""
 
-from app.engines.gate_entry_guard import GateEntryTightening, bot_min_sentiment
+from app.engines.gate_entry_guard import (
+  GateEntryTightening,
+  bot_min_sentiment,
+  shadow_min_signal_boost,
+)
+
+
+def test_shadow_min_signal_boost_per_bot():
+  assert shadow_min_signal_boost("commodities") > shadow_min_signal_boost("stocks_futures")
+  assert shadow_min_signal_boost("crypto") >= 0.12
+  assert shadow_min_signal_boost("unknown_bot") == 0.10
 
 
 def test_bot_min_sentiment_inactive():
