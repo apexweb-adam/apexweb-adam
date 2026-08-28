@@ -43,9 +43,13 @@ def extract_symbols(text: str) -> str:
   found: list[str] = []
   symbol_map = {
     "bitcoin": "BTC", "btc": "BTC", "ethereum": "ETH", "eth": "ETH",
-    "solana": "SOL", "sol": "SOL", "doge": "DOGE", "pepe": "PEPE",
+    "solana": "SOL", "sol": "SOL", "doge": "DOGE", "dogecoin": "DOGE",
+    "pepe": "PEPE", "shib": "SHIB", "shiba": "SHIB", "bonk": "BONK",
+    "wif": "WIF", "dogwifhat": "WIF", "floki": "FLOKI", "neiro": "NEIRO",
+    "trump": "TRUMP", "memecoin": "MEME", "meme": "MEME", "pnut": "PNUT",
+    "people": "PEOPLE", "hyperliquid": "SOL",
     "nvidia": "NVDA", "apple": "AAPL", "tesla": "TSLA", "gold": "GC",
-    "silver": "SI", "oil": "CL", "trump": "POLITICAL",
+    "silver": "SI", "oil": "CL",
   }
   for keyword, symbol in symbol_map.items():
     if keyword in text_lower and symbol not in found:
@@ -143,7 +147,10 @@ class IntelligenceScanner:
 
   async def _scan_reddit_api(self) -> int:
     count = 0
-    subreddits = ["cryptocurrency", "wallstreetbets", "CryptoMarkets", "StockMarket", "politics"]
+    subreddits = [
+      "cryptocurrency", "wallstreetbets", "CryptoMarkets", "StockMarket", "politics",
+      "solana", "memecoin", "memecoins", "SatoshiStreetBets",
+    ]
     headers = await self._reddit_headers()
     async with httpx.AsyncClient(timeout=15) as client:
       for sub in subreddits:

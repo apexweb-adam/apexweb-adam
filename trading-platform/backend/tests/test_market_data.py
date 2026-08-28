@@ -30,9 +30,12 @@ def test_fetch_crypto_data_yahoo_fallback_when_binance_blocked():
       "app.engines.market_data.fetch_binance",
       new=AsyncMock(return_value=(0.0, None)),
     ), patch(
+      "app.engines.market_data.settings"
+    ) as mock_settings, patch(
       "app.engines.market_data.fetch_yahoo_crypto",
       new=AsyncMock(return_value=(105.32, object())),
     ) as yahoo:
+      mock_settings.hyperliquid_enabled = False
       price, df = await fetch_crypto_data("SOLUSDT", "15m")
       assert price == 105.32
       assert df is not None

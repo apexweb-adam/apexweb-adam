@@ -22,6 +22,8 @@ BOT_SOURCE_WEIGHTS: dict[str, dict[str, float]] = {
     "tradingview": 1.1,
     "polymarket_account": 0.5,
     "wallet_tracker": 1.45,
+    "dexscreener": 1.55,
+    "hyperliquid": 1.35,
   },
   "stocks_futures": {
     "news": 1.25,
@@ -96,6 +98,21 @@ def _symbol_aliases(symbol: str) -> set[str]:
     aliases.update({"GOLD", "GC", "XAU", "GC=F", "XAUUSDT", "PAXGUSDT"})
   if clean in ("OIL", "CL", "CRUDE"):
     aliases.update({"OIL", "CL", "CRUDE", "CL=F", "WTI"})
+  memecoin_map = {
+    "DOGE": ("DOGE", "DOGECOIN", "DOGEUSDT"),
+    "PEPE": ("PEPE", "PEPEUSDT"),
+    "SHIB": ("SHIB", "SHIBA", "SHIBUSDT"),
+    "WIF": ("WIF", "DOGWIFHAT", "WIFUSDT"),
+    "BONK": ("BONK", "BONKUSDT"),
+    "FLOKI": ("FLOKI", "FLOKIUSDT"),
+    "TRUMP": ("TRUMP", "TRUMPUSDT"),
+    "MEME": ("MEME", "MEMECOIN", "MEMEUSDT"),
+    "NEIRO": ("NEIRO", "NEIROUSDT"),
+    "PNUT": ("PNUT", "PNUTUSDT"),
+    "PEOPLE": ("PEOPLE", "PEOPLEUSDT"),
+  }
+  if clean in memecoin_map:
+    aliases.update(memecoin_map[clean])
   return aliases
 
 

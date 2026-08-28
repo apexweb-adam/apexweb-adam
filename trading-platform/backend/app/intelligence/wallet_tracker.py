@@ -9,6 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
+from app.intelligence.memecoin_whales import DEFAULT_ETH_WHALE_ADDRESSES
 from app.intelligence.scanner import (
   analyze_sentiment,
   categorize,
@@ -34,12 +35,8 @@ _TOKEN_SYMBOL_MAP = {
   "STETH": "ETH",
 }
 
-# Public on-chain wallets commonly tracked for market-moving flows (opt-in via settings).
-DEFAULT_WHALE_ADDRESSES = (
-  "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045",  # vitalik.eth
-  "0x171e6ba0f64ccc9fe7dafbea59f35bafbcdafe94",  # Wintermute
-  "0x47ac0Fb4F2D84898e4D9E7fE6e9230db20AEad85",  # Binance-Peg hot wallet
-)
+# Re-export for tests and backwards compatibility.
+DEFAULT_WHALE_ADDRESSES = DEFAULT_ETH_WHALE_ADDRESSES
 
 
 def parse_wallet_addresses(raw: str) -> list[str]:
@@ -52,13 +49,18 @@ def tracked_wallet_addresses() -> list[str]:
   if custom:
     return custom
   if settings.wallet_tracker_use_defaults:
-    return [a.lower() for a in DEFAULT_WHALE_ADDRESSES]
+    return [a.lower() for a in DEFAULT_ETH_WHALE_ADDRESSES]
   return []
 
 
 def wallet_tracker_configured() -> bool:
-  return bool(parse_wallet_addresses(settings.wallet_tracker_addresses)) or (
-    settings.wallet_tracker_use_defaults and bool(DEFAULT_WHALE_ADDRESSES)
+  from app.intelligence.solana_wallet_tracker import tracked_solana_addresses
+
+  return (
+    bool(parse_wallet_addresses(settings.wallet_tracker_addresses))
+    or (settings.wallet_tracker_use_defaults and bool(DEFAULT_ETH_WHALE_ADDRESSES))
+    or bool(tracked_solana_addresses())
+    or bool(settings.helius_api_key)
   )
 
 

@@ -15,6 +15,10 @@ YOUTUBE_IMPACT_PATTERNS: list[tuple[tuple[str, ...], str, float]] = [
   (("volume", "breakout"), "Require volume confirmation on breakout entries", 0.8),
   (("revenge", "psychology", "discipline"), "After loss streaks raise signal threshold and halve position size", 0.85),
   (("polymarket", "prediction market"), "Weight Polymarket intel for event-driven setups", 0.7),
+  (("memecoin", "pump"), "Tighten memecoin entries: require volume + social confirmation; cut fast on -3%", 0.88),
+  (("solana", "meme"), "Boost sentiment weight for SOL memecoins; track DexScreener + whale wallets", 0.86),
+  (("hyperliquid", "perp"), "Use HL funding rate as contrarian signal; favor momentum on kPEPE/WIF/BONK", 0.84),
+  (("pump.fun", "degen"), "Never chase illiquid launches; min liquidity gate before entry", 0.9),
   (("day trad", "scalp"), "Focus on higher signal scores during day-trading sessions", 0.72),
 ]
 
@@ -90,6 +94,22 @@ TRADING_KNOWLEDGE_BASE = [
     "url": "https://www.reddit.com/r/Daytrading/wiki/index",
     "takeaways": "Volume confirms price action. Low volume breakouts are unreliable. Always check volume.",
     "impact": "Add volume confirmation requirement to entry signals.",
+    "confidence": 0.8,
+  },
+  {
+    "source_type": "youtube",
+    "title": "Solana Memecoin Trading - Pump.fun & DexScreener",
+    "url": "https://www.youtube.com/results?search_query=solana+memecoin+trading+pump.fun",
+    "takeaways": "Track whale wallets and DexScreener boosts. Cut losers fast; memecoins move in minutes not hours.",
+    "impact": "Increase sentiment weight for crypto on social/whale signals. Tighten stop-loss on memecoin pairs.",
+    "confidence": 0.82,
+  },
+  {
+    "source_type": "youtube",
+    "title": "Hyperliquid Perps Trading Guide",
+    "url": "https://www.youtube.com/results?search_query=hyperliquid+perpetual+trading",
+    "takeaways": "HL perps offer leverage on memecoins. Watch funding rates and 24h momentum before entries.",
+    "impact": "Weight Hyperliquid intel for crypto entries on WIF/PEPE/BONK. Use funding as contrarian filter.",
     "confidence": 0.8,
   },
 ]

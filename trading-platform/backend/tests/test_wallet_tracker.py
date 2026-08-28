@@ -25,20 +25,25 @@ def test_tracked_wallet_addresses_custom_overrides_defaults():
 
 
 def test_tracked_wallet_addresses_defaults_when_enabled():
-  from app.intelligence.wallet_tracker import DEFAULT_WHALE_ADDRESSES, tracked_wallet_addresses
+  from app.intelligence.memecoin_whales import DEFAULT_ETH_WHALE_ADDRESSES
+  from app.intelligence.wallet_tracker import tracked_wallet_addresses
 
   with patch("app.intelligence.wallet_tracker.settings") as mock_settings:
     mock_settings.wallet_tracker_addresses = ""
     mock_settings.wallet_tracker_use_defaults = True
-    assert tracked_wallet_addresses() == [a.lower() for a in DEFAULT_WHALE_ADDRESSES]
+    assert tracked_wallet_addresses() == [a.lower() for a in DEFAULT_ETH_WHALE_ADDRESSES]
 
 
 def test_wallet_tracker_configured():
   from app.intelligence.wallet_tracker import wallet_tracker_configured
 
-  with patch("app.intelligence.wallet_tracker.settings") as mock_settings:
+  with patch("app.intelligence.wallet_tracker.settings") as mock_settings, patch(
+    "app.intelligence.solana_wallet_tracker.tracked_solana_addresses",
+    return_value=[],
+  ):
     mock_settings.wallet_tracker_addresses = ""
     mock_settings.wallet_tracker_use_defaults = True
+    mock_settings.helius_api_key = ""
     assert wallet_tracker_configured() is True
     mock_settings.wallet_tracker_use_defaults = False
     assert wallet_tracker_configured() is False

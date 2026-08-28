@@ -34,7 +34,9 @@ YOUTUBE_CHANNELS = [
 
 X_SEARCH_QUERIES = [
   "bitcoin OR btc OR crypto",
-  "solana OR memecoin OR pepe",
+  "solana OR memecoin OR pepe OR bonk OR wif",
+  "pump.fun OR sol memecoin OR degen",
+  "hyperliquid OR HL perp OR perps",
   "stock market OR nasdaq OR sp500",
   "trump tariff OR fed rate OR inflation",
   "gold price OR oil price OR commodities",
@@ -95,8 +97,12 @@ class ExtendedIntelligenceScanner(IntelligenceScanner):
     elif settings.newsapi_key:
       count += await self._scan_x_social_news_fallback()
     from app.intelligence.wallet_tracker import scan_wallet_tracker
+    from app.intelligence.solana_wallet_tracker import scan_solana_wallets
+    from app.intelligence.memecoin_scanner import scan_memecoin_intel
 
     count += await scan_wallet_tracker(self.session)
+    count += await scan_solana_wallets(self.session)
+    count += await scan_memecoin_intel(self.session)
     await self.session.commit()
     return count
 

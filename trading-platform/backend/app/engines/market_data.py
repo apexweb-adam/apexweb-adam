@@ -22,6 +22,9 @@ COINGECKO_IDS = {
   "SHIBUSDT": "shiba-inu",
   "WIFUSDT": "dogwifcoin",
   "BONKUSDT": "bonk",
+  "FLOKIUSDT": "floki",
+  "TRUMPUSDT": "official-trump",
+  "MEMEUSDT": "memecoin-2",
   "PAXGUSDT": "pax-gold",
   "XAUUSDT": "pax-gold",
 }
@@ -42,6 +45,9 @@ YAHOO_CRYPTO_SYMBOLS = {
   "SHIBUSDT": "SHIB-USD",
   "WIFUSDT": "WIF-USD",
   "BONKUSDT": "BONK-USD",
+  "FLOKIUSDT": "FLOKI-USD",
+  "TRUMPUSDT": "TRUMP-USD",
+  "MEMEUSDT": "MEME-USD",
   "PAXGUSDT": "PAXG-USD",
   "XAUUSDT": "GC=F",
 }
@@ -163,6 +169,17 @@ async def fetch_crypto_data(symbol: str, interval: str = "5m") -> tuple[float, p
   price, df = await fetch_binance(symbol, interval)
   if price > 0 and df is not None and len(df) >= 30:
     return price, df
+
+  if settings.hyperliquid_enabled:
+    from app.engines.hyperliquid_data import fetch_hyperliquid_for_symbol
+
+    hl_price, hl_df = await fetch_hyperliquid_for_symbol(symbol, interval)
+    if hl_price > 0 and hl_df is not None and len(hl_df) >= 30:
+      _price_cache[symbol] = hl_price
+      return hl_price, hl_df
+    if hl_price > 0:
+      _price_cache[symbol] = hl_price
+      return hl_price, generate_synthetic_ohlcv(hl_price)
 
   yahoo_price, yahoo_df = await fetch_yahoo_crypto(symbol, interval)
   if yahoo_price > 0:

@@ -539,6 +539,8 @@ async def get_platform_status(db: AsyncSession = Depends(get_db)) -> dict[str, A
       "twitter_x": bool(settings.twitter_bearer_token),
       "reddit_oauth": bool(settings.reddit_client_id and settings.reddit_client_secret),
       "wallet_tracker": wallet_tracker_configured(),
+      "hyperliquid_enabled": settings.hyperliquid_enabled,
+      "hyperliquid_perps": "kPEPE,kBONK,WIF,DOGE,MEME,TRUMP,SOL",
       "wallet_tracker_webhook": bool(settings.tradingview_webhook_secret),
       "wallet_tracker_webhook_url": (
         "https://apex-trading-backend.onrender.com/api/webhooks/wallet"
