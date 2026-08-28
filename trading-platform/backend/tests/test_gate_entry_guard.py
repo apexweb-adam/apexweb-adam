@@ -89,6 +89,48 @@ def test_shadow_intel_composite_override_commodities_nudge():
   ) is False
 
 
+def test_shadow_intel_composite_override_crypto_nudge():
+  assert shadow_intel_composite_override(
+    "crypto",
+    graduation_nudge=True,
+    shadow_mode=True,
+    composite=0.36,
+    entry_min_signal=0.26,
+    integration_boost=0.14,
+  ) is True
+  assert shadow_intel_composite_override(
+    "crypto",
+    graduation_nudge=True,
+    shadow_mode=True,
+    composite=0.30,
+    entry_min_signal=0.26,
+    integration_boost=0.14,
+  ) is False
+
+
+def test_shadow_requires_macd_crypto_nudge_off():
+  assert shadow_requires_macd(
+    "crypto",
+    bot_win_rate=0.46,
+    gate_tightening=GateEntryTightening(
+      active=False,
+      win_rate=1.0,
+      min_sentiment=0.0,
+      require_macd_bullish=False,
+      min_composite_boost=0.0,
+    ),
+    shadow_mode=True,
+  ) is False
+
+
+def test_early_verification_index_etf_entry_min_signal():
+  from app.engines.gate_entry_guard import early_verification_index_etf_entry_min_signal
+
+  assert early_verification_index_etf_entry_min_signal("SPY", 0.21, early_boost=True) == 0.29
+  assert early_verification_index_etf_entry_min_signal("NVDA", 0.21, early_boost=True) == 0.21
+  assert early_verification_index_etf_entry_min_signal("SPY", 0.21, early_boost=False) == 0.21
+
+
 def test_bot_min_sentiment_inactive():
   tightening = GateEntryTightening(
     active=False,
