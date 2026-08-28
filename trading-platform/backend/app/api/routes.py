@@ -642,7 +642,7 @@ async def websocket_endpoint(websocket: WebSocket):
 @router.post("/admin/apply-risk-migrations")
 async def apply_risk_migrations(payload: dict[str, Any], db: AsyncSession = Depends(get_db)):
   """Apply Polymarket strategy caps and trim oversized positions (requires webhook secret)."""
-  from app.engines.gate_entry_guard import sync_gate_bot_pauses
+  from app.engines.gate_entry_guard import sync_gate_bot_pauses, sync_gate_recovery_rotation
   from app.engines.strategy_migration import (
     adapt_for_gate_win_rate,
     clamp_verification_strategy_params,
@@ -662,6 +662,7 @@ async def apply_risk_migrations(payload: dict[str, Any], db: AsyncSession = Depe
     return {"status": "unauthorized"}
 
   gate_paused = await sync_gate_bot_pauses(db)
+  gate_rotation = await sync_gate_recovery_rotation(db)
   clamped = await clamp_verification_strategy_params(db)
   gate_adapted = await adapt_for_gate_win_rate(db)
   strategy_updated = await ensure_polymarket_strategy(db)
@@ -676,6 +677,7 @@ async def apply_risk_migrations(payload: dict[str, Any], db: AsyncSession = Depe
   return {
     "status": "ok",
     "gate_paused": gate_paused,
+    "gate_rotation": gate_rotation,
     "strategies_clamped": clamped,
     "gate_adapted": gate_adapted,
     "strategy_updated": strategy_updated,
@@ -800,7 +802,7 @@ async def set_bot_paused_admin(payload: dict[str, Any], db: AsyncSession = Depen
 @router.post("/admin/sync-gate-pauses")
 async def sync_gate_pauses_admin(payload: dict[str, Any], db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
   """Pause chronic underperformers when aggregate gate WR is below target (requires webhook secret)."""
-  from app.engines.gate_entry_guard import sync_gate_bot_pauses
+  from app.engines.gate_entry_guard import sync_gate_bot_pauses, sync_gate_recovery_rotation
   from app.engines.profitability_gate import ProfitabilityGate
 
   secret = payload.get("secret", "")
@@ -808,10 +810,12 @@ async def sync_gate_pauses_admin(payload: dict[str, Any], db: AsyncSession = Dep
     return {"status": "unauthorized"}
 
   paused = await sync_gate_bot_pauses(db)
+  gate_rotation = await sync_gate_recovery_rotation(db)
   gate = await ProfitabilityGate(db).evaluate()
   return {
     "status": "ok",
     "gate_paused": paused,
+    "gate_rotation": gate_rotation,
     "win_rate": gate.get("win_rate"),
     "total_trades": gate.get("total_trades"),
     "paused_bots": gate.get("paused_bots"),

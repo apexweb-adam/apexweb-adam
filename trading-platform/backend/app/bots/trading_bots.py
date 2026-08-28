@@ -223,10 +223,18 @@ class BaseBot(ABC):
           )
           min_sentiment = max(0.0, min_sentiment - EARLY_VERIFICATION_SENTIMENT_EASE)
           early_verification_boost = True
-      shadow_open_cap = SHADOW_MAX_OPEN.get(self.bot_type) if shadow_mode else None
       graduation_nudge = in_shadow_graduation_nudge(
         self.bot_type,
         shadow_bot_wr,
+        profit_factor=per_bot_stats.get("profit_factor"),
+        total_pnl=per_bot_stats.get("total_pnl"),
+      )
+      from app.engines.gate_entry_guard import shadow_max_open_for_bot
+
+      shadow_open_cap = shadow_max_open_for_bot(
+        self.bot_type,
+        shadow_mode=shadow_mode,
+        bot_win_rate=shadow_bot_wr,
         profit_factor=per_bot_stats.get("profit_factor"),
         total_pnl=per_bot_stats.get("total_pnl"),
       )
