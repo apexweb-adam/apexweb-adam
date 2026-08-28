@@ -13,8 +13,37 @@ COINGECKO_IDS = {
   "SOLUSDT": "solana",
   "DOGEUSDT": "dogecoin",
   "PEPEUSDT": "pepe",
+  "BNBUSDT": "binancecoin",
+  "XRPUSDT": "ripple",
+  "ADAUSDT": "cardano",
+  "AVAXUSDT": "avalanche-2",
+  "LINKUSDT": "chainlink",
+  "MATICUSDT": "matic-network",
+  "SHIBUSDT": "shiba-inu",
+  "WIFUSDT": "dogwifcoin",
+  "BONKUSDT": "bonk",
   "PAXGUSDT": "pax-gold",
   "XAUUSDT": "pax-gold",
+}
+
+# Yahoo Finance tickers — primary fallback when Binance is geo-blocked (e.g. Render US)
+YAHOO_CRYPTO_SYMBOLS = {
+  "BTCUSDT": "BTC-USD",
+  "ETHUSDT": "ETH-USD",
+  "SOLUSDT": "SOL-USD",
+  "DOGEUSDT": "DOGE-USD",
+  "PEPEUSDT": "PEPE-USD",
+  "BNBUSDT": "BNB-USD",
+  "XRPUSDT": "XRP-USD",
+  "ADAUSDT": "ADA-USD",
+  "AVAXUSDT": "AVAX-USD",
+  "LINKUSDT": "LINK-USD",
+  "MATICUSDT": "MATIC-USD",
+  "SHIBUSDT": "SHIB-USD",
+  "WIFUSDT": "WIF-USD",
+  "BONKUSDT": "BONK-USD",
+  "PAXGUSDT": "PAXG-USD",
+  "XAUUSDT": "GC=F",
 }
 
 _price_cache: dict[str, float] = {}
@@ -114,18 +143,43 @@ async def fetch_coingecko(symbol: str) -> tuple[float, pd.DataFrame | None]:
     return 0.0, None
 
 
+async def fetch_yahoo_crypto(symbol: str, interval: str = "15m") -> tuple[float, pd.DataFrame | None]:
+  """Fetch crypto via Yahoo chart API — works when Binance is geo-blocked."""
+  yahoo_symbol = YAHOO_CRYPTO_SYMBOLS.get(symbol)
+  if not yahoo_symbol:
+    return 0.0, None
+
+  range_ = "5d" if interval in ("5m", "15m") else "1mo"
+  price, df = await fetch_yahoo_chart(yahoo_symbol, interval=interval, range_=range_)
+  if price > 0:
+    _price_cache[symbol] = price
+    if df is not None and len(df) >= 30:
+      return price, df
+    return price, generate_synthetic_ohlcv(price)
+  return 0.0, None
+
+
 async def fetch_crypto_data(symbol: str, interval: str = "5m") -> tuple[float, pd.DataFrame | None]:
   price, df = await fetch_binance(symbol, interval)
   if price > 0 and df is not None and len(df) >= 30:
     return price, df
 
-  price, df = await fetch_coingecko(symbol)
-  if price > 0 and df is not None:
-    return price, df
+  yahoo_price, yahoo_df = await fetch_yahoo_crypto(symbol, interval)
+  if yahoo_price > 0:
+    return yahoo_price, yahoo_df
+
+  cg_price, cg_df = await fetch_coingecko(symbol)
+  if cg_price > 0:
+    if cg_df is not None and len(cg_df) >= 30:
+      return cg_price, cg_df
+    return cg_price, generate_synthetic_ohlcv(cg_price)
+
+  if price > 0:
+    return price, generate_synthetic_ohlcv(price)
 
   cached = _price_cache.get(symbol, 0)
   if cached > 0:
-    return cached, None
+    return cached, generate_synthetic_ohlcv(cached)
 
   return 0.0, None
 
