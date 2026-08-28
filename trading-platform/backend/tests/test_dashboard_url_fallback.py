@@ -17,7 +17,8 @@ def test_verified_candidates_probe_configured_first():
   ):
     candidates = deploy_status.verified_dashboard_candidates()
   assert candidates[0] == "https://example-verified.vercel.app"
-  assert candidates[-1] == "https://apex-trading-dashboard-git-main-apexweb-adams-projects.vercel.app"
+  assert "https://apex-trading-dashboard-git-main-apexweb-adams-projects.vercel.app" in candidates
+  assert candidates[-1] == "https://apex-trading-dashboard-apexweb-adams-projects.vercel.app"
 
 
 def test_discover_skips_stale_git_main_when_configured_is_newer():

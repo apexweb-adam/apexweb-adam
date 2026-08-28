@@ -1,7 +1,7 @@
 """Tests for stocks bot US session gating."""
 
 from datetime import datetime
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 from app.bots.trading_bots import StocksFuturesBot
 from app.engines.gate_entry_guard import (
@@ -56,12 +56,23 @@ def test_stocks_bot_faster_scan_during_gated_us_session():
   )
 
   async def _run():
-    with patch("app.bots.trading_bots.stocks_in_us_session", return_value=True):
-      with patch(
-        "app.bots.trading_bots.get_gate_entry_tightening",
-        return_value=tightening,
-      ):
-        assert await bot._effective_scan_interval() == 15
+    mock_session = AsyncMock()
+    mock_cm = AsyncMock()
+    mock_cm.__aenter__.return_value = mock_session
+    mock_cm.__aexit__.return_value = None
+
+    with patch("app.bots.trading_bots.SessionLocal", return_value=mock_cm):
+      with patch("app.bots.trading_bots.stocks_in_us_session", return_value=True):
+        with patch(
+          "app.engines.profitability_gate.ProfitabilityGate",
+        ) as MockGate:
+          MockGate.MIN_TRADES = 100
+          MockGate.return_value.evaluate = AsyncMock(return_value={"total_trades": 100})
+          with patch(
+            "app.bots.trading_bots.get_gate_entry_tightening",
+            return_value=tightening,
+          ):
+            assert await bot._effective_scan_interval() == 15
 
   import asyncio
 

@@ -38,7 +38,7 @@ jobs:
               preview = os.environ.get("VERIFIED_PREVIEW", "")
               print(f"::warning::Production Vercel bundle stale (rev={cfg.get('bundleRevision')!r})")
               print(f"::warning::Use verified preview until promote: {preview}")
-              print("::warning::Promote dpl_29H1cYhLuLb1wN7L3HJD9yizZ8pL or add VERCEL_TOKEN secret")
+              print("::warning::Promote dpl_9cVRxRBgcHVStS2A35ZmPFbwrZTS or add VERCEL_TOKEN secret")
           PY
           echo "Checking $DASHBOARD/api/config ..."
           curl -fsS "$DASHBOARD/api/config" | python3 -c "import json,sys; d=json.load(sys.stdin); assert d.get('apiUrl'), 'missing apiUrl'"
@@ -188,7 +188,7 @@ jobs:
           NATIVE=$(curl -fsS -o /dev/null -w "%{http_code}" "$PROD/api/active-gate" || echo "000")
           PREVIEW="${VERIFIED_PREVIEW}"
           if [[ "$NATIVE" != "200" ]]; then
-            echo "::warning::Production /api/active-gate is $NATIVE — promote dpl_29H1cYhLuLb1wN7L3HJD9yizZ8pL"
+            echo "::warning::Production /api/active-gate is $NATIVE — promote dpl_9cVRxRBgcHVStS2A35ZmPFbwrZTS"
             PREVIEW_NATIVE=$(curl -fsS -o /dev/null -w "%{http_code}" "$PREVIEW/api/active-gate" || echo "000")
             echo "Verified preview /api/active-gate HTTP $PREVIEW_NATIVE ($PREVIEW)"
             if [[ "$PREVIEW_NATIVE" != "200" ]]; then
