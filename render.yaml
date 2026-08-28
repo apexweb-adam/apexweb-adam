@@ -51,3 +51,5 @@ services:
         value: "2026-08-28-r95"
       - key: DISABLE_AUTO_REDEPLOY
         value: "true"
+      - key: ALLOW_STALE_API_REDEPLOY
+        value: "true"
