@@ -36,6 +36,29 @@ UNDERPERFORMER_MIN_TRADES = 15
 UNDERPERFORMER_MAX_WIN_RATE = 0.40
 CHRONIC_LOSER_MIN_TRADES = 3
 CHRONIC_LOSER_MAX_WIN_RATE = 0.35
+PROVEN_WINNER_MIN_TRADES = 2
+PROVEN_WINNER_MIN_WIN_RATE = 0.50
+
+
+async def _symbol_trade_stats(session: AsyncSession, bot_type: str) -> dict[str, dict[str, int]]:
+  from app.models.entities import Trade
+
+  result = await session.execute(
+    select(Trade.symbol, Trade.is_winner).where(
+      Trade.bot_type == bot_type,
+      Trade.action == "sell",
+    )
+  )
+  stats: dict[str, dict[str, int]] = {}
+  for symbol, is_winner in result.all():
+    if not symbol:
+      continue
+    bucket = stats.setdefault(symbol, {"wins": 0, "losses": 0})
+    if is_winner is True:
+      bucket["wins"] += 1
+    elif is_winner is False:
+      bucket["losses"] += 1
+  return stats
 
 
 async def get_underperforming_bots(session: AsyncSession) -> frozenset[str]:
@@ -60,23 +83,7 @@ async def get_chronic_loser_symbols(
   max_win_rate: float = CHRONIC_LOSER_MAX_WIN_RATE,
 ) -> frozenset[str]:
   """Symbols with enough closed trades and poor win rate — skip new entries during gate."""
-  from app.models.entities import Trade
-
-  result = await session.execute(
-    select(Trade.symbol, Trade.is_winner).where(
-      Trade.bot_type == bot_type,
-      Trade.action == "sell",
-    )
-  )
-  stats: dict[str, dict[str, int]] = {}
-  for symbol, is_winner in result.all():
-    if not symbol:
-      continue
-    bucket = stats.setdefault(symbol, {"wins": 0, "losses": 0})
-    if is_winner is True:
-      bucket["wins"] += 1
-    elif is_winner is False:
-      bucket["losses"] += 1
+  stats = await _symbol_trade_stats(session, bot_type)
 
   blocked: set[str] = set()
   for symbol, counts in stats.items():
@@ -86,6 +93,26 @@ async def get_chronic_loser_symbols(
     if counts["wins"] / decided < max_win_rate:
       blocked.add(symbol)
   return frozenset(blocked)
+
+
+async def get_proven_winner_symbols(
+  session: AsyncSession,
+  bot_type: str,
+  *,
+  min_trades: int = PROVEN_WINNER_MIN_TRADES,
+  min_win_rate: float = PROVEN_WINNER_MIN_WIN_RATE,
+) -> frozenset[str]:
+  """Symbols with strong historical win rate — easier entries during gate."""
+  stats = await _symbol_trade_stats(session, bot_type)
+
+  winners: set[str] = set()
+  for symbol, counts in stats.items():
+    decided = counts["wins"] + counts["losses"]
+    if decided < min_trades:
+      continue
+    if counts["wins"] / decided >= min_win_rate:
+      winners.add(symbol)
+  return frozenset(winners)
 
 
 async def bot_allows_new_entries(session: AsyncSession, bot_type: str) -> bool:
