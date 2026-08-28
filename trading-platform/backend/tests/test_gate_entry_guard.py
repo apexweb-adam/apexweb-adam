@@ -201,6 +201,45 @@ def test_stocks_negative_pf_blocks_entry():
   ) is False
 
 
+def test_graduation_nudge_easing_active_for_active_commodities():
+  from app.engines.gate_entry_guard import (
+    graduation_nudge_easing_active,
+    hard_skip_blocks_shadow_entry,
+    shadow_intel_composite_override,
+  )
+
+  assert graduation_nudge_easing_active(
+    "commodities",
+    graduation_nudge=True,
+    shadow_mode=False,
+  )
+  assert not graduation_nudge_easing_active(
+    "crypto",
+    graduation_nudge=True,
+    shadow_mode=False,
+  )
+  assert shadow_intel_composite_override(
+    "commodities",
+    graduation_nudge=True,
+    shadow_mode=False,
+    composite=0.50,
+    entry_min_signal=0.31,
+    integration_boost=0.0,
+  )
+  assert not hard_skip_blocks_shadow_entry(
+    "SI=F",
+    bot_type="commodities",
+    recent_skip=frozenset(),
+    large_skip=frozenset({"SI=F"}),
+    review_skip=frozenset(),
+    graduation_nudge=True,
+    shadow_mode=False,
+    intel_override=False,
+    composite=0.50,
+    integration_boost=0.0,
+  )
+
+
 def test_chronic_loser_blocks_shadow_entry_intel_bypass():
   from app.engines.gate_entry_guard import (
     chronic_loser_blocks_shadow_entry,
@@ -210,6 +249,7 @@ def test_chronic_loser_blocks_shadow_entry_intel_bypass():
   assert chronic_loser_blocks_shadow_entry(
     "BTCUSDT",
     frozenset({"BTCUSDT"}),
+    bot_type="crypto",
     graduation_nudge=True,
     shadow_mode=True,
     intel_override=True,
@@ -217,6 +257,7 @@ def test_chronic_loser_blocks_shadow_entry_intel_bypass():
   assert chronic_loser_blocks_shadow_entry(
     "BTCUSDT",
     frozenset({"BTCUSDT"}),
+    bot_type="crypto",
     graduation_nudge=True,
     shadow_mode=True,
     intel_override=False,
@@ -224,6 +265,7 @@ def test_chronic_loser_blocks_shadow_entry_intel_bypass():
   assert chronic_loser_blocks_shadow_entry(
     "NVDA",
     frozenset({"NVDA"}),
+    bot_type="stocks_futures",
     graduation_nudge=False,
     shadow_mode=False,
     intel_override=True,
