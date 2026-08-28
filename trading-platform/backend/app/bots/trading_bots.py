@@ -650,6 +650,7 @@ class BaseBot(ABC):
         if chronic_loser_blocks_shadow_entry(
           symbol,
           chronic_losers,
+          bot_type=self.bot_type,
           graduation_nudge=graduation_nudge,
           shadow_mode=shadow_mode,
           intel_override=intel_override,

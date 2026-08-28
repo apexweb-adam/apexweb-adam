@@ -173,6 +173,20 @@ def bot_win_rate_for_graduation_nudge(
   return None
 
 
+def graduation_nudge_easing_active(
+  bot_type: str,
+  *,
+  graduation_nudge: bool,
+  shadow_mode: bool,
+) -> bool:
+  """Graduation nudge entry easing for shadow bots and active gate commodities."""
+  if not graduation_nudge:
+    return False
+  if shadow_mode:
+    return bot_type in ("crypto", "commodities")
+  return bot_type in ACTIVE_GATE_GRADUATION_NUDGE_BOTS
+
+
 SHADOW_INTEL_COMPOSITE_FLOOR = 0.50
 SHADOW_INTEL_COMPOSITE_FLOOR_BY_BOT = {
   "crypto": 0.32,
@@ -254,7 +268,11 @@ def shadow_intel_composite_override(
   whale_aligned: bool = False,
 ) -> bool:
   """Allow shadow long when intel composite is strong despite technical sell/hold."""
-  if not (graduation_nudge and shadow_mode and bot_type in ("commodities", "crypto")):
+  if not graduation_nudge_easing_active(
+    bot_type,
+    graduation_nudge=graduation_nudge,
+    shadow_mode=shadow_mode,
+  ):
     return False
   composite_floor = SHADOW_INTEL_COMPOSITE_FLOOR_BY_BOT.get(
     bot_type, SHADOW_INTEL_COMPOSITE_FLOOR
@@ -283,6 +301,7 @@ def chronic_loser_blocks_shadow_entry(
   symbol: str,
   chronic_symbols: frozenset[str],
   *,
+  bot_type: str,
   graduation_nudge: bool,
   shadow_mode: bool,
   intel_override: bool,
@@ -290,7 +309,11 @@ def chronic_loser_blocks_shadow_entry(
   """Chronic losers are skippable during graduation nudge when intel override applies."""
   if symbol not in chronic_symbols:
     return False
-  if graduation_nudge and shadow_mode and intel_override:
+  if graduation_nudge_easing_active(
+    bot_type,
+    graduation_nudge=graduation_nudge,
+    shadow_mode=shadow_mode,
+  ) and intel_override:
     return False
   return True
 
@@ -827,16 +850,23 @@ def hard_skip_blocks_shadow_entry(
     bot_type, SHADOW_LARGE_LOSS_BYPASS_COMPOSITE
   )
   if symbol in large_skip:
-    if (
-      graduation_nudge
-      and shadow_mode
-      and composite >= large_bypass_floor
-      and integration_boost >= SHADOW_LARGE_LOSS_BYPASS_INTEGRATION
+    if graduation_nudge_easing_active(
+      bot_type,
+      graduation_nudge=graduation_nudge,
+      shadow_mode=shadow_mode,
     ):
-      return False
+      if composite >= large_bypass_floor and integration_boost >= SHADOW_LARGE_LOSS_BYPASS_INTEGRATION:
+        return False
+      composite_only = SHADOW_INTEL_COMPOSITE_ONLY_BY_BOT.get(bot_type)
+      if composite_only is not None and composite >= composite_only:
+        return False
     return True
   if symbol in recent_skip:
-    if graduation_nudge and shadow_mode and intel_override:
+    if graduation_nudge_easing_active(
+      bot_type,
+      graduation_nudge=graduation_nudge,
+      shadow_mode=shadow_mode,
+    ) and intel_override:
       return False
     return True
   return False
