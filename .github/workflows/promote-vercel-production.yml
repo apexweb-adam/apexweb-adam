@@ -188,3 +188,4 @@ jobs:
               print(f"Production still stale: bundleRevision={cfg.get('bundleRevision')!r}")
           sys.exit(0 if ok else 1)
           PY
+# Trigger workflow to promote r26 deployment
