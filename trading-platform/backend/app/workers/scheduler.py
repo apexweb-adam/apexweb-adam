@@ -281,6 +281,12 @@ async def setup_scheduler() -> None:
   scheduler.add_job(redeploy_check_job, "interval", hours=1, id="redeploy_check")
   scheduler.add_job(
     stocks_pre_session_prep_job,
+    "interval",
+    minutes=15,
+    id="stocks_pre_session_prep_poll",
+  )
+  scheduler.add_job(
+    stocks_pre_session_prep_job,
     "cron",
     hour=13,
     minute=0,
