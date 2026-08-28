@@ -5,6 +5,7 @@ Production backend is often **15+ commits behind** `main` because Render **After
 ## Diagnose
 
 ```bash
+./trading-platform/scripts/verify-platform.sh
 ./trading-platform/scripts/check-github-blockers.sh
 ./trading-platform/scripts/verify-deploy-ready.sh
 curl -s https://apex-trading-backend.onrender.com/api/status | jq '.deploy | {git_commit, latest_main_commit, is_stale, github_checks_blocker, next_steps}'
@@ -43,11 +44,12 @@ curl -s https://apex-trading-backend.onrender.com/api/status | jq '.deploy | {gi
 
 ## After deploy succeeds (r78+)
 
-Verify:
+Render is now on **610e1a6 (r87+)** as of manual deploy. Verify:
 
 ```bash
-curl https://apex-trading-backend.onrender.com/api/status
+./trading-platform/scripts/verify-platform.sh
 curl https://apex-trading-backend.onrender.com/api/dashboard-url
+curl https://apex-trading-backend.onrender.com/api/platform-urls
 ```
 
 Gate auto-pause underperformers:

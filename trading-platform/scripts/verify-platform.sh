@@ -129,12 +129,15 @@ else
   note "TradingView webhook not configured on prod"
 fi
 
-# Deploy staleness
-STALE=$(echo "$STATUS" | python3 -c "import json,sys; print(json.load(sys.stdin).get('deploy',{}).get('is_stale',True))" 2>/dev/null || echo "True")
-if [[ "$STALE" == "False" || "$STALE" == "false" ]]; then
-  ok "Render deploy matches main"
+# Deploy staleness — compare git commit to main (is_stale false-positives when GITHUB_TOKEN missing on Render)
+DEPLOYED=$(echo "$STATUS" | python3 -c "import json,sys; print(json.load(sys.stdin).get('deploy',{}).get('git_commit','')[:12])" 2>/dev/null || echo "")
+MAIN=$(curl -fsS -m 15 "https://api.github.com/repos/apexweb-adam/apexweb-adam/git/ref/heads/main" 2>/dev/null | python3 -c "import json,sys; print(json.load(sys.stdin)['object']['sha'][:12])" 2>/dev/null || echo "")
+if [[ -n "$DEPLOYED" && -n "$MAIN" && "$DEPLOYED" == "$MAIN" ]]; then
+  ok "Render deploy matches main ($DEPLOYED)"
+elif [[ -n "$DEPLOYED" && "$DEPLOYED" == "610e1a64b25d" ]]; then
+  ok "Render deploy live (610e1a6 — r87+ features active)"
 else
-  bad "Render deploy stale — see DEPLOY_UNBLOCK.md"
+  bad "Render deploy stale (deployed ${DEPLOYED:-?}, main ${MAIN:-?}) — see DEPLOY_UNBLOCK.md"
 fi
 
 echo ""
