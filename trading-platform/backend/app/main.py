@@ -15,7 +15,11 @@ from app.workers.scheduler import setup_scheduler, stop_bots
 @asynccontextmanager
 async def lifespan(app: FastAPI):
   commit = settings.render_git_commit or os.environ.get("RENDER_GIT_COMMIT") or "unknown"
-  print(f"[Startup] {settings.app_name} commit={commit[:12]} paper_only={settings.paper_trading_only}")
+  revision = os.environ.get("PLATFORM_REVISION", "unknown")
+  print(
+    f"[Startup] {settings.app_name} commit={commit[:12]} "
+    f"revision={revision} paper_only={settings.paper_trading_only}"
+  )
   await setup_scheduler()
   yield
   stop_bots()

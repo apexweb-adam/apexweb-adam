@@ -37,6 +37,9 @@ jobs:
 
       - name: Trigger Render deploy
         if: github.event_name != 'schedule' || steps.freshness.outputs.skip != 'true'
+        env:
+          RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
         run: |
           set -euo pipefail
           if [ -n "${RENDER_API_KEY:-}" ]; then
@@ -61,14 +64,22 @@ jobs:
               -d '{"clearCache":"clear"}' \
               "https://api.render.com/v1/services/${SERVICE_ID}/deploys"
             echo "Deploy triggered via Render API (preferred — pulls latest GitHub commit)"
-          elif [ -n "${RENDER_DEPLOY_HOOK:-}" ]; then
-            curl -fsS -X POST "$RENDER_DEPLOY_HOOK"
-            echo "Triggered RENDER_DEPLOY_HOOK (fallback)"
           else
-            echo "::warning::Neither RENDER_DEPLOY_HOOK nor RENDER_API_KEY is set."
-            echo "Render Blueprint autoDeploy from GitHub may still deploy — verify:"
-            echo "  https://apex-trading-backend.onrender.com/api/status (deploy.git_commit vs latest_main_commit)"
-            echo "Add Deploy Hook URL from Render → Settings → Deploy Hook to repo secrets."
+            STATUS=$(curl -fsS "https://apex-trading-backend.onrender.com/api/status")
+            STALE=$(echo "$STATUS" | python3 -c "import json,sys; d=json.load(sys.stdin).get('deploy',{}); print('true' if d.get('is_stale') or int(d.get('commits_behind') or 0)>0 else 'false')")
+            if [[ "$STALE" == "true" ]]; then
+              echo "::warning::Backend is stale — skipping RENDER_DEPLOY_HOOK (redeploys old commit)."
+              echo "This push should trigger Render autoDeploy from GitHub. If still stale after 10 min:"
+              echo "  Render Dashboard → apex-trading-backend → Manual Deploy → latest commit"
+              echo "Or add RENDER_API_KEY to GitHub secrets for CI deploys with cache clear."
+            elif [ -n "${RENDER_DEPLOY_HOOK:-}" ]; then
+              curl -fsS -X POST "$RENDER_DEPLOY_HOOK"
+              echo "Triggered RENDER_DEPLOY_HOOK (current deploy — safe to redeploy same commit)"
+            else
+              echo "::warning::Neither RENDER_DEPLOY_HOOK nor RENDER_API_KEY is set."
+              echo "Render Blueprint autoDeploy from GitHub may still deploy — verify:"
+              echo "  https://apex-trading-backend.onrender.com/api/status (deploy.git_commit vs latest_main_commit)"
+            fi
           fi
 
       - name: Verify production picked up backend deploy

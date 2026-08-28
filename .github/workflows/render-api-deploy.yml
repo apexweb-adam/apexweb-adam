@@ -28,6 +28,8 @@ jobs:
       - name: Trigger Render deploy
         run: |
           set -euo pipefail
+          STATUS=$(curl -fsS "https://apex-trading-backend.onrender.com/api/status" || echo '{}')
+          STALE=$(echo "$STATUS" | python3 -c "import json,sys; d=json.load(sys.stdin).get('deploy',{}); print('true' if d.get('is_stale') or int(d.get('commits_behind') or 0)>0 else 'false')" 2>/dev/null || echo "false")
           if [ -n "${RENDER_API_KEY:-}" ]; then
             SERVICES=$(curl -fsS -H "Authorization: Bearer $RENDER_API_KEY" \
               "https://api.render.com/v1/services?limit=100")
@@ -55,8 +57,12 @@ jobs:
               "https://api.render.com/v1/services/${SERVICE_ID}/deploys"
             echo "Deploy triggered for apex-trading-backend via API (preferred)"
           elif [ -n "${RENDER_DEPLOY_HOOK:-}" ]; then
-            curl -fsS -X POST "$RENDER_DEPLOY_HOOK"
-            echo "Triggered RENDER_DEPLOY_HOOK (fallback)"
+            if [[ "$STALE" == "true" ]]; then
+              echo "::warning::Backend stale — skipping deploy hook (redeploys old commit). Use Manual Deploy or RENDER_API_KEY."
+            else
+              curl -fsS -X POST "$RENDER_DEPLOY_HOOK"
+              echo "Triggered RENDER_DEPLOY_HOOK (current deploy only)"
+            fi
           else
             echo "::warning::RENDER_API_KEY and RENDER_DEPLOY_HOOK are not set — cannot trigger Render deploy from CI."
             echo "Render Blueprint autoDeploy may still deploy from GitHub pushes."

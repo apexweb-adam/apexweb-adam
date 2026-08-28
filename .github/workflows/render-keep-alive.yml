@@ -95,9 +95,15 @@ jobs:
                       print("Triggered Render API deploy (preferred)", resp.status)
                   sys.exit(0)
           if hook:
+              if stale or (dep.get("commits_behind") or 0) > 0:
+                  print(
+                      "::warning::Render deploy stale — skipping deploy hook "
+                      "(redeploys old commit). Use Manual Deploy or RENDER_API_KEY."
+                  )
+                  sys.exit(0)
               req = urllib.request.Request(hook, method="POST")
               with urllib.request.urlopen(req, timeout=30) as resp:
-                  print("Triggered RENDER_DEPLOY_HOOK (fallback)", resp.status)
+                  print("Triggered RENDER_DEPLOY_HOOK (current deploy only)", resp.status)
               sys.exit(0)
           print("::warning::Render deploy stale — set RENDER_API_KEY or RENDER_DEPLOY_HOOK in GitHub secrets")
           PY

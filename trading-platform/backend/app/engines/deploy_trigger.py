@@ -99,6 +99,18 @@ async def maybe_trigger_stale_redeploy(*, force: bool = False) -> dict[str, Any]
       "forced": force,
     }
 
+  # Deploy hooks redeploy the last built commit — they cannot advance a stale service.
+  if commits_behind > 0 or status.get("is_stale"):
+    return {
+      "triggered": False,
+      "reason": "stale_needs_api_or_manual_deploy",
+      "deploy": status,
+      "message": (
+        "Deploy hook skipped — it would redeploy the old commit. "
+        "Set RENDER_API_KEY or use Render Manual Deploy → latest commit."
+      ),
+    }
+
   hook = await resolve_render_deploy_hook()
   if not hook:
     return {
