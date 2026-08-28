@@ -662,6 +662,44 @@ export default function Dashboard() {
                         )}
                       </p>
                     )}
+                    {gateStatus.per_bot && Object.keys(gateStatus.per_bot).length > 0 && (
+                      <div className="space-y-1 pt-1 border-t border-apex-border/50">
+                        <p className="text-[10px] text-gray-500 uppercase tracking-wide">
+                          Per-bot graduation (since verification start)
+                        </p>
+                        {Object.entries(gateStatus.per_bot).map(([bot, stats]) => (
+                          <div
+                            key={bot}
+                            className="flex justify-between items-center text-xs gap-2"
+                          >
+                            <span className={stats.paused ? "text-amber-400" : "text-gray-300"}>
+                              {botLabel(bot)}
+                              {stats.paused ? " (paused)" : ""}
+                            </span>
+                            <span className="text-gray-500 shrink-0">
+                              {stats.total_trades} trades · {formatPct(stats.win_rate)} WR · $
+                              {stats.total_pnl.toFixed(0)}
+                            </span>
+                            <span
+                              className={cn(
+                                "text-[10px] px-1.5 py-0.5 rounded shrink-0",
+                                stats.graduation_ready
+                                  ? "bg-apex-green/10 text-apex-green"
+                                  : stats.paused
+                                    ? "bg-gray-800 text-gray-500"
+                                    : "bg-apex-green/5 text-gray-400"
+                              )}
+                            >
+                              {stats.graduation_ready
+                                ? "ready"
+                                : stats.paused
+                                  ? "blocked"
+                                  : "active"}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                     <div className="space-y-1">
                       {Object.entries(gateStatus.checks).map(([key, check]) => (
                         <div key={key} className="flex justify-between text-xs">

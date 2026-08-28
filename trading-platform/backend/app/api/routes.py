@@ -330,6 +330,14 @@ async def get_profitability(db: AsyncSession = Depends(get_db)) -> dict[str, Any
   return await gate.evaluate()
 
 
+@router.get("/gate/per-bot")
+async def get_per_bot_gate(db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
+  """Per-bot gate metrics since verification_started_at — includes graduation readiness."""
+  gate = ProfitabilityGate(db)
+  per_bot = await gate.evaluate_per_bot()
+  return {"bots": per_bot, "timestamp": datetime.utcnow().isoformat()}
+
+
 @router.get("/active-gate")
 async def get_active_gate(db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
   """Active-bot profitability gate — same shape as dashboard /api/active-gate."""
@@ -354,6 +362,7 @@ async def get_active_gate(db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
     "live_trading_ready": status.get("live_trading_ready"),
     "checks": status.get("checks"),
     "recommendation": status.get("recommendation"),
+    "per_bot": await gate.evaluate_per_bot(),
   }
 
 

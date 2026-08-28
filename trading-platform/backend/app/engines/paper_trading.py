@@ -95,6 +95,8 @@ class PaperTradingEngine:
     sentiment_score: float,
     reason: str,
     strategy: str = "composite",
+    *,
+    position_scale: float = 1.0,
   ) -> dict[str, Any] | None:
     if not settings.paper_trading_only:
       raise RuntimeError("Live trading disabled. Set PAPER_TRADING_ONLY=false only after verification.")
@@ -106,7 +108,7 @@ class PaperTradingEngine:
     if existing:
       return None
 
-    position_pct = strategy_cfg.max_position_pct
+    position_pct = strategy_cfg.max_position_pct * max(0.1, min(1.0, position_scale))
     loss_streak = await self.get_consecutive_losses()
     if loss_streak >= 3:
       position_pct *= 0.5
@@ -114,9 +116,9 @@ class PaperTradingEngine:
     position_value = portfolio.balance * position_pct
     if self.bot_type == "polymarket":
       position_value = min(
-        settings.polymarket_max_position_usd,
+        settings.polymarket_max_position_usd * max(0.1, min(1.0, position_scale)),
         portfolio.balance * min(
-          strategy_cfg.max_position_pct,
+          strategy_cfg.max_position_pct * max(0.1, min(1.0, position_scale)),
           settings.polymarket_max_position_pct,
         ),
       )

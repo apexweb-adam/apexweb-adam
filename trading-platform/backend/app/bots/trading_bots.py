@@ -100,13 +100,18 @@ class BaseBot(ABC):
   async def scan_and_trade(self, *, allow_new_entries: bool = True) -> list[dict]:
     actions: list[dict] = []
     symbols = await self.get_symbols()
+    shadow_mode = False
 
     async with SessionLocal() as session:
+      from app.engines.gate_entry_guard import (
+        SHADOW_MAX_OPEN,
+        SHADOW_MIN_SENTIMENT_BOOST,
+        SHADOW_MIN_SIGNAL_BOOST,
+        SHADOW_POSITION_SCALE,
+      )
       from app.engines.platform_settings import is_bot_paused
 
-      if await is_bot_paused(session, self.bot_type):
-        await self._record_scan_result(len(symbols), [], "paused — no new trades")
-        return []
+      shadow_mode = await is_bot_paused(session, self.bot_type)
 
       engine = PaperTradingEngine(session, self.bot_type)
       strategy = await engine.get_strategy()
@@ -127,6 +132,8 @@ class BaseBot(ABC):
         symbols = held_symbols
       loss_streak = await engine.get_consecutive_losses()
       min_signal = strategy.min_signal_score
+      if shadow_mode:
+        min_signal = min(0.95, min_signal + SHADOW_MIN_SIGNAL_BOOST)
       if gate_tightening.active and self.bot_type != "stocks_futures":
         min_signal = min(0.95, min_signal + gate_tightening.min_composite_boost)
       if loss_streak >= 3:
@@ -135,6 +142,9 @@ class BaseBot(ABC):
         strategy.min_sentiment_score,
         bot_min_sentiment(self.bot_type, gate_tightening),
       )
+      if shadow_mode:
+        min_sentiment += SHADOW_MIN_SENTIMENT_BOOST
+      shadow_open_cap = SHADOW_MAX_OPEN.get(self.bot_type) if shadow_mode else None
       strategy_params = {
         "rsi_oversold": strategy.rsi_oversold,
         "rsi_overbought": strategy.rsi_overbought,
@@ -301,6 +311,9 @@ class BaseBot(ABC):
         ):
           continue
 
+        if shadow_open_cap is not None and open_count >= shadow_open_cap:
+          continue
+
         entry_min_signal = min_signal
         if gate_tightening.active and self.bot_type == "stocks_futures" and symbol in proven_winners:
           entry_min_signal = max(0.08, entry_min_signal - 0.02)
@@ -344,16 +357,24 @@ class BaseBot(ABC):
           and volume_required
           and composite >= entry_min_signal
           and sentiment + integration_boost >= min_sentiment
-          and self.bot_type not in gate_tightening.blocked_new_entries
+          and (shadow_mode or self.bot_type not in gate_tightening.blocked_new_entries)
         ):
           reason = f"Signal:{signal.score:.2f} Sentiment:{sentiment:.2f}"
+          if shadow_mode:
+            reason = f"[shadow] {reason}"
           if sentiment_sources:
             reason += f" Intel:[{sentiment_sources}]"
           if integration_reason:
             reason += f" Integrations:{integration_boost:+.2f} ({integration_reason})"
           reason += f" | {signal.reason}"
           result = await engine.buy(
-            symbol, price, composite, sentiment, reason, strategy=f"v{strategy.version}"
+            symbol,
+            price,
+            composite,
+            sentiment,
+            reason,
+            strategy=f"v{strategy.version}",
+            position_scale=SHADOW_POSITION_SCALE if shadow_mode else 1.0,
           )
           if result:
             actions.append(result)
@@ -367,7 +388,11 @@ class BaseBot(ABC):
           await self._analyze_loss(session, action.get("symbol", ""))
           self._register_symbol_cooldown(action.get("symbol", ""), after_loss=True)
 
-    await self._record_scan_result(len(symbols), actions)
+    await self._record_scan_result(
+      len(symbols),
+      actions,
+      "shadow — proving for graduation" if shadow_mode else None,
+    )
 
     if actions:
       from app.ws_manager import broadcast_trade, push_live_update
@@ -577,14 +602,19 @@ class PolymarketBot(BaseBot):
     best_buy_score = 0.0
     skipped = 0
 
+    shadow_mode = False
+
     try:
       async with SessionLocal() as session:
+        from app.engines.gate_entry_guard import (
+          SHADOW_MAX_OPEN,
+          SHADOW_MIN_SENTIMENT_BOOST,
+          SHADOW_MIN_SIGNAL_BOOST,
+          SHADOW_POSITION_SCALE,
+        )
         from app.engines.platform_settings import is_bot_paused
 
-        if await is_bot_paused(session, self.bot_type):
-          await self._record_scan_result(len(symbols), [], "paused — no new trades")
-          return []
-
+        shadow_mode = await is_bot_paused(session, self.bot_type)
         engine = PaperTradingEngine(session, self.bot_type)
         strategy = await engine.get_strategy()
         gate_tightening = await get_gate_entry_tightening(session)
@@ -594,15 +624,23 @@ class PolymarketBot(BaseBot):
           else frozenset()
         )
         min_score = strategy.min_signal_score
+        if shadow_mode:
+          min_score = min(0.95, min_score + SHADOW_MIN_SIGNAL_BOOST)
         if gate_tightening.active:
           min_score = min(0.95, min_score + gate_tightening.min_composite_boost)
         min_sentiment = max(
           strategy.min_sentiment_score,
           bot_min_sentiment(self.bot_type, gate_tightening),
         )
+        if shadow_mode:
+          min_sentiment += SHADOW_MIN_SENTIMENT_BOOST
         pm_position_cap = settings.polymarket_max_open_positions
         if gate_tightening.max_pm_open_positions is not None:
           pm_position_cap = min(pm_position_cap, gate_tightening.max_pm_open_positions)
+        if shadow_mode:
+          shadow_cap = SHADOW_MAX_OPEN.get("polymarket")
+          if shadow_cap is not None:
+            pm_position_cap = min(pm_position_cap, shadow_cap)
         open_positions = await engine.get_open_positions()
         pm_open = len(open_positions)
         prices: dict[str, float] = {}
@@ -710,9 +748,11 @@ class PolymarketBot(BaseBot):
               pm_sig.direction == "buy"
               and composite >= min_score
               and pm_sig.sentiment + integration_boost >= min_sentiment
-              and "polymarket" not in gate_tightening.blocked_new_entries
+              and (shadow_mode or "polymarket" not in gate_tightening.blocked_new_entries)
             ):
               reason = f"PM:{pm_sig.reason}"
+              if shadow_mode:
+                reason = f"[shadow] {reason}"
               if integration_reason:
                 reason += f" | {integration_reason}"
               result = await engine.buy(
@@ -722,6 +762,7 @@ class PolymarketBot(BaseBot):
                 pm_sig.sentiment,
                 reason,
                 strategy=f"v{strategy.version}",
+                position_scale=SHADOW_POSITION_SCALE if shadow_mode else 1.0,
               )
               if result:
                 actions.append(result)
@@ -748,7 +789,7 @@ class PolymarketBot(BaseBot):
     pm_detail = (
       f"{buy_candidates} buy signals (best {best_buy_score:.2f})"
       if buy_candidates
-      else "no qualifying entries"
+      else "shadow — proving for graduation" if shadow_mode else "no qualifying entries"
     )
     if skipped:
       pm_detail += f", {skipped} skipped"

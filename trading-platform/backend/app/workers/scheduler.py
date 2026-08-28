@@ -135,7 +135,7 @@ async def stocks_pre_session_prep_job() -> None:
 
 async def risk_migration_job() -> None:
   async with SessionLocal() as session:
-    from app.engines.gate_entry_guard import sync_gate_bot_pauses
+    from app.engines.gate_entry_guard import sync_gate_bot_pauses, try_graduate_paused_bots
     from app.engines.strategy_migration import (
       adapt_for_gate_win_rate,
       clamp_verification_strategy_params,
@@ -146,6 +146,7 @@ async def risk_migration_job() -> None:
     )
 
     gate_paused = await sync_gate_bot_pauses(session)
+    gate_graduated = await try_graduate_paused_bots(session)
     clamped = await clamp_verification_strategy_params(session)
     adapted = await adapt_for_gate_win_rate(session)
     migrated = await migrate_symbol_columns(session)
@@ -153,9 +154,9 @@ async def risk_migration_job() -> None:
     trimmed = await trim_oversized_polymarket_positions(session)
     commodities_trimmed = await close_excess_commodities_positions(session)
     synced = await sync_bot_strategy_versions(session)
-    if gate_paused or clamped or adapted or updated or trimmed or commodities_trimmed or synced:
+    if gate_paused or gate_graduated or clamped or adapted or updated or trimmed or commodities_trimmed or synced:
       print(
-        f"[RiskMigration] gate_paused={gate_paused} clamped={clamped} gate_adapted={adapted} "
+        f"[RiskMigration] gate_paused={gate_paused} gate_graduated={gate_graduated} clamped={clamped} gate_adapted={adapted} "
         f"strategy_updated={updated} trimmed={trimmed} commodities_trimmed={commodities_trimmed} "
         f"synced={synced} at {datetime.utcnow().isoformat()}"
       )
