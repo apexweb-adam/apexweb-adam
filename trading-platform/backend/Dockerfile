@@ -1,5 +1,8 @@
 FROM python:3.12-slim
 
+ARG PLATFORM_REVISION=2026-08-28-r63
+ENV PLATFORM_REVISION=${PLATFORM_REVISION}
+
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \

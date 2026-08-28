@@ -102,7 +102,11 @@ jobs:
           echo "deployed=$DEPLOYED main=$MAIN verification_history=$VERIFY equity_history=$EQUITY"
           if [[ "$DEPLOYED" != "$MAIN" ]]; then
             echo "::warning::Render still on $DEPLOYED — main is $MAIN. Manual deploy: Render → Manual Deploy → latest commit."
+            if [[ -z "${RENDER_API_KEY:-}" ]]; then
+              echo "::error::Backend deploy not verified — add RENDER_API_KEY or manual deploy in Render dashboard."
+              exit 1
+            fi
           fi
-          if [[ "$EQUITY" != "200" ]]; then
-            echo "::warning::Equity history endpoint HTTP $EQUITY — deploy hook may have redeployed old commit; fix GitHub sync on Render."
+          if [[ "$VERIFY" != "200" ]]; then
+            echo "::warning::Verification history endpoint HTTP $VERIFY — will pass after latest backend deploys."
           fi
