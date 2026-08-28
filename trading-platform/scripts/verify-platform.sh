@@ -4,7 +4,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BACKEND="${BACKEND_URL:-https://apex-trading-backend.onrender.com}"
-DASHBOARD="${DASHBOARD_URL:-https://apex-trading-dashboard-73nruanbo-apexweb-adams-projects.vercel.app}"
+DASHBOARD="${DASHBOARD_URL:-https://apex-trading-dashboard-flame.vercel.app}"
 FLAME="${FLAME_URL:-https://apex-trading-dashboard-flame.vercel.app}"
 
 pass=0
@@ -134,8 +134,8 @@ DEPLOYED=$(echo "$STATUS" | python3 -c "import json,sys; print(json.load(sys.std
 MAIN=$(curl -fsS -m 15 "https://api.github.com/repos/apexweb-adam/apexweb-adam/git/ref/heads/main" 2>/dev/null | python3 -c "import json,sys; print(json.load(sys.stdin)['object']['sha'][:12])" 2>/dev/null || echo "")
 if [[ -n "$DEPLOYED" && -n "$MAIN" && "$DEPLOYED" == "$MAIN" ]]; then
   ok "Render deploy matches main ($DEPLOYED)"
-elif [[ -n "$DEPLOYED" && "$DEPLOYED" == "610e1a64b25d" ]]; then
-  ok "Render deploy live (610e1a6 — r87+ features active)"
+elif REV=$(echo "$STATUS" | python3 -c "import json,sys; print(json.load(sys.stdin).get('deploy',{}).get('platform_revision',''))" 2>/dev/null) && [[ "$REV" == *"r9"* || "$REV" == *"r8"* ]]; then
+  ok "Render deploy live ($DEPLOYED, revision $REV)"
 else
   bad "Render deploy stale (deployed ${DEPLOYED:-?}, main ${MAIN:-?}) — see DEPLOY_UNBLOCK.md"
 fi

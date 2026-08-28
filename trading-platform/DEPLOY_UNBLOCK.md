@@ -68,6 +68,19 @@ curl -X POST https://apex-trading-backend.onrender.com/api/admin/sync-gate-pause
 
 The sync script falls back to `set-bot-paused` per bot when `sync-gate-pauses` returns 404 (stale Render).
 
+**Deploy hook (stored in prod DB, not git):**
+
+```bash
+# One-time: get URL from Render → apex-trading-backend → Settings → Deploy Hook
+./trading-platform/scripts/setup-render-deploy-hook.sh "$RENDER_DEPLOY_HOOK"
+# Or trigger via stored hook:
+curl -X POST https://apex-trading-backend.onrender.com/api/admin/trigger-deploy \
+  -H 'Content-Type: application/json' \
+  -d '{"secret":"YOUR_TRADINGVIEW_WEBHOOK_SECRET","force":true}'
+```
+
+Prefer **RENDER_API_KEY** for stale deploys (pulls latest commit); deploy hook redeploys last built commit.
+
 ## Dashboard (works before backend deploy)
 
 Verified r25 CRM preview: https://apex-trading-dashboard-73nruanbo-apexweb-adams-projects.vercel.app

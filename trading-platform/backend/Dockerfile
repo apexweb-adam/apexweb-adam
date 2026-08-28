@@ -1,6 +1,7 @@
 FROM python:3.12-slim
 
-ARG PLATFORM_REVISION=2026-08-28-r87
+# Injected at runtime via Render envVars (render.yaml). Empty ARG avoids baking a stale revision into the image.
+ARG PLATFORM_REVISION=
 ENV PLATFORM_REVISION=${PLATFORM_REVISION}
 
 WORKDIR /app
