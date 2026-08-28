@@ -73,6 +73,12 @@ SHADOW_GRADUATION_MIN_COMPOSITE_BY_BOT = {
 }
 SHADOW_GRADUATION_LOSS_WIND_DOWN_USD = 1.0
 SHADOW_GRADUATION_LOSS_COOLDOWN_MULTIPLIER = 2
+GRADUATION_NUDGE_SENTIMENT_EASE_BY_BOT = {
+  "crypto": 0.04,
+  "commodities": 0.02,
+}
+COMMODITIES_GRADUATION_BULLISH_SIGNAL_EASE = 0.09
+COMMODITIES_GRADUATION_BULLISH_SIGNAL_FLOOR = 0.20
 
 
 def shadow_min_signal_boost(
@@ -327,6 +333,82 @@ def shadow_intel_composite_override(
     composite >= max(entry_min_signal + composite_margin, composite_floor)
     and integration_boost >= boost_floor
   )
+
+
+def intel_override_allows_long_entry(
+  bot_type: str,
+  *,
+  intel_override: bool,
+  signal_direction: str,
+  shadow_mode: bool,
+  graduation_nudge: bool,
+) -> bool:
+  """Intel override opens longs only when direction aligns — blocks bearish commodity churn."""
+  if not intel_override:
+    return False
+  if signal_direction == "buy":
+    return True
+  if signal_direction == "sell":
+    if (
+      bot_type == "commodities"
+      and not shadow_mode
+      and graduation_nudge
+    ):
+      return False
+    return bot_type in ("crypto", "commodities") and shadow_mode
+  return True
+
+
+def graduation_nudge_min_sentiment(
+  bot_type: str,
+  base_min_sentiment: float,
+  *,
+  graduation_nudge: bool,
+  shadow_mode: bool,
+) -> float:
+  """Ease sentiment floor during graduation nudge for shadow and active gate bots."""
+  if not graduation_nudge:
+    return base_min_sentiment
+  ease = GRADUATION_NUDGE_SENTIMENT_EASE_BY_BOT.get(bot_type, 0.0)
+  if ease <= 0:
+    return base_min_sentiment
+  if shadow_mode and bot_type in ("crypto", "commodities"):
+    return max(0.0, base_min_sentiment - ease)
+  if not shadow_mode and bot_type in ACTIVE_GATE_GRADUATION_NUDGE_BOTS:
+    return max(0.0, base_min_sentiment - ease)
+  return base_min_sentiment
+
+
+def commodities_graduation_entry_min_signal(
+  entry_min_signal: float,
+  *,
+  bot_type: str,
+  graduation_nudge: bool,
+  shadow_mode: bool,
+  signal_direction: str,
+  macd_signal: str,
+  symbol: str,
+  proven_winners: frozenset[str],
+) -> float:
+  """Ease entry threshold for aligned bullish commodities during graduation nudge."""
+  if not (graduation_nudge and bot_type == "commodities"):
+    return entry_min_signal
+  eased = entry_min_signal
+  if (
+    not shadow_mode
+    and signal_direction == "buy"
+    and macd_signal == "bullish"
+  ):
+    eased = max(
+      COMMODITIES_GRADUATION_BULLISH_SIGNAL_FLOOR,
+      eased - COMMODITIES_GRADUATION_BULLISH_SIGNAL_EASE,
+    )
+  if symbol in proven_winners:
+    eased = max(
+      COMMODITIES_GRADUATION_BULLISH_SIGNAL_FLOOR,
+      eased - 0.03,
+    )
+  return eased
 
 
 def chronic_loser_blocks_shadow_entry(

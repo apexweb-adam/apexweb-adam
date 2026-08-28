@@ -25,7 +25,10 @@ from app.engines.gate_entry_guard import (
   gate_position_scale,
   hard_skip_blocks_shadow_entry,
   bot_win_rate_for_graduation_nudge,
+  commodities_graduation_entry_min_signal,
+  graduation_nudge_min_sentiment,
   in_shadow_graduation_nudge,
+  intel_override_allows_long_entry,
   is_symbol_in_trade_cooldown,
   shadow_chronic_position_scale,
   shadow_graduation_min_hold_seconds,
@@ -251,6 +254,12 @@ class BaseBot(ABC):
         bot_wr,
         profit_factor=per_bot_stats.get("profit_factor"),
         total_pnl=per_bot_stats.get("total_pnl"),
+      )
+      min_sentiment = graduation_nudge_min_sentiment(
+        self.bot_type,
+        min_sentiment,
+        graduation_nudge=graduation_nudge,
+        shadow_mode=shadow_mode,
       )
       from app.engines.gate_entry_guard import shadow_max_open_for_bot
 
@@ -612,6 +621,16 @@ class BaseBot(ABC):
         )
         if grad_composite_floor is not None:
           entry_min_signal = max(entry_min_signal, grad_composite_floor)
+        entry_min_signal = commodities_graduation_entry_min_signal(
+          entry_min_signal,
+          bot_type=self.bot_type,
+          graduation_nudge=graduation_nudge,
+          shadow_mode=shadow_mode,
+          signal_direction=signal.direction,
+          macd_signal=signal.macd_signal,
+          symbol=symbol,
+          proven_winners=proven_winners,
+        )
 
         intel_override = shadow_intel_composite_override(
           self.bot_type,
@@ -706,7 +725,16 @@ class BaseBot(ABC):
         ):
           continue
 
-        entry_direction_ok = signal.direction == "buy" or intel_override
+        entry_direction_ok = (
+          signal.direction == "buy"
+          or intel_override_allows_long_entry(
+            self.bot_type,
+            intel_override=intel_override,
+            signal_direction=signal.direction,
+            shadow_mode=shadow_mode,
+            graduation_nudge=graduation_nudge,
+          )
+        )
 
         if (
           entry_direction_ok
