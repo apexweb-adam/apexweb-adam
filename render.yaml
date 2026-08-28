@@ -19,13 +19,13 @@ services:
       - key: DATABASE_URL
         sync: false
       - key: CORS_ORIGINS
-        value: "https://apex-trading-dashboard-flame.vercel.app,https://apex-trading-dashboard-apexweb-adams-projects.vercel.app,https://apex-trading-dashboard-796165b96-apexweb-adams-projects.vercel.app,https://apex-trading-dashboard-4dc50ssd9-apexweb-adams-projects.vercel.app,https://apex-trading-dashboard-ekn183k28-apexweb-adams-projects.vercel.app,https://apex-trading-dashboard-7zhc1azza-apexweb-adams-projects.vercel.app,https://apex-trading-dashboard-m1fif9ruf-apexweb-adams-projects.vercel.app,https://apex-trading-dashboard-fvmoq5oyj-apexweb-adams-projects.vercel.app"
+        value: "https://apex-trading-dashboard-flame.vercel.app,https://apex-trading-dashboard-apexweb-adams-projects.vercel.app,https://apex-trading-dashboard-edv5hefqa-apexweb-adams-projects.vercel.app,https://apex-trading-dashboard-796165b96-apexweb-adams-projects.vercel.app,https://apex-trading-dashboard-4dc50ssd9-apexweb-adams-projects.vercel.app,https://apex-trading-dashboard-ekn183k28-apexweb-adams-projects.vercel.app,https://apex-trading-dashboard-7zhc1azza-apexweb-adams-projects.vercel.app,https://apex-trading-dashboard-m1fif9ruf-apexweb-adams-projects.vercel.app,https://apex-trading-dashboard-fvmoq5oyj-apexweb-adams-projects.vercel.app"
       - key: VERIFIED_DASHBOARD_URL
-        value: "https://apex-trading-dashboard-796165b96-apexweb-adams-projects.vercel.app"
+        value: "https://apex-trading-dashboard-edv5hefqa-apexweb-adams-projects.vercel.app"
       - key: VERIFIED_VERCEL_DEPLOYMENT_ID
-        value: "dpl_7nvzwTX8dwLLDDDBVHnUVWdvNs78"
+        value: "dpl_AtSLEsY1fkNDvA9ZDdycLB5BANf8"
       - key: VERIFIED_DASHBOARD_FALLBACKS
-        value: "https://apex-trading-dashboard-796165b96-apexweb-adams-projects.vercel.app,https://apex-trading-dashboard-4dc50ssd9-apexweb-adams-projects.vercel.app,https://apex-trading-dashboard-ekn183k28-apexweb-adams-projects.vercel.app,https://apex-trading-dashboard-7zhc1azza-apexweb-adams-projects.vercel.app,https://apex-trading-dashboard-m1fif9ruf-apexweb-adams-projects.vercel.app,https://apex-trading-dashboard-fvmoq5oyj-apexweb-adams-projects.vercel.app,https://apex-trading-dashboard-apexweb-adams-projects.vercel.app"
+        value: "https://apex-trading-dashboard-edv5hefqa-apexweb-adams-projects.vercel.app,https://apex-trading-dashboard-796165b96-apexweb-adams-projects.vercel.app,https://apex-trading-dashboard-4dc50ssd9-apexweb-adams-projects.vercel.app,https://apex-trading-dashboard-ekn183k28-apexweb-adams-projects.vercel.app,https://apex-trading-dashboard-7zhc1azza-apexweb-adams-projects.vercel.app,https://apex-trading-dashboard-m1fif9ruf-apexweb-adams-projects.vercel.app,https://apex-trading-dashboard-fvmoq5oyj-apexweb-adams-projects.vercel.app,https://apex-trading-dashboard-apexweb-adams-projects.vercel.app"
       - key: NEWSAPI_KEY
         sync: false
       - key: TWITTER_BEARER_TOKEN
