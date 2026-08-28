@@ -67,6 +67,9 @@ async def verification_snapshot_job() -> None:
       f"PF {snapshot.profit_factor:.2f}, PnL ${snapshot.total_pnl:.2f}, "
       f"perf_ok={snapshot.performance_checks_passed}"
     )
+  from app.ws_manager import push_live_update
+
+  await push_live_update()
 
 
 async def reset_daily_bot_stats_job() -> None:

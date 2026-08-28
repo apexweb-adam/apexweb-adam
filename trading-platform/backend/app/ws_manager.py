@@ -17,6 +17,7 @@ from app.models.entities import (
   StrategyConfig,
   Trade,
   TradeAnalysis,
+  VerificationSnapshot,
 )
 
 
@@ -53,6 +54,7 @@ async def build_live_payload(session: AsyncSession) -> dict:
     serialize_intel_item,
     serialize_strategy_config,
   )
+  from app.engines.verification_snapshot import serialize_verification_snapshot
 
   gate_payload = await build_gate_ws_payload(session)
   portfolios = (await session.execute(select(Portfolio))).scalars().all()
@@ -81,6 +83,11 @@ async def build_live_payload(session: AsyncSession) -> dict:
   ).scalars().all()
   recent_insights = (
     await session.execute(select(LearningInsight).order_by(desc(LearningInsight.created_at)).limit(20))
+  ).scalars().all()
+  verification_history = (
+    await session.execute(
+      select(VerificationSnapshot).order_by(desc(VerificationSnapshot.snapshot_date)).limit(30)
+    )
   ).scalars().all()
 
   total_equity = sum(p.equity for p in portfolios)
@@ -211,6 +218,7 @@ async def build_live_payload(session: AsyncSession) -> dict:
       }
       for i in recent_insights
     ],
+    "verification_history": [serialize_verification_snapshot(s) for s in verification_history],
     **gate_payload,
   }
 

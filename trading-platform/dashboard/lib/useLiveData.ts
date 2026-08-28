@@ -18,6 +18,7 @@ import {
   type LearningInsight,
   type StrategyConfig,
   type IntelligenceSource,
+  type VerificationSnapshot,
 } from "./api";
 
 type LiveData = {
@@ -32,6 +33,7 @@ type LiveData = {
   insights: LearningInsight[];
   strategies: StrategyConfig[];
   intelSources: IntelligenceSource[];
+  verificationHistory: VerificationSnapshot[];
   profitabilityGate: ProfitabilityStatus | null;
   gateEntryTightening: GateEntryTightening | null;
   botSessions: BotSessions | null;
@@ -52,6 +54,7 @@ export function useLiveData(): LiveData {
   const [insights, setInsights] = useState<LearningInsight[]>([]);
   const [strategies, setStrategies] = useState<StrategyConfig[]>([]);
   const [intelSources, setIntelSources] = useState<IntelligenceSource[]>([]);
+  const [verificationHistory, setVerificationHistory] = useState<VerificationSnapshot[]>([]);
   const [profitabilityGate, setProfitabilityGate] = useState<ProfitabilityStatus | null>(null);
   const [gateEntryTightening, setGateEntryTightening] = useState<GateEntryTightening | null>(null);
   const [botSessions, setBotSessions] = useState<BotSessions | null>(null);
@@ -97,6 +100,9 @@ export function useLiveData(): LiveData {
     if (data.insights) setInsights(data.insights as LearningInsight[]);
     if (data.strategies) setStrategies(data.strategies as StrategyConfig[]);
     if (data.intel_sources) setIntelSources(data.intel_sources as IntelligenceSource[]);
+    if (data.verification_history) {
+      setVerificationHistory(data.verification_history as VerificationSnapshot[]);
+    }
     if (data.profitability_gate) setProfitabilityGate(data.profitability_gate as ProfitabilityStatus);
     if (data.gate_entry_tightening) {
       setGateEntryTightening(data.gate_entry_tightening as GateEntryTightening);
@@ -167,6 +173,7 @@ export function useLiveData(): LiveData {
     insights,
     strategies,
     intelSources,
+    verificationHistory,
     profitabilityGate,
     gateEntryTightening,
     botSessions,
