@@ -1,5 +1,5 @@
 /** Bump when dashboard features change — compared in /api/config for stale Vercel detection. */
-export const DASHBOARD_BUNDLE_REVISION = "2026-08-28-r18";
+export const DASHBOARD_BUNDLE_REVISION = "2026-08-28-r19";
 
 /** Verified preview when production -flame bundle is stale (matches backend deploy_status defaults). */
 export const VERIFIED_PREVIEW_URL =
@@ -14,4 +14,5 @@ export const DASHBOARD_FEATURES = {
   equityChart: true,
   verificationProgress: true,
   realtimeGate: true,
+  realtimeLearning: true,
 } as const;

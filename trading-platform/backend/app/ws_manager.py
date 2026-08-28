@@ -7,7 +7,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import BOT_TYPES
 from app.database import SessionLocal
 from app.engines.trade_stats import aggregate_win_rate
-from app.models.entities import BotState, IntelligenceItem, Portfolio, Position, StrategyConfig, Trade
+from app.models.entities import (
+  BotState,
+  DailyReview,
+  IntelligenceItem,
+  LearningInsight,
+  Portfolio,
+  Position,
+  StrategyConfig,
+  Trade,
+  TradeAnalysis,
+)
 
 
 class ConnectionManager:
@@ -59,6 +69,15 @@ async def build_live_payload(session: AsyncSession) -> dict:
     c.bot_type: c.version
     for c in (await session.execute(select(StrategyConfig))).scalars().all()
   }
+  recent_analyses = (
+    await session.execute(select(TradeAnalysis).order_by(desc(TradeAnalysis.analyzed_at)).limit(20))
+  ).scalars().all()
+  recent_reviews = (
+    await session.execute(select(DailyReview).order_by(desc(DailyReview.created_at)).limit(10))
+  ).scalars().all()
+  recent_insights = (
+    await session.execute(select(LearningInsight).order_by(desc(LearningInsight.created_at)).limit(20))
+  ).scalars().all()
 
   total_equity = sum(p.equity for p in portfolios)
   total_pnl = sum(p.total_pnl for p in portfolios)
@@ -150,6 +169,52 @@ async def build_live_payload(session: AsyncSession) -> dict:
         "fetched_at": item.fetched_at.isoformat() if item.fetched_at else None,
       }
       for item in recent_intel_rows
+    ],
+    "analyses": [
+      {
+        "id": a.id,
+        "trade_id": a.trade_id,
+        "bot_type": a.bot_type,
+        "symbol": a.symbol,
+        "loss_amount": a.loss_amount,
+        "root_cause": a.root_cause,
+        "market_context": a.market_context,
+        "lessons_learned": a.lessons_learned,
+        "strategy_adjustment": a.strategy_adjustment,
+        "analyzed_at": a.analyzed_at.isoformat() if a.analyzed_at else None,
+      }
+      for a in recent_analyses
+    ],
+    "reviews": [
+      {
+        "id": r.id,
+        "bot_type": r.bot_type,
+        "review_date": r.review_date,
+        "total_trades": r.total_trades,
+        "losing_trades": r.losing_trades,
+        "total_loss": r.total_loss,
+        "total_profit": r.total_profit,
+        "net_pnl": r.net_pnl,
+        "win_rate": r.win_rate,
+        "patterns_found": r.patterns_found,
+        "conclusions": r.conclusions,
+        "strategy_changes": r.strategy_changes,
+        "created_at": r.created_at.isoformat() if r.created_at else None,
+      }
+      for r in recent_reviews
+    ],
+    "insights": [
+      {
+        "id": i.id,
+        "source_type": i.source_type,
+        "source_title": i.source_title,
+        "source_url": i.source_url,
+        "key_takeaways": i.key_takeaways,
+        "strategy_impact": i.strategy_impact,
+        "confidence": i.confidence,
+        "applied": i.applied,
+      }
+      for i in recent_insights
     ],
     **gate_payload,
   }

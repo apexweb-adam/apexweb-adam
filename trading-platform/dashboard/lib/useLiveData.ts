@@ -13,6 +13,9 @@ import {
   type ProfitabilityStatus,
   type GateEntryTightening,
   type BotSessions,
+  type TradeAnalysis,
+  type DailyReview,
+  type LearningInsight,
 } from "./api";
 
 type LiveData = {
@@ -22,6 +25,9 @@ type LiveData = {
   positions: Position[];
   trades: Trade[];
   recentIntel: RecentIntelItem[];
+  analyses: TradeAnalysis[];
+  reviews: DailyReview[];
+  insights: LearningInsight[];
   profitabilityGate: ProfitabilityStatus | null;
   gateEntryTightening: GateEntryTightening | null;
   botSessions: BotSessions | null;
@@ -37,6 +43,9 @@ export function useLiveData(): LiveData {
   const [positions, setPositions] = useState<Position[]>([]);
   const [trades, setTrades] = useState<Trade[]>([]);
   const [recentIntel, setRecentIntel] = useState<RecentIntelItem[]>([]);
+  const [analyses, setAnalyses] = useState<TradeAnalysis[]>([]);
+  const [reviews, setReviews] = useState<DailyReview[]>([]);
+  const [insights, setInsights] = useState<LearningInsight[]>([]);
   const [profitabilityGate, setProfitabilityGate] = useState<ProfitabilityStatus | null>(null);
   const [gateEntryTightening, setGateEntryTightening] = useState<GateEntryTightening | null>(null);
   const [botSessions, setBotSessions] = useState<BotSessions | null>(null);
@@ -77,6 +86,9 @@ export function useLiveData(): LiveData {
     if (data.positions) setPositions(data.positions as Position[]);
     if (data.trades) setTrades(data.trades as Trade[]);
     if (data.recent_intel) setRecentIntel(data.recent_intel as RecentIntelItem[]);
+    if (data.analyses) setAnalyses(data.analyses as TradeAnalysis[]);
+    if (data.reviews) setReviews(data.reviews as DailyReview[]);
+    if (data.insights) setInsights(data.insights as LearningInsight[]);
     if (data.profitability_gate) setProfitabilityGate(data.profitability_gate as ProfitabilityStatus);
     if (data.gate_entry_tightening) {
       setGateEntryTightening(data.gate_entry_tightening as GateEntryTightening);
@@ -142,6 +154,9 @@ export function useLiveData(): LiveData {
     positions,
     trades,
     recentIntel,
+    analyses,
+    reviews,
+    insights,
     profitabilityGate,
     gateEntryTightening,
     botSessions,
