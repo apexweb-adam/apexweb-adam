@@ -54,8 +54,12 @@ SHADOW_MAX_OPEN = {
 
 GRADUATION_NUDGE_MIN_WR = 0.48
 GRADUATION_NUDGE_MIN_WR_BY_BOT = {
-  "crypto": 0.45,
+  "crypto": 0.43,
   "commodities": 0.44,
+}
+SHADOW_GRADUATION_MIN_HOLD_BY_BOT = {
+  "crypto": 900,
+  "commodities": 600,
 }
 
 
@@ -90,7 +94,7 @@ SHADOW_INTEL_COMPOSITE_FLOOR_BY_BOT = {
   "commodities": 0.40,
 }
 SHADOW_INTEL_COMPOSITE_ONLY_BY_BOT = {
-  "crypto": 0.40,
+  "crypto": 0.46,
   "commodities": 0.48,
 }
 SHADOW_INTEL_CHRONIC_POSITION_SCALE = 0.25
@@ -196,6 +200,19 @@ def shadow_chronic_position_scale(
   ):
     return SHADOW_INTEL_CHRONIC_POSITION_SCALE
   return 1.0
+
+
+def shadow_graduation_min_hold_seconds(
+  bot_type: str,
+  *,
+  graduation_nudge: bool,
+  shadow_mode: bool,
+  default_seconds: int,
+) -> int:
+  """Longer min hold during graduation nudge to avoid intel-override churn."""
+  if graduation_nudge and shadow_mode:
+    return SHADOW_GRADUATION_MIN_HOLD_BY_BOT.get(bot_type, default_seconds)
+  return default_seconds
 
 
 def shadow_entry_min_signal(

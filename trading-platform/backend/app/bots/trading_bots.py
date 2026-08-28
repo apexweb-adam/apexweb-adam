@@ -25,6 +25,7 @@ from app.engines.gate_entry_guard import (
   in_shadow_graduation_nudge,
   is_symbol_in_trade_cooldown,
   shadow_chronic_position_scale,
+  shadow_graduation_min_hold_seconds,
   EARLY_VERIFICATION_LOSS_WIND_DOWN_SECONDS,
   EARLY_VERIFICATION_LOSS_WIND_DOWN_USD,
   shadow_entry_min_signal,
@@ -244,9 +245,19 @@ class BaseBot(ABC):
           held_seconds = (datetime.utcnow() - opened).total_seconds() if opened else 9999
           min_hold = 0
           if self.bot_type == "crypto":
-            min_hold = settings.crypto_min_hold_seconds
+            min_hold = shadow_graduation_min_hold_seconds(
+              self.bot_type,
+              graduation_nudge=graduation_nudge,
+              shadow_mode=shadow_mode,
+              default_seconds=settings.crypto_min_hold_seconds,
+            )
           elif self.bot_type == "commodities":
-            min_hold = settings.commodities_min_hold_seconds
+            min_hold = shadow_graduation_min_hold_seconds(
+              self.bot_type,
+              graduation_nudge=graduation_nudge,
+              shadow_mode=shadow_mode,
+              default_seconds=settings.commodities_min_hold_seconds,
+            )
           allow_signal_exit = held_seconds >= min_hold
 
           if (

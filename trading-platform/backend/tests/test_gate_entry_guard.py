@@ -26,7 +26,8 @@ def test_shadow_graduation_nudge_eases_commodities():
   assert in_shadow_graduation_nudge("commodities", 0.43) is False
   assert in_shadow_graduation_nudge("commodities", 0.40) is False
   assert in_shadow_graduation_nudge("crypto", 0.46) is True
-  assert in_shadow_graduation_nudge("crypto", 0.44) is False
+  assert in_shadow_graduation_nudge("crypto", 0.44) is True
+  assert in_shadow_graduation_nudge("crypto", 0.42) is False
   assert shadow_min_signal_boost("commodities", bot_win_rate=0.50) < shadow_min_signal_boost(
     "commodities"
   )
@@ -116,7 +117,7 @@ def test_shadow_intel_composite_override_crypto_high_composite_only():
     "crypto",
     graduation_nudge=True,
     shadow_mode=True,
-    composite=0.44,
+    composite=0.48,
     entry_min_signal=0.26,
     integration_boost=0.0,
   ) is True
@@ -124,7 +125,7 @@ def test_shadow_intel_composite_override_crypto_high_composite_only():
     "crypto",
     graduation_nudge=True,
     shadow_mode=True,
-    composite=0.35,
+    composite=0.44,
     entry_min_signal=0.26,
     integration_boost=0.0,
   ) is False
@@ -187,6 +188,20 @@ def test_chronic_loser_blocks_shadow_entry_intel_bypass():
     shadow_mode=True,
     intel_override=False,
   ) == 1.0
+
+
+def test_shadow_graduation_min_hold_seconds():
+  from app.engines.gate_entry_guard import shadow_graduation_min_hold_seconds
+
+  assert shadow_graduation_min_hold_seconds(
+    "crypto", graduation_nudge=True, shadow_mode=True, default_seconds=300
+  ) == 900
+  assert shadow_graduation_min_hold_seconds(
+    "crypto", graduation_nudge=False, shadow_mode=True, default_seconds=300
+  ) == 300
+  assert shadow_graduation_min_hold_seconds(
+    "commodities", graduation_nudge=True, shadow_mode=True, default_seconds=180
+  ) == 600
 
 
 def test_shadow_requires_macd_crypto_nudge_off():

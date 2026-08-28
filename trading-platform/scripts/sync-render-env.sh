@@ -73,7 +73,7 @@ else
 fi
 
 if [[ -z "${VALUES[PLATFORM_REVISION]:-}" ]]; then
-  VALUES[PLATFORM_REVISION]="2026-08-28-r113"
+  VALUES[PLATFORM_REVISION]="2026-08-28-r114"
 fi
 
 synced=0
