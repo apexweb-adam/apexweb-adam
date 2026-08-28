@@ -318,6 +318,18 @@ def test_hard_skip_blocks_shadow_entry_review_bypass_active_commodities():
     composite=0.40,
     integration_boost=0.0,
   ) is True
+  assert hard_skip_blocks_shadow_entry(
+    "SI=F",
+    bot_type="commodities",
+    recent_skip=frozenset(),
+    large_skip=frozenset(),
+    review_skip=frozenset({"SI=F"}),
+    graduation_nudge=True,
+    shadow_mode=False,
+    intel_override=True,
+    composite=0.475,
+    integration_boost=0.10,
+  ) is False
 
 
 def test_recent_loser_symbols_blocks_zero_win_streak():
