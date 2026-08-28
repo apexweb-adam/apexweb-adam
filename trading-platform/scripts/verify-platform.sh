@@ -56,7 +56,8 @@ else
 fi
 
 # Database persistence (Supabase required on Render)
-python3 << PY
+db_ok=0
+python3 << PY || db_ok=$?
 import json, sys
 d = json.loads('''$STATUS''')
 db = d.get("database") or {}
@@ -70,7 +71,7 @@ if on_render:
 print(f"  engine={db.get('engine')} (local dev OK)")
 sys.exit(0)
 PY
-if [[ $? -eq 0 ]]; then
+if [[ "${db_ok:-0}" -eq 0 ]]; then
   ok "Database persistence"
 else
   bad "Database not persistent on production (set Supabase DATABASE_URL)"
