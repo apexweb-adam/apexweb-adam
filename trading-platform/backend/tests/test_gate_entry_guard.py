@@ -89,7 +89,23 @@ def test_shadow_intel_composite_override_commodities_nudge():
   ) is False
 
 
-def test_shadow_intel_composite_override_crypto_nudge():
+def test_shadow_intel_composite_override_crypto_high_composite_only():
+  assert shadow_intel_composite_override(
+    "crypto",
+    graduation_nudge=True,
+    shadow_mode=True,
+    composite=0.44,
+    entry_min_signal=0.26,
+    integration_boost=0.0,
+  ) is True
+  assert shadow_intel_composite_override(
+    "crypto",
+    graduation_nudge=True,
+    shadow_mode=True,
+    composite=0.35,
+    entry_min_signal=0.26,
+    integration_boost=0.0,
+  ) is False
   assert shadow_intel_composite_override(
     "crypto",
     graduation_nudge=True,
