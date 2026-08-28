@@ -528,6 +528,15 @@ export default function Dashboard() {
                               </span>
                             )}
                           </p>
+                          {(platformStatus.gate_entry_tightening.blocked_new_entries?.length ?? 0) > 0 && (
+                            <p className="text-amber-300/90">
+                              No new entries:{" "}
+                              {platformStatus.gate_entry_tightening.blocked_new_entries
+                                ?.map((b) => botLabel(b))
+                                .join(", ")}
+                              {" "}(WR &lt; 40%, ≥15 trades)
+                            </p>
+                          )}
                         </div>
                       </div>
                     )}
