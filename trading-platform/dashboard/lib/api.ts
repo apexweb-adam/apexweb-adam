@@ -297,6 +297,7 @@ export type GateEntryTightening = {
   blocked_new_entries?: string[];
   chronic_loser_symbols?: Record<string, string[]>;
   proven_winner_symbols?: Record<string, string[]>;
+  stocks_proven_winners_only?: boolean;
 };
 
 export type PlatformStatus = {
