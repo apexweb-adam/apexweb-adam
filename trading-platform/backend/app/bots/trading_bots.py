@@ -118,11 +118,12 @@ class BaseBot(ABC):
       gate_tightening = await get_gate_entry_tightening(session)
       chronic_losers: frozenset[str] = frozenset()
       proven_winners: frozenset[str] = frozenset()
-      if gate_tightening.active:
+      if gate_tightening.active or shadow_mode:
         chronic_losers = await get_gate_skip_symbols(session, self.bot_type)
-        if self.bot_type == "stocks_futures":
+        if self.bot_type in ("stocks_futures", "commodities"):
           proven_winners = await get_proven_winner_symbols(session, self.bot_type)
-          symbols = _prioritize_symbols(symbols, proven_winners)
+          if proven_winners:
+            symbols = _prioritize_symbols(symbols, proven_winners)
       open_positions = await engine.get_open_positions()
       open_count = len(open_positions)
       held_symbols = [p.symbol for p in open_positions if p.symbol]
@@ -262,6 +263,14 @@ class BaseBot(ABC):
         if (
           gate_tightening.active
           and self.bot_type == "stocks_futures"
+          and proven_winners
+          and symbol not in proven_winners
+        ):
+          continue
+
+        if (
+          shadow_mode
+          and self.bot_type == "commodities"
           and proven_winners
           and symbol not in proven_winners
         ):

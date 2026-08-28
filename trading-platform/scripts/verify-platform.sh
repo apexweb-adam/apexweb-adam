@@ -97,6 +97,25 @@ else
   bad "Verification history HTTP $VH"
 fi
 
+# Per-bot graduation gate
+PER_BOT=$(curl -fsS -m 25 "$BACKEND/api/gate/per-bot" 2>/dev/null || echo "{}")
+python3 << PY
+import json, sys
+d = json.loads('''$PER_BOT''')
+bots = d.get("bots") or {}
+if len(bots) < 4:
+    sys.exit(1)
+ready = [b for b, s in bots.items() if s.get("graduation_ready")]
+paused = [b for b, s in bots.items() if s.get("paused")]
+print(f"  bots={len(bots)} paused={paused} graduation_ready={ready or 'none'}")
+sys.exit(0)
+PY
+if [[ $? -eq 0 ]]; then
+  ok "Per-bot graduation gate (/api/gate/per-bot)"
+else
+  bad "Per-bot gate endpoint missing or incomplete"
+fi
+
 # CRM landing
 CRM=$(curl -fsS -m 20 "$BACKEND/crm" 2>/dev/null || echo "")
 if echo "$CRM" | grep -q "Apex Trading CRM"; then
