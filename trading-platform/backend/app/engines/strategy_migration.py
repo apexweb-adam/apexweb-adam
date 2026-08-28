@@ -403,18 +403,31 @@ async def close_non_macro_polymarket_positions(session: AsyncSession) -> int:
   return closed
 
 
-async def close_non_macro_polymarket_positions(session: AsyncSession) -> int:
-  """Exit open PM positions that fail macro/sports filter (legacy sports noise)."""
+async def close_excess_commodities_positions(
+  session: AsyncSession,
+  max_open: int = 2,
+) -> int:
+  """Close oldest commodities positions when open count exceeds gate cap (legacy overexposure)."""
+  from app.engines.gate_entry_guard import get_gate_entry_tightening
+  from app.engines.market_data import fetch_crypto_data, fetch_yfinance_data
   from app.engines.paper_trading import PaperTradingEngine
-  from app.engines.polymarket_data import fetch_polymarket_data, is_macro_relevant_symbol
 
-  engine = PaperTradingEngine(session, "polymarket")
+  gate = await get_gate_entry_tightening(session)
+  cap = gate.max_commodities_open_positions if gate.max_commodities_open_positions is not None else max_open
+
+  engine = PaperTradingEngine(session, "commodities")
   positions = await engine.get_open_positions()
+  if len(positions) <= cap:
+    return 0
+
+  positions.sort(key=lambda p: p.opened_at or datetime.min)
+  excess = positions[: len(positions) - cap]
   closed = 0
-  for pos in positions:
-    if is_macro_relevant_symbol(pos.symbol):
-      continue
-    price, _ = await fetch_polymarket_data(pos.symbol)
+  for pos in excess:
+    if pos.symbol.endswith("USDT"):
+      price, _ = await fetch_crypto_data(pos.symbol, "15m")
+    else:
+      price, _ = await fetch_yfinance_data(pos.symbol)
     if price <= 0:
       price = pos.current_price or pos.entry_price
     if price <= 0:
@@ -422,7 +435,7 @@ async def close_non_macro_polymarket_positions(session: AsyncSession) -> int:
     result = await engine.sell(
       pos.symbol,
       price,
-      "Close non-macro PM position (sports/noise filter)",
+      f"Close excess commodities position (cap {cap})",
     )
     if result:
       closed += 1

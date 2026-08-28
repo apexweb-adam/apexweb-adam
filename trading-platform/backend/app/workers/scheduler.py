@@ -91,6 +91,7 @@ async def risk_migration_job() -> None:
     from app.engines.strategy_migration import (
       adapt_for_gate_win_rate,
       clamp_verification_strategy_params,
+      close_excess_commodities_positions,
       ensure_polymarket_strategy,
       sync_bot_strategy_versions,
       trim_oversized_polymarket_positions,
@@ -101,11 +102,13 @@ async def risk_migration_job() -> None:
     migrated = await migrate_symbol_columns(session)
     updated = await ensure_polymarket_strategy(session)
     trimmed = await trim_oversized_polymarket_positions(session)
+    commodities_trimmed = await close_excess_commodities_positions(session)
     synced = await sync_bot_strategy_versions(session)
-    if clamped or adapted or updated or trimmed or synced:
+    if clamped or adapted or updated or trimmed or commodities_trimmed or synced:
       print(
         f"[RiskMigration] clamped={clamped} gate_adapted={adapted} strategy_updated={updated} "
-        f"trimmed={trimmed} synced={synced} at {datetime.utcnow().isoformat()}"
+        f"trimmed={trimmed} commodities_trimmed={commodities_trimmed} synced={synced} "
+        f"at {datetime.utcnow().isoformat()}"
       )
 
 
@@ -190,6 +193,7 @@ async def setup_scheduler() -> None:
   async with SessionLocal() as session:
     from app.engines.strategy_migration import (
       clamp_verification_strategy_params,
+      close_excess_commodities_positions,
       ensure_polymarket_strategy,
       fix_breakeven_trade_labels,
       dedupe_polymarket_positions,
@@ -222,6 +226,9 @@ async def setup_scheduler() -> None:
     trimmed = await trim_oversized_polymarket_positions(session)
     if trimmed:
       print(f"[Strategy] Trimmed {trimmed} oversized Polymarket position(s)")
+    commodities_trimmed = await close_excess_commodities_positions(session)
+    if commodities_trimmed:
+      print(f"[Strategy] Closed {commodities_trimmed} excess commodities position(s)")
     synced = await sync_bot_strategy_versions(session)
     if synced:
       print(f"[Strategy] Synced strategy version on {synced} bot(s)")
