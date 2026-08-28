@@ -41,6 +41,8 @@ class Settings(BaseSettings):
     crypto_reentry_cooldown_seconds: int = 900
     commodities_loss_cooldown_seconds: int = 1200
     commodities_reentry_cooldown_seconds: int = 600
+    stocks_loss_cooldown_seconds: int = 1800
+    stocks_reentry_cooldown_seconds: int = 900
 
     # Bot tuning
     crypto_symbols: str = (
