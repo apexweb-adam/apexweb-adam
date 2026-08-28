@@ -35,6 +35,8 @@ from app.engines.gate_entry_guard import (
   shadow_requires_macd,
   stocks_gate_entry_sentiment_ok,
   stocks_in_us_session,
+  stocks_session_close_wind_down,
+  stocks_session_info,
   GATE_INDEX_ETF_SYMBOLS,
   HardGateSkipSets,
 )
@@ -261,6 +263,28 @@ class BaseBot(ABC):
               default_seconds=settings.commodities_min_hold_seconds,
             )
           allow_signal_exit = held_seconds >= min_hold
+
+          if self.bot_type == "stocks_futures":
+            unrealized = (price - position.entry_price) * position.quantity
+            session_info = stocks_session_info()
+            if stocks_session_close_wind_down(
+              in_session=session_info.get("in_session", False),
+              minutes_until_close=session_info.get("minutes_until_close"),
+              unrealized=unrealized,
+              signal_direction=signal.direction,
+            ):
+              reason = (
+                f"Session close wind-down: uPnL ${unrealized:.2f} | {signal.reason}"
+              )
+              result = await engine.sell(symbol, price, reason)
+              if result:
+                actions.append(result)
+                if result.get("is_winner") is False:
+                  await self._analyze_loss(session, symbol)
+                  self._register_symbol_cooldown(symbol, after_loss=True)
+                else:
+                  self._register_symbol_cooldown(symbol, after_loss=False)
+              continue
 
           if (
             early_verification_boost
