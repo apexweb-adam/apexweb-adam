@@ -54,9 +54,22 @@ if [[ -z "${VALUES[DATABASE_URL]:-}" ]] || [[ "${VALUES[DATABASE_URL]}" == *"sql
   echo "See SUPABASE_SETUP.md"
 fi
 
-# Default CORS from render.yaml when not in .env
-if [[ -z "${VALUES[CORS_ORIGINS]:-}" ]]; then
-  VALUES[CORS_ORIGINS]="https://apex-trading-dashboard-flame.vercel.app,https://apex-trading-dashboard-git-main-apexweb-adams-projects.vercel.app"
+# Default CORS for production (always include git-main verified preview)
+PRODUCTION_CORS="https://apex-trading-dashboard-flame.vercel.app,https://apex-trading-dashboard-git-main-apexweb-adams-projects.vercel.app,https://apex-trading-dashboard-apexweb-adams-projects.vercel.app"
+if [[ -n "${VALUES[CORS_ORIGINS]:-}" ]]; then
+  VALUES[CORS_ORIGINS]="${VALUES[CORS_ORIGINS]},${PRODUCTION_CORS}"
+  # dedupe comma-separated origins
+  VALUES[CORS_ORIGINS]=$(python3 -c "
+import sys
+seen=set(); out=[]
+for o in sys.argv[1].split(','):
+    o=o.strip()
+    if o and o not in seen:
+        seen.add(o); out.append(o)
+print(','.join(out))
+" "${VALUES[CORS_ORIGINS]}")
+else
+  VALUES[CORS_ORIGINS]="$PRODUCTION_CORS"
 fi
 
 if [[ -z "${VALUES[PLATFORM_REVISION]:-}" ]]; then
@@ -94,7 +107,7 @@ done
 echo ""
 echo "Synced $synced keys ($skipped skipped)"
 
-if [[ "${TRIGGER_DEPLOY:-true}" == "true" ]]; then
+if [[ "${TRIGGER_DEPLOY:-false}" == "true" ]]; then
   echo "Triggering Render deploy..."
   curl -fsS -X POST \
     -H "Authorization: Bearer $RENDER_API_KEY" \
