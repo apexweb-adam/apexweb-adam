@@ -95,6 +95,9 @@ SHADOW_INTEL_COMPOSITE_ONLY_BY_BOT = {
 }
 SHADOW_INTEL_CHRONIC_POSITION_SCALE = 0.25
 SHADOW_CHRONIC_LOSS_COOLDOWN_MULTIPLIER = 2
+LARGE_LOSS_COOLDOWN_MULTIPLIER_BY_BOT = {
+  "stocks_futures": 3,
+}
 SHADOW_INTEL_BOOST_FLOOR = 0.08
 SHADOW_INTEL_BOOST_FLOOR_BY_BOT = {
   "crypto": 0.06,
@@ -496,10 +499,15 @@ async def is_symbol_in_trade_cooldown(
   symbol: str,
   *,
   chronic_symbols: frozenset[str] = frozenset(),
+  large_loss_symbols: frozenset[str] = frozenset(),
 ) -> bool:
   """DB-backed re-entry cooldown — survives deploy restarts."""
   remaining = await symbol_cooldown_remaining_seconds(
-    session, bot_type, symbol, chronic_symbols=chronic_symbols
+    session,
+    bot_type,
+    symbol,
+    chronic_symbols=chronic_symbols,
+    large_loss_symbols=large_loss_symbols,
   )
   return remaining > 0
 
@@ -510,6 +518,7 @@ async def symbol_cooldown_remaining_seconds(
   symbol: str,
   *,
   chronic_symbols: frozenset[str] = frozenset(),
+  large_loss_symbols: frozenset[str] = frozenset(),
 ) -> int:
   """Seconds until symbol re-entry is allowed after last sell."""
   from app.models.entities import Trade
@@ -540,6 +549,9 @@ async def symbol_cooldown_remaining_seconds(
     and symbol in chronic_symbols
   ):
     seconds = int(seconds * SHADOW_CHRONIC_LOSS_COOLDOWN_MULTIPLIER)
+  large_mult = LARGE_LOSS_COOLDOWN_MULTIPLIER_BY_BOT.get(bot_type)
+  if is_winner is False and large_mult and symbol in large_loss_symbols:
+    seconds = int(seconds * large_mult)
   return max(0, int(seconds - elapsed))
 
 

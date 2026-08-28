@@ -344,7 +344,20 @@ class BaseBot(ABC):
         if cooldown and datetime.utcnow() < cooldown:
           continue
         if await is_symbol_in_trade_cooldown(
-          session, self.bot_type, symbol, chronic_symbols=chronic_losers
+          session,
+          self.bot_type,
+          symbol,
+          chronic_symbols=chronic_losers,
+          large_loss_symbols=hard_skip_sets.large,
+        ):
+          continue
+
+        if (
+          early_verification_boost
+          and self.bot_type == "stocks_futures"
+          and symbol in GATE_INDEX_ETF_SYMBOLS
+          and proven_winners
+          and symbol not in proven_winners
         ):
           continue
 

@@ -24,6 +24,7 @@ from app.engines.gate_entry_guard import (
   early_verification_raw_signal_ok,
   gate_entry_guards_active,
   gate_position_scale,
+  GATE_INDEX_ETF_SYMBOLS,
   get_chronic_loser_symbols,
   get_gate_entry_tightening,
   get_hard_gate_skip_components,
@@ -219,7 +220,11 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
 
     blockers: list[str] = []
     cooldown_remaining = await symbol_cooldown_remaining_seconds(
-      session, bot_type, symbol, chronic_symbols=chronic_losers
+      session,
+      bot_type,
+      symbol,
+      chronic_symbols=chronic_losers,
+      large_loss_symbols=hard_skip_sets.large,
     )
     if cooldown_remaining > 0:
       blockers.append("symbol_cooldown")
@@ -251,6 +256,14 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
       and symbol not in proven_winners
     ):
       blockers.append("not_proven_winner")
+    if (
+      early_verification_boost
+      and bot_type == "stocks_futures"
+      and symbol in GATE_INDEX_ETF_SYMBOLS
+      and proven_winners
+      and symbol not in proven_winners
+    ):
+      blockers.append("index_etf_unproven")
     if (
       shadow_mode
       and bot_type == "commodities"
