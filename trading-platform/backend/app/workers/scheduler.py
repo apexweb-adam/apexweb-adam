@@ -229,6 +229,26 @@ async def ensure_verification_period_on_startup() -> None:
       print(f"[Verification] Started profitability window at {started.isoformat()}")
 
 
+async def _deferred_startup_jobs() -> None:
+  """Heavy intel/learning jobs — run in background so /api/health is ready quickly on Render."""
+  try:
+    await intelligence_job()
+    await content_study_job()
+    async with SessionLocal() as session:
+      learner = LearningEngine(session)
+      dismissed = await learner.dismiss_noise_insights(max_confidence=0.5)
+      if dismissed:
+        print(f"[Learning] Dismissed {dismissed} low-confidence noise insight(s)")
+      pending = await learner.apply_pending_insights(min_confidence=0.55)
+      if pending:
+        print(f"[Learning] Applied {pending} pending insight(s) on startup")
+    await ensure_daily_review_on_startup()
+    await verification_snapshot_job()
+    await stocks_pre_session_prep_job()
+  except Exception as exc:
+    print(f"[Startup] Deferred jobs error: {exc}")
+
+
 async def setup_scheduler() -> None:
   await init_db()
   from app.engines.deploy_trigger import auto_redeploy_enabled, maybe_trigger_stale_redeploy
@@ -317,18 +337,5 @@ async def setup_scheduler() -> None:
   scheduler.add_job(verification_snapshot_job, "cron", hour=23, minute=0, id="verification_snapshot")
   scheduler.add_job(reset_daily_bot_stats_job, "cron", hour=0, minute=0, id="reset_daily_stats")
   scheduler.start()
-
-  await intelligence_job()
-  await content_study_job()
-  async with SessionLocal() as session:
-    learner = LearningEngine(session)
-    dismissed = await learner.dismiss_noise_insights(max_confidence=0.5)
-    if dismissed:
-      print(f"[Learning] Dismissed {dismissed} low-confidence noise insight(s)")
-    pending = await learner.apply_pending_insights(min_confidence=0.55)
-    if pending:
-      print(f"[Learning] Applied {pending} pending insight(s) on startup")
-  await ensure_daily_review_on_startup()
-  await verification_snapshot_job()
-  await stocks_pre_session_prep_job()
   await start_bots()
+  asyncio.create_task(_deferred_startup_jobs())
