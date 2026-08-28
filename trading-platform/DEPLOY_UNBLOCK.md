@@ -53,15 +53,34 @@ curl https://apex-trading-backend.onrender.com/api/dashboard-url
 Gate auto-pause underperformers:
 
 ```bash
+./trading-platform/scripts/sync-prod-gate-pauses.sh
+```
+
+Or (r79+ backend only):
+
+```bash
 curl -X POST https://apex-trading-backend.onrender.com/api/admin/sync-gate-pauses \
   -H 'Content-Type: application/json' \
   -d '{"secret":"YOUR_TRADINGVIEW_WEBHOOK_SECRET"}'
 ```
+
+The sync script falls back to `set-bot-paused` per bot when `sync-gate-pauses` returns 404 (stale Render).
 
 ## Dashboard (works before backend deploy)
 
 Verified r25 CRM preview: https://apex-trading-dashboard-73nruanbo-apexweb-adams-projects.vercel.app
 
 Promote to production `-flame`: Vercel → Deployments → `dpl_29H1cYhLuLb1wN7L3HJD9yizZ8pL` → Promote to Production (requires `VERCEL_TOKEN` in GitHub secrets for CI promote).
+
+Or run locally:
+
+```bash
+export VERCEL_TOKEN=...
+./trading-platform/scripts/promote-vercel-dashboard.sh
+```
+
+**Vercel free tier:** 100 API deploys/day — if promote fails with `payment_required`, wait 24h or promote manually in the Vercel dashboard.
+
+**Use verified preview now (stable until promote):** https://apex-trading-dashboard-73nruanbo-apexweb-adams-projects.vercel.app
 
 See also: [RENDER_DEPLOY.md](./RENDER_DEPLOY.md)

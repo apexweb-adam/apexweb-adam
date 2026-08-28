@@ -42,17 +42,18 @@ def test_discover_skips_stale_git_main_when_configured_is_newer():
 def test_recommended_dashboard_url_uses_configured_probe():
   configured_url = "https://apex-trading-dashboard-73nruanbo-apexweb-adams-projects.vercel.app"
 
-  with patch.object(
-    deploy_status,
-    "probe_configured_verified_dashboard",
-    AsyncMock(
-      return_value={
-        "verified_dashboard_url": configured_url,
-        "vercel_bundle_revision": "2026-08-28-r25",
-        "discovered": False,
-      }
-    ),
-  ):
-    url = asyncio.run(deploy_status.recommended_dashboard_url())
+  with patch.object(deploy_status, "configured_public_dashboard_url", return_value=None):
+    with patch.object(
+      deploy_status,
+      "probe_configured_verified_dashboard",
+      AsyncMock(
+        return_value={
+          "verified_dashboard_url": configured_url,
+          "vercel_bundle_revision": "2026-08-28-r25",
+          "discovered": False,
+        }
+      ),
+    ):
+      url = asyncio.run(deploy_status.recommended_dashboard_url())
 
   assert url == configured_url
