@@ -1,0 +1,34 @@
+name: Backend Tests
+
+# Runs pytest on backend changes without depending on Vercel deploy quota.
+
+on:
+  pull_request:
+    paths:
+      - 'trading-platform/backend/**'
+      - '.github/workflows/backend-tests.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'trading-platform/backend/**'
+      - '.github/workflows/backend-tests.yml'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        working-directory: trading-platform/backend
+        run: |
+          pip install -r requirements.txt
+
+      - name: Run pytest
+        working-directory: trading-platform/backend
+        run: PYTHONPATH=. python3 -m pytest tests/ -v
