@@ -33,12 +33,12 @@ jobs:
           rev = cfg.get("bundleRevision")
           current = rev in acceptable and (cfg.get("features") or {}).get("activeGate") is True
           if current:
-              print(f"Production dashboard bundle OK ({expected})")
+              print(f"Production dashboard bundle OK ({rev})")
           else:
               preview = os.environ.get("VERIFIED_PREVIEW", "")
               print(f"::warning::Production Vercel bundle stale (rev={cfg.get('bundleRevision')!r})")
               print(f"::warning::Use verified preview until promote: {preview}")
-              print("::warning::Promote dpl_DMSgUEGsa2PTokNr99BXWoggczd7 or add VERCEL_TOKEN secret")
+              print("::warning::Promote dpl_29H1cYhLuLb1wN7L3HJD9yizZ8pL or add VERCEL_TOKEN secret")
           PY
           echo "Checking $DASHBOARD/api/config ..."
           curl -fsS "$DASHBOARD/api/config" | python3 -c "import json,sys; d=json.load(sys.stdin); assert d.get('apiUrl'), 'missing apiUrl'"
@@ -57,15 +57,42 @@ jobs:
         run: |
           set -euo pipefail
           LATEST=$(curl -fsS "https://api.github.com/repos/apexweb-adam/apexweb-adam/git/ref/heads/main" | python3 -c "import json,sys; print(json.load(sys.stdin)['object']['sha'][:12])")
-          DEPLOYED=$(curl -fsS "https://apex-trading-backend.onrender.com/api/status" | python3 -c "import json,sys; d=json.load(sys.stdin).get('deploy',{}); print((d.get('git_commit') or '?')[:12])")
+          STATUS=$(curl -fsS "https://apex-trading-backend.onrender.com/api/status")
+          DEPLOYED=$(echo "$STATUS" | python3 -c "import json,sys; print(json.load(sys.stdin).get('deploy',{}).get('git_commit','')[:12])")
           echo "main=$LATEST deployed=$DEPLOYED"
           if [[ "$DEPLOYED" != "$LATEST" && "$DEPLOYED" != "${LATEST:0:12}" ]]; then
             echo "::warning::Render backend stale — deployed $DEPLOYED, main is $LATEST. Trigger manual deploy or set RENDER_API_KEY."
           else
             echo "Backend deploy matches main ($DEPLOYED)"
           fi
+          DASH_URL=$(curl -fsS "https://apex-trading-backend.onrender.com/api/dashboard-url" | python3 -c "import json,sys; print(json.load(sys.stdin).get('recommended_url',''))")
+          echo "recommended_dashboard_url=$DASH_URL"
+          if [[ "$DASH_URL" == *"git-main"* ]]; then
+            echo "::warning::Backend still recommends stale git-main alias — deploy r77+ for r25 preview routing"
+          elif [[ "$DASH_URL" == *"73nruanbo"* ]]; then
+            echo "OK: backend recommends verified r25 preview"
+          fi
 
-      - name: Check CRM landing page (/crm)
+      - name: Check verified r25 preview dashboard
+        env:
+          VERIFIED_PREVIEW: "https://apex-trading-dashboard-73nruanbo-apexweb-adams-projects.vercel.app"
+        run: |
+          set -euo pipefail
+          curl -fsS "$VERIFIED_PREVIEW/api/config" | python3 -c "
+          import json,sys
+          d=json.load(sys.stdin)
+          rev=d.get('bundleRevision','')
+          assert rev in ('2026-08-28-r25','2026-08-28-r24','2026-08-28-r23'), rev
+          assert (d.get('features') or {}).get('activeGate') is True
+          print('OK: verified preview bundle', rev)
+          "
+          curl -fsS "$VERIFIED_PREVIEW/api/backend/active-gate" | python3 -c "
+          import json,sys
+          d=json.load(sys.stdin)
+          assert d.get('active_bots'), d
+          print('OK: verified preview active-gate proxy')
+          "
+
         run: |
           set -euo pipefail
           CRM=$(curl -fsS "https://apex-trading-backend.onrender.com/crm")
@@ -156,7 +183,7 @@ jobs:
           NATIVE=$(curl -fsS -o /dev/null -w "%{http_code}" "$PROD/api/active-gate" || echo "000")
           PREVIEW="${VERIFIED_PREVIEW}"
           if [[ "$NATIVE" != "200" ]]; then
-            echo "::warning::Production /api/active-gate is $NATIVE — promote dpl_DMSgUEGsa2PTokNr99BXWoggczd7"
+            echo "::warning::Production /api/active-gate is $NATIVE — promote dpl_29H1cYhLuLb1wN7L3HJD9yizZ8pL"
             PREVIEW_NATIVE=$(curl -fsS -o /dev/null -w "%{http_code}" "$PREVIEW/api/active-gate" || echo "000")
             echo "Verified preview /api/active-gate HTTP $PREVIEW_NATIVE ($PREVIEW)"
             if [[ "$PREVIEW_NATIVE" != "200" ]]; then
