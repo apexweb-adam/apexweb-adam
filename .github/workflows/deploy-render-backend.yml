@@ -22,7 +22,8 @@ jobs:
         if: github.event_name == 'schedule'
         id: freshness
         run: |
-          LATEST=$(curl -fsS "https://api.github.com/repos/apexweb-adam/apexweb-adam/commits/main" | python3 -c "import json,sys; print(json.load(sys.stdin)['sha'][:12])")
+          set -euo pipefail
+          LATEST=$(curl -fsS "https://api.github.com/repos/apexweb-adam/apexweb-adam/git/ref/heads/main" | python3 -c "import json,sys; print(json.load(sys.stdin)['object']['sha'][:12])")
           DEPLOYED=$(curl -fsS "https://apex-trading-backend.onrender.com/api/status" | python3 -c "import json,sys; d=json.load(sys.stdin).get('deploy',{}); print((d.get('git_commit') or '?')[:12])")
           EQUITY=$(curl -s -o /dev/null -w "%{http_code}" "https://apex-trading-backend.onrender.com/api/equity-history")
           echo "main=$LATEST deployed=$DEPLOYED equity_history=$EQUITY"
@@ -78,7 +79,7 @@ jobs:
             sleep 30
             STATUS=$(curl -fsS "https://apex-trading-backend.onrender.com/api/status")
             DEPLOYED=$(echo "$STATUS" | python3 -c "import json,sys; print(json.load(sys.stdin).get('deploy',{}).get('git_commit','')[:12])")
-            MAIN=$(curl -fsS "https://api.github.com/repos/apexweb-adam/apexweb-adam/commits/main" | python3 -c "import json,sys; print(json.load(sys.stdin)['sha'][:12])")
+            MAIN=$(curl -fsS "https://api.github.com/repos/apexweb-adam/apexweb-adam/git/ref/heads/main" | python3 -c "import json,sys; print(json.load(sys.stdin)['object']['sha'][:12])")
             EQUITY=$(curl -s -o /dev/null -w "%{http_code}" "https://apex-trading-backend.onrender.com/api/equity-history")
             echo "attempt $attempt: deployed=$DEPLOYED main=$MAIN equity_history=$EQUITY"
             if [[ "$DEPLOYED" == "$MAIN" && "$EQUITY" == "200" ]]; then

@@ -37,19 +37,36 @@ jobs:
           curl -fsS --max-time 45 "$URL/api/status" -o /tmp/render-status.json
           python3 << 'PY'
           import json, os, sys, urllib.request
+
+          def main_sha_via_ref() -> str:
+              req = urllib.request.Request(
+                  "https://api.github.com/repos/apexweb-adam/apexweb-adam/git/ref/heads/main",
+                  headers={"User-Agent": "ApexTradingPlatform/1.0", "Accept": "application/vnd.github+json"},
+              )
+              with urllib.request.urlopen(req, timeout=20) as resp:
+                  return json.load(resp).get("object", {}).get("sha", "")
+
           with open("/tmp/render-status.json") as f:
               d = json.load(f)
           dep = d.get("deploy", {})
           stale = dep.get("is_stale")
-          deployed = (dep.get("git_commit") or "")[:12]
-          main = (dep.get("latest_main_commit") or "")[:12]
-          print(f"deploy={deployed} main={main} stale={stale}")
+          deployed = (dep.get("git_commit") or "").strip()
+          main = (dep.get("latest_main_commit") or "").strip()
+          if not main:
+              try:
+                  main = main_sha_via_ref()
+              except Exception as exc:
+                  print(f"GitHub ref lookup failed: {exc}")
+          if deployed and main and not deployed.startswith(main[:12]) and main[:12] not in deployed[:12]:
+              stale = True
+              print(f"Independent staleness check: deployed={deployed[:12]} main={main[:12]}")
+          print(f"deploy={deployed[:12] if deployed else '?'} main={main[:12] if main else '?'} stale={stale}")
           if not stale:
               sys.exit(0)
           hook = os.environ.get("RENDER_DEPLOY_HOOK", "").strip()
           api_key = os.environ.get("RENDER_API_KEY", "").strip()
           commits_behind = int(dep.get("commits_behind") or 0)
-          clear_cache = commits_behind > 0
+          clear_cache = commits_behind > 0 or True
           if api_key:
               req = urllib.request.Request(
                   "https://api.render.com/v1/services?limit=100",

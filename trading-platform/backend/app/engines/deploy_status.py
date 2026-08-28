@@ -146,6 +146,36 @@ def deployed_git_commit() -> str | None:
 
 
 async def fetch_latest_main_commit() -> dict[str, Any] | None:
+  """Resolve main HEAD — ref endpoint first (lighter, survives rate limits)."""
+  ref = await fetch_main_sha_via_ref()
+  if ref and ref.get("sha"):
+    headers = github_headers()
+    for attempt in range(2):
+      try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+          response = await client.get(
+            f"https://api.github.com/repos/{GITHUB_REPO}/commits/{ref['sha']}",
+            headers=headers,
+          )
+          if response.status_code == 200:
+            data = response.json()
+            commit = data.get("commit") or {}
+            return {
+              "sha": data.get("sha") or ref["sha"],
+              "message": (commit.get("message") or "").split("\n")[0],
+              "committed_at": (commit.get("author") or {}).get("date"),
+            }
+          if response.status_code == 403 and attempt < 1:
+            import asyncio
+            await asyncio.sleep(1.5)
+            continue
+      except Exception:
+        if attempt < 1:
+          import asyncio
+          await asyncio.sleep(1.0)
+          continue
+    return ref
+
   headers = github_headers()
   for attempt in range(3):
     try:
@@ -295,9 +325,12 @@ async def fetch_vercel_dashboard_bundle() -> dict[str, Any]:
 
 async def build_deploy_status() -> dict[str, Any]:
   deployed = deployed_git_commit()
-  compare = await fetch_compare_to_main(deployed) if deployed else None
   latest = await fetch_latest_main_commit()
   latest_sha = (latest or {}).get("sha")
+
+  compare = await fetch_compare_to_main(deployed) if deployed else None
+  if deployed and not compare and latest_sha and deployed != latest_sha:
+    compare = await fetch_compare_to_main(deployed)
 
   is_stale = False
   pending_changes: list[dict[str, str]] = []
@@ -333,7 +366,8 @@ async def build_deploy_status() -> dict[str, Any]:
     next_steps.append(
       f"Render deploy is stale — running {deployed[:12] if deployed else '?'} "
       f"but main is {latest_sha[:12] if latest_sha else '?'}. "
-      "Trigger manual deploy in Render dashboard or set RENDER_DEPLOY_HOOK in GitHub secrets."
+      "Set RENDER_API_KEY in GitHub secrets (preferred) or RENDER_DEPLOY_HOOK, "
+      "or trigger manual deploy in Render dashboard."
     )
     if pending_changes:
       summaries = [c["message"] for c in pending_changes[:3]]
