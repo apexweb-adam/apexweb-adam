@@ -12,4 +12,5 @@ def test_stale_hook_skip_reason_documented():
 
   source = open(deploy_trigger.__file__).read()
   assert "stale_needs_api_or_manual_deploy" in source
-  assert "redeploy the old commit" in source
+  assert "allow_stale_hook" in source
+  assert "render-hook-recovery" in source

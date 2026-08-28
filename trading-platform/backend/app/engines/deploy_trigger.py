@@ -61,16 +61,21 @@ async def trigger_render_api_deploy(*, clear_cache: bool = False) -> dict[str, A
     return {"ok": True, "service_id": service_id, "deploy": deploy.json()}
 
 
-async def maybe_trigger_stale_redeploy(*, force: bool = False) -> dict[str, Any]:
-  """Redeploy once per hour when deploy is stale — prefer Render API over deploy hook."""
+async def maybe_trigger_stale_redeploy(
+  *,
+  force: bool = False,
+  allow_stale_hook: bool = False,
+) -> dict[str, Any]:
+  """Redeploy when deploy is stale — prefer Render API, then deploy hook."""
   status = await build_deploy_status()
 
   if not force and not status.get("is_stale"):
     return {"triggered": False, "reason": "deploy_current", "deploy": status}
 
   commits_behind = int(status.get("commits_behind") or 0)
+  stale = bool(status.get("is_stale") or commits_behind > 0)
 
-  if not force:
+  if not force and not allow_stale_hook:
     async with SessionLocal() as session:
       last_raw = await get_platform_setting(session, LAST_REDEPLOY_KEY)
       if last_raw:
@@ -99,15 +104,15 @@ async def maybe_trigger_stale_redeploy(*, force: bool = False) -> dict[str, Any]
       "forced": force,
     }
 
-  # Deploy hooks redeploy the last built commit — they cannot advance a stale service.
-  if commits_behind > 0 or status.get("is_stale"):
+  # Skip hook when stale unless explicitly forced — CI keep-alive should not loop old builds.
+  if stale and not force and not allow_stale_hook:
     return {
       "triggered": False,
       "reason": "stale_needs_api_or_manual_deploy",
       "deploy": status,
       "message": (
-        "Deploy hook skipped — it would redeploy the old commit. "
-        "Set RENDER_API_KEY or use Render Manual Deploy → latest commit."
+        "Deploy hook skipped while stale. Use force=true, render-hook-recovery workflow, "
+        "RENDER_API_KEY, or Render Manual Deploy → latest commit."
       ),
     }
 
@@ -129,10 +134,11 @@ async def maybe_trigger_stale_redeploy(*, force: bool = False) -> dict[str, Any]
   async with SessionLocal() as session:
     await set_platform_setting(session, LAST_REDEPLOY_KEY, datetime.utcnow().isoformat())
 
+  hook_reason = "force_redeploy_hook" if force else "stale_recovery_hook"
   return {
     "triggered": True,
-    "reason": "force_redeploy_hook" if force else "stale_redeploy_hook",
+    "reason": hook_reason,
     "deploy": status,
     "message": "Render redeploy triggered via deploy hook",
-    "forced": force,
+    "forced": force or allow_stale_hook,
   }
