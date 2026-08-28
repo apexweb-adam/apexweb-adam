@@ -213,6 +213,7 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
       blockers.append("symbol_cooldown")
     if entry_guards and hard_skip_blocks_shadow_entry(
       symbol,
+      bot_type=bot_type,
       recent_skip=hard_skip_sets.recent,
       large_skip=hard_skip_sets.large,
       review_skip=hard_skip_sets.review,

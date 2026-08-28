@@ -92,6 +92,7 @@ def test_hard_skip_blocks_shadow_entry_recent_bypass_with_intel():
 
   assert hard_skip_blocks_shadow_entry(
     "BTCUSDT",
+    bot_type="crypto",
     recent_skip=frozenset({"BTCUSDT"}),
     large_skip=frozenset(),
     review_skip=frozenset(),
@@ -103,6 +104,7 @@ def test_hard_skip_blocks_shadow_entry_recent_bypass_with_intel():
   ) is False
   assert hard_skip_blocks_shadow_entry(
     "BTCUSDT",
+    bot_type="crypto",
     recent_skip=frozenset({"BTCUSDT"}),
     large_skip=frozenset(),
     review_skip=frozenset(),
@@ -119,6 +121,7 @@ def test_hard_skip_blocks_shadow_entry_large_loss_bypass_strong_intel():
 
   assert hard_skip_blocks_shadow_entry(
     "SI=F",
+    bot_type="commodities",
     recent_skip=frozenset(),
     large_skip=frozenset({"SI=F"}),
     review_skip=frozenset(),
@@ -130,6 +133,31 @@ def test_hard_skip_blocks_shadow_entry_large_loss_bypass_strong_intel():
   ) is False
   assert hard_skip_blocks_shadow_entry(
     "SI=F",
+    bot_type="commodities",
+    recent_skip=frozenset(),
+    large_skip=frozenset({"SI=F"}),
+    review_skip=frozenset(),
+    graduation_nudge=True,
+    shadow_mode=True,
+    intel_override=True,
+    composite=0.44,
+    integration_boost=0.12,
+  ) is False
+  assert hard_skip_blocks_shadow_entry(
+    "SI=F",
+    bot_type="commodities",
+    recent_skip=frozenset(),
+    large_skip=frozenset({"SI=F"}),
+    review_skip=frozenset(),
+    graduation_nudge=True,
+    shadow_mode=True,
+    intel_override=True,
+    composite=0.40,
+    integration_boost=0.12,
+  ) is True
+  assert hard_skip_blocks_shadow_entry(
+    "SI=F",
+    bot_type="stocks_futures",
     recent_skip=frozenset(),
     large_skip=frozenset({"SI=F"}),
     review_skip=frozenset(),
@@ -146,6 +174,7 @@ def test_hard_skip_blocks_shadow_entry_review_never_bypassed():
 
   assert hard_skip_blocks_shadow_entry(
     "CL=F",
+    bot_type="commodities",
     recent_skip=frozenset(),
     large_skip=frozenset(),
     review_skip=frozenset({"CL=F"}),
