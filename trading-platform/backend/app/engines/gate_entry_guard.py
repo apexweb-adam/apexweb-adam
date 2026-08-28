@@ -178,6 +178,8 @@ CHRONIC_LOSER_MIN_TRADES = 3
 CHRONIC_LOSER_MAX_WIN_RATE = 0.35
 RECENT_LOSER_DAYS = 7
 RECENT_LOSER_MIN_LOSSES = 2
+RECENT_LARGE_LOSS_USD = 25.0
+RECENT_LARGE_LOSS_HOURS = 24
 REVIEW_LOSER_DAYS = 3
 PROVEN_WINNER_MIN_TRADES = 2
 PROVEN_WINNER_MIN_WIN_RATE = 0.50
@@ -273,6 +275,47 @@ async def get_recent_loser_symbols(
   return frozenset(blocked)
 
 
+async def get_large_recent_loss_symbols(
+  session: AsyncSession,
+  bot_type: str,
+  *,
+  hours: int = RECENT_LARGE_LOSS_HOURS,
+  min_loss_usd: float = RECENT_LARGE_LOSS_USD,
+) -> frozenset[str]:
+  """Skip symbols whose most recent close was a large loss (survives deploy restarts)."""
+  from app.models.entities import Trade
+
+  cutoff = datetime.utcnow() - timedelta(hours=hours)
+  result = await session.execute(
+    select(Trade.symbol, Trade.pnl, Trade.is_winner, Trade.executed_at).where(
+      Trade.bot_type == bot_type,
+      Trade.action == "sell",
+      Trade.executed_at >= cutoff,
+    ).order_by(Trade.executed_at.desc())
+  )
+  latest: dict[str, tuple[bool | None, float | None]] = {}
+  for symbol, pnl, is_winner, _executed_at in result.all():
+    if not symbol or symbol in latest:
+      continue
+    latest[symbol] = (is_winner, pnl)
+
+  blocked: set[str] = set()
+  for symbol, (is_winner, pnl) in latest.items():
+    if is_winner is False and pnl is not None and pnl <= -min_loss_usd:
+      blocked.add(symbol)
+  return frozenset(blocked)
+
+
+def gate_entry_guards_active(
+  *,
+  gate_tightening: GateEntryTightening,
+  shadow_mode: bool,
+  live_trading_ready: bool,
+) -> bool:
+  """Whether loser/skip symbol guards apply to new entries."""
+  return gate_tightening.active or shadow_mode or not live_trading_ready
+
+
 async def get_review_blocked_symbols(
   session: AsyncSession,
   bot_type: str,
@@ -305,11 +348,12 @@ async def get_review_blocked_symbols(
 
 
 async def get_gate_skip_symbols(session: AsyncSession, bot_type: str) -> frozenset[str]:
-  """Union of chronic, recent, and daily-review loser symbols during gate."""
+  """Union of chronic, recent, large-loss, and daily-review loser symbols during gate."""
   chronic = await get_chronic_loser_symbols(session, bot_type)
   recent = await get_recent_loser_symbols(session, bot_type)
+  large = await get_large_recent_loss_symbols(session, bot_type)
   review = await get_review_blocked_symbols(session, bot_type)
-  return chronic | recent | review
+  return chronic | recent | large | review
 
 
 async def get_proven_winner_symbols(

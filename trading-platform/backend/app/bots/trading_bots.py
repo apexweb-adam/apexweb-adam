@@ -12,8 +12,9 @@ from app.engines.gate_entry_guard import (
   get_gate_entry_tightening,
   get_gate_skip_symbols,
   get_proven_winner_symbols,
-  gate_position_scale,
   early_verification_active,
+  gate_entry_guards_active,
+  gate_position_scale,
   in_shadow_graduation_nudge,
   shadow_entry_min_signal,
   shadow_intel_composite_override,
@@ -123,16 +124,23 @@ class BaseBot(ABC):
       engine = PaperTradingEngine(session, self.bot_type)
       strategy = await engine.get_strategy()
       gate_tightening = await get_gate_entry_tightening(session)
+      from app.engines.profitability_gate import ProfitabilityGate
+
+      gate_status = await ProfitabilityGate(session).evaluate()
+      entry_guards = gate_entry_guards_active(
+        gate_tightening=gate_tightening,
+        shadow_mode=shadow_mode,
+        live_trading_ready=bool(gate_status.get("live_trading_ready")),
+      )
       shadow_bot_wr: float | None = None
       if shadow_mode:
-        from app.engines.profitability_gate import ProfitabilityGate
-
         per_bot = await ProfitabilityGate(session).evaluate_per_bot()
         shadow_bot_wr = float((per_bot.get(self.bot_type) or {}).get("win_rate") or 0)
       chronic_losers: frozenset[str] = frozenset()
       proven_winners: frozenset[str] = frozenset()
-      if gate_tightening.active or shadow_mode:
+      if entry_guards:
         chronic_losers = await get_gate_skip_symbols(session, self.bot_type)
+      if gate_tightening.active or shadow_mode:
         if self.bot_type in ("stocks_futures", "commodities"):
           proven_winners = await get_proven_winner_symbols(session, self.bot_type)
           if proven_winners:
@@ -168,9 +176,6 @@ class BaseBot(ABC):
         and self.bot_type == "stocks_futures"
         and not shadow_mode
       ):
-        from app.engines.profitability_gate import ProfitabilityGate
-
-        gate_status = await ProfitabilityGate(session).evaluate()
         active_trades = int(gate_status.get("total_trades") or 0)
         active_wr = float(gate_status.get("win_rate") or 0)
         if early_verification_active(active_trades, active_wr):
@@ -299,7 +304,7 @@ class BaseBot(ABC):
         if cooldown and datetime.utcnow() < cooldown:
           continue
 
-        if gate_tightening.active and symbol in chronic_losers:
+        if entry_guards and symbol in chronic_losers:
           continue
 
         if (
