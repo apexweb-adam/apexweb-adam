@@ -3,7 +3,9 @@
 from app.engines.gate_entry_guard import (
   GateEntryTightening,
   bot_min_sentiment,
+  shadow_entry_min_signal,
   shadow_min_signal_boost,
+  shadow_requires_macd,
 )
 
 
@@ -11,6 +13,32 @@ def test_shadow_min_signal_boost_per_bot():
   assert shadow_min_signal_boost("commodities") > shadow_min_signal_boost("stocks_futures")
   assert shadow_min_signal_boost("crypto") >= 0.12
   assert shadow_min_signal_boost("unknown_bot") == 0.10
+
+
+def test_shadow_graduation_nudge_eases_commodities():
+  assert shadow_min_signal_boost("commodities", bot_win_rate=0.50) < shadow_min_signal_boost(
+    "commodities"
+  )
+  assert shadow_requires_macd(
+    "commodities",
+    bot_win_rate=0.50,
+    gate_tightening=GateEntryTightening(
+      active=False,
+      win_rate=1.0,
+      min_sentiment=0.0,
+      require_macd_bullish=False,
+      min_composite_boost=0.0,
+    ),
+    shadow_mode=True,
+  ) is False
+
+
+def test_shadow_entry_min_signal_nudge_lowers_threshold():
+  from app.engines.gate_entry_guard import shadow_entry_min_signal
+
+  strict = shadow_entry_min_signal("commodities", 0.28)
+  nudged = shadow_entry_min_signal("commodities", 0.28, bot_win_rate=0.50)
+  assert nudged < strict
 
 
 def test_bot_min_sentiment_inactive():

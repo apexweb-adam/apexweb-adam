@@ -12,7 +12,8 @@ from app.engines.gate_entry_guard import (
   get_gate_entry_tightening,
   get_gate_skip_symbols,
   get_proven_winner_symbols,
-  shadow_min_signal_boost,
+  shadow_entry_min_signal,
+  shadow_requires_macd,
   stocks_gate_entry_sentiment_ok,
   stocks_in_us_session,
 )
@@ -108,7 +109,8 @@ class BaseBot(ABC):
         SHADOW_MAX_OPEN,
         SHADOW_MIN_SENTIMENT_BOOST,
         SHADOW_POSITION_SCALE,
-        shadow_min_signal_boost,
+        shadow_entry_min_signal,
+        shadow_requires_macd,
       )
       from app.engines.platform_settings import is_bot_paused
 
@@ -117,6 +119,12 @@ class BaseBot(ABC):
       engine = PaperTradingEngine(session, self.bot_type)
       strategy = await engine.get_strategy()
       gate_tightening = await get_gate_entry_tightening(session)
+      shadow_bot_wr: float | None = None
+      if shadow_mode:
+        from app.engines.profitability_gate import ProfitabilityGate
+
+        per_bot = await ProfitabilityGate(session).evaluate_per_bot()
+        shadow_bot_wr = float((per_bot.get(self.bot_type) or {}).get("win_rate") or 0)
       chronic_losers: frozenset[str] = frozenset()
       proven_winners: frozenset[str] = frozenset()
       if gate_tightening.active or shadow_mode:
@@ -136,7 +144,11 @@ class BaseBot(ABC):
       early_verification_boost = False
       min_signal = strategy.min_signal_score
       if shadow_mode:
-        min_signal = min(0.95, min_signal + shadow_min_signal_boost(self.bot_type))
+        min_signal = shadow_entry_min_signal(
+          self.bot_type,
+          strategy.min_signal_score,
+          bot_win_rate=shadow_bot_wr,
+        )
       if gate_tightening.active and self.bot_type != "stocks_futures":
         min_signal = min(0.95, min_signal + gate_tightening.min_composite_boost)
       if loss_streak >= 3:
@@ -307,11 +319,12 @@ class BaseBot(ABC):
         ):
           continue
 
-        macd_required = self.bot_type == "crypto" or (
-          gate_tightening.active
-          and gate_tightening.require_macd_bullish
-          and self.bot_type == "commodities"
-        ) or (shadow_mode and self.bot_type == "commodities")
+        macd_required = shadow_requires_macd(
+          self.bot_type,
+          bot_win_rate=shadow_bot_wr,
+          gate_tightening=gate_tightening,
+          shadow_mode=shadow_mode,
+        )
         if macd_required and signal.macd_signal != "bullish":
           continue
 
