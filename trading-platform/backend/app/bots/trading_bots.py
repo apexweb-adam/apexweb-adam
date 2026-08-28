@@ -190,6 +190,8 @@ class BaseBot(ABC):
           self.bot_type,
           strategy.min_signal_score,
           bot_win_rate=shadow_bot_wr,
+          profit_factor=per_bot_stats.get("profit_factor"),
+          total_pnl=per_bot_stats.get("total_pnl"),
         )
       if gate_tightening.active and self.bot_type != "stocks_futures":
         min_signal = min(0.95, min_signal + gate_tightening.min_composite_boost)
@@ -222,7 +224,12 @@ class BaseBot(ABC):
           min_sentiment = max(0.0, min_sentiment - EARLY_VERIFICATION_SENTIMENT_EASE)
           early_verification_boost = True
       shadow_open_cap = SHADOW_MAX_OPEN.get(self.bot_type) if shadow_mode else None
-      graduation_nudge = in_shadow_graduation_nudge(self.bot_type, shadow_bot_wr)
+      graduation_nudge = in_shadow_graduation_nudge(
+        self.bot_type,
+        shadow_bot_wr,
+        profit_factor=per_bot_stats.get("profit_factor"),
+        total_pnl=per_bot_stats.get("total_pnl"),
+      )
       strategy_params = {
         "rsi_oversold": strategy.rsi_oversold,
         "rsi_overbought": strategy.rsi_overbought,
@@ -505,6 +512,8 @@ class BaseBot(ABC):
           bot_win_rate=shadow_bot_wr,
           gate_tightening=gate_tightening,
           shadow_mode=shadow_mode,
+          profit_factor=per_bot_stats.get("profit_factor"),
+          total_pnl=per_bot_stats.get("total_pnl"),
         )
         if macd_required and signal.macd_signal != "bullish":
           continue

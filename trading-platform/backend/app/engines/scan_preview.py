@@ -98,13 +98,22 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
   min_signal = strategy.min_signal_score
   if shadow_mode:
     min_signal = shadow_entry_min_signal(
-      bot_type, strategy.min_signal_score, bot_win_rate=shadow_bot_wr
+      bot_type,
+      strategy.min_signal_score,
+      bot_win_rate=shadow_bot_wr,
+      profit_factor=per_bot_stats.get("profit_factor"),
+      total_pnl=per_bot_stats.get("total_pnl"),
     )
   min_sentiment = max(
     strategy.min_sentiment_score,
     bot_min_sentiment(bot_type, gate_tightening),
   )
-  graduation_nudge = in_shadow_graduation_nudge(bot_type, shadow_bot_wr)
+  graduation_nudge = in_shadow_graduation_nudge(
+    bot_type,
+    shadow_bot_wr,
+    profit_factor=per_bot_stats.get("profit_factor"),
+    total_pnl=per_bot_stats.get("total_pnl"),
+  )
   open_count = len(await engine.get_open_positions())
   shadow_cap = SHADOW_MAX_OPEN.get(bot_type) if shadow_mode else None
 
@@ -324,6 +333,8 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
       bot_win_rate=shadow_bot_wr,
       gate_tightening=gate_tightening,
       shadow_mode=shadow_mode,
+      profit_factor=per_bot_stats.get("profit_factor"),
+      total_pnl=per_bot_stats.get("total_pnl"),
     ) and signal.macd_signal != "bullish":
       blockers.append("macd")
     if shadow_cap is not None and open_count >= shadow_cap:
