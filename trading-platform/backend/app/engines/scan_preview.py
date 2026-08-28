@@ -15,12 +15,14 @@ from app.bots.trading_bots import (
 from app.engines.gate_entry_guard import (
   SHADOW_MAX_OPEN,
   bot_min_sentiment,
+  chronic_loser_blocks_shadow_entry,
   early_verification_active,
   early_verification_index_etf_entry_min_signal,
   gate_entry_guards_active,
   gate_position_scale,
+  get_chronic_loser_symbols,
   get_gate_entry_tightening,
-  get_gate_skip_symbols,
+  get_hard_gate_skip_symbols,
   get_proven_winner_symbols,
   in_shadow_graduation_nudge,
   is_symbol_in_trade_cooldown,
@@ -67,9 +69,11 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
     shadow_bot_wr = float((per_bot.get(bot_type) or {}).get("win_rate") or 0)
 
   chronic_losers: frozenset[str] = frozenset()
+  hard_skip_symbols: frozenset[str] = frozenset()
   proven_winners: frozenset[str] = frozenset()
   if entry_guards:
-    chronic_losers = await get_gate_skip_symbols(session, bot_type)
+    chronic_losers = await get_chronic_loser_symbols(session, bot_type)
+    hard_skip_symbols = await get_hard_gate_skip_symbols(session, bot_type)
     if bot_type in ("stocks_futures", "commodities"):
       proven_winners = await get_proven_winner_symbols(session, bot_type)
 
@@ -178,7 +182,7 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
         or signal.macd_signal == "bullish"
       )
 
-    entry_direction_ok = signal.direction == "buy" or shadow_intel_composite_override(
+    intel_override = shadow_intel_composite_override(
       bot_type,
       graduation_nudge=graduation_nudge,
       shadow_mode=shadow_mode,
@@ -187,10 +191,20 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
       integration_boost=integration_boost,
     )
 
+    entry_direction_ok = signal.direction == "buy" or intel_override
+
     blockers: list[str] = []
     if await is_symbol_in_trade_cooldown(session, bot_type, symbol):
       blockers.append("symbol_cooldown")
-    if entry_guards and symbol in chronic_losers:
+    if entry_guards and symbol in hard_skip_symbols:
+      blockers.append("gate_skip")
+    if chronic_loser_blocks_shadow_entry(
+      symbol,
+      chronic_losers,
+      graduation_nudge=graduation_nudge,
+      shadow_mode=shadow_mode,
+      intel_override=intel_override,
+    ):
       blockers.append("chronic_loser")
     if (
       gate_tightening.active
