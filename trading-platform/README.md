@@ -56,8 +56,10 @@ npm run dev
 ### Deployment (24/7 Live Dashboard)
 
 **Live CRM Dashboard (production):**
-- **Full features (use now):** https://apex-trading-dashboard-fvmoq5oyj-apexweb-adams-projects.vercel.app
-- Legacy alias (stale until promoted): https://apex-trading-dashboard-flame.vercel.app
+- **Verified preview (use now — bundle r25):** https://apex-trading-dashboard-73nruanbo-apexweb-adams-projects.vercel.app
+- **Backend CRM landing:** https://apex-trading-backend.onrender.com/crm (redirects to best dashboard URL)
+- Legacy `-flame` alias (stale r21 until promoted): https://apex-trading-dashboard-flame.vercel.app
+- Promote script: `./scripts/promote-vercel-dashboard.sh` (requires `VERCEL_TOKEN`)
 - Auto-deploys from `main` → `trading-platform/dashboard` on Vercel
 
 **Backend (bots must run 24/7):**
