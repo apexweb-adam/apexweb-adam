@@ -3,6 +3,8 @@
 from app.engines.gate_entry_guard import (
   GateEntryTightening,
   bot_min_sentiment,
+  early_verification_active,
+  gate_position_scale,
   in_shadow_graduation_nudge,
   shadow_entry_min_signal,
   shadow_intel_composite_override,
@@ -43,6 +45,19 @@ def test_shadow_entry_min_signal_nudge_lowers_threshold():
   strict = shadow_entry_min_signal("commodities", 0.28)
   nudged = shadow_entry_min_signal("commodities", 0.28, bot_win_rate=0.50)
   assert nudged < strict
+
+
+def test_early_verification_active():
+  assert early_verification_active(11, 0.70) is True
+  assert early_verification_active(30, 0.70) is False
+  assert early_verification_active(11, 0.50) is False
+
+
+def test_gate_position_scale_weak_signals():
+  assert gate_position_scale(0.22, 0.20, early_boost=True) == 0.5
+  assert gate_position_scale(0.26, 0.20, early_boost=True) == 0.75
+  assert gate_position_scale(0.30, 0.20, early_boost=True) == 1.0
+  assert gate_position_scale(0.22, 0.20, early_boost=False) == 1.0
 
 
 def test_shadow_intel_composite_override_commodities_nudge():

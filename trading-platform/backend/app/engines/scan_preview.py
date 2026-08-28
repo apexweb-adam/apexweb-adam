@@ -15,6 +15,8 @@ from app.bots.trading_bots import (
 from app.engines.gate_entry_guard import (
   SHADOW_MAX_OPEN,
   bot_min_sentiment,
+  early_verification_active,
+  gate_position_scale,
   get_gate_entry_tightening,
   get_gate_skip_symbols,
   get_proven_winner_symbols,
@@ -75,11 +77,22 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
   shadow_cap = SHADOW_MAX_OPEN.get(bot_type) if shadow_mode else None
 
   early_verification_boost = False
-  if gate_tightening.active and not shadow_mode and bot_type == "stocks_futures":
+  if not shadow_mode and bot_type == "stocks_futures":
     gate_status = await ProfitabilityGate(session).evaluate()
     active_trades = int(gate_status.get("total_trades") or 0)
     active_wr = float(gate_status.get("win_rate") or 0)
-    if active_trades < 30 and active_wr >= ProfitabilityGate.MIN_WIN_RATE:
+    if early_verification_active(active_trades, active_wr):
+      from app.engines.gate_entry_guard import (
+        EARLY_VERIFICATION_MIN_SIGNAL_FLOOR,
+        EARLY_VERIFICATION_SENTIMENT_EASE,
+        EARLY_VERIFICATION_SIGNAL_EASE,
+      )
+
+      min_signal = max(
+        EARLY_VERIFICATION_MIN_SIGNAL_FLOOR,
+        min_signal - EARLY_VERIFICATION_SIGNAL_EASE,
+      )
+      min_sentiment = max(0.0, min_sentiment - EARLY_VERIFICATION_SENTIMENT_EASE)
       early_verification_boost = True
 
   weights = {

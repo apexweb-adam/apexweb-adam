@@ -72,6 +72,31 @@ def shadow_min_signal_boost(bot_type: str, *, bot_win_rate: float | None = None)
 GRADUATION_NUDGE_MIN_WR = 0.48
 SHADOW_INTEL_COMPOSITE_FLOOR = 0.50
 SHADOW_INTEL_BOOST_FLOOR = 0.08
+EARLY_VERIFICATION_MAX_TRADES = 30
+EARLY_VERIFICATION_MIN_SIGNAL_FLOOR = 0.20
+EARLY_VERIFICATION_SIGNAL_EASE = 0.04
+EARLY_VERIFICATION_SENTIMENT_EASE = 0.03
+
+
+def early_verification_active(active_trades: int, active_wr: float) -> bool:
+  from app.engines.profitability_gate import ProfitabilityGate
+
+  return (
+    active_trades < EARLY_VERIFICATION_MAX_TRADES
+    and active_wr >= ProfitabilityGate.MIN_WIN_RATE
+  )
+
+
+def gate_position_scale(composite: float, entry_min_signal: float, *, early_boost: bool) -> float:
+  """Scale down marginal gate entries so weak signals cannot blow up verification PnL."""
+  if not early_boost:
+    return 1.0
+  margin = composite - entry_min_signal
+  if margin >= 0.08:
+    return 1.0
+  if margin >= 0.04:
+    return 0.75
+  return 0.5
 
 
 def shadow_intel_composite_override(
