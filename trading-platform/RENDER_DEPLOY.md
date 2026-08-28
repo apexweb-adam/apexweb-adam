@@ -54,8 +54,9 @@ When stale:
 1. **Render Dashboard** → `apex-trading-backend` → **Manual Deploy** → **Deploy latest commit**
 2. Verify **Settings → Build & Deploy → Auto-Deploy** is **On Commit** (not *After CI Checks Pass* — Vercel rate limits can block deploys)
 3. Blueprint `render.yaml` sets `autoDeployTrigger: commit` and `branch: main`
-4. Add `RENDER_API_KEY` to **GitHub secrets** (CI deploys) and/or **Render env** (hourly self-heal via `redeploy_check_job`)
-5. Add `GITHUB_TOKEN` (fine-grained repo read) on Render for reliable staleness detection in `/api/status`
+4. Root `vercel.json` sets `git.deploymentEnabled.main: false` so Vercel GitHub integration does not post failing commit statuses on backend-only pushes
+5. Add `RENDER_API_KEY` to **GitHub secrets** (CI deploys) and/or **Render env** (hourly self-heal via `redeploy_check_job`)
+6. Add `GITHUB_TOKEN` (fine-grained repo read) on Render for reliable staleness detection in `/api/status`
 
 CI workflows and the in-app redeploy trigger skip the deploy hook when stale. The keep-alive workflow (every 10 min) only pings health; it triggers API deploy when stale (if `RENDER_API_KEY` is set).
 
