@@ -53,10 +53,18 @@ curl https://apex-trading-backend.onrender.com/api/dashboard-url
 Gate auto-pause underperformers:
 
 ```bash
+./trading-platform/scripts/sync-prod-gate-pauses.sh
+```
+
+Or (r79+ backend only):
+
+```bash
 curl -X POST https://apex-trading-backend.onrender.com/api/admin/sync-gate-pauses \
   -H 'Content-Type: application/json' \
   -d '{"secret":"YOUR_TRADINGVIEW_WEBHOOK_SECRET"}'
 ```
+
+The sync script falls back to `set-bot-paused` per bot when `sync-gate-pauses` returns 404 (stale Render).
 
 ## Dashboard (works before backend deploy)
 
