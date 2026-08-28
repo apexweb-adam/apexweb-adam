@@ -35,15 +35,32 @@ jobs:
           BACKEND_WS_URL: ${{ vars.TRADING_WS_URL || 'wss://apex-trading-backend.onrender.com' }}
 
       - name: Deploy to Vercel
+        id: vercel_deploy
         working-directory: trading-platform/dashboard
         run: |
           set -euo pipefail
           if [ -n "${VERCEL_TOKEN:-}" ]; then
-            npx vercel@latest deploy --prod \
+            npx vercel@latest deploy --prebuilt \
               --token "$VERCEL_TOKEN" \
               --scope "$VERCEL_ORG_ID" \
-              --yes
-            echo "Deployed to production via VERCEL_TOKEN"
+              --yes > /tmp/vercel-deploy.log 2>&1
+            cat /tmp/vercel-deploy.log
+            PREVIEW_URL=$(grep -oE 'https://[^ ]+\.vercel\.app' /tmp/vercel-deploy.log | tail -1)
+            echo "preview_url=$PREVIEW_URL" >> "$GITHUB_OUTPUT"
+            echo "Preview deployed: $PREVIEW_URL"
+            DEPLOY_ID=$(curl -fsS \
+              "https://api.vercel.com/v6/deployments?projectId=${VERCEL_PROJECT_ID}&teamId=${VERCEL_ORG_ID}&limit=1" \
+              -H "Authorization: Bearer ${VERCEL_TOKEN}" | python3 -c "import json,sys; d=json.load(sys.stdin); print((d.get('deployments') or [{}])[0].get('uid',''))")
+            if [ -n "$DEPLOY_ID" ]; then
+              HTTP=$(curl -fsS -o /tmp/promote.json -w "%{http_code}" -X POST \
+                "https://api.vercel.com/v10/projects/${VERCEL_PROJECT_ID}/promote/${DEPLOY_ID}?teamId=${VERCEL_ORG_ID}" \
+                -H "Authorization: Bearer ${VERCEL_TOKEN}" \
+                -H "Content-Type: application/json" \
+                -d '{}')
+              echo "Promote to production HTTP $HTTP"
+              cat /tmp/promote.json 2>/dev/null || true
+            fi
+            echo "Deployed and promoted via VERCEL_TOKEN"
           elif [ -n "${VERCEL_DEPLOY_HOOK:-}" ]; then
             curl -fsS -X POST "$VERCEL_DEPLOY_HOOK"
             echo "Triggered VERCEL_DEPLOY_HOOK for production"
@@ -62,7 +79,7 @@ jobs:
       - name: Verify production dashboard bundle
         if: always()
         env:
-          EXPECTED_BUNDLE_REVISION: "2026-08-27-r12"
+          EXPECTED_BUNDLE_REVISION: "2026-08-27-r13"
         run: |
           set -euo pipefail
           PROD="https://apex-trading-dashboard-flame.vercel.app"
