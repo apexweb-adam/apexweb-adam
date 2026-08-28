@@ -173,6 +173,26 @@ def test_early_verification_index_etf_entry_min_signal():
   assert early_verification_index_etf_entry_min_signal("SPY", 0.21, early_boost=False) == 0.21
 
 
+def test_apply_entry_min_signal_ease_early_verification_floor():
+  from app.engines.gate_entry_guard import (
+    EARLY_VERIFICATION_ENTRY_MIN_SIGNAL_FLOOR,
+    apply_entry_min_signal_ease,
+  )
+
+  assert apply_entry_min_signal_ease(0.20, 0.03, early_boost=True) == 0.18
+  assert apply_entry_min_signal_ease(0.20, 0.03, early_boost=False) == 0.17
+  assert apply_entry_min_signal_ease(0.22, 0.10, early_boost=True) == EARLY_VERIFICATION_ENTRY_MIN_SIGNAL_FLOOR
+
+
+def test_early_verification_raw_signal_ok():
+  from app.engines.gate_entry_guard import early_verification_raw_signal_ok
+
+  assert early_verification_raw_signal_ok(0.03, early_boost=True, bot_type="stocks_futures") is False
+  assert early_verification_raw_signal_ok(0.12, early_boost=True, bot_type="stocks_futures") is True
+  assert early_verification_raw_signal_ok(0.03, early_boost=False, bot_type="stocks_futures") is True
+  assert early_verification_raw_signal_ok(0.03, early_boost=True, bot_type="crypto") is True
+
+
 def test_bot_min_sentiment_inactive():
   tightening = GateEntryTightening(
     active=False,

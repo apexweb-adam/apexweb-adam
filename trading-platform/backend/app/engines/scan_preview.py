@@ -14,10 +14,13 @@ from app.bots.trading_bots import (
 )
 from app.engines.gate_entry_guard import (
   SHADOW_MAX_OPEN,
+  EARLY_VERIFICATION_MIN_RAW_SIGNAL_SCORE,
+  apply_entry_min_signal_ease,
   bot_min_sentiment,
   chronic_loser_blocks_shadow_entry,
   early_verification_active,
   early_verification_index_etf_entry_min_signal,
+  early_verification_raw_signal_ok,
   gate_entry_guards_active,
   gate_position_scale,
   get_chronic_loser_symbols,
@@ -135,7 +138,9 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
 
     entry_min_signal = min_signal
     if gate_tightening.active and bot_type == "stocks_futures" and symbol in proven_winners:
-      entry_min_signal = max(0.08, entry_min_signal - 0.02)
+      entry_min_signal = apply_entry_min_signal_ease(
+        entry_min_signal, 0.02, early_boost=early_verification_boost
+      )
     if (
       gate_tightening.active
       and bot_type == "stocks_futures"
@@ -143,9 +148,13 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
       and "tradingview" in integration_reason.lower()
       and integration_boost > 0.04
     ):
-      entry_min_signal = max(0.08, entry_min_signal - 0.03)
+      entry_min_signal = apply_entry_min_signal_ease(
+        entry_min_signal, 0.03, early_boost=early_verification_boost
+      )
     if gate_tightening.active and bot_type == "stocks_futures" and signal.rsi_divergence == "bullish":
-      entry_min_signal = max(0.08, entry_min_signal - 0.02)
+      entry_min_signal = apply_entry_min_signal_ease(
+        entry_min_signal, 0.02, early_boost=early_verification_boost
+      )
     entry_min_signal = early_verification_index_etf_entry_min_signal(
       symbol,
       entry_min_signal,
@@ -259,6 +268,12 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
       and not stocks_gate_entry_sentiment_ok(sentiment, integration_boost)
     ):
       blockers.append("sentiment_gate")
+    if not early_verification_raw_signal_ok(
+      signal.score,
+      early_boost=early_verification_boost,
+      bot_type=bot_type,
+    ):
+      blockers.append(f"raw_signal<{EARLY_VERIFICATION_MIN_RAW_SIGNAL_SCORE:.2f}")
 
     previews.append(
       {

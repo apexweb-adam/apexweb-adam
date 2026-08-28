@@ -341,6 +341,94 @@ def test_build_scan_preview_stocks_early_verification_volume_relax():
   assert row["would_enter"] is True
 
 
+def test_build_scan_preview_stocks_early_verification_blocks_weak_raw_signal():
+  async def _run():
+    session = AsyncMock()
+    bot = MagicMock()
+    bot.get_symbols = AsyncMock(return_value=["NVDA"])
+    bot.fetch_price_data = AsyncMock(return_value=(220.0, None))
+    bot.get_sentiment_detail = AsyncMock(return_value=(0.40, "news"))
+    signal = MagicMock(
+      score=0.03,
+      direction="buy",
+      macd_signal="bullish",
+      volume_confirmed=True,
+      reason="weak",
+      rsi=55,
+      rsi_divergence=None,
+    )
+    bot.signal_engine.analyze = MagicMock(return_value=signal)
+    bot.signal_engine.composite_score = MagicMock(return_value=0.45)
+
+    tightening = MagicMock(
+      active=True,
+      blocked_new_entries=frozenset(),
+      require_macd_bullish=True,
+      min_sentiment=0.04,
+    )
+
+    with patch("app.engines.scan_preview.BOT_CLASSES", {"stocks_futures": MagicMock(return_value=bot)}):
+      with patch("app.engines.scan_preview.is_bot_paused", return_value=False):
+        with patch("app.engines.scan_preview.PaperTradingEngine") as EngineCls:
+          strategy = MagicMock()
+          strategy.min_signal_score = 0.25
+          strategy.min_sentiment_score = 0.0
+          strategy.rsi_oversold = 26
+          strategy.rsi_overbought = 70
+          strategy.technical_weight = 0.3
+          strategy.sentiment_weight = 0.5
+          strategy.momentum_weight = 0.4
+          engine = EngineCls.return_value
+          engine.get_strategy = AsyncMock(return_value=strategy)
+          engine.get_open_positions = AsyncMock(return_value=[])
+          with patch("app.engines.scan_preview.ProfitabilityGate") as GateCls:
+            GateCls.return_value.evaluate_per_bot = AsyncMock(return_value={})
+            GateCls.return_value.evaluate = AsyncMock(
+              return_value={
+                "total_trades": 9,
+                "win_rate": 0.75,
+                "live_trading_ready": False,
+              }
+            )
+            GateCls.MIN_WIN_RATE = 0.55
+            with patch(
+              "app.engines.scan_preview.get_gate_entry_tightening",
+              return_value=tightening,
+            ):
+              with patch(
+                "app.engines.scan_preview.get_chronic_loser_symbols",
+                new=AsyncMock(return_value=frozenset()),
+              ):
+                with patch(
+                  "app.engines.scan_preview.get_hard_gate_skip_symbols",
+                  new=AsyncMock(return_value=frozenset()),
+                ):
+                  with patch(
+                    "app.engines.scan_preview.get_proven_winner_symbols",
+                    return_value=frozenset({"NVDA"}),
+                  ):
+                    with patch(
+                      "app.engines.scan_preview.get_integration_boost",
+                      return_value=(0.20, "tradingview alert"),
+                    ):
+                      with patch(
+                        "app.engines.scan_preview.is_price_sane",
+                        return_value=True,
+                      ):
+                        with patch(
+                          "app.engines.scan_preview.is_symbol_in_trade_cooldown",
+                          new=AsyncMock(return_value=False),
+                        ):
+                          return await build_scan_preview(session, "stocks_futures")
+
+  import asyncio
+
+  result = asyncio.run(_run())
+  row = result["symbols"][0]
+  assert row["would_enter"] is False
+  assert any("raw_signal<" in b for b in row["blockers"])
+
+
 def test_build_scan_preview_crypto_intel_override_on_sell_signal():
   async def _run():
     session = AsyncMock()
