@@ -22,7 +22,8 @@ def test_shadow_min_signal_boost_per_bot():
 def test_shadow_graduation_nudge_eases_commodities():
   assert in_shadow_graduation_nudge("commodities", 0.50) is True
   assert in_shadow_graduation_nudge("commodities", 0.47) is True
-  assert in_shadow_graduation_nudge("commodities", 0.45) is False
+  assert in_shadow_graduation_nudge("commodities", 0.45) is True
+  assert in_shadow_graduation_nudge("commodities", 0.43) is False
   assert in_shadow_graduation_nudge("commodities", 0.40) is False
   assert in_shadow_graduation_nudge("crypto", 0.46) is True
   assert in_shadow_graduation_nudge("crypto", 0.44) is False
@@ -69,7 +70,7 @@ def test_shadow_intel_composite_override_commodities_high_composite_only():
     "commodities",
     graduation_nudge=True,
     shadow_mode=True,
-    composite=0.44,
+    composite=0.50,
     entry_min_signal=0.31,
     integration_boost=0.0,
   ) is True
@@ -77,7 +78,7 @@ def test_shadow_intel_composite_override_commodities_high_composite_only():
     "commodities",
     graduation_nudge=True,
     shadow_mode=True,
-    composite=0.40,
+    composite=0.46,
     entry_min_signal=0.31,
     integration_boost=0.0,
   ) is False
@@ -146,7 +147,10 @@ def test_shadow_intel_composite_override_crypto_high_composite_only():
 
 
 def test_chronic_loser_blocks_shadow_entry_intel_bypass():
-  from app.engines.gate_entry_guard import chronic_loser_blocks_shadow_entry
+  from app.engines.gate_entry_guard import (
+    chronic_loser_blocks_shadow_entry,
+    shadow_chronic_position_scale,
+  )
 
   assert chronic_loser_blocks_shadow_entry(
     "BTCUSDT",
@@ -169,6 +173,20 @@ def test_chronic_loser_blocks_shadow_entry_intel_bypass():
     shadow_mode=False,
     intel_override=True,
   ) is True
+  assert shadow_chronic_position_scale(
+    "SI=F",
+    frozenset({"SI=F"}),
+    graduation_nudge=True,
+    shadow_mode=True,
+    intel_override=True,
+  ) == 0.25
+  assert shadow_chronic_position_scale(
+    "SI=F",
+    frozenset({"SI=F"}),
+    graduation_nudge=True,
+    shadow_mode=True,
+    intel_override=False,
+  ) == 1.0
 
 
 def test_shadow_requires_macd_crypto_nudge_off():

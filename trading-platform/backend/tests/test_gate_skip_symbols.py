@@ -24,7 +24,7 @@ def test_symbol_cooldown_remaining_seconds_after_loss():
   session = AsyncMock()
   executed = datetime.utcnow() - timedelta(minutes=5)
   session.execute = AsyncMock(
-    return_value=MagicMock(first=lambda: (False, executed))
+    return_value=MagicMock(first=lambda: (False, executed, "stop_loss"))
   )
   remaining = asyncio.run(
     symbol_cooldown_remaining_seconds(session, "commodities", "SI=F")
@@ -32,11 +32,30 @@ def test_symbol_cooldown_remaining_seconds_after_loss():
   assert 600 <= remaining <= 1200
 
 
+def test_symbol_cooldown_remaining_seconds_chronic_loss_doubles():
+  from app.engines.gate_entry_guard import symbol_cooldown_remaining_seconds
+
+  session = AsyncMock()
+  executed = datetime.utcnow() - timedelta(minutes=5)
+  session.execute = AsyncMock(
+    return_value=MagicMock(first=lambda: (False, executed, "stop_loss"))
+  )
+  remaining = asyncio.run(
+    symbol_cooldown_remaining_seconds(
+      session,
+      "commodities",
+      "SI=F",
+      chronic_symbols=frozenset({"SI=F"}),
+    )
+  )
+  assert 1500 <= remaining <= 2400
+
+
 def test_is_symbol_in_trade_cooldown_after_win():
   session = AsyncMock()
   executed = datetime.utcnow() - timedelta(minutes=5)
   session.execute = AsyncMock(
-    return_value=MagicMock(first=lambda: (True, executed))
+    return_value=MagicMock(first=lambda: (True, executed, "take_profit"))
   )
   blocked = asyncio.run(is_symbol_in_trade_cooldown(session, "commodities", "SI=F"))
   assert blocked is True
@@ -46,7 +65,7 @@ def test_is_symbol_in_trade_cooldown_expired():
   session = AsyncMock()
   executed = datetime.utcnow() - timedelta(hours=2)
   session.execute = AsyncMock(
-    return_value=MagicMock(first=lambda: (True, executed))
+    return_value=MagicMock(first=lambda: (True, executed, "take_profit"))
   )
   blocked = asyncio.run(is_symbol_in_trade_cooldown(session, "commodities", "SI=F"))
   assert blocked is False
