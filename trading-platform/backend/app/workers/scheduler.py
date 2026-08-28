@@ -240,9 +240,13 @@ async def setup_scheduler() -> None:
     elif redeploy.get("deploy", {}).get("is_stale"):
       reason = redeploy.get("reason", "unknown")
       if reason not in ("cooldown", "deploy_in_progress", "recent_deploy_failed"):
-        print(f"[Deploy] Stale ({reason}) — manual deploy or set RENDER_DEPLOY_HOOK on Render")
+        print(f"[Deploy] Stale ({reason}) — manual deploy or set RENDER_API_KEY on Render")
   else:
-    print("[Deploy] Auto-redeploy disabled (DISABLE_AUTO_REDEPLOY)")
+    redeploy = await maybe_trigger_stale_redeploy()
+    if redeploy.get("triggered"):
+      print(f"[Deploy] Stale API redeploy (DISABLE_AUTO_REDEPLOY bypass): {redeploy.get('message')}")
+    elif redeploy.get("deploy", {}).get("is_stale"):
+      print("[Deploy] Auto-redeploy disabled (DISABLE_AUTO_REDEPLOY) — stale; set RENDER_API_KEY for API recovery")
 
   await ensure_verification_period_on_startup()
   async with SessionLocal() as session:

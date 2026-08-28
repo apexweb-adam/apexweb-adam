@@ -158,8 +158,8 @@ class BaseBot(ABC):
         active_trades = int(gate_status.get("total_trades") or 0)
         active_wr = float(gate_status.get("win_rate") or 0)
         if active_trades < 30 and active_wr >= ProfitabilityGate.MIN_WIN_RATE:
-          min_signal = max(0.08, min_signal - 0.04)
-          min_sentiment = max(0.0, min_sentiment - 0.03)
+          min_signal = max(0.08, min_signal - 0.06)
+          min_sentiment = max(0.0, min_sentiment - 0.05)
           early_verification_boost = True
       shadow_open_cap = SHADOW_MAX_OPEN.get(self.bot_type) if shadow_mode else None
       strategy_params = {

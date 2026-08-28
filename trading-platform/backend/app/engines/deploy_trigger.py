@@ -33,6 +33,12 @@ def auto_redeploy_enabled() -> bool:
   return raw not in ("1", "true", "yes", "on")
 
 
+def stale_api_redeploy_enabled() -> bool:
+  """Allow Render API redeploy when behind main even if DISABLE_AUTO_REDEPLOY is set."""
+  raw = os.environ.get("ALLOW_STALE_API_REDEPLOY", "true").strip().lower()
+  return raw not in ("0", "false", "no", "off")
+
+
 async def fetch_latest_render_deploy_status() -> dict[str, Any] | None:
   """Return the most recent deploy record for apex-trading-backend, if API key is set."""
   api_key = os.environ.get("RENDER_API_KEY", "").strip()
@@ -109,10 +115,16 @@ async def maybe_trigger_stale_redeploy(
   allow_stale_hook: bool = False,
 ) -> dict[str, Any]:
   """Redeploy when deploy is stale — prefer Render API, then deploy hook."""
-  if not auto_redeploy_enabled() and not force:
-    return {"triggered": False, "reason": "auto_redeploy_disabled"}
-
   status = await build_deploy_status()
+  stale = bool(
+    status.get("is_stale")
+    or int(status.get("commits_behind") or 0) > 0
+  )
+  has_api_key = bool(os.environ.get("RENDER_API_KEY", "").strip())
+  allow_stale_api = stale_api_redeploy_enabled() and has_api_key and stale
+
+  if not auto_redeploy_enabled() and not force and not allow_stale_api:
+    return {"triggered": False, "reason": "auto_redeploy_disabled", "deploy": status}
 
   if not force and not status.get("is_stale"):
     return {"triggered": False, "reason": "deploy_current", "deploy": status}

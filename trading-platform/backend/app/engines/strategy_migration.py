@@ -84,6 +84,11 @@ async def clamp_verification_strategy_params(session: AsyncSession) -> int:
     gate.get("total_trades", 0) >= 30
     and (gate.get("win_rate") or 0) < ProfitabilityGate.MIN_WIN_RATE
   )
+  active_trades = int(gate.get("total_trades") or 0)
+  active_wr = float(gate.get("win_rate") or 0)
+  early_stocks_verification = (
+    active_trades < 30 and active_wr >= ProfitabilityGate.MIN_WIN_RATE
+  )
 
   configs = list((await session.execute(select(StrategyConfig))).scalars().all())
   updated = 0
@@ -95,9 +100,16 @@ async def clamp_verification_strategy_params(session: AsyncSession) -> int:
     if config.min_signal_score > ceiling:
       config.min_signal_score = ceiling
       changed = True
-    if not gate_below_target and config.min_sentiment_score > 0.15:
+    if not gate_below_target and config.min_sentiment_score >= 0.15:
       config.min_sentiment_score = 0.0
       changed = True
+    if early_stocks_verification and config.bot_type == "stocks_futures":
+      if config.min_signal_score > 0.20:
+        config.min_signal_score = 0.20
+        changed = True
+      if config.min_sentiment_score > 0.0:
+        config.min_sentiment_score = 0.0
+        changed = True
     if config.bot_type == "polymarket":
       if config.max_position_pct > settings.polymarket_max_position_pct:
         config.max_position_pct = settings.polymarket_max_position_pct
