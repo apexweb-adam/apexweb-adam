@@ -62,6 +62,25 @@ def test_gate_position_scale_weak_signals():
   assert gate_position_scale(0.22, 0.20, early_boost=False) == 1.0
 
 
+def test_shadow_intel_composite_override_commodities_high_composite_only():
+  assert shadow_intel_composite_override(
+    "commodities",
+    graduation_nudge=True,
+    shadow_mode=True,
+    composite=0.44,
+    entry_min_signal=0.31,
+    integration_boost=0.0,
+  ) is True
+  assert shadow_intel_composite_override(
+    "commodities",
+    graduation_nudge=True,
+    shadow_mode=True,
+    composite=0.40,
+    entry_min_signal=0.31,
+    integration_boost=0.0,
+  ) is False
+
+
 def test_shadow_intel_composite_override_commodities_nudge():
   assert shadow_intel_composite_override(
     "commodities",

@@ -87,9 +87,11 @@ def in_shadow_graduation_nudge(bot_type: str, bot_win_rate: float | None) -> boo
 SHADOW_INTEL_COMPOSITE_FLOOR = 0.50
 SHADOW_INTEL_COMPOSITE_FLOOR_BY_BOT = {
   "crypto": 0.32,
+  "commodities": 0.40,
 }
 SHADOW_INTEL_COMPOSITE_ONLY_BY_BOT = {
   "crypto": 0.40,
+  "commodities": 0.42,
 }
 SHADOW_INTEL_BOOST_FLOOR = 0.08
 SHADOW_INTEL_BOOST_FLOOR_BY_BOT = {
@@ -257,6 +259,9 @@ RECENT_LOSER_MIN_LOSSES = 2
 RECENT_LARGE_LOSS_USD = 25.0
 RECENT_LARGE_LOSS_HOURS = 24
 SHADOW_LARGE_LOSS_BYPASS_COMPOSITE = 0.55
+SHADOW_LARGE_LOSS_BYPASS_COMPOSITE_BY_BOT = {
+  "commodities": 0.42,
+}
 SHADOW_LARGE_LOSS_BYPASS_INTEGRATION = 0.10
 REVIEW_LOSER_DAYS = 3
 PROVEN_WINNER_MIN_TRADES = 2
@@ -518,6 +523,7 @@ async def get_hard_gate_skip_components(
 def hard_skip_blocks_shadow_entry(
   symbol: str,
   *,
+  bot_type: str,
   recent_skip: frozenset[str],
   large_skip: frozenset[str],
   review_skip: frozenset[str],
@@ -530,11 +536,14 @@ def hard_skip_blocks_shadow_entry(
   """Hard gate-skip during shadow graduation nudge — review blocks are never bypassed."""
   if symbol in review_skip:
     return True
+  large_bypass_floor = SHADOW_LARGE_LOSS_BYPASS_COMPOSITE_BY_BOT.get(
+    bot_type, SHADOW_LARGE_LOSS_BYPASS_COMPOSITE
+  )
   if symbol in large_skip:
     if (
       graduation_nudge
       and shadow_mode
-      and composite >= SHADOW_LARGE_LOSS_BYPASS_COMPOSITE
+      and composite >= large_bypass_floor
       and integration_boost >= SHADOW_LARGE_LOSS_BYPASS_INTEGRATION
     ):
       return False
