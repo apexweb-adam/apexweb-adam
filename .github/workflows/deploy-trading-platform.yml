@@ -80,7 +80,7 @@ jobs:
       - name: Verify production dashboard bundle
         if: always()
         env:
-          EXPECTED_BUNDLE_REVISION: "2026-08-28-r27"
+          EXPECTED_BUNDLE_REVISION: "2026-08-28-r28"
         run: |
           set -euo pipefail
           PROD="https://apex-trading-dashboard-flame.vercel.app"
