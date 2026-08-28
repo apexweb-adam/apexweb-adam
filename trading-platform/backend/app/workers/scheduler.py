@@ -135,7 +135,7 @@ async def stocks_pre_session_prep_job() -> None:
 
 async def risk_migration_job() -> None:
   async with SessionLocal() as session:
-    from app.engines.gate_entry_guard import sync_gate_bot_pauses, try_graduate_paused_bots
+    from app.engines.gate_entry_guard import sync_gate_bot_pauses, sync_gate_recovery_rotation, try_graduate_paused_bots
     from app.engines.strategy_migration import (
       adapt_for_gate_win_rate,
       clamp_verification_strategy_params,
@@ -146,6 +146,7 @@ async def risk_migration_job() -> None:
     )
 
     gate_paused = await sync_gate_bot_pauses(session)
+    gate_rotation = await sync_gate_recovery_rotation(session)
     gate_graduated = await try_graduate_paused_bots(session)
     clamped = await clamp_verification_strategy_params(session)
     adapted = await adapt_for_gate_win_rate(session)
@@ -154,9 +155,9 @@ async def risk_migration_job() -> None:
     trimmed = await trim_oversized_polymarket_positions(session)
     commodities_trimmed = await close_excess_commodities_positions(session)
     synced = await sync_bot_strategy_versions(session)
-    if gate_paused or gate_graduated or clamped or adapted or updated or trimmed or commodities_trimmed or synced:
+    if gate_paused or gate_rotation or gate_graduated or clamped or adapted or updated or trimmed or commodities_trimmed or synced:
       print(
-        f"[RiskMigration] gate_paused={gate_paused} gate_graduated={gate_graduated} clamped={clamped} gate_adapted={adapted} "
+        f"[RiskMigration] gate_paused={gate_paused} gate_rotation={gate_rotation} gate_graduated={gate_graduated} clamped={clamped} gate_adapted={adapted} "
         f"strategy_updated={updated} trimmed={trimmed} commodities_trimmed={commodities_trimmed} "
         f"synced={synced} at {datetime.utcnow().isoformat()}"
       )
@@ -270,7 +271,7 @@ async def setup_scheduler() -> None:
 
   await ensure_verification_period_on_startup()
   async with SessionLocal() as session:
-    from app.engines.gate_entry_guard import sync_gate_bot_pauses
+    from app.engines.gate_entry_guard import sync_gate_bot_pauses, sync_gate_recovery_rotation
     from app.engines.strategy_migration import (
       clamp_verification_strategy_params,
       close_excess_commodities_positions,
@@ -301,6 +302,12 @@ async def setup_scheduler() -> None:
     gate_paused = await sync_gate_bot_pauses(session)
     if gate_paused:
       print(f"[Strategy] Gate auto-paused underperformers: {', '.join(gate_paused)}")
+    gate_rotation = await sync_gate_recovery_rotation(session)
+    if gate_rotation:
+      print(
+        f"[Strategy] Gate recovery rotation: paused {gate_rotation['paused']}, "
+        f"activated {gate_rotation['activated']}"
+      )
     clamped = await clamp_verification_strategy_params(session)
     if clamped:
       print(f"[Strategy] Clamped over-tight signal thresholds on {clamped} bot(s)")

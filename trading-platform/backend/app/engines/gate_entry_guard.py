@@ -51,6 +51,9 @@ SHADOW_MAX_OPEN = {
   "stocks_futures": 2,
   "polymarket": 2,
 }
+SHADOW_GRADUATION_NUDGE_MAX_OPEN = 2
+GATE_RECOVERY_ROTATION_CANDIDATES = ("crypto", "commodities")
+GATE_RECOVERY_MIN_PF = 1.0
 
 GRADUATION_NUDGE_MIN_WR = 0.48
 GRADUATION_NUDGE_MIN_WR_BY_BOT = {
@@ -91,6 +94,33 @@ def shadow_min_signal_boost(
       return max(0.08, base - 0.05)
     if bot_type == "crypto":
       return max(0.08, base - 0.02)
+  return base
+
+
+def shadow_max_open_for_bot(
+  bot_type: str,
+  *,
+  shadow_mode: bool,
+  bot_win_rate: float | None = None,
+  profit_factor: float | None = None,
+  total_pnl: float | None = None,
+) -> int | None:
+  """Raise shadow open cap during graduation nudge so profitable bots can stack setups."""
+  if not shadow_mode:
+    return None
+  base = SHADOW_MAX_OPEN.get(bot_type)
+  if base is None:
+    return None
+  if (
+    bot_type in ("crypto", "commodities")
+    and in_shadow_graduation_nudge(
+      bot_type,
+      bot_win_rate,
+      profit_factor=profit_factor,
+      total_pnl=total_pnl,
+    )
+  ):
+    return max(base, SHADOW_GRADUATION_NUDGE_MAX_OPEN)
   return base
 
 
@@ -857,6 +887,67 @@ async def sync_gate_bot_pauses(session: AsyncSession) -> list[str]:
     await set_bot_paused(session, bot_type, True)
     paused_now.append(bot_type)
   return paused_now
+
+
+def _gate_recovery_candidate_score(stats: dict[str, Any]) -> float | None:
+  """Rank paused shadow bots eligible to replace a losing active gate."""
+  pf = stats.get("profit_factor")
+  pnl = float(stats.get("total_pnl") or 0)
+  wr = float(stats.get("win_rate") or 0)
+  if pf is None or pf < GATE_RECOVERY_MIN_PF or pnl <= 0:
+    return None
+  return float(pf) * (1.0 + wr)
+
+
+async def sync_gate_recovery_rotation(session: AsyncSession) -> dict[str, str] | None:
+  """Pause a losing stocks gate during early verification and activate a profitable shadow bot."""
+  from app.engines.platform_settings import get_paused_bot_types, is_bot_paused, set_bot_paused
+
+  gate = await ProfitabilityGate(session).evaluate()
+  active_trades = int(gate.get("total_trades") or 0)
+  active_pf = gate.get("profit_factor")
+  active_pnl = float(gate.get("total_pnl") or 0)
+
+  if active_trades >= EARLY_VERIFICATION_MAX_TRADES:
+    return None
+  if active_pf is None or active_pf >= GATE_RECOVERY_MIN_PF:
+    return None
+  if active_pnl >= 0:
+    return None
+  if await is_bot_paused(session, "stocks_futures"):
+    return None
+
+  paused = set(await get_paused_bot_types(session))
+  per_bot = await ProfitabilityGate(session).evaluate_per_bot()
+
+  best_bot: str | None = None
+  best_score = -1.0
+  for bot_type in GATE_RECOVERY_ROTATION_CANDIDATES:
+    if bot_type not in paused:
+      continue
+    stats = per_bot.get(bot_type) or {}
+    wr = float(stats.get("win_rate") or 0)
+    pf = stats.get("profit_factor")
+    pnl = float(stats.get("total_pnl") or 0)
+    if not in_shadow_graduation_nudge(
+      bot_type,
+      wr,
+      profit_factor=pf,
+      total_pnl=pnl,
+    ):
+      continue
+    score = _gate_recovery_candidate_score(stats)
+    if score is None or score <= best_score:
+      continue
+    best_bot = bot_type
+    best_score = score
+
+  if best_bot is None:
+    return None
+
+  await set_bot_paused(session, "stocks_futures", True)
+  await set_bot_paused(session, best_bot, False)
+  return {"paused": "stocks_futures", "activated": best_bot}
 
 
 async def try_graduate_paused_bots(session: AsyncSession) -> list[str]:
