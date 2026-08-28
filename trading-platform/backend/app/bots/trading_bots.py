@@ -12,6 +12,7 @@ from app.engines.gate_entry_guard import (
   get_gate_entry_tightening,
   get_gate_skip_symbols,
   get_proven_winner_symbols,
+  in_shadow_graduation_nudge,
   shadow_entry_min_signal,
   shadow_requires_macd,
   stocks_gate_entry_sentiment_ok,
@@ -174,6 +175,7 @@ class BaseBot(ABC):
           min_sentiment = max(0.0, min_sentiment - 0.05)
           early_verification_boost = True
       shadow_open_cap = SHADOW_MAX_OPEN.get(self.bot_type) if shadow_mode else None
+      graduation_nudge = in_shadow_graduation_nudge(self.bot_type, shadow_bot_wr)
       strategy_params = {
         "rsi_oversold": strategy.rsi_oversold,
         "rsi_overbought": strategy.rsi_overbought,
@@ -301,6 +303,7 @@ class BaseBot(ABC):
           and self.bot_type == "commodities"
           and proven_winners
           and symbol not in proven_winners
+          and not graduation_nudge
         ):
           continue
 
@@ -389,6 +392,13 @@ class BaseBot(ABC):
             or integration_boost > 0.02
             or signal.macd_signal == "bullish"
             or bool(integration_reason and "tradingview" in integration_reason.lower())
+          )
+        if graduation_nudge and shadow_mode and self.bot_type == "commodities":
+          volume_required = (
+            signal.volume_confirmed
+            or composite >= entry_min_signal + 0.02
+            or integration_boost > 0.02
+            or signal.macd_signal == "bullish"
           )
 
         if (
