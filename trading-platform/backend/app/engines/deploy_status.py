@@ -23,9 +23,9 @@ def github_headers() -> dict[str, str]:
   return headers
 PRODUCTION_DASHBOARD_URL = "https://apex-trading-dashboard-flame.vercel.app"
 DEFAULT_VERIFIED_DASHBOARD_URL = (
-  "https://apex-trading-dashboard-39gtc4hgx-apexweb-adams-projects.vercel.app"
+  "https://apex-trading-dashboard-dt4ezyvny-apexweb-adams-projects.vercel.app"
 )
-DEFAULT_VERIFIED_DEPLOYMENT_ID = "dpl_GpWprv2SKRA78p46JEXZtRUX4oCQ"
+DEFAULT_VERIFIED_DEPLOYMENT_ID = "dpl_DMSgUEGsa2PTokNr99BXWoggczd7"
 EXPECTED_DASHBOARD_BUNDLE = "2026-08-28-r18"
 ACCEPTABLE_DASHBOARD_BUNDLES = frozenset({
   "2026-08-27-r9", "2026-08-27-r10", "2026-08-27-r11", "2026-08-27-r12",
@@ -57,6 +57,8 @@ def verified_dashboard_candidates() -> list[str]:
 
   # Probe best-known previews first so stale Render env vars do not block r10/r11 discovery.
   add(DEFAULT_VERIFIED_DASHBOARD_URL)
+  add("https://apex-trading-dashboard-dt4ezyvny-apexweb-adams-projects.vercel.app")
+  add("https://apex-trading-dashboard-2sngnu6ma-apexweb-adams-projects.vercel.app")
   add("https://apex-trading-dashboard-39gtc4hgx-apexweb-adams-projects.vercel.app")
   add("https://apex-trading-dashboard-mz9mzjoaq-apexweb-adams-projects.vercel.app")
   add("https://apex-trading-dashboard-jwi0so16v-apexweb-adams-projects.vercel.app")

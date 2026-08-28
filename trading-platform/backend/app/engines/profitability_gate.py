@@ -103,8 +103,8 @@ class ProfitabilityGate:
       },
       "min_days": {
         "required": self.MIN_DAYS,
-        "actual": days_trading,
-        "passed": days_trading >= self.MIN_DAYS,
+        "actual": verification_day,
+        "passed": verification_day >= self.MIN_DAYS,
       },
       "paper_trading_only": {
         "required": True,
@@ -123,7 +123,7 @@ class ProfitabilityGate:
     blockers: list[str] = []
     if total_trades < self.MIN_TRADES:
       blockers.append(f"{self.MIN_TRADES - total_trades} more trades")
-    if days_trading < self.MIN_DAYS:
+    if verification_day < self.MIN_DAYS:
       blockers.append(f"{max(0, self.MIN_DAYS - verification_day)} more days")
     if total_pnl <= 0:
       blockers.append("positive PnL")
