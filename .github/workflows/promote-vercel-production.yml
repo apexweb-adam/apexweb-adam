@@ -18,6 +18,10 @@ on:
     branches: [main]
     paths:
       - 'trading-platform/dashboard/**'
+      - 'trading-platform/render.yaml'
+      - 'render.yaml'
+      - 'trading-platform/backend/app/engines/deploy_status.py'
+      - 'trading-platform/scripts/promote-vercel-dashboard.sh'
       - '.github/workflows/promote-vercel-production.yml'
 
 jobs:
