@@ -327,8 +327,12 @@ async def get_large_recent_loss_symbols(
   *,
   hours: int = RECENT_LARGE_LOSS_HOURS,
   min_loss_usd: float = RECENT_LARGE_LOSS_USD,
+  recovery_win_ratio: float = 0.25,
 ) -> frozenset[str]:
-  """Skip symbols whose most recent close was a large loss (survives deploy restarts)."""
+  """Skip symbols with a recent large loss until a meaningful recovery win.
+
+  A tiny win after a large loss (e.g. NVDA -$71 then +$0.21) must not clear the block.
+  """
   from app.models.entities import Trade
 
   cutoff = datetime.utcnow() - timedelta(hours=hours)
@@ -337,17 +341,24 @@ async def get_large_recent_loss_symbols(
       Trade.bot_type == bot_type,
       Trade.action == "sell",
       Trade.executed_at >= cutoff,
-    ).order_by(Trade.executed_at.desc())
+    ).order_by(Trade.executed_at.asc())
   )
-  latest: dict[str, tuple[bool | None, float | None]] = {}
+  sells_by_symbol: dict[str, list[tuple[float | None, bool | None]]] = {}
   for symbol, pnl, is_winner, _executed_at in result.all():
-    if not symbol or symbol in latest:
+    if not symbol:
       continue
-    latest[symbol] = (is_winner, pnl)
+    sells_by_symbol.setdefault(symbol, []).append((pnl, is_winner))
 
   blocked: set[str] = set()
-  for symbol, (is_winner, pnl) in latest.items():
-    if is_winner is False and pnl is not None and pnl <= -min_loss_usd:
+  for symbol, sells in sells_by_symbol.items():
+    pending_loss: float | None = None
+    for pnl, is_winner in sells:
+      if is_winner is False and pnl is not None and pnl <= -min_loss_usd:
+        pending_loss = abs(pnl)
+        continue
+      if pending_loss is not None and pnl is not None and pnl >= pending_loss * recovery_win_ratio:
+        pending_loss = None
+    if pending_loss is not None:
       blocked.add(symbol)
   return frozenset(blocked)
 

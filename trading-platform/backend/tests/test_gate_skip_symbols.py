@@ -51,6 +51,32 @@ def test_large_recent_loss_symbols_blocks_until_win():
   assert "AAPL" not in blocked
 
 
+def test_large_recent_loss_symbols_micro_win_does_not_clear_block():
+  session = AsyncMock()
+  now = datetime.utcnow()
+  rows = [
+    ("NVDA", -71.82, False, now - timedelta(minutes=12)),
+    ("NVDA", 0.21, True, now - timedelta(minutes=8)),
+  ]
+  session.execute = AsyncMock(return_value=MagicMock(all=lambda: rows))
+
+  blocked = asyncio.run(get_large_recent_loss_symbols(session, "stocks_futures"))
+  assert "NVDA" in blocked
+
+
+def test_large_recent_loss_symbols_meaningful_recovery_clears_block():
+  session = AsyncMock()
+  now = datetime.utcnow()
+  rows = [
+    ("NVDA", -40.0, False, now - timedelta(hours=2)),
+    ("NVDA", 12.0, True, now - timedelta(hours=1)),
+  ]
+  session.execute = AsyncMock(return_value=MagicMock(all=lambda: rows))
+
+  blocked = asyncio.run(get_large_recent_loss_symbols(session, "stocks_futures"))
+  assert "NVDA" not in blocked
+
+
 def test_gate_entry_guards_active_during_verification():
   tightening = MagicMock(active=False)
   assert gate_entry_guards_active(
