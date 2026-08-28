@@ -52,16 +52,18 @@ SHADOW_MAX_OPEN = {
   "polymarket": 2,
 }
 
+GRADUATION_NUDGE_MIN_WR = 0.48
+GRADUATION_NUDGE_MIN_WR_BY_BOT = {
+  "crypto": 0.45,
+  "commodities": 0.48,
+}
+
 
 def shadow_min_signal_boost(bot_type: str, *, bot_win_rate: float | None = None) -> float:
   base = SHADOW_MIN_SIGNAL_BOOST_BY_BOT.get(bot_type, SHADOW_MIN_SIGNAL_BOOST)
   if bot_win_rate is None:
     return base
-  from app.engines.profitability_gate import ProfitabilityGate
-
-  if (
-    GRADUATION_NUDGE_MIN_WR <= bot_win_rate < ProfitabilityGate.GRADUATION_MIN_WIN_RATE
-  ):
+  if in_shadow_graduation_nudge(bot_type, bot_win_rate):
     if bot_type == "commodities":
       return max(0.08, base - 0.05)
     if bot_type == "crypto":
@@ -69,7 +71,19 @@ def shadow_min_signal_boost(bot_type: str, *, bot_win_rate: float | None = None)
   return base
 
 
-GRADUATION_NUDGE_MIN_WR = 0.48
+def in_shadow_graduation_nudge(bot_type: str, bot_win_rate: float | None) -> bool:
+  """Paused bot is close to per-bot graduation WR — ease shadow filters."""
+  if bot_win_rate is None:
+    return False
+  from app.engines.profitability_gate import ProfitabilityGate
+
+  floor = GRADUATION_NUDGE_MIN_WR_BY_BOT.get(bot_type, GRADUATION_NUDGE_MIN_WR)
+  return (
+    bot_type in ("commodities", "crypto")
+    and floor <= bot_win_rate < ProfitabilityGate.GRADUATION_MIN_WIN_RATE
+  )
+
+
 SHADOW_INTEL_COMPOSITE_FLOOR = 0.50
 SHADOW_INTEL_BOOST_FLOOR = 0.08
 EARLY_VERIFICATION_MAX_TRADES = 30
@@ -117,18 +131,6 @@ def shadow_intel_composite_override(
   )
 
 
-def in_shadow_graduation_nudge(bot_type: str, bot_win_rate: float | None) -> bool:
-  """Paused bot is close to per-bot graduation WR — ease shadow filters."""
-  if bot_win_rate is None:
-    return False
-  from app.engines.profitability_gate import ProfitabilityGate
-
-  return (
-    bot_type in ("commodities", "crypto")
-    and GRADUATION_NUDGE_MIN_WR <= bot_win_rate < ProfitabilityGate.GRADUATION_MIN_WIN_RATE
-  )
-
-
 def shadow_entry_min_signal(
   bot_type: str,
   strategy_min_signal: float,
@@ -143,7 +145,7 @@ def shadow_entry_min_signal(
   base = min(strategy_min_signal, ceiling) if ceiling else strategy_min_signal
   if (
     bot_win_rate is not None
-    and GRADUATION_NUDGE_MIN_WR <= bot_win_rate < ProfitabilityGate.GRADUATION_MIN_WIN_RATE
+    and in_shadow_graduation_nudge(bot_type, bot_win_rate)
     and bot_type in ("commodities", "crypto")
   ):
     base = max(0.16, base - 0.06)
@@ -163,12 +165,7 @@ def shadow_requires_macd(
   if gate_tightening.active and gate_tightening.require_macd_bullish and bot_type == "commodities":
     return True
   if shadow_mode and bot_type == "commodities":
-    from app.engines.profitability_gate import ProfitabilityGate
-
-    if (
-      bot_win_rate is not None
-      and GRADUATION_NUDGE_MIN_WR <= bot_win_rate < ProfitabilityGate.GRADUATION_MIN_WIN_RATE
-    ):
+    if bot_win_rate is not None and in_shadow_graduation_nudge(bot_type, bot_win_rate):
       return False
     return True
   return False
@@ -345,6 +342,67 @@ async def get_review_blocked_symbols(
       for match in pattern.finditer(patterns_found):
         blocked.add(match.group(1).rstrip(",.)"))
   return frozenset(blocked)
+
+
+def _bot_cooldown_seconds(bot_type: str, *, after_loss: bool) -> int:
+  from app.config import settings
+
+  if bot_type == "crypto":
+    return (
+      settings.crypto_loss_cooldown_seconds
+      if after_loss
+      else settings.crypto_reentry_cooldown_seconds
+    )
+  if bot_type == "commodities":
+    return (
+      settings.commodities_loss_cooldown_seconds
+      if after_loss
+      else settings.commodities_reentry_cooldown_seconds
+    )
+  if bot_type == "stocks_futures":
+    return (
+      settings.stocks_loss_cooldown_seconds
+      if after_loss
+      else settings.stocks_reentry_cooldown_seconds
+    )
+  if bot_type == "polymarket":
+    return (
+      settings.polymarket_loss_cooldown_seconds
+      if after_loss
+      else settings.polymarket_reentry_cooldown_seconds
+    )
+  return 900
+
+
+async def is_symbol_in_trade_cooldown(
+  session: AsyncSession,
+  bot_type: str,
+  symbol: str,
+) -> bool:
+  """DB-backed re-entry cooldown — survives deploy restarts."""
+  from app.models.entities import Trade
+
+  result = await session.execute(
+    select(Trade.is_winner, Trade.executed_at)
+    .where(
+      Trade.bot_type == bot_type,
+      Trade.symbol == symbol,
+      Trade.action == "sell",
+    )
+    .order_by(Trade.executed_at.desc())
+    .limit(1)
+  )
+  row = result.first()
+  if not row:
+    return False
+  is_winner, executed_at = row
+  if not executed_at or is_winner is None:
+    return False
+  if executed_at.tzinfo is not None:
+    executed_at = executed_at.replace(tzinfo=None)
+  elapsed = (datetime.utcnow() - executed_at).total_seconds()
+  seconds = _bot_cooldown_seconds(bot_type, after_loss=is_winner is False)
+  return elapsed < seconds
 
 
 async def get_gate_skip_symbols(session: AsyncSession, bot_type: str) -> frozenset[str]:

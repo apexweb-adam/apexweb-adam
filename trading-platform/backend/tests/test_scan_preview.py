@@ -71,11 +71,15 @@ def test_build_scan_preview_commodities_structure():
                     "app.engines.scan_preview.get_integration_boost",
                     return_value=(0.0, ""),
                   ):
-                    with patch(
-                      "app.engines.scan_preview.is_price_sane",
-                      return_value=True,
-                    ):
-                      return await build_scan_preview(session, "commodities")
+                        with patch(
+                          "app.engines.scan_preview.is_price_sane",
+                          return_value=True,
+                        ):
+                          with patch(
+                            "app.engines.scan_preview.is_symbol_in_trade_cooldown",
+                            new=AsyncMock(return_value=False),
+                          ):
+                            return await build_scan_preview(session, "commodities")
 
   import asyncio
 
@@ -142,11 +146,15 @@ def test_build_scan_preview_commodities_intel_override_on_sell_signal():
                     "app.engines.scan_preview.get_integration_boost",
                     return_value=(0.17, "polymarket"),
                   ):
-                    with patch(
-                      "app.engines.scan_preview.is_price_sane",
-                      return_value=True,
-                    ):
-                      return await build_scan_preview(session, "commodities")
+                        with patch(
+                          "app.engines.scan_preview.is_price_sane",
+                          return_value=True,
+                        ):
+                          with patch(
+                            "app.engines.scan_preview.is_symbol_in_trade_cooldown",
+                            new=AsyncMock(return_value=False),
+                          ):
+                            return await build_scan_preview(session, "commodities")
 
   import asyncio
 
@@ -223,11 +231,15 @@ def test_build_scan_preview_stocks_early_verification_volume_relax():
                     "app.engines.scan_preview.get_integration_boost",
                     return_value=(0.17, "polymarket"),
                   ):
-                    with patch(
-                      "app.engines.scan_preview.is_price_sane",
-                      return_value=True,
-                    ):
-                      return await build_scan_preview(session, "stocks_futures")
+                        with patch(
+                          "app.engines.scan_preview.is_price_sane",
+                          return_value=True,
+                        ):
+                          with patch(
+                            "app.engines.scan_preview.is_symbol_in_trade_cooldown",
+                            new=AsyncMock(return_value=False),
+                          ):
+                            return await build_scan_preview(session, "stocks_futures")
 
   import asyncio
 

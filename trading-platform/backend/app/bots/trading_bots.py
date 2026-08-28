@@ -16,6 +16,7 @@ from app.engines.gate_entry_guard import (
   gate_entry_guards_active,
   gate_position_scale,
   in_shadow_graduation_nudge,
+  is_symbol_in_trade_cooldown,
   shadow_entry_min_signal,
   shadow_intel_composite_override,
   shadow_requires_macd,
@@ -302,6 +303,8 @@ class BaseBot(ABC):
 
         cooldown = self._symbol_cooldown_until.get(symbol)
         if cooldown and datetime.utcnow() < cooldown:
+          continue
+        if await is_symbol_in_trade_cooldown(session, self.bot_type, symbol):
           continue
 
         if entry_guards and symbol in chronic_losers:

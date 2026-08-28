@@ -222,7 +222,7 @@ else
 fi
 
 # TradingView webhook configured
-if curl -fsS -m 30 "$BACKEND/api/status" 2>/dev/null | python3 -c "
+if curl -fsS -m 60 "$BACKEND/api/status" 2>/dev/null | python3 -c "
 import json,sys
 i=json.load(sys.stdin).get('integrations') or {}
 raise SystemExit(0 if i.get('tradingview_webhook') else 1)

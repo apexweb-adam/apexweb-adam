@@ -22,6 +22,7 @@ from app.engines.gate_entry_guard import (
   get_gate_skip_symbols,
   get_proven_winner_symbols,
   in_shadow_graduation_nudge,
+  is_symbol_in_trade_cooldown,
   shadow_entry_min_signal,
   shadow_intel_composite_override,
   shadow_requires_macd,
@@ -174,6 +175,8 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
     )
 
     blockers: list[str] = []
+    if await is_symbol_in_trade_cooldown(session, bot_type, symbol):
+      blockers.append("symbol_cooldown")
     if entry_guards and symbol in chronic_losers:
       blockers.append("chronic_loser")
     if (
