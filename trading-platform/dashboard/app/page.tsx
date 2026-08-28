@@ -56,16 +56,19 @@ import { IntelRoutingPanel } from "@/components/IntelRoutingPanel";
 type Tab = "overview" | "trades" | "positions" | "intelligence" | "learning" | "strategy";
 
 export default function Dashboard() {
-  const { stats, portfolios, bots, positions: livePositions, trades: liveTrades, recentIntel, connected, lastUpdate, lastTrade, profitabilityGate: liveProfitability, gateEntryTightening, botSessions } = useLiveData();
+  const { stats, portfolios, bots, positions: livePositions, trades: liveTrades, recentIntel, analyses: liveAnalyses, reviews: liveReviews, insights: liveInsights, connected, lastUpdate, lastTrade, profitabilityGate: liveProfitability, gateEntryTightening, botSessions } = useLiveData();
   const { data: tradesRest } = useAPI<Trade[]>("/trades?limit=50", 30000);
   const { data: gateTradesRest } = useAPI<Trade[]>("/trades?limit=200", 30000);
   const { data: positionsRest } = useAPI<Position[]>("/positions", 30000);
   const trades = connected ? liveTrades : (tradesRest ?? []);
   const positions = connected ? livePositions : (positionsRest ?? []);
   const { data: intelligence } = useAPI<IntelligenceItem[]>("/intelligence?limit=30", 15000);
-  const { data: analyses } = useAPI<TradeAnalysis[]>("/analyses?limit=20", 15000);
-  const { data: reviews } = useAPI<DailyReview[]>("/reviews?limit=10", 30000);
-  const { data: insights } = useAPI<LearningInsight[]>("/insights?limit=20", 30000);
+  const { data: analysesRest } = useAPI<TradeAnalysis[]>("/analyses?limit=20", 15000);
+  const { data: reviewsRest } = useAPI<DailyReview[]>("/reviews?limit=10", 30000);
+  const { data: insightsRest } = useAPI<LearningInsight[]>("/insights?limit=20", 30000);
+  const analyses = connected && liveAnalyses.length > 0 ? liveAnalyses : (analysesRest ?? []);
+  const reviews = connected && liveReviews.length > 0 ? liveReviews : (reviewsRest ?? []);
+  const insights = connected && liveInsights.length > 0 ? liveInsights : (insightsRest ?? []);
   const { data: strategies } = useAPI<StrategyConfig[]>("/strategies", 30000);
   const { data: profitability } = useAPI<ProfitabilityStatus>("/profitability", 15000);
   const { data: activeGate } = useAPI<ActiveGateStatus>("/active-gate", 15000);
@@ -893,6 +896,12 @@ export default function Dashboard() {
                       <p className="text-xs text-apex-red mb-1">
                         <strong>Root cause:</strong> {a.root_cause}
                       </p>
+                      {a.market_context && (
+                        <p className="text-xs text-gray-500 mb-1">
+                          <strong>Context:</strong> {a.market_context.slice(0, 200)}
+                          {a.market_context.length > 200 ? "…" : ""}
+                        </p>
+                      )}
                       <p className="text-xs text-gray-400 mb-1">
                         <strong>Lesson:</strong> {a.lessons_learned}
                       </p>
