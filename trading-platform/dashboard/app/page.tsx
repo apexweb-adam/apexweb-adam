@@ -602,6 +602,17 @@ export default function Dashboard() {
                                   .join(" · ")}
                               </p>
                             )}
+                          {liveGateTightening.recent_loser_symbols &&
+                            Object.keys(liveGateTightening.recent_loser_symbols).length > 0 && (
+                              <p className="text-orange-400/80">
+                                Recent losers (7d, skipped):{" "}
+                                {Object.entries(liveGateTightening.recent_loser_symbols)
+                                  .map(([bot, syms]) =>
+                                    `${botLabel(bot)}: ${syms.slice(0, 3).join(", ")}${syms.length > 3 ? "…" : ""}`
+                                  )
+                                  .join(" · ")}
+                              </p>
+                            )}
                           {liveGateTightening.chronic_loser_symbols &&
                             Object.keys(liveGateTightening.chronic_loser_symbols).length > 0 && (
                               <p className="text-red-400/80">

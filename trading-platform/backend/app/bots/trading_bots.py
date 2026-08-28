@@ -9,8 +9,8 @@ from app.config import settings
 from app.database import SessionLocal
 from app.engines.gate_entry_guard import (
   bot_min_sentiment,
-  get_chronic_loser_symbols,
   get_gate_entry_tightening,
+  get_gate_skip_symbols,
   get_proven_winner_symbols,
   stocks_in_us_session,
 )
@@ -107,7 +107,7 @@ class BaseBot(ABC):
       chronic_losers: frozenset[str] = frozenset()
       proven_winners: frozenset[str] = frozenset()
       if gate_tightening.active:
-        chronic_losers = await get_chronic_loser_symbols(session, self.bot_type)
+        chronic_losers = await get_gate_skip_symbols(session, self.bot_type)
         if self.bot_type == "stocks_futures":
           proven_winners = await get_proven_winner_symbols(session, self.bot_type)
           symbols = _prioritize_symbols(symbols, proven_winners)

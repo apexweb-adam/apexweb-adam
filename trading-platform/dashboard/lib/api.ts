@@ -296,6 +296,7 @@ export type GateEntryTightening = {
   max_stocks_open_positions?: number | null;
   blocked_new_entries?: string[];
   chronic_loser_symbols?: Record<string, string[]>;
+  recent_loser_symbols?: Record<string, string[]>;
   proven_winner_symbols?: Record<string, string[]>;
   stocks_proven_winners_only?: boolean;
 };
