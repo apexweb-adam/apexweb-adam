@@ -92,7 +92,8 @@ jobs:
 
   verify-render:
     needs: trigger-render
-    if: always() && needs.trigger-render.result == 'success'
+    # Do not run on push — a long-polling job blocks Render checksPass auto-deploy.
+    if: always() && needs.trigger-render.result == 'success' && github.event_name != 'push'
     runs-on: ubuntu-latest
     continue-on-error: true
     steps:
