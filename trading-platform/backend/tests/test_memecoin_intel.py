@@ -4,7 +4,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import asyncio
 
-from app.intelligence.memecoin_scanner import _map_dex_chain_symbol, scan_hyperliquid_memecoins
+from app.intelligence.memecoin_scanner import (
+  _map_dex_chain_symbol,
+  _sanitize_dex_symbol,
+  scan_hyperliquid_memecoins,
+)
 from app.intelligence.memecoin_whales import DEFAULT_ETH_WHALE_ADDRESSES, DEFAULT_SOLANA_WHALE_ADDRESSES
 
 
@@ -17,6 +21,12 @@ def test_default_whale_address_lists_nonempty():
 
 def test_map_dex_chain_symbol_wif():
   assert _map_dex_chain_symbol("solana", "mint", "dogwifhat trending") == "WIFUSDT"
+
+
+def test_sanitize_dex_symbol_rejects_spam():
+  assert _sanitize_dex_symbol("WIF") == "WIF"
+  assert _sanitize_dex_symbol("BTC" * 50) is None
+  assert _sanitize_dex_symbol("") is None
 
 
 def test_scan_hyperliquid_memecoins_mock():
