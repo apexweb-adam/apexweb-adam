@@ -313,6 +313,7 @@ export type PlatformStatus = {
   database: { engine: string; persistent: boolean };
   intelligence: { active_sources: number; total_sources: number };
   scheduler?: Record<string, string>;
+  bot_sessions?: BotSessions;
   gate_entry_tightening?: GateEntryTightening;
   integrations?: {
     tradingview_webhook?: boolean;

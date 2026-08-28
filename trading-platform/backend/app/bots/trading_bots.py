@@ -308,9 +308,22 @@ class BaseBot(ABC):
         ):
           entry_min_signal = max(0.08, entry_min_signal - 0.02)
 
+        volume_required = signal.volume_confirmed
+        if (
+          gate_tightening.active
+          and self.bot_type == "stocks_futures"
+          and symbol in proven_winners
+        ):
+          # Proven winners: allow TV-boosted entries without strict volume bar
+          volume_required = (
+            signal.volume_confirmed
+            or integration_boost > 0.03
+            or bool(integration_reason and "tradingview" in integration_reason.lower())
+          )
+
         if (
           signal.direction == "buy"
-          and signal.volume_confirmed
+          and volume_required
           and composite >= entry_min_signal
           and sentiment + integration_boost >= min_sentiment
           and self.bot_type not in gate_tightening.blocked_new_entries
