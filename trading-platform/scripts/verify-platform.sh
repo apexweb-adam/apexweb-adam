@@ -55,6 +55,27 @@ else
   bad "Backend /api/status invalid"
 fi
 
+# Database persistence (Supabase required on Render)
+python3 << PY
+import json, sys
+d = json.loads('''$STATUS''')
+db = d.get("database") or {}
+if db.get("persistent") is True:
+    print(f"  engine={db.get('engine')} persistent=True")
+    sys.exit(0)
+on_render = "onrender.com" in "$BACKEND"
+if on_render:
+    print("  engine=sqlite ephemeral — gate data resets each deploy; set DATABASE_URL on Render")
+    sys.exit(1)
+print(f"  engine={db.get('engine')} (local dev OK)")
+sys.exit(0)
+PY
+if [[ $? -eq 0 ]]; then
+  ok "Database persistence"
+else
+  bad "Database not persistent on production (set Supabase DATABASE_URL)"
+fi
+
 # Intel sources
 SRC_COUNT=$(curl -fsS -m 20 "$BACKEND/api/intelligence/sources" 2>/dev/null | python3 -c "
 import json,sys
