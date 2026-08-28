@@ -90,10 +90,47 @@ def test_sync_gate_recovery_rotation_skips_when_pf_healthy():
   with patch("app.engines.gate_entry_guard.ProfitabilityGate") as GateCls:
     GateCls.return_value.evaluate = AsyncMock(return_value=gate_result)
     with patch(
-      "app.engines.platform_settings.set_bot_paused",
-      AsyncMock(),
-    ) as set_pause:
-      result = asyncio.run(sync_gate_recovery_rotation(MagicMock()))
+      "app.engines.platform_settings.get_paused_bot_types",
+      AsyncMock(return_value=["crypto", "stocks_futures", "polymarket"]),
+    ):
+      with patch(
+        "app.engines.platform_settings.set_bot_paused",
+        AsyncMock(),
+      ) as set_pause:
+        result = asyncio.run(sync_gate_recovery_rotation(MagicMock()))
 
   assert result is None
   set_pause.assert_not_called()
+
+
+def test_sync_gate_recovery_rotation_reactivates_when_all_paused():
+  per_bot = {
+    "crypto": {
+      "paused": True,
+      "win_rate": 0.422,
+      "profit_factor": 1.06,
+      "total_pnl": 5.63,
+    },
+    "commodities": {
+      "paused": True,
+      "win_rate": 0.444,
+      "profit_factor": 1.19,
+      "total_pnl": 19.13,
+    },
+  }
+
+  with patch("app.engines.gate_entry_guard.ProfitabilityGate") as GateCls:
+    GateCls.return_value.evaluate_per_bot = AsyncMock(return_value=per_bot)
+    with patch(
+      "app.engines.platform_settings.get_paused_bot_types",
+      AsyncMock(return_value=["crypto", "stocks_futures", "commodities", "polymarket"]),
+    ):
+      with patch(
+        "app.engines.platform_settings.set_bot_paused",
+        AsyncMock(),
+      ) as set_pause:
+        result = asyncio.run(sync_gate_recovery_rotation(MagicMock()))
+
+  assert result == {"paused": "all", "activated": "commodities"}
+  set_pause.assert_awaited_once()
+  assert set_pause.await_args.args[1:] == ("commodities", False)
