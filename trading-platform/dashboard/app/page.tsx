@@ -1084,7 +1084,7 @@ function BotCard({
   };
   session?: {
     in_session: boolean;
-    mode: "entries" | "winddown_only";
+    mode: "entries" | "winddown_only" | "pre_session" | "outside_session";
     minutes_until_open?: number;
     minutes_until_close?: number | null;
   };

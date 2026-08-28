@@ -138,10 +138,20 @@ def test_stocks_session_info_before_open():
     mock_dt.side_effect = lambda *a, **k: datetime(*a, **k)
     info = stocks_session_info()
     assert info["in_session"] is False
-    assert info["mode"] == "winddown_only"
+    assert info["mode"] == "outside_session"
     assert info["minutes_until_open"] == 498  # 13:30 - 05:12
     assert info["minutes_until_close"] is None
     assert "13:30:00" in info["session_open_utc"]
+
+
+def test_stocks_session_info_pre_session_window():
+  with patch("app.engines.gate_entry_guard.datetime") as mock_dt:
+    mock_dt.utcnow.return_value = datetime(2026, 8, 28, 12, 35, 0)
+    mock_dt.side_effect = lambda *a, **k: datetime(*a, **k)
+    info = stocks_session_info()
+    assert info["in_session"] is False
+    assert info["mode"] == "pre_session"
+    assert info["minutes_until_open"] == 55
 
 
 def test_stocks_session_info_after_close_weekday():
