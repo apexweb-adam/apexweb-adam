@@ -90,7 +90,9 @@ async def crm_landing():
   promote_id = deploy.get("vercel_promote_deployment_id") or "dpl_DMSgUEGsa2PTokNr99BXWoggczd7"
 
   async with SessionLocal() as session:
-    gate = await ProfitabilityGate(session).evaluate()
+    gate_engine = ProfitabilityGate(session)
+    gate = await gate_engine.evaluate()
+    per_bot = await gate_engine.evaluate_per_bot()
 
   day = gate.get("verification_day", 0)
   trades = gate.get("total_trades", 0)
@@ -99,6 +101,20 @@ async def crm_landing():
   pf = gate.get("profit_factor")
   pf_label = f"{pf:.2f}" if pf is not None else "n/a"
   rec = gate.get("recommendation", "")
+  paused = gate.get("paused_bots") or []
+
+  bot_rows = ""
+  for bot_type, stats in per_bot.items():
+    status = "shadow" if stats.get("paused") else "active"
+    if stats.get("graduation_ready"):
+      status = "ready"
+    blockers = ", ".join(stats.get("graduation_blockers") or []) or "—"
+    wr_pct = (stats.get("win_rate") or 0) * 100
+    bot_rows += (
+      f"<tr><td>{bot_type}</td><td>{status}</td>"
+      f"<td>{stats.get('total_trades', 0)}</td><td>{wr_pct:.0f}%</td>"
+      f"<td>{blockers}</td></tr>"
+    )
 
   if stale and url == deploy.get("verified_dashboard_url"):
     bundle_label = deploy.get("verified_bundle_revision") or EXPECTED_DASHBOARD_BUNDLE
@@ -143,6 +159,11 @@ async def crm_landing():
     a {{ color: #d4af37; }}
     .muted {{ color: #888; font-size: 0.85rem; margin-top: 1rem; line-height: 1.5; }}
     .ok {{ color: #4ade80; }}
+    table {{ width: 100%; border-collapse: collapse; font-size: 0.85rem; margin-top: 0.75rem; }}
+    th, td {{ text-align: left; padding: 0.35rem 0.5rem; border-bottom: 1px solid #2a2a35; }}
+    th {{ color: #888; font-weight: 500; }}
+    .tag-shadow {{ color: #fbbf24; }}
+    .tag-ready {{ color: #4ade80; }}
   </style>
 </head>
 <body>
@@ -157,6 +178,11 @@ async def crm_landing():
       <div><div class="label">PnL</div><div class="stat">${pnl:,.2f}</div></div>
     </div>
     <p class="muted" style="margin-top: 1rem;">{rec}</p>
+    {f"<p class='muted'>Paused from active gate: {', '.join(paused)}</p>" if paused else ""}
+    <table>
+      <thead><tr><th>Bot</th><th>Status</th><th>Trades</th><th>WR</th><th>Graduation</th></tr></thead>
+      <tbody>{bot_rows}</tbody>
+    </table>
   </div>
   <p><a href="{url}">Open live dashboard →</a> <span class="muted">(redirecting in 3s)</span></p>
   <p class="muted">{deploy_note}</p>

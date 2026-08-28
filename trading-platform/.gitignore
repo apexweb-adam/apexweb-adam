@@ -23,3 +23,5 @@ out/
 .dashboard-tunnel-url
 .platform-urls.json
 .bin/
+.vercel
+.env*
