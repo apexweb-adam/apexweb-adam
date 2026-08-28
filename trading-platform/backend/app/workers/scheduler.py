@@ -243,6 +243,10 @@ async def setup_scheduler() -> None:
 
   await intelligence_job()
   await content_study_job()
+  async with SessionLocal() as session:
+    pending = await LearningEngine(session).apply_pending_insights(min_confidence=0.55)
+    if pending:
+      print(f"[Learning] Applied {pending} pending insight(s) on startup")
   await ensure_daily_review_on_startup()
   await verification_snapshot_job()
   await start_bots()
