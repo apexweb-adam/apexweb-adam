@@ -23,6 +23,22 @@ MEMECOIN_SEARCH_QUERIES = (
 
 HL_MEME_COINS = ("kPEPE", "kBONK", "WIF", "DOGE", "MEME", "TRUMP", "SOL")
 
+_MAX_DEX_SYMBOL_LEN = 20
+
+
+def _sanitize_dex_symbol(symbol: str) -> str | None:
+  """Reject spam concatenated tickers; keep short alphanumeric symbols only."""
+  raw = (symbol or "").strip().upper()
+  if not raw or len(raw) > _MAX_DEX_SYMBOL_LEN:
+    return None
+  if not raw.replace("$", "").isalnum():
+    return None
+  return raw
+
+
+def _normalize_symbols_field(symbol: str) -> str:
+  return symbol[:200]
+
 
 def _map_dex_chain_symbol(chain_id: str, token_address: str, description: str) -> str:
   text = f"{description} {token_address}".upper()
@@ -62,7 +78,7 @@ async def _add_intel(
       url=url[:1000],
       sentiment=sentiment,
       relevance_score=relevance,
-      symbols_mentioned=symbols or extract_symbols(full_text),
+      symbols_mentioned=_normalize_symbols_field(symbols or extract_symbols(full_text)),
     )
   )
   return True
@@ -115,11 +131,16 @@ async def scan_dexscreener_trending(session: AsyncSession) -> int:
         pairs = search.json().get("pairs", [])[:5]
         for pair in pairs:
           base = pair.get("baseToken", {})
-          symbol = base.get("symbol", "MEME")
+          symbol = _sanitize_dex_symbol(base.get("symbol", ""))
+          if not symbol:
+            continue
           mapped = f"{symbol}USDT" if not symbol.endswith("USDT") else symbol
           price_chg = float(pair.get("priceChange", {}).get("h24", 0) or 0)
           vol = float(pair.get("volume", {}).get("h24", 0) or 0)
-          liq = float(pair.get("liquidity", {}).get("usd", 0) or 0)
+          liq_raw = pair.get("liquidity", {}).get("usd")
+          if liq_raw is None:
+            continue
+          liq = float(liq_raw or 0)
           if liq < settings.memecoin_min_liquidity_usd:
             continue
           title = f"[DexScreener] {symbol} {price_chg:+.1f}% 24h vol ${vol:,.0f}"
