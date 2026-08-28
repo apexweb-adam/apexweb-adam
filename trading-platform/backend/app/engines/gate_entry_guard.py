@@ -88,6 +88,9 @@ SHADOW_INTEL_COMPOSITE_FLOOR = 0.50
 SHADOW_INTEL_COMPOSITE_FLOOR_BY_BOT = {
   "crypto": 0.32,
 }
+SHADOW_INTEL_COMPOSITE_ONLY_BY_BOT = {
+  "crypto": 0.40,
+}
 SHADOW_INTEL_BOOST_FLOOR = 0.08
 SHADOW_INTEL_BOOST_FLOOR_BY_BOT = {
   "crypto": 0.06,
@@ -136,6 +139,10 @@ def shadow_intel_composite_override(
   composite_floor = SHADOW_INTEL_COMPOSITE_FLOOR_BY_BOT.get(
     bot_type, SHADOW_INTEL_COMPOSITE_FLOOR
   )
+  composite_only_floor = SHADOW_INTEL_COMPOSITE_ONLY_BY_BOT.get(bot_type)
+  if composite_only_floor is not None:
+    if composite >= max(composite_only_floor, entry_min_signal + 0.12):
+      return True
   boost_floor = SHADOW_INTEL_BOOST_FLOOR_BY_BOT.get(bot_type, SHADOW_INTEL_BOOST_FLOOR)
   composite_margin = 0.05 if bot_type == "crypto" else 0.15
   return (
