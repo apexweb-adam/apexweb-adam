@@ -81,6 +81,12 @@ Or run `./scripts/post-render-deploy.sh https://your-backend.onrender.com` for i
 
 The dashboard proxies REST via `/api/backend/*` at runtime — no rebuild needed when backend URL changes.
 
+**Verify production:**
+```bash
+./scripts/verify-platform.sh
+./scripts/sync-prod-gate-pauses.sh   # pause underperformers when gate WR low
+```
+
 **Local Docker:**
 ```bash
 cd trading-platform && docker compose up --build
