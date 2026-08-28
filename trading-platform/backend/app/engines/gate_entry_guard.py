@@ -85,7 +85,15 @@ def in_shadow_graduation_nudge(bot_type: str, bot_win_rate: float | None) -> boo
 
 
 SHADOW_INTEL_COMPOSITE_FLOOR = 0.50
+SHADOW_INTEL_COMPOSITE_FLOOR_BY_BOT = {
+  "crypto": 0.32,
+}
 SHADOW_INTEL_BOOST_FLOOR = 0.08
+SHADOW_INTEL_BOOST_FLOOR_BY_BOT = {
+  "crypto": 0.06,
+}
+GATE_INDEX_ETF_SYMBOLS = frozenset({"SPY", "QQQ"})
+EARLY_VERIFICATION_INDEX_ETF_SIGNAL_BONUS = 0.08
 EARLY_VERIFICATION_MAX_TRADES = 30
 EARLY_VERIFICATION_MIN_SIGNAL_FLOOR = 0.20
 EARLY_VERIFICATION_SIGNAL_EASE = 0.04
@@ -123,11 +131,16 @@ def shadow_intel_composite_override(
   integration_boost: float,
 ) -> bool:
   """Allow shadow long when intel composite is strong despite technical sell/hold."""
-  if not (graduation_nudge and shadow_mode and bot_type == "commodities"):
+  if not (graduation_nudge and shadow_mode and bot_type in ("commodities", "crypto")):
     return False
+  composite_floor = SHADOW_INTEL_COMPOSITE_FLOOR_BY_BOT.get(
+    bot_type, SHADOW_INTEL_COMPOSITE_FLOOR
+  )
+  boost_floor = SHADOW_INTEL_BOOST_FLOOR_BY_BOT.get(bot_type, SHADOW_INTEL_BOOST_FLOOR)
+  composite_margin = 0.08 if bot_type == "crypto" else 0.15
   return (
-    composite >= max(entry_min_signal + 0.15, SHADOW_INTEL_COMPOSITE_FLOOR)
-    and integration_boost >= SHADOW_INTEL_BOOST_FLOOR
+    composite >= max(entry_min_signal + composite_margin, composite_floor)
+    and integration_boost >= boost_floor
   )
 
 
@@ -160,15 +173,28 @@ def shadow_requires_macd(
   gate_tightening: GateEntryTightening,
   shadow_mode: bool,
 ) -> bool:
-  if bot_type == "crypto":
-    return True
+  if shadow_mode and bot_type in ("commodities", "crypto"):
+    if bot_win_rate is not None and in_shadow_graduation_nudge(bot_type, bot_win_rate):
+      return False
+    if bot_type == "crypto":
+      return True
   if gate_tightening.active and gate_tightening.require_macd_bullish and bot_type == "commodities":
     return True
   if shadow_mode and bot_type == "commodities":
-    if bot_win_rate is not None and in_shadow_graduation_nudge(bot_type, bot_win_rate):
-      return False
     return True
   return False
+
+
+def early_verification_index_etf_entry_min_signal(
+  symbol: str,
+  entry_min_signal: float,
+  *,
+  early_boost: bool,
+) -> float:
+  """Index ETFs need stronger signals during early verification — weak SPY entries blow up PnL."""
+  if early_boost and symbol in GATE_INDEX_ETF_SYMBOLS:
+    return entry_min_signal + EARLY_VERIFICATION_INDEX_ETF_SIGNAL_BONUS
+  return entry_min_signal
 UNDERPERFORMER_MIN_TRADES = 15
 UNDERPERFORMER_MAX_WIN_RATE = 0.40
 CHRONIC_LOSER_MIN_TRADES = 3

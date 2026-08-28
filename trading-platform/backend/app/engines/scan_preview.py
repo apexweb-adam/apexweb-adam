@@ -16,6 +16,7 @@ from app.engines.gate_entry_guard import (
   SHADOW_MAX_OPEN,
   bot_min_sentiment,
   early_verification_active,
+  early_verification_index_etf_entry_min_signal,
   gate_entry_guards_active,
   gate_position_scale,
   get_gate_entry_tightening,
@@ -141,6 +142,11 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
       entry_min_signal = max(0.08, entry_min_signal - 0.03)
     if gate_tightening.active and bot_type == "stocks_futures" and signal.rsi_divergence == "bullish":
       entry_min_signal = max(0.08, entry_min_signal - 0.02)
+    entry_min_signal = early_verification_index_etf_entry_min_signal(
+      symbol,
+      entry_min_signal,
+      early_boost=early_verification_boost,
+    )
 
     volume_required = signal.volume_confirmed
     if gate_tightening.active and bot_type == "stocks_futures" and symbol in proven_winners:
@@ -158,6 +164,13 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
         or bool(integration_reason and "tradingview" in integration_reason.lower())
       )
     if graduation_nudge and shadow_mode and bot_type == "commodities":
+      volume_required = (
+        signal.volume_confirmed
+        or composite >= entry_min_signal + 0.02
+        or integration_boost > 0.02
+        or signal.macd_signal == "bullish"
+      )
+    if graduation_nudge and shadow_mode and bot_type == "crypto":
       volume_required = (
         signal.volume_confirmed
         or composite >= entry_min_signal + 0.02

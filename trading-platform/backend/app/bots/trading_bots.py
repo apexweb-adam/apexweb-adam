@@ -9,6 +9,7 @@ from app.config import settings
 from app.database import SessionLocal
 from app.engines.gate_entry_guard import (
   bot_min_sentiment,
+  early_verification_index_etf_entry_min_signal,
   get_gate_entry_tightening,
   get_gate_skip_symbols,
   get_proven_winner_symbols,
@@ -22,6 +23,7 @@ from app.engines.gate_entry_guard import (
   shadow_requires_macd,
   stocks_gate_entry_sentiment_ok,
   stocks_in_us_session,
+  GATE_INDEX_ETF_SYMBOLS,
 )
 from app.engines.integration_signals import get_integration_boost
 from app.engines.intelligence_scoring import compute_bot_sentiment
@@ -392,6 +394,11 @@ class BaseBot(ABC):
           and signal.rsi_divergence == "bullish"
         ):
           entry_min_signal = max(0.08, entry_min_signal - 0.02)
+        entry_min_signal = early_verification_index_etf_entry_min_signal(
+          symbol,
+          entry_min_signal,
+          early_boost=early_verification_boost,
+        )
 
         volume_required = signal.volume_confirmed
         if (
@@ -414,6 +421,13 @@ class BaseBot(ABC):
             or bool(integration_reason and "tradingview" in integration_reason.lower())
           )
         if graduation_nudge and shadow_mode and self.bot_type == "commodities":
+          volume_required = (
+            signal.volume_confirmed
+            or composite >= entry_min_signal + 0.02
+            or integration_boost > 0.02
+            or signal.macd_signal == "bullish"
+          )
+        if graduation_nudge and shadow_mode and self.bot_type == "crypto":
           volume_required = (
             signal.volume_confirmed
             or composite >= entry_min_signal + 0.02
@@ -466,6 +480,8 @@ class BaseBot(ABC):
             buy_scale *= gate_position_scale(
               composite, entry_min_signal, early_boost=True
             )
+            if symbol in GATE_INDEX_ETF_SYMBOLS:
+              buy_scale *= 0.5
           result = await engine.buy(
             symbol,
             price,
