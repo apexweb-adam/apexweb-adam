@@ -24,6 +24,7 @@ from app.engines.gate_entry_guard import (
   hard_skip_blocks_shadow_entry,
   in_shadow_graduation_nudge,
   is_symbol_in_trade_cooldown,
+  shadow_chronic_position_scale,
   EARLY_VERIFICATION_LOSS_WIND_DOWN_SECONDS,
   EARLY_VERIFICATION_LOSS_WIND_DOWN_USD,
   shadow_entry_min_signal,
@@ -342,7 +343,9 @@ class BaseBot(ABC):
         cooldown = self._symbol_cooldown_until.get(symbol)
         if cooldown and datetime.utcnow() < cooldown:
           continue
-        if await is_symbol_in_trade_cooldown(session, self.bot_type, symbol):
+        if await is_symbol_in_trade_cooldown(
+          session, self.bot_type, symbol, chronic_symbols=chronic_losers
+        ):
           continue
 
         if (
@@ -544,6 +547,14 @@ class BaseBot(ABC):
             reason += f" Integrations:{integration_boost:+.2f} ({integration_reason})"
           reason += f" | {signal.reason}"
           buy_scale = SHADOW_POSITION_SCALE if shadow_mode else 1.0
+          if shadow_mode:
+            buy_scale *= shadow_chronic_position_scale(
+              symbol,
+              chronic_losers,
+              graduation_nudge=graduation_nudge,
+              shadow_mode=shadow_mode,
+              intel_override=intel_override,
+            )
           if early_verification_boost and not shadow_mode:
             buy_scale *= gate_position_scale(
               composite, entry_min_signal, early_boost=True

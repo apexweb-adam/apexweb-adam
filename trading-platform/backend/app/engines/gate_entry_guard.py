@@ -55,7 +55,7 @@ SHADOW_MAX_OPEN = {
 GRADUATION_NUDGE_MIN_WR = 0.48
 GRADUATION_NUDGE_MIN_WR_BY_BOT = {
   "crypto": 0.45,
-  "commodities": 0.46,
+  "commodities": 0.44,
 }
 
 
@@ -91,8 +91,10 @@ SHADOW_INTEL_COMPOSITE_FLOOR_BY_BOT = {
 }
 SHADOW_INTEL_COMPOSITE_ONLY_BY_BOT = {
   "crypto": 0.40,
-  "commodities": 0.42,
+  "commodities": 0.48,
 }
+SHADOW_INTEL_CHRONIC_POSITION_SCALE = 0.25
+SHADOW_CHRONIC_LOSS_COOLDOWN_MULTIPLIER = 2
 SHADOW_INTEL_BOOST_FLOOR = 0.08
 SHADOW_INTEL_BOOST_FLOOR_BY_BOT = {
   "crypto": 0.06,
@@ -172,6 +174,25 @@ def chronic_loser_blocks_shadow_entry(
   if graduation_nudge and shadow_mode and intel_override:
     return False
   return True
+
+
+def shadow_chronic_position_scale(
+  symbol: str,
+  chronic_symbols: frozenset[str],
+  *,
+  graduation_nudge: bool,
+  shadow_mode: bool,
+  intel_override: bool,
+) -> float:
+  """Reduce shadow size on chronic losers when intel override allows re-entry."""
+  if (
+    symbol in chronic_symbols
+    and graduation_nudge
+    and shadow_mode
+    and intel_override
+  ):
+    return SHADOW_INTEL_CHRONIC_POSITION_SCALE
+  return 1.0
 
 
 def shadow_entry_min_signal(
@@ -473,9 +494,13 @@ async def is_symbol_in_trade_cooldown(
   session: AsyncSession,
   bot_type: str,
   symbol: str,
+  *,
+  chronic_symbols: frozenset[str] = frozenset(),
 ) -> bool:
   """DB-backed re-entry cooldown — survives deploy restarts."""
-  remaining = await symbol_cooldown_remaining_seconds(session, bot_type, symbol)
+  remaining = await symbol_cooldown_remaining_seconds(
+    session, bot_type, symbol, chronic_symbols=chronic_symbols
+  )
   return remaining > 0
 
 
@@ -483,12 +508,14 @@ async def symbol_cooldown_remaining_seconds(
   session: AsyncSession,
   bot_type: str,
   symbol: str,
+  *,
+  chronic_symbols: frozenset[str] = frozenset(),
 ) -> int:
   """Seconds until symbol re-entry is allowed after last sell."""
   from app.models.entities import Trade
 
   result = await session.execute(
-    select(Trade.is_winner, Trade.executed_at)
+    select(Trade.is_winner, Trade.executed_at, Trade.reason)
     .where(
       Trade.bot_type == bot_type,
       Trade.symbol == symbol,
@@ -500,13 +527,19 @@ async def symbol_cooldown_remaining_seconds(
   row = result.first()
   if not row:
     return 0
-  is_winner, executed_at = row
+  is_winner, executed_at, reason = row
   if not executed_at or is_winner is None:
     return 0
   if executed_at.tzinfo is not None:
     executed_at = executed_at.replace(tzinfo=None)
   elapsed = (datetime.utcnow() - executed_at).total_seconds()
   seconds = _bot_cooldown_seconds(bot_type, after_loss=is_winner is False)
+  if (
+    is_winner is False
+    and bot_type in ("commodities", "crypto")
+    and symbol in chronic_symbols
+  ):
+    seconds = int(seconds * SHADOW_CHRONIC_LOSS_COOLDOWN_MULTIPLIER)
   return max(0, int(seconds - elapsed))
 
 

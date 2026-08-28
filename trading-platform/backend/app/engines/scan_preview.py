@@ -218,7 +218,9 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
     entry_direction_ok = signal.direction == "buy" or intel_override
 
     blockers: list[str] = []
-    cooldown_remaining = await symbol_cooldown_remaining_seconds(session, bot_type, symbol)
+    cooldown_remaining = await symbol_cooldown_remaining_seconds(
+      session, bot_type, symbol, chronic_symbols=chronic_losers
+    )
     if cooldown_remaining > 0:
       blockers.append("symbol_cooldown")
     if entry_guards and hard_skip_blocks_shadow_entry(
