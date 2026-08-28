@@ -19,6 +19,7 @@ import {
   type StrategyConfig,
   type IntelligenceSource,
   type VerificationSnapshot,
+  type PerBotGateStatus,
 } from "./api";
 
 type LiveData = {
@@ -103,7 +104,19 @@ export function useLiveData(): LiveData {
     if (data.verification_history) {
       setVerificationHistory(data.verification_history as VerificationSnapshot[]);
     }
-    if (data.profitability_gate) setProfitabilityGate(data.profitability_gate as ProfitabilityStatus);
+    if (data.profitability_gate) {
+      const gate = data.profitability_gate as ProfitabilityStatus;
+      if (data.per_bot_gate) {
+        gate.per_bot = data.per_bot_gate as Record<string, PerBotGateStatus>;
+      }
+      setProfitabilityGate(gate);
+    } else if (data.per_bot_gate) {
+      setProfitabilityGate((prev) =>
+        prev
+          ? { ...prev, per_bot: data.per_bot_gate as Record<string, PerBotGateStatus> }
+          : prev
+      );
+    }
     if (data.gate_entry_tightening) {
       setGateEntryTightening(data.gate_entry_tightening as GateEntryTightening);
     }

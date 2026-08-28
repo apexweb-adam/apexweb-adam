@@ -144,7 +144,11 @@ export default function Dashboard() {
   const gateStatus = useMemo(() => {
     const profSource = connected && liveProfitability ? liveProfitability : profitability;
     if (activeGate?.active_bots) {
-      return activeGateToProfitability(activeGate, profSource ?? undefined);
+      const merged = activeGateToProfitability(activeGate, profSource ?? undefined);
+      if (!merged.per_bot && profSource?.per_bot) {
+        merged.per_bot = profSource.per_bot;
+      }
+      return merged;
     }
     return enrichProfitabilityStatus(
       profSource ?? undefined,
@@ -315,8 +319,8 @@ export default function Dashboard() {
                         botSessions?.[bot.bot_type] ??
                         platformStatus?.bot_sessions?.[bot.bot_type]
                       }
-                      gate={
-                        liveGateTightening?.active
+                      gate={{
+                        ...(liveGateTightening?.active
                           ? {
                               blocked: liveGateTightening.blocked_new_entries?.includes(
                                 bot.bot_type
@@ -324,8 +328,9 @@ export default function Dashboard() {
                               provenWinners:
                                 liveGateTightening.proven_winner_symbols?.[bot.bot_type],
                             }
-                          : undefined
-                      }
+                          : {}),
+                        graduation: gateStatus?.per_bot?.[bot.bot_type],
+                      }}
                     />
                   ))}
                   {bots.length === 0 &&
@@ -1129,6 +1134,13 @@ function BotCard({
   gate?: {
     blocked?: boolean;
     provenWinners?: string[];
+    graduation?: {
+      paused: boolean;
+      graduation_ready: boolean;
+      total_trades: number;
+      win_rate: number;
+      graduation_blockers: string[];
+    };
   };
 }) {
   const sessionHint =
@@ -1153,6 +1165,16 @@ function BotCard({
         {gate?.blocked && (
           <span className="text-[10px] px-2 py-0.5 rounded-full font-medium bg-red-500/10 text-red-400">
             entries blocked
+          </span>
+        )}
+        {gate?.graduation?.paused && (
+          <span className="text-[10px] px-2 py-0.5 rounded-full font-medium bg-amber-500/10 text-amber-400">
+            shadow mode
+          </span>
+        )}
+        {gate?.graduation?.graduation_ready && (
+          <span className="text-[10px] px-2 py-0.5 rounded-full font-medium bg-apex-green/10 text-apex-green">
+            ready to unpause
           </span>
         )}
         {gate?.provenWinners && gate.provenWinners.length > 0 && (
@@ -1190,6 +1212,17 @@ function BotCard({
         </span>
       </div>
       <p className="text-xs text-gray-400 mb-2 line-clamp-2">{bot.last_action}</p>
+      {gate?.graduation?.paused && (
+        <p className="text-[10px] text-gray-500 mb-2">
+          Gate: {gate.graduation.total_trades} trades · {formatPct(gate.graduation.win_rate)} WR
+          {gate.graduation.graduation_blockers.length > 0 && (
+            <span className="text-gray-600">
+              {" "}
+              · needs {gate.graduation.graduation_blockers.join(", ")}
+            </span>
+          )}
+        </p>
+      )}
       <div className="flex justify-between text-[10px] text-gray-500">
         <span>{bot.trades_today} trades today</span>
         <span>Strategy v{bot.strategy_version}</span>
