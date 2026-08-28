@@ -777,6 +777,62 @@ async def set_deploy_hook_admin(payload: dict[str, Any], db: AsyncSession = Depe
   }
 
 
+@router.post("/admin/set-vercel-deploy-hook")
+async def set_vercel_deploy_hook_admin(payload: dict[str, Any], db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
+  """Store Vercel deploy hook URL in platform_settings (requires webhook secret)."""
+  from app.engines.platform_settings import set_vercel_deploy_hook
+
+  secret = payload.get("secret", "")
+  if not settings.tradingview_webhook_secret or secret != settings.tradingview_webhook_secret:
+    return {"status": "unauthorized"}
+
+  hook_url = (payload.get("hook_url") or "").strip()
+  if not hook_url.startswith("https://"):
+    return {"status": "error", "message": "hook_url must be an https URL"}
+
+  await set_vercel_deploy_hook(db, hook_url)
+  return {
+    "status": "ok",
+    "hook_configured": True,
+    "timestamp": datetime.utcnow().isoformat(),
+  }
+
+
+@router.post("/admin/trigger-vercel-deploy")
+async def trigger_vercel_deploy_admin(payload: dict[str, Any], db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
+  """Trigger Vercel production deploy via stored deploy hook."""
+  import httpx
+  from app.engines.platform_settings import get_vercel_deploy_hook
+
+  secret = payload.get("secret", "")
+  if not settings.tradingview_webhook_secret or secret != settings.tradingview_webhook_secret:
+    return {"status": "unauthorized"}
+
+  hook_url = (payload.get("hook_url") or os.environ.get("VERCEL_DEPLOY_HOOK") or "").strip()
+  if not hook_url:
+    stored = await get_vercel_deploy_hook(db)
+    hook_url = (stored or "").strip()
+  if not hook_url:
+    return {
+      "status": "error",
+      "message": "No Vercel deploy hook — set VERCEL_DEPLOY_HOOK or POST /admin/set-vercel-deploy-hook",
+    }
+
+  try:
+    async with httpx.AsyncClient(timeout=30.0) as client:
+      response = await client.post(hook_url)
+      response.raise_for_status()
+  except Exception as exc:
+    return {"status": "error", "message": str(exc), "hook_url_prefix": hook_url[:48] + "..."}
+
+  return {
+    "status": "ok",
+    "triggered": True,
+    "message": "Vercel deploy hook triggered",
+    "timestamp": datetime.utcnow().isoformat(),
+  }
+
+
 @router.post("/admin/reset-paper-trading")
 async def reset_paper_trading_admin(payload: dict[str, Any], db: AsyncSession = Depends(get_db)):
   """Reset paper portfolios to $100k/bot; clears trades/positions/reviews, keeps intel + strategies."""
