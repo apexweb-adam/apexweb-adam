@@ -7,7 +7,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.entities import IntelligenceItem
 
-INTEGRATION_SOURCES = ("tradingview", "polymarket", "polymarket_account", "wallet_tracker")
+INTEGRATION_SOURCES = (
+  "tradingview",
+  "polymarket",
+  "polymarket_account",
+  "wallet_tracker",
+  "hyperliquid",
+  "dexscreener",
+)
 MAX_AGE_HOURS = 24
 
 
@@ -64,6 +71,10 @@ async def get_integration_boost(session: AsyncSession, symbol: str) -> tuple[flo
       weight = 0.12
     if item.source == "wallet_tracker":
       weight = 0.18
+    if item.source == "hyperliquid":
+      weight = 0.16
+    if item.source == "dexscreener":
+      weight = 0.14
     fetched = item.fetched_at
     if fetched and fetched.tzinfo is not None:
       fetched = fetched.replace(tzinfo=None)

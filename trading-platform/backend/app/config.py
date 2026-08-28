@@ -19,8 +19,12 @@ class Settings(BaseSettings):
     # On-chain wallet tracker (comma-separated 0x addresses)
     wallet_tracker_addresses: str = ""
     wallet_tracker_use_defaults: bool = True
+    solana_tracker_addresses: str = ""
+    helius_api_key: str = ""
     etherscan_api_key: str = ""
-    wallet_tracker_min_usd: float = 10_000.0
+    wallet_tracker_min_usd: float = 5_000.0
+    memecoin_min_liquidity_usd: float = 25_000.0
+    hyperliquid_enabled: bool = True
 
     # Integrations
     tradingview_webhook_secret: str = ""
@@ -53,7 +57,8 @@ class Settings(BaseSettings):
     # Bot tuning
     crypto_symbols: str = (
       "BTCUSDT,ETHUSDT,SOLUSDT,DOGEUSDT,PEPEUSDT,BNBUSDT,XRPUSDT,ADAUSDT,"
-      "AVAXUSDT,LINKUSDT,MATICUSDT,SHIBUSDT,WIFUSDT,BONKUSDT"
+      "AVAXUSDT,LINKUSDT,MATICUSDT,SHIBUSDT,WIFUSDT,BONKUSDT,FLOKIUSDT,"
+      "NEIROUSDT,1000SATSUSDT,PEOPLEUSDT,TRUMPUSDT,MEMEUSDT,PNUTUSDT"
     )
     stock_symbols: str = "AAPL,MSFT,NVDA,TSLA,SPY,QQQ"
     futures_symbols: str = "ES=F,NQ=F"

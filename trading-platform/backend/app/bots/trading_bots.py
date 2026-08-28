@@ -793,7 +793,7 @@ class BaseBot(ABC):
 
 class CryptoBot(BaseBot):
   bot_type = "crypto"
-  scan_interval = 30
+  scan_interval = 20
 
   async def get_symbols(self) -> list[str]:
     return [s.strip() for s in settings.crypto_symbols.split(",")]
