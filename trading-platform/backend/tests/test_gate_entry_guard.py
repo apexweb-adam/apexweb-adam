@@ -1,5 +1,7 @@
 """Tests for gate entry tightening helpers."""
 
+import pytest
+
 from app.engines.gate_entry_guard import (
   GateEntryTightening,
   bot_min_sentiment,
@@ -503,3 +505,64 @@ def test_gate_entry_tightening_blocked_entries():
   )
   assert "crypto" in tightening.blocked_new_entries
   assert "stocks_futures" not in tightening.blocked_new_entries
+
+
+def test_intel_override_allows_long_entry_blocks_bearish_commodities():
+  from app.engines.gate_entry_guard import intel_override_allows_long_entry
+
+  assert intel_override_allows_long_entry(
+    "commodities",
+    intel_override=True,
+    signal_direction="sell",
+    shadow_mode=False,
+    graduation_nudge=True,
+  ) is False
+  assert intel_override_allows_long_entry(
+    "crypto",
+    intel_override=True,
+    signal_direction="sell",
+    shadow_mode=True,
+    graduation_nudge=True,
+  ) is True
+  assert intel_override_allows_long_entry(
+    "commodities",
+    intel_override=True,
+    signal_direction="sell",
+    shadow_mode=True,
+    graduation_nudge=True,
+  ) is True
+  assert intel_override_allows_long_entry(
+    "commodities",
+    intel_override=True,
+    signal_direction="buy",
+    shadow_mode=False,
+    graduation_nudge=True,
+  ) is True
+
+
+def test_graduation_nudge_min_sentiment_eases_shadow_crypto():
+  from app.engines.gate_entry_guard import graduation_nudge_min_sentiment
+
+  eased = graduation_nudge_min_sentiment(
+    "crypto",
+    0.10,
+    graduation_nudge=True,
+    shadow_mode=True,
+  )
+  assert eased == pytest.approx(0.06)
+
+
+def test_commodities_graduation_entry_min_signal_bullish_ease():
+  from app.engines.gate_entry_guard import commodities_graduation_entry_min_signal
+
+  eased = commodities_graduation_entry_min_signal(
+    0.31,
+    bot_type="commodities",
+    graduation_nudge=True,
+    shadow_mode=False,
+    signal_direction="buy",
+    macd_signal="bullish",
+    symbol="NG=F",
+    proven_winners=frozenset(),
+  )
+  assert eased == 0.22

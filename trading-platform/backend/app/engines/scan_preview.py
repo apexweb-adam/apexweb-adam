@@ -31,7 +31,10 @@ from app.engines.gate_entry_guard import (
   get_proven_winner_symbols,
   hard_skip_blocks_shadow_entry,
   bot_win_rate_for_graduation_nudge,
+  commodities_graduation_entry_min_signal,
+  graduation_nudge_min_sentiment,
   in_shadow_graduation_nudge,
+  intel_override_allows_long_entry,
   is_symbol_in_trade_cooldown,
   symbol_cooldown_remaining_seconds,
   shadow_entry_min_signal,
@@ -133,6 +136,12 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
     profit_factor=per_bot_stats.get("profit_factor"),
     total_pnl=per_bot_stats.get("total_pnl"),
   )
+  min_sentiment = graduation_nudge_min_sentiment(
+    bot_type,
+    min_sentiment,
+    graduation_nudge=graduation_nudge,
+    shadow_mode=shadow_mode,
+  )
   open_count = len(await engine.get_open_positions())
   from app.engines.gate_entry_guard import shadow_max_open_for_bot
 
@@ -222,6 +231,16 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
     )
     if grad_composite_floor is not None:
       entry_min_signal = max(entry_min_signal, grad_composite_floor)
+    entry_min_signal = commodities_graduation_entry_min_signal(
+      entry_min_signal,
+      bot_type=bot_type,
+      graduation_nudge=graduation_nudge,
+      shadow_mode=shadow_mode,
+      signal_direction=signal.direction,
+      macd_signal=signal.macd_signal,
+      symbol=symbol,
+      proven_winners=proven_winners,
+    )
 
     volume_required = signal.volume_confirmed
     if (
@@ -267,7 +286,16 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
       whale_aligned=whale_memecoin_aligned(integration_reason, integration_boost),
     )
 
-    entry_direction_ok = signal.direction == "buy" or intel_override
+    entry_direction_ok = (
+      signal.direction == "buy"
+      or intel_override_allows_long_entry(
+        bot_type,
+        intel_override=intel_override,
+        signal_direction=signal.direction,
+        shadow_mode=shadow_mode,
+        graduation_nudge=graduation_nudge,
+      )
+    )
 
     blockers: list[str] = []
     if stocks_negative_pf_blocks_entry(
