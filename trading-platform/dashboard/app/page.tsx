@@ -576,6 +576,11 @@ export default function Dashboard() {
                               {" "}(WR &lt; 40%, ≥15 trades)
                             </p>
                           )}
+                          {platformStatus.gate_entry_tightening.stocks_proven_winners_only && (
+                            <p className="text-emerald-300 font-medium">
+                              Stocks: proven winners only (NVDA-only new entries during gate)
+                            </p>
+                          )}
                           {platformStatus.gate_entry_tightening.proven_winner_symbols &&
                             Object.keys(platformStatus.gate_entry_tightening.proven_winner_symbols).length > 0 && (
                               <p className="text-emerald-400/90">
