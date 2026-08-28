@@ -53,8 +53,68 @@ SHADOW_MAX_OPEN = {
 }
 
 
-def shadow_min_signal_boost(bot_type: str) -> float:
-  return SHADOW_MIN_SIGNAL_BOOST_BY_BOT.get(bot_type, SHADOW_MIN_SIGNAL_BOOST)
+def shadow_min_signal_boost(bot_type: str, *, bot_win_rate: float | None = None) -> float:
+  base = SHADOW_MIN_SIGNAL_BOOST_BY_BOT.get(bot_type, SHADOW_MIN_SIGNAL_BOOST)
+  if bot_win_rate is None:
+    return base
+  from app.engines.profitability_gate import ProfitabilityGate
+
+  if (
+    GRADUATION_NUDGE_MIN_WR <= bot_win_rate < ProfitabilityGate.GRADUATION_MIN_WIN_RATE
+  ):
+    if bot_type == "commodities":
+      return max(0.08, base - 0.05)
+    if bot_type == "crypto":
+      return max(0.08, base - 0.02)
+  return base
+
+
+GRADUATION_NUDGE_MIN_WR = 0.48
+
+
+def shadow_entry_min_signal(
+  bot_type: str,
+  strategy_min_signal: float,
+  *,
+  bot_win_rate: float | None = None,
+) -> float:
+  """Compute shadow entry threshold — eases when a paused bot is close to graduation WR."""
+  from app.engines.profitability_gate import ProfitabilityGate
+  from app.engines.strategy_migration import VERIFICATION_SIGNAL_CEILINGS
+
+  ceiling = VERIFICATION_SIGNAL_CEILINGS.get(bot_type)
+  base = min(strategy_min_signal, ceiling) if ceiling else strategy_min_signal
+  if (
+    bot_win_rate is not None
+    and GRADUATION_NUDGE_MIN_WR <= bot_win_rate < ProfitabilityGate.GRADUATION_MIN_WIN_RATE
+    and bot_type in ("commodities", "crypto")
+  ):
+    base = max(0.16, base - 0.06)
+  boost = shadow_min_signal_boost(bot_type, bot_win_rate=bot_win_rate)
+  return min(0.95, base + boost)
+
+
+def shadow_requires_macd(
+  bot_type: str,
+  *,
+  bot_win_rate: float | None,
+  gate_tightening: GateEntryTightening,
+  shadow_mode: bool,
+) -> bool:
+  if bot_type == "crypto":
+    return True
+  if gate_tightening.active and gate_tightening.require_macd_bullish and bot_type == "commodities":
+    return True
+  if shadow_mode and bot_type == "commodities":
+    from app.engines.profitability_gate import ProfitabilityGate
+
+    if (
+      bot_win_rate is not None
+      and GRADUATION_NUDGE_MIN_WR <= bot_win_rate < ProfitabilityGate.GRADUATION_MIN_WIN_RATE
+    ):
+      return False
+    return True
+  return False
 UNDERPERFORMER_MIN_TRADES = 15
 UNDERPERFORMER_MAX_WIN_RATE = 0.40
 CHRONIC_LOSER_MIN_TRADES = 3
