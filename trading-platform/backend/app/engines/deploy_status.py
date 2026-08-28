@@ -27,7 +27,7 @@ DEFAULT_VERIFIED_DASHBOARD_URL = (
 )
 DEFAULT_VERIFIED_DEPLOYMENT_ID = "dpl_29H1cYhLuLb1wN7L3HJD9yizZ8pL"
 EXPECTED_DASHBOARD_BUNDLE = "2026-08-28-r25"
-EXPECTED_PLATFORM_REVISION = "2026-08-28-r83"
+EXPECTED_PLATFORM_REVISION = "2026-08-28-r84"
 GIT_MAIN_ALIAS = "apex-trading-dashboard-git-main"
 ACCEPTABLE_DASHBOARD_BUNDLES = frozenset({
   "2026-08-27-r9", "2026-08-27-r10", "2026-08-27-r11", "2026-08-27-r12",
@@ -331,12 +331,56 @@ async def fetch_github_commit_statuses(sha: str) -> list[dict[str, str]]:
     return []
 
 
+async def fetch_github_check_suites(sha: str) -> list[dict[str, str]]:
+  """Check suites from GitHub Apps (Vercel, Netlify, etc.) — primary checksPass signal."""
+  if not sha:
+    return []
+  headers = github_headers()
+  try:
+    async with httpx.AsyncClient(timeout=10.0) as client:
+      response = await client.get(
+        f"https://api.github.com/repos/{GITHUB_REPO}/commits/{sha}/check-suites",
+        headers=headers,
+        params={"per_page": 100},
+      )
+      if response.status_code != 200:
+        return []
+      rows = response.json()
+      suites = rows.get("check_suites") if isinstance(rows, dict) else rows
+      if not isinstance(suites, list):
+        return []
+      out: list[dict[str, str]] = []
+      for suite in suites:
+        if not isinstance(suite, dict):
+          continue
+        context = ((suite.get("app") or {}).get("name") or "").strip()
+        status = (suite.get("status") or "").strip().lower()
+        conclusion = (suite.get("conclusion") or "").strip().lower()
+        if not context:
+          continue
+        if status == "completed":
+          state = conclusion or "success"
+        else:
+          state = status
+        out.append({"context": context, "state": state, "description": ""})
+      return out
+  except Exception:
+    return []
+
+
+async def fetch_github_checks(sha: str) -> list[dict[str, str]]:
+  """Merge legacy statuses and check suites for Render checksPass analysis."""
+  statuses = await fetch_github_commit_statuses(sha)
+  suites = await fetch_github_check_suites(sha)
+  return statuses + suites
+
+
 def summarize_github_checks_blocker(statuses: list[dict[str, str]]) -> dict[str, Any]:
-  """Detect third-party statuses that keep combined commit state pending (blocks Render checksPass)."""
+  """Detect third-party checks that keep combined commit state pending (blocks Render checksPass)."""
   if not statuses:
     return {"blocked": False, "combined_state": "unknown", "blocking_contexts": []}
 
-  rank = {"success": 4, "failure": 3, "error": 3, "pending": 2, "queued": 1}
+  rank = {"success": 4, "skipped": 4, "neutral": 4, "failure": 3, "error": 3, "cancelled": 3, "pending": 2, "queued": 1, "in_progress": 2}
   by_context: dict[str, str] = {}
   for row in statuses:
     context = row.get("context") or ""
@@ -351,13 +395,13 @@ def summarize_github_checks_blocker(statuses: list[dict[str, str]]) -> dict[str,
   for context, state in sorted(by_context.items()):
     if context == "GitHub Actions":
       continue
-    if state not in ("success",):
+    if state not in ("success", "skipped", "neutral"):
       blocking.append(f"{context} ({state})")
 
   combined = "success"
-  if any(s in ("queued", "pending") for s in by_context.values()):
+  if any(s in ("queued", "pending", "in_progress") for s in by_context.values()):
     combined = "pending"
-  elif any(s in ("failure", "error") for s in by_context.values()):
+  elif any(s in ("failure", "error", "cancelled") for s in by_context.values()):
     combined = "failure"
   elif blocking:
     combined = "pending"
@@ -513,8 +557,8 @@ async def build_deploy_status() -> dict[str, Any]:
 
   github_checks: dict[str, Any] = {"blocked": False, "combined_state": "unknown", "blocking_contexts": []}
   if latest_sha:
-    status_rows = await fetch_github_commit_statuses(latest_sha)
-    github_checks = summarize_github_checks_blocker(status_rows)
+    check_rows = await fetch_github_checks(latest_sha)
+    github_checks = summarize_github_checks_blocker(check_rows)
     if github_checks.get("blocked"):
       blockers = ", ".join(github_checks.get("blocking_contexts") or [])
       next_steps.append(
