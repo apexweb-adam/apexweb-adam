@@ -204,6 +204,25 @@ def test_shadow_graduation_min_hold_seconds():
   ) == 600
 
 
+def test_shadow_graduation_min_composite():
+  from app.engines.gate_entry_guard import shadow_graduation_min_composite
+
+  assert shadow_graduation_min_composite(
+    "crypto", graduation_nudge=True, shadow_mode=True
+  ) == 0.30
+  assert shadow_graduation_min_composite(
+    "crypto", graduation_nudge=False, shadow_mode=True
+  ) is None
+
+
+def test_early_verification_macd_ok():
+  from app.engines.gate_entry_guard import early_verification_macd_ok
+
+  assert early_verification_macd_ok(macd_signal="bullish", integration_boost=0.0) is True
+  assert early_verification_macd_ok(macd_signal="bearish", integration_boost=0.10) is True
+  assert early_verification_macd_ok(macd_signal="bearish", integration_boost=0.02) is False
+
+
 def test_shadow_requires_macd_crypto_nudge_off():
   assert shadow_requires_macd(
     "crypto",

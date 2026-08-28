@@ -21,6 +21,7 @@ from app.engines.gate_entry_guard import (
   chronic_loser_blocks_shadow_entry,
   early_verification_active,
   early_verification_index_etf_entry_min_signal,
+  early_verification_macd_ok,
   early_verification_raw_signal_ok,
   gate_entry_guards_active,
   gate_position_scale,
@@ -34,6 +35,7 @@ from app.engines.gate_entry_guard import (
   is_symbol_in_trade_cooldown,
   symbol_cooldown_remaining_seconds,
   shadow_entry_min_signal,
+  shadow_graduation_min_composite,
   shadow_intel_composite_override,
   shadow_requires_macd,
   stocks_gate_entry_sentiment_ok,
@@ -172,6 +174,13 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
       entry_min_signal,
       early_boost=early_verification_boost,
     )
+    grad_composite_floor = shadow_graduation_min_composite(
+      bot_type,
+      graduation_nudge=graduation_nudge,
+      shadow_mode=shadow_mode,
+    )
+    if grad_composite_floor is not None:
+      entry_min_signal = max(entry_min_signal, grad_composite_floor)
 
     volume_required = signal.volume_confirmed
     if (
@@ -273,11 +282,20 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
     ):
       blockers.append("not_proven_winner")
     if (
-      gate_tightening.active
+      (gate_tightening.active or early_verification_boost)
       and bot_type == "stocks_futures"
       and signal.rsi > 68
     ):
       blockers.append("rsi_high")
+    if (
+      early_verification_boost
+      and bot_type == "stocks_futures"
+      and not early_verification_macd_ok(
+        macd_signal=signal.macd_signal,
+        integration_boost=integration_boost,
+      )
+    ):
+      blockers.append("macd_early")
     if (
       gate_tightening.active
       and bot_type == "stocks_futures"
