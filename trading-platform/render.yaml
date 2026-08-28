@@ -18,7 +18,7 @@ services:
       - key: DATABASE_URL
         sync: false
       - key: CORS_ORIGINS
-        value: "https://apex-trading-dashboard-flame.vercel.app,https://apex-trading-dashboard-ihyxoyq1e-apexweb-adams-projects.vercel.app,https://apex-trading-dashboard-nkanyc871-apexweb-adams-projects.vercel.app,https://apex-trading-dashboard-dt4ezyvny-apexweb-adams-projects.vercel.app,https://apex-trading-dashboard-2sngnu6ma-apexweb-adams-projects.vercel.app,https://apex-trading-dashboard-apexweb-adams-projects.vercel.app,https://apex-trading-dashboard-mz9mzjoaq-apexweb-adams-projects.vercel.app,https://apex-trading-dashboard-jwi0so16v-apexweb-adams-projects.vercel.app,https://apex-trading-dashboard-edv5hefqa-apexweb-adams-projects.vercel.app,https://apex-trading-dashboard-796165b96-apexweb-adams-projects.vercel.app,https://apex-trading-dashboard-4dc50ssd9-apexweb-adams-projects.vercel.app,https://apex-trading-dashboard-ekn183k28-apexweb-adams-projects.vercel.app,https://apex-trading-dashboard-7zhc1azza-apexweb-adams-projects.vercel.app,https://apex-trading-dashboard-m1fif9ruf-apexweb-adams-projects.vercel.app,https://apex-trading-dashboard-fvmoq5oyj-apexweb-adams-projects.vercel.app"
+        value: "https://apex-trading-dashboard-flame.vercel.app,https://apex-trading-dashboard-73nruanbo-apexweb-adams-projects.vercel.app,https://apex-trading-dashboard-r8ur3gw5s-apexweb-adams-projects.vercel.app,https://apex-trading-dashboard-ihyxoyq1e-apexweb-adams-projects.vercel.app,https://apex-trading-dashboard-nkanyc871-apexweb-adams-projects.vercel.app,https://apex-trading-dashboard-dt4ezyvny-apexweb-adams-projects.vercel.app,https://apex-trading-dashboard-2sngnu6ma-apexweb-adams-projects.vercel.app,https://apex-trading-dashboard-apexweb-adams-projects.vercel.app,https://apex-trading-dashboard-mz9mzjoaq-apexweb-adams-projects.vercel.app,https://apex-trading-dashboard-jwi0so16v-apexweb-adams-projects.vercel.app,https://apex-trading-dashboard-edv5hefqa-apexweb-adams-projects.vercel.app,https://apex-trading-dashboard-796165b96-apexweb-adams-projects.vercel.app,https://apex-trading-dashboard-4dc50ssd9-apexweb-adams-projects.vercel.app,https://apex-trading-dashboard-ekn183k28-apexweb-adams-projects.vercel.app,https://apex-trading-dashboard-7zhc1azza-apexweb-adams-projects.vercel.app,https://apex-trading-dashboard-m1fif9ruf-apexweb-adams-projects.vercel.app,https://apex-trading-dashboard-fvmoq5oyj-apexweb-adams-projects.vercel.app"
       - key: VERIFIED_DASHBOARD_URL
         value: "https://apex-trading-dashboard-73nruanbo-apexweb-adams-projects.vercel.app"
       - key: VERIFIED_VERCEL_DEPLOYMENT_ID
@@ -39,7 +39,9 @@ services:
         sync: false
       - key: RENDER_DEPLOY_HOOK
         sync: false
+      - key: RENDER_API_KEY
+        sync: false
       - key: GITHUB_TOKEN
         sync: false
       - key: PLATFORM_REVISION
-        value: "2026-08-28-r76"
+        value: "2026-08-28-r77"

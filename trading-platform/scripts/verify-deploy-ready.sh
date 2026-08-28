@@ -99,6 +99,22 @@ if [[ "$CODE" == "200" ]]; then
     echo "○ Render reset endpoint HTTP $RESET_CODE — trigger manual deploy"
   fi
   STATUS_JSON=$(curl -sf "$RENDER/api/status" 2>/dev/null || echo "{}")
+  DASH_URL=$(curl -sf "$RENDER/api/dashboard-url" 2>/dev/null | python3 -c "import sys,json; print(json.load(sys.stdin).get('recommended_url',''))" 2>/dev/null || true)
+  VERIFIED_URL=$(echo "$STATUS_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin).get('deploy',{}).get('verified_dashboard_url') or '')" 2>/dev/null || true)
+  GIT_MAIN="apex-trading-dashboard-git-main"
+  if [[ -n "$DASH_URL" && "$DASH_URL" != *"$GIT_MAIN"* ]]; then
+    check "Dashboard URL not stale git-main alias ($DASH_URL)" 1
+  elif [[ -n "$VERIFIED_URL" && "$VERIFIED_URL" != *"$GIT_MAIN"* ]]; then
+    check "Verified dashboard URL not stale git-main ($VERIFIED_URL)" 1
+  else
+    echo "○ Dashboard URL still points at git-main — deploy r76+ backend for r25 preview routing"
+  fi
+  BUNDLE=$(curl -sf "${DASH:-$VERIFIED_URL}/api/config" 2>/dev/null | python3 -c "import sys,json; print(json.load(sys.stdin).get('bundleRevision',''))" 2>/dev/null || true)
+  if [[ "$BUNDLE" == *"-r25" || "$BUNDLE" == *"-r24" || "$BUNDLE" == *"-r23" ]]; then
+    check "Dashboard bundle current ($BUNDLE)" 1
+  elif [[ -n "$BUNDLE" ]]; then
+    echo "○ Dashboard bundle $BUNDLE — promote r25 preview or deploy latest backend"
+  fi
   REMOTE_COMMIT=$(echo "$STATUS_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin).get('deploy',{}).get('git_commit') or '')" 2>/dev/null || true)
   LOCAL_COMMIT=$(git -C "$(dirname "$0")/.." rev-parse --short HEAD 2>/dev/null || git rev-parse --short HEAD 2>/dev/null || echo "")
   if [[ -n "$REMOTE_COMMIT" && -n "$LOCAL_COMMIT" ]]; then

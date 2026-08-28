@@ -27,7 +27,8 @@ DEFAULT_VERIFIED_DASHBOARD_URL = (
 )
 DEFAULT_VERIFIED_DEPLOYMENT_ID = "dpl_29H1cYhLuLb1wN7L3HJD9yizZ8pL"
 EXPECTED_DASHBOARD_BUNDLE = "2026-08-28-r25"
-EXPECTED_PLATFORM_REVISION = "2026-08-28-r76"
+EXPECTED_PLATFORM_REVISION = "2026-08-28-r77"
+GIT_MAIN_ALIAS = "apex-trading-dashboard-git-main"
 ACCEPTABLE_DASHBOARD_BUNDLES = frozenset({
   "2026-08-27-r9", "2026-08-27-r10", "2026-08-27-r11", "2026-08-27-r12",
   "2026-08-27-r13", "2026-08-27-r14", "2026-08-27-r15", "2026-08-27-r16",
@@ -44,6 +45,10 @@ def configured_verified_deployment_id() -> str:
   return os.environ.get("VERIFIED_VERCEL_DEPLOYMENT_ID", DEFAULT_VERIFIED_DEPLOYMENT_ID)
 
 
+def is_git_main_alias(url: str) -> bool:
+  return GIT_MAIN_ALIAS in (url or "")
+
+
 def verified_dashboard_candidates() -> list[str]:
   """Ordered dashboard URLs to probe when production bundle is stale."""
   candidates: list[str] = []
@@ -57,11 +62,12 @@ def verified_dashboard_candidates() -> list[str]:
       seen.add(normalized)
       candidates.append(normalized)
 
-  # Newest acceptable previews first — git-main alias can lag behind main merges.
+  # Configured verified URL first — env is authoritative when probe succeeds.
+  add(configured_verified_dashboard_url())
+  # Newest acceptable previews next — git-main alias can lag behind main merges.
   add("https://apex-trading-dashboard-73nruanbo-apexweb-adams-projects.vercel.app")
   add("https://apex-trading-dashboard-r8ur3gw5s-apexweb-adams-projects.vercel.app")
   add("https://apex-trading-dashboard-gdjavkmox-apexweb-adams-projects.vercel.app")
-  add("https://apex-trading-dashboard-git-main-apexweb-adams-projects.vercel.app")
   add("https://apex-trading-dashboard-aiuir3aha-apexweb-adams-projects.vercel.app")
   add("https://apex-trading-dashboard-ihyxoyq1e-apexweb-adams-projects.vercel.app")
   add("https://apex-trading-dashboard-dt4ezyvny-apexweb-adams-projects.vercel.app")
@@ -72,11 +78,11 @@ def verified_dashboard_candidates() -> list[str]:
   add("https://apex-trading-dashboard-edv5hefqa-apexweb-adams-projects.vercel.app")
   add("https://apex-trading-dashboard-4dc50ssd9-apexweb-adams-projects.vercel.app")
   add("https://apex-trading-dashboard-ekn183k28-apexweb-adams-projects.vercel.app")
-  add(configured_verified_dashboard_url())
   for part in (os.environ.get("VERIFIED_DASHBOARD_FALLBACKS") or "").split(","):
     add(part)
-  add("https://apex-trading-dashboard-git-main-apexweb-adams-projects.vercel.app")
   add("https://apex-trading-dashboard-apexweb-adams-projects.vercel.app")
+  # git-main alias last — often frozen on an older bundle after main merges.
+  add("https://apex-trading-dashboard-git-main-apexweb-adams-projects.vercel.app")
   return candidates
 
 
@@ -118,28 +124,53 @@ async def probe_dashboard_config(url: str) -> dict[str, Any] | None:
     return None
 
 
+async def probe_configured_verified_dashboard() -> dict[str, Any] | None:
+  """Probe VERIFIED_DASHBOARD_URL directly before broader discovery."""
+  url = configured_verified_dashboard_url()
+  cfg = await probe_dashboard_config(url)
+  if not cfg or not bundle_is_acceptable(cfg):
+    return None
+  return {
+    "verified_dashboard_url": url,
+    "vercel_bundle_revision": cfg.get("bundleRevision"),
+    "discovered": False,
+    "_rank": bundle_rank(cfg),
+  }
+
+
 async def discover_verified_dashboard() -> dict[str, Any]:
   """Probe candidates and return the URL with the best acceptable bundle."""
-  best: dict[str, Any] | None = None
-  best_rank = -1
+  configured_probe = await probe_configured_verified_dashboard()
+  configured_url = configured_verified_dashboard_url()
+  configured_rank = (configured_probe or {}).get("_rank", -1)
+
+  best: dict[str, Any] | None = configured_probe
+  best_rank = configured_rank
 
   for url in verified_dashboard_candidates():
+    if url == configured_url and configured_probe:
+      continue
     cfg = await probe_dashboard_config(url)
     if not cfg or not bundle_is_acceptable(cfg):
       continue
     rank = bundle_rank(cfg)
+    # Never let stale git-main beat a working configured preview.
+    if is_git_main_alias(url) and configured_rank > rank:
+      continue
     if rank > best_rank:
       best_rank = rank
       best = {
         "verified_dashboard_url": url,
         "vercel_bundle_revision": cfg.get("bundleRevision"),
-        "discovered": url != configured_verified_dashboard_url(),
+        "discovered": url != configured_url,
+        "_rank": rank,
       }
 
   if best:
+    best.pop("_rank", None)
     return best
 
-  fallback = configured_verified_dashboard_url()
+  fallback = configured_url
   return {
     "verified_dashboard_url": fallback,
     "vercel_bundle_revision": None,
@@ -452,8 +483,19 @@ async def build_deploy_status() -> dict[str, Any]:
 
 
 async def recommended_dashboard_url() -> str:
+  """Return the best live CRM URL — configured preview wins when probe succeeds."""
+  configured_probe = await probe_configured_verified_dashboard()
+  if configured_probe:
+    return configured_probe["verified_dashboard_url"]
+
   deploy = await build_deploy_status()
   verified = deploy.get("verified_dashboard_url") or configured_verified_dashboard_url()
+  verified_bundle = deploy.get("verified_bundle_revision")
+  if verified_bundle and bundle_rank({"bundleRevision": verified_bundle, "features": {"activeGate": True}}) < bundle_rank(
+    {"bundleRevision": EXPECTED_DASHBOARD_BUNDLE, "features": {"activeGate": True}}
+  ):
+    if is_git_main_alias(verified):
+      return configured_verified_dashboard_url()
   if deploy.get("vercel_bundle_stale"):
     return verified
   return (

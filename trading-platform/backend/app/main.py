@@ -8,7 +8,11 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 
 from app.api.routes import router
 from app.config import settings
-from app.engines.deploy_status import build_deploy_status, recommended_dashboard_url
+from app.engines.deploy_status import (
+  EXPECTED_DASHBOARD_BUNDLE,
+  build_deploy_status,
+  recommended_dashboard_url,
+)
 from app.workers.scheduler import setup_scheduler, stop_bots
 
 
@@ -88,8 +92,9 @@ async def crm_landing():
   rec = gate.get("recommendation", "")
 
   if stale and url == deploy.get("verified_dashboard_url"):
+    bundle_label = deploy.get("verified_bundle_revision") or EXPECTED_DASHBOARD_BUNDLE
     deploy_note = (
-      f"Redirecting to verified preview with full CRM bundle (r9). "
+      f"Redirecting to verified preview with CRM bundle ({bundle_label}). "
       f"Promote {promote_id} in Vercel to restore the -flame production alias."
     )
   elif stale and proxy_ok:
