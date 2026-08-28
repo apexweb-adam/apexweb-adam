@@ -207,6 +207,16 @@ async def get_bots(db: AsyncSession = Depends(get_db)) -> list[dict[str, Any]]:
   ]
 
 
+@router.get("/bots/{bot_type}/scan-preview")
+async def get_bot_scan_preview(bot_type: str, db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
+  """Per-symbol signal preview and entry blockers (CRM diagnostics)."""
+  from app.engines.scan_preview import build_scan_preview
+
+  if bot_type not in BOT_TYPES:
+    return {"error": f"unknown bot_type: {bot_type}"}
+  return await build_scan_preview(db, bot_type)
+
+
 @router.get("/intelligence")
 async def get_intelligence(
   limit: int = 50,

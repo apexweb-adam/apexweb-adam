@@ -72,6 +72,18 @@ def shadow_min_signal_boost(bot_type: str, *, bot_win_rate: float | None = None)
 GRADUATION_NUDGE_MIN_WR = 0.48
 
 
+def in_shadow_graduation_nudge(bot_type: str, bot_win_rate: float | None) -> bool:
+  """Paused bot is close to per-bot graduation WR — ease shadow filters."""
+  if bot_win_rate is None:
+    return False
+  from app.engines.profitability_gate import ProfitabilityGate
+
+  return (
+    bot_type in ("commodities", "crypto")
+    and GRADUATION_NUDGE_MIN_WR <= bot_win_rate < ProfitabilityGate.GRADUATION_MIN_WIN_RATE
+  )
+
+
 def shadow_entry_min_signal(
   bot_type: str,
   strategy_min_signal: float,
@@ -459,15 +471,20 @@ async def build_gate_ws_payload(session: AsyncSession) -> dict[str, Any]:
   chronic_loser_symbols: dict[str, list[str]] = {}
   recent_loser_symbols: dict[str, list[str]] = {}
   proven_winner_symbols: dict[str, list[str]] = {}
-  if gate_tightening.active:
-    for bot_type in BOT_TYPES:
-      skip = await get_gate_skip_symbols(session, bot_type)
-      chronic = await get_chronic_loser_symbols(session, bot_type)
-      recent = await get_recent_loser_symbols(session, bot_type)
-      if skip:
-        chronic_loser_symbols[bot_type] = sorted(skip)
-      if recent - chronic:
-        recent_loser_symbols[bot_type] = sorted(recent - chronic)
+  from app.engines.platform_settings import is_bot_paused
+
+  for bot_type in BOT_TYPES:
+    shadow = await is_bot_paused(session, bot_type)
+    if not gate_tightening.active and not shadow:
+      continue
+    skip = await get_gate_skip_symbols(session, bot_type)
+    chronic = await get_chronic_loser_symbols(session, bot_type)
+    recent = await get_recent_loser_symbols(session, bot_type)
+    if skip:
+      chronic_loser_symbols[bot_type] = sorted(skip)
+    if recent - chronic:
+      recent_loser_symbols[bot_type] = sorted(recent - chronic)
+    if bot_type in ("stocks_futures", "commodities"):
       winners = await get_proven_winner_symbols(session, bot_type)
       if winners:
         proven_winner_symbols[bot_type] = sorted(winners)

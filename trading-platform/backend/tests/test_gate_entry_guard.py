@@ -3,6 +3,7 @@
 from app.engines.gate_entry_guard import (
   GateEntryTightening,
   bot_min_sentiment,
+  in_shadow_graduation_nudge,
   shadow_entry_min_signal,
   shadow_min_signal_boost,
   shadow_requires_macd,
@@ -16,6 +17,8 @@ def test_shadow_min_signal_boost_per_bot():
 
 
 def test_shadow_graduation_nudge_eases_commodities():
+  assert in_shadow_graduation_nudge("commodities", 0.50) is True
+  assert in_shadow_graduation_nudge("commodities", 0.40) is False
   assert shadow_min_signal_boost("commodities", bot_win_rate=0.50) < shadow_min_signal_boost(
     "commodities"
   )
