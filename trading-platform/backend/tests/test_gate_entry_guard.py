@@ -5,6 +5,7 @@ from app.engines.gate_entry_guard import (
   bot_min_sentiment,
   in_shadow_graduation_nudge,
   shadow_entry_min_signal,
+  shadow_intel_composite_override,
   shadow_min_signal_boost,
   shadow_requires_macd,
 )
@@ -42,6 +43,33 @@ def test_shadow_entry_min_signal_nudge_lowers_threshold():
   strict = shadow_entry_min_signal("commodities", 0.28)
   nudged = shadow_entry_min_signal("commodities", 0.28, bot_win_rate=0.50)
   assert nudged < strict
+
+
+def test_shadow_intel_composite_override_commodities_nudge():
+  assert shadow_intel_composite_override(
+    "commodities",
+    graduation_nudge=True,
+    shadow_mode=True,
+    composite=0.62,
+    entry_min_signal=0.31,
+    integration_boost=0.16,
+  ) is True
+  assert shadow_intel_composite_override(
+    "commodities",
+    graduation_nudge=True,
+    shadow_mode=True,
+    composite=0.40,
+    entry_min_signal=0.31,
+    integration_boost=0.16,
+  ) is False
+  assert shadow_intel_composite_override(
+    "stocks_futures",
+    graduation_nudge=True,
+    shadow_mode=True,
+    composite=0.62,
+    entry_min_signal=0.31,
+    integration_boost=0.16,
+  ) is False
 
 
 def test_bot_min_sentiment_inactive():

@@ -20,6 +20,7 @@ from app.engines.gate_entry_guard import (
   get_proven_winner_symbols,
   in_shadow_graduation_nudge,
   shadow_entry_min_signal,
+  shadow_intel_composite_override,
   shadow_requires_macd,
   stocks_gate_entry_sentiment_ok,
 )
@@ -143,6 +144,15 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
         or signal.macd_signal == "bullish"
       )
 
+    entry_direction_ok = signal.direction == "buy" or shadow_intel_composite_override(
+      bot_type,
+      graduation_nudge=graduation_nudge,
+      shadow_mode=shadow_mode,
+      composite=composite,
+      entry_min_signal=entry_min_signal,
+      integration_boost=integration_boost,
+    )
+
     blockers: list[str] = []
     if gate_tightening.active and symbol in chronic_losers:
       blockers.append("chronic_loser")
@@ -185,7 +195,7 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
       blockers.append("shadow_open_cap")
     if not shadow_mode and bot_type in gate_tightening.blocked_new_entries:
       blockers.append("entries_blocked")
-    if signal.direction != "buy":
+    if not entry_direction_ok:
       blockers.append(f"signal_{signal.direction}")
     if not volume_required:
       blockers.append("volume")

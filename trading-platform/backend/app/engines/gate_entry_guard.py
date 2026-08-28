@@ -70,6 +70,26 @@ def shadow_min_signal_boost(bot_type: str, *, bot_win_rate: float | None = None)
 
 
 GRADUATION_NUDGE_MIN_WR = 0.48
+SHADOW_INTEL_COMPOSITE_FLOOR = 0.50
+SHADOW_INTEL_BOOST_FLOOR = 0.08
+
+
+def shadow_intel_composite_override(
+  bot_type: str,
+  *,
+  graduation_nudge: bool,
+  shadow_mode: bool,
+  composite: float,
+  entry_min_signal: float,
+  integration_boost: float,
+) -> bool:
+  """Allow shadow long when intel composite is strong despite technical sell/hold."""
+  if not (graduation_nudge and shadow_mode and bot_type == "commodities"):
+    return False
+  return (
+    composite >= max(entry_min_signal + 0.15, SHADOW_INTEL_COMPOSITE_FLOOR)
+    and integration_boost >= SHADOW_INTEL_BOOST_FLOOR
+  )
 
 
 def in_shadow_graduation_nudge(bot_type: str, bot_win_rate: float | None) -> bool:
