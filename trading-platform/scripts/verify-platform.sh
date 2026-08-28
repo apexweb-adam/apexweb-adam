@@ -120,6 +120,11 @@ fi
 CRM=$(curl -fsS -m 20 "$BACKEND/crm" 2>/dev/null || echo "")
 if echo "$CRM" | grep -q "Apex Trading CRM"; then
   ok "Backend /crm landing page"
+  if echo "$CRM" | grep -q "Graduation"; then
+    ok "CRM per-bot graduation table"
+  else
+    note "CRM missing per-bot graduation table (deploy r76+)"
+  fi
 else
   note "Backend /crm legacy or missing (deploy r76+ for full landing)"
 fi

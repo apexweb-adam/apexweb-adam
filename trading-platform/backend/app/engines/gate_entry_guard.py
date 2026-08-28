@@ -38,6 +38,12 @@ BOT_MIN_SENTIMENT = {
 
 SHADOW_POSITION_SCALE = 0.5
 SHADOW_MIN_SIGNAL_BOOST = 0.10
+SHADOW_MIN_SIGNAL_BOOST_BY_BOT = {
+  "crypto": 0.12,
+  "commodities": 0.14,
+  "stocks_futures": 0.10,
+  "polymarket": 0.12,
+}
 SHADOW_MIN_SENTIMENT_BOOST = 0.04
 SHADOW_MAX_OPEN = {
   "crypto": 1,
@@ -45,6 +51,10 @@ SHADOW_MAX_OPEN = {
   "stocks_futures": 2,
   "polymarket": 2,
 }
+
+
+def shadow_min_signal_boost(bot_type: str) -> float:
+  return SHADOW_MIN_SIGNAL_BOOST_BY_BOT.get(bot_type, SHADOW_MIN_SIGNAL_BOOST)
 UNDERPERFORMER_MIN_TRADES = 15
 UNDERPERFORMER_MAX_WIN_RATE = 0.40
 CHRONIC_LOSER_MIN_TRADES = 3
