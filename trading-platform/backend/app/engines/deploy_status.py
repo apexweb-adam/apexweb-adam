@@ -51,10 +51,12 @@ def verified_dashboard_candidates() -> list[str]:
       seen.add(normalized)
       candidates.append(normalized)
 
+  # Probe best-known previews first so stale Render env vars do not block r10/r11 discovery.
+  add(DEFAULT_VERIFIED_DASHBOARD_URL)
+  add("https://apex-trading-dashboard-ekn183k28-apexweb-adams-projects.vercel.app")
   add(configured_verified_dashboard_url())
   for part in (os.environ.get("VERIFIED_DASHBOARD_FALLBACKS") or "").split(","):
     add(part)
-  add(DEFAULT_VERIFIED_DASHBOARD_URL)
   add("https://apex-trading-dashboard-git-main-apexweb-adams-projects.vercel.app")
   add("https://apex-trading-dashboard-apexweb-adams-projects.vercel.app")
   return candidates

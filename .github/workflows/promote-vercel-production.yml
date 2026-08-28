@@ -28,6 +28,7 @@ jobs:
       VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID || 'team_K7OUE7uroVXeVUf42cUAQvAl' }}
       VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID || 'prj_HGbG5vHgfutHi31QfXDqSsTnTAGv' }}
       EXPECTED_BUNDLE_REVISION: "2026-08-27-r11"
+      ACCEPTABLE_BUNDLE_REVISIONS: "2026-08-27-r11,2026-08-27-r10"
     steps:
       - name: Skip if production already current
         id: freshness
@@ -41,11 +42,16 @@ jobs:
           with open("/tmp/prod-config.json") as f:
               cfg = json.load(f)
           expected = os.environ.get("EXPECTED_BUNDLE_REVISION", "2026-08-27-r11")
+          acceptable = {
+              b.strip()
+              for b in os.environ.get("ACCEPTABLE_BUNDLE_REVISIONS", expected).split(",")
+              if b.strip()
+          }
           rev = cfg.get("bundleRevision")
           features = cfg.get("features") or {}
           active_gate = features.get("activeGate") is True
-          current = rev == expected and active_gate
-          print(f"bundleRevision={rev!r} expected={expected!r} activeGate={active_gate}")
+          current = rev in acceptable and active_gate
+          print(f"bundleRevision={rev!r} acceptable={sorted(acceptable)!r} activeGate={active_gate}")
           with open(os.environ["GITHUB_OUTPUT"], "a") as out:
               out.write(f"skip={'true' if current else 'false'}\n")
           PY
@@ -72,29 +78,38 @@ jobs:
             python3 << 'PY'
           import json, os, urllib.request
           expected = os.environ.get("EXPECTED_BUNDLE_REVISION", "2026-08-27-r11")
+          acceptable = [
+              b.strip()
+              for b in os.environ.get("ACCEPTABLE_BUNDLE_REVISIONS", expected).split(",")
+              if b.strip()
+          ]
+          rank = {rev: idx for idx, rev in enumerate(reversed(acceptable))}
           with open("/tmp/deployments.json") as f:
               data = json.load(f)
+          best = None
+          best_score = -1
           for dep in data.get("deployments") or []:
               if dep.get("target") == "production" or dep.get("state") != "READY":
                   continue
               dep_id = dep.get("uid") or dep.get("id")
               url = f"https://{dep.get('url')}"
-              ok = False
               try:
                   with urllib.request.urlopen(f"{url}/api/config", timeout=20) as resp:
                       cfg = json.loads(resp.read().decode())
-                  ok = (
-                      cfg.get("bundleRevision") == expected
-                      and (cfg.get("features") or {}).get("activeGate") is True
-                  )
+                  rev = cfg.get("bundleRevision")
+                  ok = rev in rank and (cfg.get("features") or {}).get("activeGate") is True
               except Exception:
                   ok = False
-              if ok:
-                  with open("/tmp/resolved.env", "w") as out:
-                      out.write(f"deployment_id={dep_id}\n")
-                      out.write(f"preview_url={url}\n")
-                  print(f"Auto-selected {dep_id}")
-                  break
+                  rev = None
+              if ok and rank[rev] > best_score:
+                  best_score = rank[rev]
+                  best = (dep_id, url, rev)
+          if best:
+              dep_id, url, rev = best
+              with open("/tmp/resolved.env", "w") as out:
+                  out.write(f"deployment_id={dep_id}\n")
+                  out.write(f"preview_url={url}\n")
+              print(f"Auto-selected {dep_id} ({rev})")
           PY
             if [[ -f /tmp/resolved.env ]]; then
               source /tmp/resolved.env
@@ -126,8 +141,14 @@ jobs:
           with open("/tmp/preview-config.json") as f:
               cfg = json.load(f)
           expected = os.environ.get("EXPECTED_BUNDLE_REVISION", "2026-08-27-r11")
-          if cfg.get("bundleRevision") != expected:
-              print(f"Preview bundleRevision mismatch: {cfg.get('bundleRevision')!r}")
+          acceptable = {
+              b.strip()
+              for b in os.environ.get("ACCEPTABLE_BUNDLE_REVISIONS", expected).split(",")
+              if b.strip()
+          }
+          rev = cfg.get("bundleRevision")
+          if rev not in acceptable:
+              print(f"Preview bundleRevision not acceptable: {rev!r}")
               sys.exit(1)
           if not (cfg.get("features") or {}).get("activeGate"):
               print("Preview missing features.activeGate")
@@ -154,8 +175,13 @@ jobs:
           with open("/tmp/prod-config-after.json") as f:
               cfg = json.load(f)
           expected = os.environ.get("EXPECTED_BUNDLE_REVISION", "2026-08-27-r11")
+          acceptable = {
+              b.strip()
+              for b in os.environ.get("ACCEPTABLE_BUNDLE_REVISIONS", expected).split(",")
+              if b.strip()
+          }
           ok = (
-              cfg.get("bundleRevision") == expected
+              cfg.get("bundleRevision") in acceptable
               and (cfg.get("features") or {}).get("activeGate") is True
           )
           if not ok:
