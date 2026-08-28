@@ -257,6 +257,52 @@ def stocks_in_us_session() -> bool:
   return 13 * 60 + 30 <= minutes <= 21 * 60 + 30
 
 
+def stocks_session_info() -> dict[str, Any]:
+  """UTC schedule for US cash session — used by CRM status and pre-session prep."""
+  now = datetime.utcnow()
+  open_minutes = 13 * 60 + 30
+  close_minutes = 21 * 60 + 30
+  weekday = now.weekday()
+  now_minutes = now.hour * 60 + now.minute
+
+  def at_minutes(day: datetime, minutes: int) -> datetime:
+    return day.replace(hour=minutes // 60, minute=minutes % 60, second=0, microsecond=0)
+
+  def next_weekday(start: datetime) -> datetime:
+    day = start
+    while day.weekday() >= 5:
+      day += timedelta(days=1)
+    return day
+
+  in_session = weekday < 5 and open_minutes <= now_minutes <= close_minutes
+  if in_session:
+    close_at = at_minutes(now, close_minutes)
+    minutes_until_close = max(0, int((close_at - now).total_seconds() // 60))
+    return {
+      "in_session": True,
+      "mode": "entries",
+      "session_open_utc": at_minutes(now, open_minutes).isoformat(),
+      "session_close_utc": close_at.isoformat(),
+      "minutes_until_open": 0,
+      "minutes_until_close": minutes_until_close,
+    }
+
+  if weekday < 5 and now_minutes < open_minutes:
+    open_at = at_minutes(now, open_minutes)
+  else:
+    open_at = at_minutes(next_weekday(now + timedelta(days=1)), open_minutes)
+
+  minutes_until_open = max(0, int((open_at - now).total_seconds() // 60))
+  return {
+    "in_session": False,
+    "mode": "winddown_only",
+    "session_open_utc": open_at.isoformat(),
+    "session_close_utc": at_minutes(open_at, close_minutes).isoformat(),
+    "minutes_until_open": minutes_until_open,
+    "minutes_until_close": None,
+  }
+
+
 def stocks_gate_entry_sentiment_ok(sentiment: float, integration_boost: float) -> bool:
   """During gate tightening, stocks need non-negative sentiment or a TV/integration boost."""
   return sentiment >= 0 or integration_boost > 0.03
@@ -284,6 +330,7 @@ async def build_gate_ws_payload(session: AsyncSession) -> dict[str, Any]:
         proven_winner_symbols[bot_type] = sorted(winners)
 
   in_session = stocks_in_us_session()
+  session_info = stocks_session_info()
   return {
     "profitability_gate": profitability,
     "gate_entry_tightening": {
@@ -305,9 +352,6 @@ async def build_gate_ws_payload(session: AsyncSession) -> dict[str, Any]:
       ),
     },
     "bot_sessions": {
-      "stocks_futures": {
-        "in_session": in_session,
-        "mode": "entries" if in_session else "winddown_only",
-      },
+      "stocks_futures": session_info,
     },
   }

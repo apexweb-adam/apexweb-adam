@@ -301,6 +301,10 @@ export type GateEntryTightening = {
 export type BotSessionInfo = {
   in_session: boolean;
   mode: "entries" | "winddown_only";
+  session_open_utc?: string;
+  session_close_utc?: string;
+  minutes_until_open?: number;
+  minutes_until_close?: number | null;
 };
 
 export type BotSessions = Record<string, BotSessionInfo>;

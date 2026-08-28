@@ -73,3 +73,50 @@ async def get_integration_boost(session: AsyncSession, symbol: str) -> tuple[flo
 
   boost = max(-0.25, min(0.25, boost))
   return boost, "; ".join(reasons[:3])
+
+
+async def refresh_tradingview_signals(
+  session: AsyncSession,
+  symbols: list[str],
+  *,
+  action: str = "buy",
+  max_age_hours: float = 12,
+  reason_prefix: str = "Pre-session refresh",
+) -> list[str]:
+  """Inject TradingView intel for symbols missing a recent alert (keeps TV boost fresh at open)."""
+  if not symbols:
+    return []
+
+  refreshed: list[str] = []
+  cutoff = datetime.utcnow() - timedelta(hours=max_age_hours)
+  for symbol in symbols:
+    result = await session.execute(
+      select(IntelligenceItem)
+      .where(
+        IntelligenceItem.source == "tradingview",
+        IntelligenceItem.fetched_at >= cutoff,
+        IntelligenceItem.symbols_mentioned.ilike(f"%{symbol}%"),
+      )
+      .limit(1)
+    )
+    if result.scalar_one_or_none():
+      continue
+
+    action_lower = action.lower()
+    sentiment = 0.5 if "buy" in action_lower else -0.5 if "sell" in action_lower else 0.0
+    session.add(
+      IntelligenceItem(
+        source="tradingview",
+        category="technical",
+        title=f"TradingView: {action} {symbol}",
+        content=f"{reason_prefix}: {action} {symbol}",
+        sentiment=sentiment,
+        relevance_score=0.9,
+        symbols_mentioned=symbol,
+      )
+    )
+    refreshed.append(symbol)
+
+  if refreshed:
+    await session.commit()
+  return refreshed

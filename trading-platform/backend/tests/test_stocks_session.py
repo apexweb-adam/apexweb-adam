@@ -4,7 +4,11 @@ from datetime import datetime
 from unittest.mock import patch
 
 from app.bots.trading_bots import StocksFuturesBot
-from app.engines.gate_entry_guard import stocks_gate_entry_sentiment_ok, stocks_in_us_session
+from app.engines.gate_entry_guard import (
+  stocks_gate_entry_sentiment_ok,
+  stocks_in_us_session,
+  stocks_session_info,
+)
 
 
 def test_stocks_in_us_session_weekday_during_hours():
@@ -38,3 +42,38 @@ def test_stocks_gate_entry_sentiment_ok():
   assert stocks_gate_entry_sentiment_ok(0.1, 0.0) is True
   assert stocks_gate_entry_sentiment_ok(-0.2, 0.05) is True
   assert stocks_gate_entry_sentiment_ok(-0.2, 0.0) is False
+
+
+def test_stocks_session_info_in_session():
+  with patch("app.engines.gate_entry_guard.datetime") as mock_dt:
+    mock_dt.utcnow.return_value = datetime(2026, 8, 28, 15, 0, 0)
+    mock_dt.side_effect = lambda *a, **k: datetime(*a, **k)
+    info = stocks_session_info()
+    assert info["in_session"] is True
+    assert info["mode"] == "entries"
+    assert info["minutes_until_open"] == 0
+    assert info["minutes_until_close"] is not None
+    assert info["minutes_until_close"] > 0
+
+
+def test_stocks_session_info_before_open():
+  with patch("app.engines.gate_entry_guard.datetime") as mock_dt:
+    mock_dt.utcnow.return_value = datetime(2026, 8, 28, 5, 12, 0)
+    mock_dt.side_effect = lambda *a, **k: datetime(*a, **k)
+    info = stocks_session_info()
+    assert info["in_session"] is False
+    assert info["mode"] == "winddown_only"
+    assert info["minutes_until_open"] == 498  # 13:30 - 05:12
+    assert info["minutes_until_close"] is None
+    assert "13:30:00" in info["session_open_utc"]
+
+
+def test_stocks_session_info_after_close_weekday():
+  with patch("app.engines.gate_entry_guard.datetime") as mock_dt:
+    mock_dt.utcnow.return_value = datetime(2026, 8, 28, 22, 0, 0)
+    mock_dt.side_effect = lambda *a, **k: datetime(*a, **k)
+    info = stocks_session_info()
+    assert info["in_session"] is False
+    assert info["mode"] == "winddown_only"
+    assert info["minutes_until_open"] > 0
+    assert info["session_open_utc"].startswith("2026-08-31")

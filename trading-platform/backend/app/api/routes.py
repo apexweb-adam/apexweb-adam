@@ -499,6 +499,7 @@ async def get_platform_status(db: AsyncSession = Depends(get_db)) -> dict[str, A
       "content_study": "every 2 hours",
       "risk_migration": "every 15 min",
       "redeploy_check": "every 1 hour",
+      "stocks_pre_session_prep": "13:00 UTC Mon-Fri (30 min before US open)",
       "daily_review": "22:00 UTC",
       "verification_snapshot": "23:00 UTC",
     },
