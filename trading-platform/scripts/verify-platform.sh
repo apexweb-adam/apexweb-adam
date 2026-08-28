@@ -6,6 +6,8 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BACKEND="${BACKEND_URL:-https://apex-trading-backend.onrender.com}"
 DASHBOARD="${DASHBOARD_URL:-https://apex-trading-dashboard-flame.vercel.app}"
 FLAME="${FLAME_URL:-https://apex-trading-dashboard-flame.vercel.app}"
+GIT_MAIN="https://apex-trading-dashboard-git-main-apexweb-adams-projects.vercel.app"
+EXPECTED_BUNDLE="2026-08-28-r27"
 
 pass=0
 fail=0
@@ -40,6 +42,9 @@ dep = d.get("deploy") or {}
 print(f"  paper_only={d.get('paper_trading_only')} bots={s.get('bots_active')} intel={s.get('intelligence_items')}")
 print(f"  gate_wr={g.get('win_rate')} trades={g.get('total_trades')} paused={g.get('paused_bots')}")
 print(f"  deploy={str(dep.get('git_commit',''))[:12]} revision={dep.get('platform_revision')} stale={dep.get('is_stale')}")
+bs = (d.get("bot_sessions") or {}).get("stocks_futures") or {}
+if bs.get("minutes_until_open") is not None and bs["minutes_until_open"] <= 90:
+    print(f"  stocks_prep_window=True open_in={bs.get('minutes_until_open')}min mode={bs.get('mode')}")
 if d.get("paper_trading_only") is True:
     sys.exit(0)
 sys.exit(1)
@@ -78,6 +83,30 @@ else
   note "Backend /crm legacy or missing (deploy r76+ for full landing)"
 fi
 
+# Pick best live CRM — git-main r27 when -flame bundle is stale
+FLAME_CFG=$(curl -fsS -m 20 "$FLAME/api/config" 2>/dev/null || echo "{}")
+DASHBOARD="$FLAME"
+python3 << PY
+import json
+flame_cfg = json.loads('''$FLAME_CFG''')
+rev = flame_cfg.get("bundleRevision", "")
+expected = "$EXPECTED_BUNDLE"
+git_main = "$GIT_MAIN"
+flame_url = "$FLAME"
+if rev != expected or not (flame_cfg.get("features") or {}).get("activeGate"):
+    print(f"  flame bundle={rev!r} — using git-main verified preview")
+    with open("/tmp/apex-dashboard-url.txt", "w") as out:
+        out.write(git_main)
+else:
+    with open("/tmp/apex-dashboard-url.txt", "w") as out:
+        out.write(flame_url)
+PY
+if [[ -f /tmp/apex-dashboard-url.txt ]]; then
+  DASHBOARD=$(cat /tmp/apex-dashboard-url.txt)
+fi
+echo "CRM URL:   $DASHBOARD"
+echo ""
+
 # Dashboard proxy
 DCFG=$(curl -fsS -m 20 "$DASHBOARD/api/config" 2>/dev/null || echo "{}")
 python3 << PY
@@ -85,13 +114,23 @@ import json
 d = json.loads('''$DCFG''')
 rev = d.get("bundleRevision", "?")
 ok = rev.startswith("2026-08-28-r2") and (d.get("features") or {}).get("activeGate")
-print(f"  bundle={rev} api={d.get('apiUrl','?')[:50]}")
+print(f"  bundle={rev} api={str(d.get('apiUrl','?'))[:50]}")
 import sys; sys.exit(0 if ok else 1)
 PY
 if [[ $? -eq 0 ]]; then
-  ok "Verified dashboard /api/config (r25+ bundle, activeGate)"
+  ok "Verified dashboard /api/config (r27+ bundle, activeGate)"
 else
-  note "Verified dashboard bundle stale — use $DASHBOARD"
+  note "Dashboard bundle stale at $DASHBOARD"
+fi
+
+# Native active-gate on verified preview (not available on stale -flame alone)
+if [[ "$DASHBOARD" == *"git-main"* ]]; then
+  NAT=$(curl -s -o /dev/null -w "%{http_code}" -m 20 "$DASHBOARD/api/active-gate" 2>/dev/null || echo "000")
+  if [[ "$NAT" == "200" ]]; then
+    ok "Dashboard native /api/active-gate (git-main r27)"
+  else
+    note "Native active-gate HTTP $NAT on $DASHBOARD"
+  fi
 fi
 
 PROXY=$(curl -fsS -m 45 "$DASHBOARD/api/backend/status" 2>/dev/null || echo "{}")
