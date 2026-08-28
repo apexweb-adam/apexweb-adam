@@ -2,6 +2,7 @@
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
+from app.engines.gate_entry_guard import HardGateSkipSets
 from app.engines.scan_preview import build_scan_preview
 
 
@@ -64,8 +65,14 @@ def test_build_scan_preview_commodities_structure():
                 new=AsyncMock(return_value=frozenset()),
               ):
                 with patch(
-                  "app.engines.scan_preview.get_hard_gate_skip_symbols",
-                  new=AsyncMock(return_value=frozenset()),
+                  "app.engines.scan_preview.get_hard_gate_skip_components",
+                  new=AsyncMock(
+                    return_value=HardGateSkipSets(
+                      recent=frozenset(),
+                      large=frozenset(),
+                      review=frozenset(),
+                    )
+                  ),
                 ):
                   with patch(
                     "app.engines.scan_preview.get_proven_winner_symbols",
@@ -143,8 +150,14 @@ def test_build_scan_preview_commodities_intel_override_on_sell_signal():
                 new=AsyncMock(return_value=frozenset()),
               ):
                 with patch(
-                  "app.engines.scan_preview.get_hard_gate_skip_symbols",
-                  new=AsyncMock(return_value=frozenset()),
+                  "app.engines.scan_preview.get_hard_gate_skip_components",
+                  new=AsyncMock(
+                    return_value=HardGateSkipSets(
+                      recent=frozenset(),
+                      large=frozenset(),
+                      review=frozenset(),
+                    )
+                  ),
                 ):
                   with patch(
                     "app.engines.scan_preview.get_proven_winner_symbols",
@@ -222,8 +235,14 @@ def test_build_scan_preview_commodities_chronic_loser_intel_bypass():
                 new=AsyncMock(return_value=frozenset({"SI=F"})),
               ):
                 with patch(
-                  "app.engines.scan_preview.get_hard_gate_skip_symbols",
-                  new=AsyncMock(return_value=frozenset()),
+                  "app.engines.scan_preview.get_hard_gate_skip_components",
+                  new=AsyncMock(
+                    return_value=HardGateSkipSets(
+                      recent=frozenset(),
+                      large=frozenset(),
+                      review=frozenset(),
+                    )
+                  ),
                 ):
                   with patch(
                     "app.engines.scan_preview.get_proven_winner_symbols",
@@ -310,8 +329,14 @@ def test_build_scan_preview_stocks_early_verification_volume_relax():
                 new=AsyncMock(return_value=frozenset()),
               ):
                 with patch(
-                  "app.engines.scan_preview.get_hard_gate_skip_symbols",
-                  new=AsyncMock(return_value=frozenset()),
+                  "app.engines.scan_preview.get_hard_gate_skip_components",
+                  new=AsyncMock(
+                    return_value=HardGateSkipSets(
+                      recent=frozenset(),
+                      large=frozenset(),
+                      review=frozenset(),
+                    )
+                  ),
                 ):
                   with patch(
                     "app.engines.scan_preview.get_proven_winner_symbols",
@@ -400,8 +425,14 @@ def test_build_scan_preview_stocks_early_verification_blocks_weak_raw_signal():
                 new=AsyncMock(return_value=frozenset()),
               ):
                 with patch(
-                  "app.engines.scan_preview.get_hard_gate_skip_symbols",
-                  new=AsyncMock(return_value=frozenset()),
+                  "app.engines.scan_preview.get_hard_gate_skip_components",
+                  new=AsyncMock(
+                    return_value=HardGateSkipSets(
+                      recent=frozenset(),
+                      large=frozenset(),
+                      review=frozenset(),
+                    )
+                  ),
                 ):
                   with patch(
                     "app.engines.scan_preview.get_proven_winner_symbols",
@@ -478,8 +509,14 @@ def test_build_scan_preview_crypto_intel_override_on_sell_signal():
                 new=AsyncMock(return_value=frozenset()),
               ):
                 with patch(
-                  "app.engines.scan_preview.get_hard_gate_skip_symbols",
-                  new=AsyncMock(return_value=frozenset()),
+                  "app.engines.scan_preview.get_hard_gate_skip_components",
+                  new=AsyncMock(
+                    return_value=HardGateSkipSets(
+                      recent=frozenset(),
+                      large=frozenset(),
+                      review=frozenset(),
+                    )
+                  ),
                 ):
                   with patch(
                     "app.engines.scan_preview.get_integration_boost",

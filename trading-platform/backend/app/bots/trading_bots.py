@@ -16,11 +16,12 @@ from app.engines.gate_entry_guard import (
   get_chronic_loser_symbols,
   get_gate_entry_tightening,
   get_gate_skip_symbols,
-  get_hard_gate_skip_symbols,
+  get_hard_gate_skip_components,
   get_proven_winner_symbols,
   early_verification_active,
   gate_entry_guards_active,
   gate_position_scale,
+  hard_skip_blocks_shadow_entry,
   in_shadow_graduation_nudge,
   is_symbol_in_trade_cooldown,
   shadow_entry_min_signal,
@@ -29,6 +30,7 @@ from app.engines.gate_entry_guard import (
   stocks_gate_entry_sentiment_ok,
   stocks_in_us_session,
   GATE_INDEX_ETF_SYMBOLS,
+  HardGateSkipSets,
 )
 from app.engines.integration_signals import get_integration_boost
 from app.engines.intelligence_scoring import compute_bot_sentiment
@@ -145,11 +147,15 @@ class BaseBot(ABC):
         per_bot = await ProfitabilityGate(session).evaluate_per_bot()
         shadow_bot_wr = float((per_bot.get(self.bot_type) or {}).get("win_rate") or 0)
       chronic_losers: frozenset[str] = frozenset()
-      hard_skip_symbols: frozenset[str] = frozenset()
+      hard_skip_sets = HardGateSkipSets(
+        recent=frozenset(),
+        large=frozenset(),
+        review=frozenset(),
+      )
       proven_winners: frozenset[str] = frozenset()
       if entry_guards:
         chronic_losers = await get_chronic_loser_symbols(session, self.bot_type)
-        hard_skip_symbols = await get_hard_gate_skip_symbols(session, self.bot_type)
+        hard_skip_sets = await get_hard_gate_skip_components(session, self.bot_type)
       if gate_tightening.active or shadow_mode:
         if self.bot_type in ("stocks_futures", "commodities"):
           proven_winners = await get_proven_winner_symbols(session, self.bot_type)
@@ -419,7 +425,17 @@ class BaseBot(ABC):
           integration_boost=integration_boost,
         )
 
-        if entry_guards and symbol in hard_skip_symbols:
+        if entry_guards and hard_skip_blocks_shadow_entry(
+          symbol,
+          recent_skip=hard_skip_sets.recent,
+          large_skip=hard_skip_sets.large,
+          review_skip=hard_skip_sets.review,
+          graduation_nudge=graduation_nudge,
+          shadow_mode=shadow_mode,
+          intel_override=intel_override,
+          composite=composite,
+          integration_boost=integration_boost,
+        ):
           continue
 
         if chronic_loser_blocks_shadow_entry(

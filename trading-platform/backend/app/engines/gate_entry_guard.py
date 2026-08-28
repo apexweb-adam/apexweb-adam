@@ -256,6 +256,8 @@ RECENT_LOSER_DAYS = 7
 RECENT_LOSER_MIN_LOSSES = 2
 RECENT_LARGE_LOSS_USD = 25.0
 RECENT_LARGE_LOSS_HOURS = 24
+SHADOW_LARGE_LOSS_BYPASS_COMPOSITE = 0.55
+SHADOW_LARGE_LOSS_BYPASS_INTEGRATION = 0.10
 REVIEW_LOSER_DAYS = 3
 PROVEN_WINNER_MIN_TRADES = 2
 PROVEN_WINNER_MIN_WIN_RATE = 0.50
@@ -495,12 +497,63 @@ async def is_symbol_in_trade_cooldown(
   return elapsed < seconds
 
 
+@dataclass(frozen=True)
+class HardGateSkipSets:
+  recent: frozenset[str]
+  large: frozenset[str]
+  review: frozenset[str]
+
+  @property
+  def all(self) -> frozenset[str]:
+    return self.recent | self.large | self.review
+
+
+async def get_hard_gate_skip_components(
+  session: AsyncSession, bot_type: str
+) -> HardGateSkipSets:
+  """Split hard gate-skip sources — graduation nudge may bypass recent/large with strong intel."""
+  return HardGateSkipSets(
+    recent=await get_recent_loser_symbols(session, bot_type),
+    large=await get_large_recent_loss_symbols(session, bot_type),
+    review=await get_review_blocked_symbols(session, bot_type),
+  )
+
+
+def hard_skip_blocks_shadow_entry(
+  symbol: str,
+  *,
+  recent_skip: frozenset[str],
+  large_skip: frozenset[str],
+  review_skip: frozenset[str],
+  graduation_nudge: bool,
+  shadow_mode: bool,
+  intel_override: bool,
+  composite: float,
+  integration_boost: float,
+) -> bool:
+  """Hard gate-skip during shadow graduation nudge — review blocks are never bypassed."""
+  if symbol in review_skip:
+    return True
+  if symbol in large_skip:
+    if (
+      graduation_nudge
+      and shadow_mode
+      and composite >= SHADOW_LARGE_LOSS_BYPASS_COMPOSITE
+      and integration_boost >= SHADOW_LARGE_LOSS_BYPASS_INTEGRATION
+    ):
+      return False
+    return True
+  if symbol in recent_skip:
+    if graduation_nudge and shadow_mode and intel_override:
+      return False
+    return True
+  return False
+
+
 async def get_hard_gate_skip_symbols(session: AsyncSession, bot_type: str) -> frozenset[str]:
   """Symbols that must never be bypassed — recent streaks, large losses, post-mortem blocks."""
-  recent = await get_recent_loser_symbols(session, bot_type)
-  large = await get_large_recent_loss_symbols(session, bot_type)
-  review = await get_review_blocked_symbols(session, bot_type)
-  return recent | large | review
+  components = await get_hard_gate_skip_components(session, bot_type)
+  return components.all
 
 
 async def get_gate_skip_symbols(session: AsyncSession, bot_type: str) -> frozenset[str]:

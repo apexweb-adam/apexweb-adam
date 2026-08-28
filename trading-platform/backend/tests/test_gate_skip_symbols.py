@@ -87,6 +87,76 @@ def test_gate_entry_guards_active_during_verification():
   ) is False
 
 
+def test_hard_skip_blocks_shadow_entry_recent_bypass_with_intel():
+  from app.engines.gate_entry_guard import hard_skip_blocks_shadow_entry
+
+  assert hard_skip_blocks_shadow_entry(
+    "BTCUSDT",
+    recent_skip=frozenset({"BTCUSDT"}),
+    large_skip=frozenset(),
+    review_skip=frozenset(),
+    graduation_nudge=True,
+    shadow_mode=True,
+    intel_override=True,
+    composite=0.33,
+    integration_boost=0.13,
+  ) is False
+  assert hard_skip_blocks_shadow_entry(
+    "BTCUSDT",
+    recent_skip=frozenset({"BTCUSDT"}),
+    large_skip=frozenset(),
+    review_skip=frozenset(),
+    graduation_nudge=True,
+    shadow_mode=True,
+    intel_override=False,
+    composite=0.33,
+    integration_boost=0.13,
+  ) is True
+
+
+def test_hard_skip_blocks_shadow_entry_large_loss_bypass_strong_intel():
+  from app.engines.gate_entry_guard import hard_skip_blocks_shadow_entry
+
+  assert hard_skip_blocks_shadow_entry(
+    "SI=F",
+    recent_skip=frozenset(),
+    large_skip=frozenset({"SI=F"}),
+    review_skip=frozenset(),
+    graduation_nudge=True,
+    shadow_mode=True,
+    intel_override=True,
+    composite=0.60,
+    integration_boost=0.12,
+  ) is False
+  assert hard_skip_blocks_shadow_entry(
+    "SI=F",
+    recent_skip=frozenset(),
+    large_skip=frozenset({"SI=F"}),
+    review_skip=frozenset(),
+    graduation_nudge=True,
+    shadow_mode=True,
+    intel_override=True,
+    composite=0.50,
+    integration_boost=0.12,
+  ) is True
+
+
+def test_hard_skip_blocks_shadow_entry_review_never_bypassed():
+  from app.engines.gate_entry_guard import hard_skip_blocks_shadow_entry
+
+  assert hard_skip_blocks_shadow_entry(
+    "CL=F",
+    recent_skip=frozenset(),
+    large_skip=frozenset(),
+    review_skip=frozenset({"CL=F"}),
+    graduation_nudge=True,
+    shadow_mode=True,
+    intel_override=True,
+    composite=0.80,
+    integration_boost=0.20,
+  ) is True
+
+
 def test_recent_loser_symbols_blocks_zero_win_streak():
   session = AsyncMock()
   cutoff_losses = [
