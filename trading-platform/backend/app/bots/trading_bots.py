@@ -190,6 +190,30 @@ class BaseBot(ABC):
                   self._register_symbol_cooldown(symbol, after_loss=False)
               continue
 
+          # Wind down all legacy positions on bots blocked from new entries during gate.
+          if gate_tightening.active and self.bot_type in gate_tightening.blocked_new_entries:
+            unrealized = (price - position.entry_price) * position.quantity
+            if position.side == "short":
+              unrealized = (position.entry_price - price) * position.quantity
+            wind_down = (
+              unrealized > 0
+              or signal.direction == "sell"
+              or held_seconds >= 2 * 3600
+            )
+            if wind_down:
+              reason = (
+                f"Gate wind-down (blocked {self.bot_type}): uPnL ${unrealized:.2f} | {signal.reason}"
+              )
+              result = await engine.sell(symbol, price, reason)
+              if result:
+                actions.append(result)
+                if result.get("is_winner") is False:
+                  await self._analyze_loss(session, symbol)
+                  self._register_symbol_cooldown(symbol, after_loss=True)
+                else:
+                  self._register_symbol_cooldown(symbol, after_loss=False)
+              continue
+
           if allow_signal_exit and (signal.direction == "sell" or integration_boost < -0.1):
             reason = f"Sell signal: {signal.reason}"
             if integration_reason:
@@ -514,6 +538,28 @@ class PolymarketBot(BaseBot):
             position = find_pm_position(open_positions, symbol)
 
             if position:
+              opened = position.opened_at
+              if opened and opened.tzinfo is not None:
+                opened = opened.replace(tzinfo=None)
+              held_seconds = (datetime.utcnow() - opened).total_seconds() if opened else 9999
+
+              if gate_tightening.active and "polymarket" in gate_tightening.blocked_new_entries:
+                unrealized = (price - position.entry_price) * position.quantity
+                wind_down = (
+                  unrealized > 0
+                  or pm_sig.direction == "sell"
+                  or held_seconds >= 2 * 3600
+                )
+                if wind_down:
+                  reason = f"Gate wind-down (blocked PM): uPnL ${unrealized:.2f} | {pm_sig.reason}"
+                  result = await engine.sell(position.symbol, price, reason)
+                  if result:
+                    actions.append(result)
+                    if result.get("is_winner") is False:
+                      await self._analyze_loss(session, symbol)
+                    self._register_symbol_cooldown(symbol, after_loss=result.get("is_winner") is False)
+                  continue
+
               if position.stop_loss and price <= position.stop_loss:
                 exit_price = position.stop_loss
                 result = await engine.sell(
@@ -528,10 +574,6 @@ class PolymarketBot(BaseBot):
                   self._register_symbol_cooldown(symbol, after_loss=result.get("is_winner") is False)
                 continue
 
-              opened = position.opened_at
-              if opened and opened.tzinfo is not None:
-                opened = opened.replace(tzinfo=None)
-              held_seconds = (datetime.utcnow() - opened).total_seconds() if opened else 9999
               min_hold_seconds = settings.polymarket_min_hold_seconds
               allow_signal_exit = (
                 held_seconds >= min_hold_seconds
