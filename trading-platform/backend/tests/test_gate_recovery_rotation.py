@@ -174,3 +174,52 @@ def test_get_gate_entry_tightening_raises_commodities_cap_during_profitable_nudg
 
   assert tightening.active is False
   assert tightening.max_commodities_open_positions == 3
+
+
+def test_get_gate_entry_tightening_exempts_active_gate_from_entry_block():
+  gate_result = {
+    "total_trades": 30,
+    "win_rate": 0.444,
+  }
+  per_bot = {
+    "commodities": {
+      "paused": False,
+      "win_rate": 0.444,
+      "profit_factor": 1.19,
+      "total_pnl": 19.13,
+      "total_trades": 30,
+    },
+    "crypto": {
+      "paused": True,
+      "win_rate": 0.447,
+      "profit_factor": 1.11,
+      "total_pnl": 10.51,
+      "total_trades": 60,
+    },
+    "polymarket": {
+      "paused": True,
+      "win_rate": 0.36,
+      "profit_factor": 3.09,
+      "total_pnl": 1370.0,
+      "total_trades": 30,
+    },
+  }
+
+  with patch("app.engines.gate_entry_guard.ProfitabilityGate") as GateCls:
+    GateCls.MIN_WIN_RATE = 0.55
+    gate = GateCls.return_value
+    gate.evaluate = AsyncMock(return_value=gate_result)
+    gate.evaluate_per_bot = AsyncMock(return_value=per_bot)
+    with patch(
+      "app.engines.gate_entry_guard.get_underperforming_bots",
+      AsyncMock(return_value=frozenset({"commodities", "crypto", "polymarket"})),
+    ):
+      with patch(
+        "app.engines.gate_entry_guard.active_gate_entry_exempt_bots",
+        AsyncMock(return_value=frozenset({"commodities"})),
+      ):
+        tightening = asyncio.run(get_gate_entry_tightening(MagicMock()))
+
+  assert tightening.active is True
+  assert "commodities" not in tightening.blocked_new_entries
+  assert "polymarket" in tightening.blocked_new_entries
