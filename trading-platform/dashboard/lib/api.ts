@@ -191,6 +191,32 @@ export type PerBotGateStatus = {
   recommendation: string;
 };
 
+export type ScanPreviewSymbol = {
+  symbol: string;
+  price?: number;
+  composite?: number;
+  min_signal?: number;
+  sentiment?: number;
+  direction?: string;
+  macd?: string;
+  volume_ok?: boolean;
+  would_enter?: boolean;
+  blockers?: string[];
+  integration_boost?: number;
+  skip?: string;
+};
+
+export type ScanPreview = {
+  bot_type: string;
+  shadow_mode: boolean;
+  graduation_nudge: boolean;
+  early_verification_boost?: boolean;
+  shadow_bot_wr: number | null;
+  proven_winners: string[];
+  min_signal: number;
+  symbols: ScanPreviewSymbol[];
+};
+
 export type ProfitabilityStatus = {
   live_trading_ready: boolean;
   paper_trading_only: boolean;

@@ -21,6 +21,7 @@ from app.engines.gate_entry_guard import (
   in_shadow_graduation_nudge,
   shadow_entry_min_signal,
   shadow_requires_macd,
+  stocks_gate_entry_sentiment_ok,
 )
 from app.engines.integration_signals import get_integration_boost
 from app.engines.paper_trading import PaperTradingEngine
@@ -72,6 +73,14 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
   open_count = len(await engine.get_open_positions())
   shadow_cap = SHADOW_MAX_OPEN.get(bot_type) if shadow_mode else None
 
+  early_verification_boost = False
+  if gate_tightening.active and not shadow_mode and bot_type == "stocks_futures":
+    gate_status = await ProfitabilityGate(session).evaluate()
+    active_trades = int(gate_status.get("total_trades") or 0)
+    active_wr = float(gate_status.get("win_rate") or 0)
+    if active_trades < 30 and active_wr >= ProfitabilityGate.MIN_WIN_RATE:
+      early_verification_boost = True
+
   weights = {
     "technical_weight": strategy.technical_weight,
     "sentiment_weight": strategy.sentiment_weight,
@@ -97,9 +106,53 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
     integration_boost, integration_reason = await get_integration_boost(session, symbol)
     composite = max(0.0, composite + integration_boost)
 
+    entry_min_signal = min_signal
+    if gate_tightening.active and bot_type == "stocks_futures" and symbol in proven_winners:
+      entry_min_signal = max(0.08, entry_min_signal - 0.02)
+    if (
+      gate_tightening.active
+      and bot_type == "stocks_futures"
+      and integration_reason
+      and "tradingview" in integration_reason.lower()
+      and integration_boost > 0.04
+    ):
+      entry_min_signal = max(0.08, entry_min_signal - 0.03)
+    if gate_tightening.active and bot_type == "stocks_futures" and signal.rsi_divergence == "bullish":
+      entry_min_signal = max(0.08, entry_min_signal - 0.02)
+
+    volume_required = signal.volume_confirmed
+    if gate_tightening.active and bot_type == "stocks_futures" and symbol in proven_winners:
+      volume_required = (
+        signal.volume_confirmed
+        or integration_boost > 0.03
+        or bool(integration_reason and "tradingview" in integration_reason.lower())
+      )
+    if early_verification_boost and bot_type == "stocks_futures":
+      volume_required = (
+        signal.volume_confirmed
+        or composite >= entry_min_signal + 0.03
+        or integration_boost > 0.02
+        or signal.macd_signal == "bullish"
+        or bool(integration_reason and "tradingview" in integration_reason.lower())
+      )
+    if graduation_nudge and shadow_mode and bot_type == "commodities":
+      volume_required = (
+        signal.volume_confirmed
+        or composite >= entry_min_signal + 0.02
+        or integration_boost > 0.02
+        or signal.macd_signal == "bullish"
+      )
+
     blockers: list[str] = []
     if gate_tightening.active and symbol in chronic_losers:
       blockers.append("chronic_loser")
+    if (
+      gate_tightening.active
+      and bot_type == "stocks_futures"
+      and proven_winners
+      and symbol not in proven_winners
+    ):
+      blockers.append("not_proven_winner")
     if (
       shadow_mode
       and bot_type == "commodities"
@@ -108,6 +161,19 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
       and not graduation_nudge
     ):
       blockers.append("not_proven_winner")
+    if (
+      gate_tightening.active
+      and bot_type == "stocks_futures"
+      and signal.rsi > 68
+    ):
+      blockers.append("rsi_high")
+    if (
+      gate_tightening.active
+      and bot_type == "stocks_futures"
+      and signal.macd_signal != "bullish"
+      and integration_boost <= 0.03
+    ):
+      blockers.append("macd")
     if shadow_requires_macd(
       bot_type,
       bot_win_rate=shadow_bot_wr,
@@ -117,27 +183,33 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
       blockers.append("macd")
     if shadow_cap is not None and open_count >= shadow_cap:
       blockers.append("shadow_open_cap")
+    if not shadow_mode and bot_type in gate_tightening.blocked_new_entries:
+      blockers.append("entries_blocked")
     if signal.direction != "buy":
       blockers.append(f"signal_{signal.direction}")
-    if not signal.volume_confirmed and not (
-      graduation_nudge and shadow_mode and bot_type == "commodities"
-    ):
+    if not volume_required:
       blockers.append("volume")
-    if composite < min_signal:
-      blockers.append(f"composite<{min_signal:.2f}")
+    if composite < entry_min_signal:
+      blockers.append(f"composite<{entry_min_signal:.2f}")
     if sentiment + integration_boost < min_sentiment:
       blockers.append(f"sentiment<{min_sentiment:.2f}")
+    if (
+      gate_tightening.active
+      and bot_type == "stocks_futures"
+      and not stocks_gate_entry_sentiment_ok(sentiment, integration_boost)
+    ):
+      blockers.append("sentiment_gate")
 
     previews.append(
       {
         "symbol": symbol,
         "price": price,
         "composite": round(composite, 3),
-        "min_signal": round(min_signal, 3),
+        "min_signal": round(entry_min_signal, 3),
         "sentiment": round(sentiment, 3),
         "direction": signal.direction,
         "macd": signal.macd_signal,
-        "volume_ok": signal.volume_confirmed,
+        "volume_ok": volume_required,
         "would_enter": not blockers,
         "blockers": blockers,
         "integration_boost": round(integration_boost, 3),
@@ -149,6 +221,7 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
     "bot_type": bot_type,
     "shadow_mode": shadow_mode,
     "graduation_nudge": graduation_nudge,
+    "early_verification_boost": early_verification_boost,
     "shadow_bot_wr": shadow_bot_wr,
     "proven_winners": sorted(proven_winners),
     "min_signal": round(min_signal, 3),
