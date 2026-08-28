@@ -48,6 +48,11 @@ manager = ConnectionManager()
 
 async def build_live_payload(session: AsyncSession) -> dict:
   from app.engines.gate_entry_guard import build_gate_ws_payload
+  from app.engines.intel_source_status import (
+    build_intel_sources,
+    serialize_intel_item,
+    serialize_strategy_config,
+  )
 
   gate_payload = await build_gate_ws_payload(session)
   portfolios = (await session.execute(select(Portfolio))).scalars().all()
@@ -61,14 +66,13 @@ async def build_live_payload(session: AsyncSession) -> dict:
   intel = (await session.execute(select(IntelligenceItem))).scalars().all()
   recent_intel_rows = (
     await session.execute(
-      select(IntelligenceItem).order_by(desc(IntelligenceItem.fetched_at)).limit(10)
+      select(IntelligenceItem).order_by(desc(IntelligenceItem.fetched_at)).limit(20)
     )
   ).scalars().all()
   states = (await session.execute(select(BotState))).scalars().all()
-  strategy_versions = {
-    c.bot_type: c.version
-    for c in (await session.execute(select(StrategyConfig))).scalars().all()
-  }
+  strategy_configs = (await session.execute(select(StrategyConfig))).scalars().all()
+  strategy_versions = {c.bot_type: c.version for c in strategy_configs}
+  intel_sources = await build_intel_sources(session)
   recent_analyses = (
     await session.execute(select(TradeAnalysis).order_by(desc(TradeAnalysis.analyzed_at)).limit(20))
   ).scalars().all()
@@ -158,18 +162,9 @@ async def build_live_payload(session: AsyncSession) -> dict:
       }
       for t in recent_trades
     ],
-    "recent_intel": [
-      {
-        "id": item.id,
-        "source": item.source,
-        "category": item.category,
-        "title": item.title,
-        "sentiment": item.sentiment,
-        "relevance_score": item.relevance_score,
-        "fetched_at": item.fetched_at.isoformat() if item.fetched_at else None,
-      }
-      for item in recent_intel_rows
-    ],
+    "recent_intel": [serialize_intel_item(item) for item in recent_intel_rows],
+    "intel_sources": intel_sources,
+    "strategies": [serialize_strategy_config(c) for c in strategy_configs],
     "analyses": [
       {
         "id": a.id,

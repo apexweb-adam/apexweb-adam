@@ -56,7 +56,7 @@ import { IntelRoutingPanel } from "@/components/IntelRoutingPanel";
 type Tab = "overview" | "trades" | "positions" | "intelligence" | "learning" | "strategy";
 
 export default function Dashboard() {
-  const { stats, portfolios, bots, positions: livePositions, trades: liveTrades, recentIntel, analyses: liveAnalyses, reviews: liveReviews, insights: liveInsights, connected, lastUpdate, lastTrade, profitabilityGate: liveProfitability, gateEntryTightening, botSessions } = useLiveData();
+  const { stats, portfolios, bots, positions: livePositions, trades: liveTrades, recentIntel, analyses: liveAnalyses, reviews: liveReviews, insights: liveInsights, strategies: liveStrategies, intelSources: liveIntelSources, connected, lastUpdate, lastTrade, profitabilityGate: liveProfitability, gateEntryTightening, botSessions } = useLiveData();
   const { data: tradesRest } = useAPI<Trade[]>("/trades?limit=50", 30000);
   const { data: gateTradesRest } = useAPI<Trade[]>("/trades?limit=200", 30000);
   const { data: positionsRest } = useAPI<Position[]>("/positions", 30000);
@@ -66,10 +66,13 @@ export default function Dashboard() {
   const { data: analysesRest } = useAPI<TradeAnalysis[]>("/analyses?limit=20", 15000);
   const { data: reviewsRest } = useAPI<DailyReview[]>("/reviews?limit=10", 30000);
   const { data: insightsRest } = useAPI<LearningInsight[]>("/insights?limit=20", 30000);
+  const { data: strategiesRest } = useAPI<StrategyConfig[]>("/strategies", 30000);
+  const { data: intelSourcesRest } = useAPI<IntelligenceSource[]>("/intelligence/sources", 30000);
   const analyses = connected && liveAnalyses.length > 0 ? liveAnalyses : (analysesRest ?? []);
   const reviews = connected && liveReviews.length > 0 ? liveReviews : (reviewsRest ?? []);
   const insights = connected && liveInsights.length > 0 ? liveInsights : (insightsRest ?? []);
-  const { data: strategies } = useAPI<StrategyConfig[]>("/strategies", 30000);
+  const strategies = connected && liveStrategies.length > 0 ? liveStrategies : (strategiesRest ?? []);
+  const intelSources = connected && liveIntelSources.length > 0 ? liveIntelSources : (intelSourcesRest ?? []);
   const { data: profitability } = useAPI<ProfitabilityStatus>("/profitability", 15000);
   const { data: activeGate } = useAPI<ActiveGateStatus>("/active-gate", 15000);
   const { data: verificationHistory } = useAPI<VerificationSnapshot[]>(
@@ -77,7 +80,6 @@ export default function Dashboard() {
     60000
   );
   const { data: equityHistory } = useAPI<EquityHistoryPoint[]>("/equity-history", 60000);
-  const { data: intelSources } = useAPI<IntelligenceSource[]>("/intelligence/sources", 30000);
   const { data: intelRouting } = useAPI<IntelRouting>("/intelligence/routing", 60000);
   const { data: platformStatus } = useAPI<PlatformStatus>("/status", 30000);
   const [tab, setTab] = useState<Tab>("overview");
@@ -101,14 +103,12 @@ export default function Dashboard() {
     const byId = new Map<number, IntelligenceItem>();
     for (const item of rest) byId.set(item.id, item);
     for (const item of recentIntel) {
-      if (!byId.has(item.id)) {
-        byId.set(item.id, {
-          ...item,
-          content: item.title,
-          url: "",
-          symbols_mentioned: "",
-        });
-      }
+      byId.set(item.id, {
+        ...item,
+        content: item.content || item.title,
+        url: item.url || "",
+        symbols_mentioned: item.symbols_mentioned || "",
+      });
     }
     return Array.from(byId.values()).sort(
       (a, b) => new Date(b.fetched_at).getTime() - new Date(a.fetched_at).getTime()

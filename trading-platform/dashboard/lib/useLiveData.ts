@@ -16,6 +16,8 @@ import {
   type TradeAnalysis,
   type DailyReview,
   type LearningInsight,
+  type StrategyConfig,
+  type IntelligenceSource,
 } from "./api";
 
 type LiveData = {
@@ -28,6 +30,8 @@ type LiveData = {
   analyses: TradeAnalysis[];
   reviews: DailyReview[];
   insights: LearningInsight[];
+  strategies: StrategyConfig[];
+  intelSources: IntelligenceSource[];
   profitabilityGate: ProfitabilityStatus | null;
   gateEntryTightening: GateEntryTightening | null;
   botSessions: BotSessions | null;
@@ -46,6 +50,8 @@ export function useLiveData(): LiveData {
   const [analyses, setAnalyses] = useState<TradeAnalysis[]>([]);
   const [reviews, setReviews] = useState<DailyReview[]>([]);
   const [insights, setInsights] = useState<LearningInsight[]>([]);
+  const [strategies, setStrategies] = useState<StrategyConfig[]>([]);
+  const [intelSources, setIntelSources] = useState<IntelligenceSource[]>([]);
   const [profitabilityGate, setProfitabilityGate] = useState<ProfitabilityStatus | null>(null);
   const [gateEntryTightening, setGateEntryTightening] = useState<GateEntryTightening | null>(null);
   const [botSessions, setBotSessions] = useState<BotSessions | null>(null);
@@ -89,6 +95,8 @@ export function useLiveData(): LiveData {
     if (data.analyses) setAnalyses(data.analyses as TradeAnalysis[]);
     if (data.reviews) setReviews(data.reviews as DailyReview[]);
     if (data.insights) setInsights(data.insights as LearningInsight[]);
+    if (data.strategies) setStrategies(data.strategies as StrategyConfig[]);
+    if (data.intel_sources) setIntelSources(data.intel_sources as IntelligenceSource[]);
     if (data.profitability_gate) setProfitabilityGate(data.profitability_gate as ProfitabilityStatus);
     if (data.gate_entry_tightening) {
       setGateEntryTightening(data.gate_entry_tightening as GateEntryTightening);
@@ -157,6 +165,8 @@ export function useLiveData(): LiveData {
     analyses,
     reviews,
     insights,
+    strategies,
+    intelSources,
     profitabilityGate,
     gateEntryTightening,
     botSessions,
