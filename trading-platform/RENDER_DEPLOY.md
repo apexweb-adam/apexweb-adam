@@ -47,13 +47,15 @@ Already migrated on project `apexweb` (`zzgmovjapeyauvpdpuqe`): portfolios, trad
 
 ### Deploy hook vs GitHub sync
 
-The **Deploy Hook** triggers a redeploy of whatever commit Render last built from GitHub. If `deploy.git_commit` stays behind `latest_main_commit` after hook triggers:
+The **Deploy Hook** triggers a redeploy of whatever commit Render **last built** from GitHub — it does **not** pull the latest commit from `main`. When `deploy.is_stale` is true or `commits_behind` > 0, **do not POST the deploy hook**; it will redeploy the old commit and can block GitHub autoDeploy.
+
+When stale:
 
 1. **Render Dashboard** → `apex-trading-backend` → **Manual Deploy** → **Deploy latest commit**
 2. Verify **Settings → Build & Deploy → Auto-Deploy** is ON and connected to `apexweb-adam/apexweb-adam` branch `main`
 3. Add `RENDER_API_KEY` to GitHub secrets for CI deploys with cache clear (Render → Account → API Keys)
 
-The keep-alive workflow (every 10 min) and deploy-render-backend (every 6h) auto-trigger the hook when stale.
+CI workflows and the in-app redeploy trigger skip the deploy hook when stale. The keep-alive workflow (every 10 min) only pings health; it triggers API deploy when stale (if `RENDER_API_KEY` is set).
 
 ## TradingView webhook (after Render live)
 

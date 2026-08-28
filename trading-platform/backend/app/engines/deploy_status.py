@@ -27,6 +27,7 @@ DEFAULT_VERIFIED_DASHBOARD_URL = (
 )
 DEFAULT_VERIFIED_DEPLOYMENT_ID = "dpl_DMSgUEGsa2PTokNr99BXWoggczd7"
 EXPECTED_DASHBOARD_BUNDLE = "2026-08-28-r21"
+EXPECTED_PLATFORM_REVISION = "2026-08-28-r60"
 ACCEPTABLE_DASHBOARD_BUNDLES = frozenset({
   "2026-08-27-r9", "2026-08-27-r10", "2026-08-27-r11", "2026-08-27-r12",
   "2026-08-27-r13", "2026-08-27-r14", "2026-08-27-r15", "2026-08-27-r16",
@@ -368,8 +369,8 @@ async def build_deploy_status() -> dict[str, Any]:
     next_steps.append(
       f"Render deploy is stale — running {deployed[:12] if deployed else '?'} "
       f"but main is {latest_sha[:12] if latest_sha else '?'}. "
-      "Set RENDER_API_KEY in GitHub secrets (preferred) or RENDER_DEPLOY_HOOK, "
-      "or trigger manual deploy in Render dashboard."
+      "Do NOT use Deploy Hook when behind main (it redeploys the old commit). "
+      "Use Render Manual Deploy → latest commit, or set RENDER_API_KEY in GitHub secrets."
     )
     if pending_changes:
       summaries = [c["message"] for c in pending_changes[:3]]
@@ -392,9 +393,14 @@ async def build_deploy_status() -> dict[str, Any]:
         f"or use verified preview: {verified}"
       )
 
+  platform_revision = os.environ.get("PLATFORM_REVISION", "").strip() or None
+
   return {
     "git_commit": deployed,
     "git_branch": os.environ.get("RENDER_GIT_BRANCH"),
+    "platform_revision": platform_revision,
+    "expected_platform_revision": EXPECTED_PLATFORM_REVISION,
+    "platform_revision_current": platform_revision == EXPECTED_PLATFORM_REVISION if platform_revision else None,
     "latest_main_commit": latest_sha,
     "latest_main_message": (latest or {}).get("message"),
     "is_stale": is_stale,
