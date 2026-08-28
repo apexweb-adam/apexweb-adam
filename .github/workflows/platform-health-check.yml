@@ -53,18 +53,22 @@ jobs:
             d.get('total_equity'), d.get('total_pnl'), d.get('total_trades'), d.get('intelligence_items')))
           "
 
-      - name: Check backend deploy is current
+      - name: Check GitHub blockers and Render deploy freshness
         run: |
           set -euo pipefail
+          ./trading-platform/scripts/check-github-blockers.sh || {
+            echo "::error::GitHub check-suites blocking Render checksPass — see trading-platform/DEPLOY_UNBLOCK.md"
+            exit 1
+          }
           LATEST=$(curl -fsS "https://api.github.com/repos/apexweb-adam/apexweb-adam/git/ref/heads/main" | python3 -c "import json,sys; print(json.load(sys.stdin)['object']['sha'][:12])")
           STATUS=$(curl -fsS "https://apex-trading-backend.onrender.com/api/status")
           DEPLOYED=$(echo "$STATUS" | python3 -c "import json,sys; print(json.load(sys.stdin).get('deploy',{}).get('git_commit','')[:12])")
           echo "main=$LATEST deployed=$DEPLOYED"
-          if [[ "$DEPLOYED" != "$LATEST" && "$DEPLOYED" != "${LATEST:0:12}" ]]; then
-            echo "::warning::Render backend stale — deployed $DEPLOYED, main is $LATEST. Trigger manual deploy or set RENDER_API_KEY."
-          else
-            echo "Backend deploy matches main ($DEPLOYED)"
+          if [[ "$DEPLOYED" != "$LATEST" ]]; then
+            echo "::error::Render backend stale — deployed $DEPLOYED, main is $LATEST. Manual Deploy or set RENDER_API_KEY."
+            exit 1
           fi
+          echo "Backend deploy matches main ($DEPLOYED)"
           DASH_URL=$(curl -fsS "https://apex-trading-backend.onrender.com/api/dashboard-url" | python3 -c "import json,sys; print(json.load(sys.stdin).get('recommended_url',''))")
           echo "recommended_dashboard_url=$DASH_URL"
           if [[ "$DASH_URL" == *"git-main"* ]]; then
