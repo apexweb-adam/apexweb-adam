@@ -108,7 +108,7 @@ async def stocks_pre_session_prep_job() -> None:
     return
 
   minutes_until_open = session_info.get("minutes_until_open")
-  if minutes_until_open is None or minutes_until_open > 45:
+  if minutes_until_open is None or minutes_until_open > 90:
     return
 
   async with SessionLocal() as session:

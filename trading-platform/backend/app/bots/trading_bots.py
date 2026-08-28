@@ -479,10 +479,17 @@ class StocksFuturesBot(BaseBot):
     return stocks_in_us_session()
 
   async def _effective_scan_interval(self) -> int:
-    """Scan proven winners more often during gated US session entries."""
+    """Scan more often during US session while verification gate is open."""
     if not self._in_us_session():
       return self.scan_interval
     async with SessionLocal() as session:
+      from app.config import settings
+      from app.engines.profitability_gate import ProfitabilityGate
+
+      gate = await ProfitabilityGate(session).evaluate()
+      active_trades = int(gate.get("total_trades") or 0)
+      if settings.paper_trading_only and active_trades < ProfitabilityGate.MIN_TRADES:
+        return self.gate_active_scan_interval
       tightening = await get_gate_entry_tightening(session)
       if tightening.active:
         return self.gate_active_scan_interval
