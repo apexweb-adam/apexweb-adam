@@ -294,6 +294,8 @@ export type GateEntryTightening = {
   max_crypto_open_positions?: number | null;
   max_commodities_open_positions?: number | null;
   blocked_new_entries?: string[];
+  chronic_loser_symbols?: Record<string, string[]>;
+  proven_winner_symbols?: Record<string, string[]>;
 };
 
 export type PlatformStatus = {

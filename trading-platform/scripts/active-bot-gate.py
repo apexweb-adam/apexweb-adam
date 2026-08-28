@@ -11,7 +11,7 @@ import urllib.request
 BACKEND_API = "https://apex-trading-backend.onrender.com"
 PRODUCTION_DASHBOARD = "https://apex-trading-dashboard-flame.vercel.app"
 VERIFIED_PREVIEW = "https://apex-trading-dashboard-edv5hefqa-apexweb-adams-projects.vercel.app"
-EXPECTED_BUNDLE = "2026-08-27-r13"
+EXPECTED_BUNDLE = "2026-08-27-r14"
 
 
 def resolve_dashboard_from_backend() -> str | None:

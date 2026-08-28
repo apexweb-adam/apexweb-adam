@@ -489,15 +489,19 @@ async def get_platform_status(db: AsyncSession = Depends(get_db)) -> dict[str, A
 
   active_sources = sum(1 for s in sources if s["status"] in ("active", "degraded"))
   deploy_info = await build_deploy_status()
-  from app.engines.gate_entry_guard import get_chronic_loser_symbols, get_gate_entry_tightening
+  from app.engines.gate_entry_guard import get_chronic_loser_symbols, get_gate_entry_tightening, get_proven_winner_symbols
 
   gate_tightening = await get_gate_entry_tightening(db)
   chronic_loser_symbols: dict[str, list[str]] = {}
+  proven_winner_symbols: dict[str, list[str]] = {}
   if gate_tightening.active:
     for bot_type in BOT_TYPES:
       losers = await get_chronic_loser_symbols(db, bot_type)
       if losers:
         chronic_loser_symbols[bot_type] = sorted(losers)
+      winners = await get_proven_winner_symbols(db, bot_type)
+      if winners:
+        proven_winner_symbols[bot_type] = sorted(winners)
   tv_items = next((s["items_collected"] for s in sources if s["source"] == "tradingview"), 0)
   base_next_steps = (
     []
@@ -531,6 +535,7 @@ async def get_platform_status(db: AsyncSession = Depends(get_db)) -> dict[str, A
       "max_commodities_open_positions": gate_tightening.max_commodities_open_positions,
       "blocked_new_entries": sorted(gate_tightening.blocked_new_entries),
       "chronic_loser_symbols": chronic_loser_symbols,
+      "proven_winner_symbols": proven_winner_symbols,
     },
     "bots": bots,
     "intelligence": {

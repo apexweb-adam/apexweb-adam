@@ -537,6 +537,26 @@ export default function Dashboard() {
                               {" "}(WR &lt; 40%, ≥15 trades)
                             </p>
                           )}
+                          {platformStatus.gate_entry_tightening.proven_winner_symbols &&
+                            Object.keys(platformStatus.gate_entry_tightening.proven_winner_symbols).length > 0 && (
+                              <p className="text-emerald-400/90">
+                                Proven winners (easier entries):{" "}
+                                {Object.entries(platformStatus.gate_entry_tightening.proven_winner_symbols)
+                                  .map(([bot, syms]) => `${botLabel(bot)}: ${syms.join(", ")}`)
+                                  .join(" · ")}
+                              </p>
+                            )}
+                          {platformStatus.gate_entry_tightening.chronic_loser_symbols &&
+                            Object.keys(platformStatus.gate_entry_tightening.chronic_loser_symbols).length > 0 && (
+                              <p className="text-red-400/80">
+                                Chronic losers (skipped):{" "}
+                                {Object.entries(platformStatus.gate_entry_tightening.chronic_loser_symbols)
+                                  .map(([bot, syms]) =>
+                                    `${botLabel(bot)}: ${syms.slice(0, 3).join(", ")}${syms.length > 3 ? "…" : ""}`
+                                  )
+                                  .join(" · ")}
+                              </p>
+                            )}
                         </div>
                       </div>
                     )}

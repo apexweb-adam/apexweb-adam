@@ -7,7 +7,12 @@ from sqlalchemy import select
 
 from app.config import settings
 from app.database import SessionLocal
-from app.engines.gate_entry_guard import bot_min_sentiment, get_chronic_loser_symbols, get_gate_entry_tightening
+from app.engines.gate_entry_guard import (
+  bot_min_sentiment,
+  get_chronic_loser_symbols,
+  get_gate_entry_tightening,
+  get_proven_winner_symbols,
+)
 from app.engines.integration_signals import get_integration_boost
 from app.engines.intelligence_scoring import compute_bot_sentiment
 from app.engines.learning_engine import LearningEngine
@@ -90,8 +95,11 @@ class BaseBot(ABC):
       strategy = await engine.get_strategy()
       gate_tightening = await get_gate_entry_tightening(session)
       chronic_losers: frozenset[str] = frozenset()
+      proven_winners: frozenset[str] = frozenset()
       if gate_tightening.active:
         chronic_losers = await get_chronic_loser_symbols(session, self.bot_type)
+        if self.bot_type == "stocks_futures":
+          proven_winners = await get_proven_winner_symbols(session, self.bot_type)
       open_positions = await engine.get_open_positions()
       open_count = len(open_positions)
       loss_streak = await engine.get_consecutive_losses()
@@ -189,6 +197,8 @@ class BaseBot(ABC):
           continue
 
         entry_min_signal = min_signal
+        if gate_tightening.active and self.bot_type == "stocks_futures" and symbol in proven_winners:
+          entry_min_signal = max(0.08, entry_min_signal - 0.02)
         if (
           gate_tightening.active
           and self.bot_type == "stocks_futures"
