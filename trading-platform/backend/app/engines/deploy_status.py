@@ -27,7 +27,7 @@ DEFAULT_VERIFIED_DASHBOARD_URL = (
 )
 DEFAULT_VERIFIED_DEPLOYMENT_ID = "dpl_29H1cYhLuLb1wN7L3HJD9yizZ8pL"
 EXPECTED_DASHBOARD_BUNDLE = "2026-08-28-r25"
-EXPECTED_PLATFORM_REVISION = "2026-08-28-r79"
+EXPECTED_PLATFORM_REVISION = "2026-08-28-r80"
 GIT_MAIN_ALIAS = "apex-trading-dashboard-git-main"
 ACCEPTABLE_DASHBOARD_BUNDLES = frozenset({
   "2026-08-27-r9", "2026-08-27-r10", "2026-08-27-r11", "2026-08-27-r12",
@@ -439,7 +439,8 @@ async def build_deploy_status() -> dict[str, Any]:
       f"Render deploy is stale — running {deployed[:12] if deployed else '?'} "
       f"but main is {latest_sha[:12] if latest_sha else '?'}. "
       "Do NOT use Deploy Hook when behind main (it redeploys the old commit). "
-      "Use Render Manual Deploy → latest commit, or set RENDER_API_KEY in GitHub secrets."
+      "Use Render Manual Deploy → latest commit, or set RENDER_API_KEY in GitHub secrets. "
+      "If Auto-Deploy is 'After CI Checks Pass', switch to 'On Commit' — Vercel failures block checksPass."
     )
     if pending_changes:
       summaries = [c["message"] for c in pending_changes[:3]]
