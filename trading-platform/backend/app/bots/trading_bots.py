@@ -10,7 +10,9 @@ from app.database import SessionLocal
 from app.engines.gate_entry_guard import (
   bot_min_sentiment,
   chronic_loser_blocks_shadow_entry,
+  apply_entry_min_signal_ease,
   early_verification_index_etf_entry_min_signal,
+  early_verification_raw_signal_ok,
   get_chronic_loser_symbols,
   get_gate_entry_tightening,
   get_gate_skip_symbols,
@@ -381,7 +383,9 @@ class BaseBot(ABC):
 
         entry_min_signal = min_signal
         if gate_tightening.active and self.bot_type == "stocks_futures" and symbol in proven_winners:
-          entry_min_signal = max(0.08, entry_min_signal - 0.02)
+          entry_min_signal = apply_entry_min_signal_ease(
+            entry_min_signal, 0.02, early_boost=early_verification_boost
+          )
         if (
           gate_tightening.active
           and self.bot_type == "stocks_futures"
@@ -389,13 +393,17 @@ class BaseBot(ABC):
           and "tradingview" in integration_reason.lower()
           and integration_boost > 0.04
         ):
-          entry_min_signal = max(0.08, entry_min_signal - 0.03)
+          entry_min_signal = apply_entry_min_signal_ease(
+            entry_min_signal, 0.03, early_boost=early_verification_boost
+          )
         if (
           gate_tightening.active
           and self.bot_type == "stocks_futures"
           and signal.rsi_divergence == "bullish"
         ):
-          entry_min_signal = max(0.08, entry_min_signal - 0.02)
+          entry_min_signal = apply_entry_min_signal_ease(
+            entry_min_signal, 0.02, early_boost=early_verification_boost
+          )
         entry_min_signal = early_verification_index_etf_entry_min_signal(
           symbol,
           entry_min_signal,
@@ -462,6 +470,13 @@ class BaseBot(ABC):
           gate_tightening.active
           and self.bot_type == "stocks_futures"
           and not stocks_gate_entry_sentiment_ok(sentiment, integration_boost)
+        ):
+          continue
+
+        if not early_verification_raw_signal_ok(
+          signal.score,
+          early_boost=early_verification_boost,
+          bot_type=self.bot_type,
         ):
           continue
 

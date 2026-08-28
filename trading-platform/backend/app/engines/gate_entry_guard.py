@@ -99,8 +99,11 @@ GATE_INDEX_ETF_SYMBOLS = frozenset({"SPY", "QQQ"})
 EARLY_VERIFICATION_INDEX_ETF_SIGNAL_BONUS = 0.08
 EARLY_VERIFICATION_MAX_TRADES = 30
 EARLY_VERIFICATION_MIN_SIGNAL_FLOOR = 0.20
+EARLY_VERIFICATION_ENTRY_MIN_SIGNAL_FLOOR = 0.18
+EARLY_VERIFICATION_MIN_RAW_SIGNAL_SCORE = 0.12
 EARLY_VERIFICATION_SIGNAL_EASE = 0.04
 EARLY_VERIFICATION_SENTIMENT_EASE = 0.03
+DEFAULT_ENTRY_MIN_SIGNAL_FLOOR = 0.08
 
 
 def early_verification_active(active_trades: int, active_wr: float) -> bool:
@@ -218,6 +221,33 @@ def early_verification_index_etf_entry_min_signal(
   if early_boost and symbol in GATE_INDEX_ETF_SYMBOLS:
     return entry_min_signal + EARLY_VERIFICATION_INDEX_ETF_SIGNAL_BONUS
   return entry_min_signal
+
+
+def apply_entry_min_signal_ease(
+  entry_min_signal: float,
+  ease: float,
+  *,
+  early_boost: bool,
+) -> float:
+  """Lower entry threshold for proven/TV/RSI setups — capped higher during early verification."""
+  floor = (
+    EARLY_VERIFICATION_ENTRY_MIN_SIGNAL_FLOOR
+    if early_boost
+    else DEFAULT_ENTRY_MIN_SIGNAL_FLOOR
+  )
+  return max(floor, entry_min_signal - ease)
+
+
+def early_verification_raw_signal_ok(
+  signal_score: float,
+  *,
+  early_boost: bool,
+  bot_type: str,
+) -> bool:
+  """Block gate entries when raw technical score is too weak — composite can inflate via TV boost."""
+  if early_boost and bot_type == "stocks_futures":
+    return signal_score >= EARLY_VERIFICATION_MIN_RAW_SIGNAL_SCORE
+  return True
 UNDERPERFORMER_MIN_TRADES = 15
 UNDERPERFORMER_MAX_WIN_RATE = 0.40
 CHRONIC_LOSER_MIN_TRADES = 3
