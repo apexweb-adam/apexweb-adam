@@ -11,6 +11,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Run backend unit tests
+        run: |
+          pip install -q pytest
+          cd trading-platform/backend
+          PYTHONPATH=. python3 -m pytest tests/ -q
+
       - name: Check production dashboard bundle and proxy
         env:
           VERIFIED_PREVIEW: "https://apex-trading-dashboard-mz9mzjoaq-apexweb-adams-projects.vercel.app"
