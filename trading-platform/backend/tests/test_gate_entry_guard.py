@@ -94,7 +94,7 @@ def test_shadow_intel_composite_override_crypto_nudge():
     "crypto",
     graduation_nudge=True,
     shadow_mode=True,
-    composite=0.36,
+    composite=0.33,
     entry_min_signal=0.26,
     integration_boost=0.14,
   ) is True
@@ -106,6 +106,32 @@ def test_shadow_intel_composite_override_crypto_nudge():
     entry_min_signal=0.26,
     integration_boost=0.14,
   ) is False
+
+
+def test_chronic_loser_blocks_shadow_entry_intel_bypass():
+  from app.engines.gate_entry_guard import chronic_loser_blocks_shadow_entry
+
+  assert chronic_loser_blocks_shadow_entry(
+    "BTCUSDT",
+    frozenset({"BTCUSDT"}),
+    graduation_nudge=True,
+    shadow_mode=True,
+    intel_override=True,
+  ) is False
+  assert chronic_loser_blocks_shadow_entry(
+    "BTCUSDT",
+    frozenset({"BTCUSDT"}),
+    graduation_nudge=True,
+    shadow_mode=True,
+    intel_override=False,
+  ) is True
+  assert chronic_loser_blocks_shadow_entry(
+    "NVDA",
+    frozenset({"NVDA"}),
+    graduation_nudge=False,
+    shadow_mode=False,
+    intel_override=True,
+  ) is True
 
 
 def test_shadow_requires_macd_crypto_nudge_off():

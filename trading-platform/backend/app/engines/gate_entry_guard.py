@@ -137,11 +137,27 @@ def shadow_intel_composite_override(
     bot_type, SHADOW_INTEL_COMPOSITE_FLOOR
   )
   boost_floor = SHADOW_INTEL_BOOST_FLOOR_BY_BOT.get(bot_type, SHADOW_INTEL_BOOST_FLOOR)
-  composite_margin = 0.08 if bot_type == "crypto" else 0.15
+  composite_margin = 0.05 if bot_type == "crypto" else 0.15
   return (
     composite >= max(entry_min_signal + composite_margin, composite_floor)
     and integration_boost >= boost_floor
   )
+
+
+def chronic_loser_blocks_shadow_entry(
+  symbol: str,
+  chronic_symbols: frozenset[str],
+  *,
+  graduation_nudge: bool,
+  shadow_mode: bool,
+  intel_override: bool,
+) -> bool:
+  """Chronic losers are skippable during graduation nudge when intel override applies."""
+  if symbol not in chronic_symbols:
+    return False
+  if graduation_nudge and shadow_mode and intel_override:
+    return False
+  return True
 
 
 def shadow_entry_min_signal(
@@ -431,13 +447,18 @@ async def is_symbol_in_trade_cooldown(
   return elapsed < seconds
 
 
-async def get_gate_skip_symbols(session: AsyncSession, bot_type: str) -> frozenset[str]:
-  """Union of chronic, recent, large-loss, and daily-review loser symbols during gate."""
-  chronic = await get_chronic_loser_symbols(session, bot_type)
+async def get_hard_gate_skip_symbols(session: AsyncSession, bot_type: str) -> frozenset[str]:
+  """Symbols that must never be bypassed — recent streaks, large losses, post-mortem blocks."""
   recent = await get_recent_loser_symbols(session, bot_type)
   large = await get_large_recent_loss_symbols(session, bot_type)
   review = await get_review_blocked_symbols(session, bot_type)
-  return chronic | recent | large | review
+  return recent | large | review
+
+
+async def get_gate_skip_symbols(session: AsyncSession, bot_type: str) -> frozenset[str]:
+  """Union of chronic, recent, large-loss, and daily-review loser symbols during gate."""
+  chronic = await get_chronic_loser_symbols(session, bot_type)
+  return chronic | await get_hard_gate_skip_symbols(session, bot_type)
 
 
 async def get_proven_winner_symbols(

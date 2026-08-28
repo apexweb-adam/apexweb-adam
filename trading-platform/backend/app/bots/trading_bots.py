@@ -9,9 +9,12 @@ from app.config import settings
 from app.database import SessionLocal
 from app.engines.gate_entry_guard import (
   bot_min_sentiment,
+  chronic_loser_blocks_shadow_entry,
   early_verification_index_etf_entry_min_signal,
+  get_chronic_loser_symbols,
   get_gate_entry_tightening,
   get_gate_skip_symbols,
+  get_hard_gate_skip_symbols,
   get_proven_winner_symbols,
   early_verification_active,
   gate_entry_guards_active,
@@ -140,9 +143,11 @@ class BaseBot(ABC):
         per_bot = await ProfitabilityGate(session).evaluate_per_bot()
         shadow_bot_wr = float((per_bot.get(self.bot_type) or {}).get("win_rate") or 0)
       chronic_losers: frozenset[str] = frozenset()
+      hard_skip_symbols: frozenset[str] = frozenset()
       proven_winners: frozenset[str] = frozenset()
       if entry_guards:
-        chronic_losers = await get_gate_skip_symbols(session, self.bot_type)
+        chronic_losers = await get_chronic_loser_symbols(session, self.bot_type)
+        hard_skip_symbols = await get_hard_gate_skip_symbols(session, self.bot_type)
       if gate_tightening.active or shadow_mode:
         if self.bot_type in ("stocks_futures", "commodities"):
           proven_winners = await get_proven_winner_symbols(session, self.bot_type)
@@ -309,9 +314,6 @@ class BaseBot(ABC):
         if await is_symbol_in_trade_cooldown(session, self.bot_type, symbol):
           continue
 
-        if entry_guards and symbol in chronic_losers:
-          continue
-
         if (
           gate_tightening.active
           and self.bot_type == "stocks_futures"
@@ -400,6 +402,27 @@ class BaseBot(ABC):
           early_boost=early_verification_boost,
         )
 
+        intel_override = shadow_intel_composite_override(
+          self.bot_type,
+          graduation_nudge=graduation_nudge,
+          shadow_mode=shadow_mode,
+          composite=composite,
+          entry_min_signal=entry_min_signal,
+          integration_boost=integration_boost,
+        )
+
+        if entry_guards and symbol in hard_skip_symbols:
+          continue
+
+        if chronic_loser_blocks_shadow_entry(
+          symbol,
+          chronic_losers,
+          graduation_nudge=graduation_nudge,
+          shadow_mode=shadow_mode,
+          intel_override=intel_override,
+        ):
+          continue
+
         volume_required = signal.volume_confirmed
         if (
           gate_tightening.active
@@ -442,14 +465,7 @@ class BaseBot(ABC):
         ):
           continue
 
-        entry_direction_ok = signal.direction == "buy" or shadow_intel_composite_override(
-          self.bot_type,
-          graduation_nudge=graduation_nudge,
-          shadow_mode=shadow_mode,
-          composite=composite,
-          entry_min_signal=entry_min_signal,
-          integration_boost=integration_boost,
-        )
+        entry_direction_ok = signal.direction == "buy" or intel_override
 
         if (
           entry_direction_ok
@@ -461,14 +477,7 @@ class BaseBot(ABC):
           reason = f"Signal:{signal.score:.2f} Sentiment:{sentiment:.2f}"
           if shadow_mode:
             reason = f"[shadow] {reason}"
-          if shadow_intel_composite_override(
-            self.bot_type,
-            graduation_nudge=graduation_nudge,
-            shadow_mode=shadow_mode,
-            composite=composite,
-            entry_min_signal=entry_min_signal,
-            integration_boost=integration_boost,
-          ):
+          if intel_override:
             reason = f"[shadow-intel] {reason}"
           if sentiment_sources:
             reason += f" Intel:[{sentiment_sources}]"
