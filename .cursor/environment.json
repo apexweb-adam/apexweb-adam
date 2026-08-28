@@ -15,6 +15,7 @@
   "secrets": [
     "RENDER_API_KEY",
     "VERCEL_TOKEN",
+    "VERCEL_DEPLOY_HOOK",
     "RENDER_DEPLOY_HOOK",
     "TRADINGVIEW_WEBHOOK_SECRET"
   ]
