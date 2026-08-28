@@ -18,6 +18,7 @@ class GateEntryTightening:
   min_composite_boost: float
   max_pm_open_positions: int | None = None
   max_crypto_open_positions: int | None = None
+  max_commodities_open_positions: int | None = None
 
 
 BOT_MIN_SENTIMENT = {
@@ -54,6 +55,7 @@ async def get_gate_entry_tightening(session: AsyncSession) -> GateEntryTightenin
     min_composite_boost=boost,
     max_pm_open_positions=3 if deficit >= 0.02 else None,
     max_crypto_open_positions=2 if deficit >= 0.02 else None,
+    max_commodities_open_positions=2 if deficit >= 0.02 else None,
   )
 
 

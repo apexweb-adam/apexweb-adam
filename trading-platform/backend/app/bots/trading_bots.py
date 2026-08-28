@@ -172,6 +172,13 @@ class BaseBot(ABC):
           continue
 
         if (
+          gate_tightening.max_commodities_open_positions is not None
+          and self.bot_type == "commodities"
+          and open_count >= gate_tightening.max_commodities_open_positions
+        ):
+          continue
+
+        if (
           signal.direction == "buy"
           and signal.volume_confirmed
           and composite >= min_signal
