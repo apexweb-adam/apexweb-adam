@@ -204,6 +204,34 @@ async def bot_allows_new_entries(session: AsyncSession, bot_type: str) -> bool:
   return bot_type not in tightening.blocked_new_entries
 
 
+async def sync_gate_bot_pauses(session: AsyncSession) -> list[str]:
+  """Pause chronic underperformers during verification so gate metrics focus on viable bots.
+
+  Uses aggregate win rate (all bots) to decide pauses; does not auto-unpause — only paper
+  reset or admin unpause clears pauses once set.
+  """
+  from app.engines.platform_settings import is_bot_paused, set_bot_paused
+
+  gate = await ProfitabilityGate(session).evaluate()
+  aggregate = gate.get("aggregate") or {}
+  agg_wr = float(aggregate.get("win_rate") or gate.get("win_rate") or 0)
+  agg_total = int(aggregate.get("total_trades") or 0)
+
+  if agg_total < 30 or agg_wr >= ProfitabilityGate.MIN_WIN_RATE:
+    return []
+
+  blocked = await get_underperforming_bots(session)
+  paused_now: list[str] = []
+  for bot_type in blocked:
+    if bot_type == "stocks_futures":
+      continue
+    if await is_bot_paused(session, bot_type):
+      continue
+    await set_bot_paused(session, bot_type, True)
+    paused_now.append(bot_type)
+  return paused_now
+
+
 async def get_gate_entry_tightening(session: AsyncSession) -> GateEntryTightening:
   """Return stricter entry rules while aggregate gate win rate is below target."""
   gate = await ProfitabilityGate(session).evaluate()
