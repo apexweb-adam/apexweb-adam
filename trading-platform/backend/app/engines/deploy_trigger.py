@@ -68,18 +68,22 @@ async def maybe_trigger_stale_redeploy(*, force: bool = False) -> dict[str, Any]
   if not force and not status.get("is_stale"):
     return {"triggered": False, "reason": "deploy_current", "deploy": status}
 
+  commits_behind = int(status.get("commits_behind") or 0)
+
   if not force:
     async with SessionLocal() as session:
       last_raw = await get_platform_setting(session, LAST_REDEPLOY_KEY)
       if last_raw:
         try:
           last = datetime.fromisoformat(last_raw.replace("Z", "+00:00")).replace(tzinfo=None)
-          if datetime.utcnow() - last < REDEPLOY_COOLDOWN:
+          cooldown = REDEPLOY_COOLDOWN
+          if commits_behind >= 3:
+            cooldown = timedelta(minutes=15)
+          if datetime.utcnow() - last < cooldown:
             return {"triggered": False, "reason": "cooldown", "deploy": status}
         except ValueError:
           pass
 
-  commits_behind = int(status.get("commits_behind") or 0)
   clear_cache = force or commits_behind > 0
 
   api_result = await trigger_render_api_deploy(clear_cache=clear_cache)

@@ -89,19 +89,12 @@ def bundle_is_acceptable(cfg: dict[str, Any]) -> bool:
 def bundle_rank(cfg: dict[str, Any]) -> int:
   revision = str(cfg.get("bundleRevision") or "")
   if revision == EXPECTED_DASHBOARD_BUNDLE:
-    return 8
-  if revision == "2026-08-27-r15":
-    return 7
-  if revision == "2026-08-27-r14":
-    return 6
-  if revision == "2026-08-27-r13":
-    return 5
-  if revision == "2026-08-27-r12":
-    return 4
-  if revision == "2026-08-27-r11":
-    return 3
-  if revision == "2026-08-27-r10":
-    return 2
+    return 100
+  if "-r" in revision:
+    try:
+      return int(revision.rsplit("-r", 1)[-1])
+    except ValueError:
+      pass
   if revision in ACCEPTABLE_DASHBOARD_BUNDLES:
     return 1
   return 0
