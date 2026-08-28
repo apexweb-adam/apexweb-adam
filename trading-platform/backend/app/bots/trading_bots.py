@@ -89,7 +89,7 @@ class BaseBot(ABC):
     async with SessionLocal() as session:
       return await compute_bot_sentiment(session, self.bot_type, symbol)
 
-  async def scan_and_trade(self) -> list[dict]:
+  async def scan_and_trade(self, *, allow_new_entries: bool = True) -> list[dict]:
     actions: list[dict] = []
     symbols = await self.get_symbols()
 
@@ -113,7 +113,10 @@ class BaseBot(ABC):
       open_positions = await engine.get_open_positions()
       open_count = len(open_positions)
       held_symbols = [p.symbol for p in open_positions if p.symbol]
-      symbols = list(dict.fromkeys(held_symbols + symbols))
+      if allow_new_entries:
+        symbols = list(dict.fromkeys(held_symbols + symbols))
+      else:
+        symbols = held_symbols
       loss_streak = await engine.get_consecutive_losses()
       min_signal = strategy.min_signal_score
       if gate_tightening.active:
@@ -228,6 +231,9 @@ class BaseBot(ABC):
                 self._register_symbol_cooldown(symbol, after_loss=True)
               else:
                 self._register_symbol_cooldown(symbol, after_loss=False)
+          continue
+
+        if not allow_new_entries:
           continue
 
         cooldown = self._symbol_cooldown_until.get(symbol)
@@ -443,11 +449,16 @@ class StocksFuturesBot(BaseBot):
     return 13 * 60 + 30 <= minutes <= 21 * 60 + 30
 
   async def scan_and_trade(self) -> list[dict]:
-    symbols = await self.get_symbols()
-    if not self._in_us_session():
-      await self._record_scan_result(len(symbols), [], "outside US market hours")
-      return []
-    return await super().scan_and_trade()
+    in_session = self._in_us_session()
+    if not in_session:
+      async with SessionLocal() as session:
+        engine = PaperTradingEngine(session, self.bot_type)
+        open_positions = await engine.get_open_positions()
+        if not open_positions:
+          symbols = await self.get_symbols()
+          await self._record_scan_result(len(symbols), [], "outside US market hours")
+          return []
+    return await super().scan_and_trade(allow_new_entries=in_session)
 
 
 class CommoditiesBot(BaseBot):
