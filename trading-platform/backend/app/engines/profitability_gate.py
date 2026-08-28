@@ -10,6 +10,23 @@ from app.engines.trade_stats import aggregate_win_rate
 from app.models.entities import Portfolio, Trade
 
 
+def _naive_utc(dt: datetime) -> datetime:
+  if dt.tzinfo is not None:
+    return dt.replace(tzinfo=None)
+  return dt
+
+
+def _sells_since(sells: list[Trade], since: datetime | None) -> list[Trade]:
+  """Keep closed sells on or after the verification window start."""
+  if since is None:
+    return sells
+  start = _naive_utc(since)
+  return [
+    t for t in sells
+    if t.executed_at and _naive_utc(t.executed_at) >= start
+  ]
+
+
 class ProfitabilityGate:
   """Tracks whether paper trading performance meets thresholds for live trading."""
 
@@ -32,7 +49,7 @@ class ProfitabilityGate:
     gross_profit = sum(t.pnl for t in winners)
     gross_loss = abs(sum(t.pnl for t in losers))
     profit_factor = gross_profit / gross_loss if gross_loss > 0 else float("inf") if gross_profit > 0 else 0
-    total_pnl = sum(p.total_pnl for p in portfolios)
+    total_pnl = sum(t.pnl for t in sells)
     return {
       "total_trades": len(sells),
       "win_rate": win_rate,
@@ -48,14 +65,16 @@ class ProfitabilityGate:
     )
     paused_bots = await get_paused_bot_types(self.session)
     paused_set = set(paused_bots)
+    verification_start = await get_verification_started_at(self.session)
 
-    active_sells = [t for t in sells if t.bot_type not in paused_set]
+    period_sells = _sells_since(sells, verification_start)
+    active_sells = [t for t in period_sells if t.bot_type not in paused_set]
     active_portfolios = [p for p in portfolios if p.bot_type not in paused_set]
     active_metrics = self._trade_metrics(active_sells, active_portfolios)
-    aggregate_metrics = self._trade_metrics(sells, portfolios)
+    aggregate_metrics = self._trade_metrics(period_sells, portfolios)
     from app.engines.equity_history import build_equity_history
 
-    equity_history = build_equity_history(sells)
+    equity_history = build_equity_history(active_sells)
 
     total_trades = active_metrics["total_trades"]
     win_rate = active_metrics["win_rate"]
@@ -65,7 +84,6 @@ class ProfitabilityGate:
     first_trade = (
       await self.session.execute(select(func.min(Trade.executed_at)))
     ).scalar_one_or_none()
-    verification_start = await get_verification_started_at(self.session)
     period_start = verification_start
     if first_trade:
       if first_trade.tzinfo is not None:
