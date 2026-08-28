@@ -28,11 +28,17 @@ async def intelligence_job() -> None:
 
 
 async def content_study_job() -> None:
+  applied = 0
+  intel_applied = 0
   async with SessionLocal() as session:
     engine = ContentStudyEngine(session)
     applied = await engine.study_and_apply()
     intel_applied = await engine.study_from_intelligence()
     print(f"[ContentStudy] Applied {applied} knowledge items, {intel_applied} from intelligence")
+  if applied or intel_applied:
+    from app.ws_manager import push_live_update
+
+    await push_live_update()
 
 
 async def daily_review_job() -> None:
@@ -45,6 +51,9 @@ async def daily_review_job() -> None:
         f"[DailyReview] {bot_type}: {review.total_trades} trades, "
         f"win rate {review.win_rate:.1%}, net PnL ${review.net_pnl:.2f}"
       )
+  from app.ws_manager import push_live_update
+
+  await push_live_update()
 
 
 async def verification_snapshot_job() -> None:

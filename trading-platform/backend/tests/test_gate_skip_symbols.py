@@ -29,6 +29,22 @@ def test_recent_loser_symbols_blocks_zero_win_streak():
   assert "NVDA" not in blocked
 
 
+def test_review_blocked_symbols_parses_gate_skip_recommendation():
+  session = AsyncMock()
+  session.execute = AsyncMock(
+    return_value=MagicMock(
+      all=lambda: [
+        (
+          "Most losses on CL=F (2 trades); "
+          "Gate skip recommended for CL=F until win rate recovers",
+        ),
+      ]
+    )
+  )
+  blocked = asyncio.run(get_review_blocked_symbols(session, "commodities"))
+  assert "CL=F" in blocked
+
+
 def test_review_blocked_symbols_parses_patterns():
   session = AsyncMock()
   session.execute = AsyncMock(

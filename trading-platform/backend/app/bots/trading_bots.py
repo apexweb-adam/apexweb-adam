@@ -64,6 +64,12 @@ class BaseBot(ABC):
         if after_loss
         else settings.commodities_reentry_cooldown_seconds
       )
+    if self.bot_type == "stocks_futures":
+      return (
+        settings.stocks_loss_cooldown_seconds
+        if after_loss
+        else settings.stocks_reentry_cooldown_seconds
+      )
     return None
 
   def _register_symbol_cooldown(self, symbol: str, *, after_loss: bool) -> None:
@@ -528,6 +534,11 @@ class PolymarketBot(BaseBot):
         engine = PaperTradingEngine(session, self.bot_type)
         strategy = await engine.get_strategy()
         gate_tightening = await get_gate_entry_tightening(session)
+        gate_skip_symbols = (
+          await get_gate_skip_symbols(session, self.bot_type)
+          if gate_tightening.active
+          else frozenset()
+        )
         min_score = strategy.min_signal_score
         if gate_tightening.active:
           min_score = min(0.95, min_score + gate_tightening.min_composite_boost)
@@ -629,6 +640,9 @@ class PolymarketBot(BaseBot):
               continue
 
             if pm_open >= pm_position_cap:
+              continue
+
+            if gate_tightening.active and symbol in gate_skip_symbols:
               continue
 
             if not meta or not is_macro_relevant_market(meta):
