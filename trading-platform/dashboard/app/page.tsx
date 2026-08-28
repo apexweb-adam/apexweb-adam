@@ -1104,7 +1104,7 @@ function BotCard({
     bot.bot_type === "stocks_futures" &&
     !session.in_session &&
     session.minutes_until_open != null &&
-    session.minutes_until_open <= 45
+    session.minutes_until_open <= 90
       ? "TV prep active"
       : null;
   return (
