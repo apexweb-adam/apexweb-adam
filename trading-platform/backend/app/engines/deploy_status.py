@@ -26,9 +26,9 @@ DEFAULT_VERIFIED_DASHBOARD_URL = (
   "https://apex-trading-dashboard-jwi0so16v-apexweb-adams-projects.vercel.app"
 )
 DEFAULT_VERIFIED_DEPLOYMENT_ID = "dpl_FUESxpakSQJUngFmWKzrHbN7PUwH"
-EXPECTED_DASHBOARD_BUNDLE = "2026-08-27-r14"
+EXPECTED_DASHBOARD_BUNDLE = "2026-08-27-r15"
 ACCEPTABLE_DASHBOARD_BUNDLES = frozenset({
-  "2026-08-27-r9", "2026-08-27-r10", "2026-08-27-r11", "2026-08-27-r12", "2026-08-27-r13", "2026-08-27-r14",
+  "2026-08-27-r9", "2026-08-27-r10", "2026-08-27-r11", "2026-08-27-r12", "2026-08-27-r13", "2026-08-27-r14", "2026-08-27-r15",
 })
 
 
@@ -82,6 +82,8 @@ def bundle_is_acceptable(cfg: dict[str, Any]) -> bool:
 def bundle_rank(cfg: dict[str, Any]) -> int:
   revision = str(cfg.get("bundleRevision") or "")
   if revision == EXPECTED_DASHBOARD_BUNDLE:
+    return 7
+  if revision == "2026-08-27-r14":
     return 6
   if revision == "2026-08-27-r13":
     return 5

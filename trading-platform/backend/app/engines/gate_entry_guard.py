@@ -22,6 +22,7 @@ class GateEntryTightening:
   max_pm_open_positions: int | None = None
   max_crypto_open_positions: int | None = None
   max_commodities_open_positions: int | None = None
+  max_stocks_open_positions: int | None = None
   blocked_new_entries: frozenset[str] = frozenset()
 
 
@@ -145,6 +146,7 @@ async def get_gate_entry_tightening(session: AsyncSession) -> GateEntryTightenin
   crypto_cap = 1 if deficit >= 0.05 else (2 if deficit >= 0.02 else None)
   commodities_cap = 2 if deficit >= 0.02 else None
   blocked = await get_underperforming_bots(session)
+  stocks_cap = 3 if "stocks_futures" not in blocked and deficit >= 0.02 else None
 
   return GateEntryTightening(
     active=True,
@@ -155,6 +157,7 @@ async def get_gate_entry_tightening(session: AsyncSession) -> GateEntryTightenin
     max_pm_open_positions=pm_cap,
     max_crypto_open_positions=crypto_cap,
     max_commodities_open_positions=commodities_cap,
+    max_stocks_open_positions=stocks_cap,
     blocked_new_entries=blocked,
   )
 
