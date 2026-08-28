@@ -292,26 +292,11 @@ async def get_insights(
 
 @router.get("/strategies")
 async def get_strategies(db: AsyncSession = Depends(get_db)) -> list[dict[str, Any]]:
+  from app.engines.intel_source_status import serialize_strategy_config
+
   result = await db.execute(select(StrategyConfig))
   configs = result.scalars().all()
-  return [
-    {
-      "bot_type": c.bot_type,
-      "rsi_oversold": c.rsi_oversold,
-      "rsi_overbought": c.rsi_overbought,
-      "min_signal_score": c.min_signal_score,
-      "min_sentiment_score": c.min_sentiment_score,
-      "stop_loss_pct": c.stop_loss_pct,
-      "take_profit_pct": c.take_profit_pct,
-      "max_position_pct": c.max_position_pct,
-      "momentum_weight": c.momentum_weight,
-      "sentiment_weight": c.sentiment_weight,
-      "technical_weight": c.technical_weight,
-      "version": c.version,
-      "updated_at": c.updated_at.isoformat() if c.updated_at else None,
-    }
-    for c in configs
-  ]
+  return [serialize_strategy_config(c) for c in configs]
 
 
 @router.get("/profitability")
@@ -390,56 +375,9 @@ async def get_intelligence_routing() -> dict[str, Any]:
 
 @router.get("/intelligence/sources")
 async def get_intelligence_sources(db: AsyncSession = Depends(get_db)) -> list[dict[str, Any]]:
-  result = await db.execute(select(IntelligenceItem.source, IntelligenceItem.fetched_at))
-  rows = result.all()
-  source_counts: dict[str, int] = {}
-  source_latest: dict[str, datetime] = {}
-  for source, fetched_at in rows:
-    source_counts[source] = source_counts.get(source, 0) + 1
-    if source not in source_latest or (fetched_at and fetched_at > source_latest[source]):
-      source_latest[source] = fetched_at
+  from app.engines.intel_source_status import build_intel_sources
 
-  configured = {
-    "news": True,
-    "reddit": True,
-    "youtube": True,
-    "polymarket": True,
-    "polymarket_account": bool(
-      settings.polymarket_wallet_address or settings.polymarket_deposit_address
-    ),
-    "political": True,
-    "tiktok": True,
-    "tradingview": bool(settings.tradingview_webhook_secret),
-    "x": bool(settings.twitter_bearer_token) or bool(settings.newsapi_key),
-    "newsapi": bool(settings.newsapi_key),
-  }
-
-  def _status(source: str) -> str:
-    has_items = source_counts.get(source, 0) > 0
-    is_configured = configured.get(source, has_items)
-    if source == "tradingview" and is_configured:
-      return "active"  # push webhook — no poll items until alerts fire
-    if source == "x" and is_configured:
-      if settings.newsapi_key and not settings.twitter_bearer_token:
-        return "degraded"  # NewsAPI social proxy — lower quality than native X API
-      if not has_items:
-        return "degraded"  # token set but API returned no data (often 402 billing)
-      return "active"
-    if source == "tiktok" and (is_configured or has_items):
-      return "degraded"  # Google News proxy — no native TikTok API
-    if is_configured or has_items:
-      return "active"
-    return "pending"
-
-  return [
-    {
-      "source": source,
-      "status": _status(source),
-      "items_collected": source_counts.get(source, 0),
-      "last_fetched": source_latest.get(source).isoformat() if source in source_latest else None,
-    }
-    for source in ["news", "reddit", "youtube", "x", "tiktok", "polymarket", "polymarket_account", "political", "tradingview", "newsapi"]
-  ]
+  return await build_intel_sources(db)
 
 
 @router.get("/stats")

@@ -120,11 +120,8 @@ export type IntelligenceItem = {
   fetched_at: string;
 };
 
-/** Subset pushed over WebSocket in live updates. */
-export type RecentIntelItem = Pick<
-  IntelligenceItem,
-  "id" | "source" | "category" | "title" | "sentiment" | "relevance_score" | "fetched_at"
->;
+/** Full intelligence rows pushed over WebSocket in live updates. */
+export type RecentIntelItem = IntelligenceItem;
 
 export type TradeAnalysis = {
   id: number;

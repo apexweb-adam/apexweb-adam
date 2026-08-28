@@ -31,8 +31,12 @@ def test_build_live_payload_includes_learning_fields():
     assert "analyses" in payload
     assert "reviews" in payload
     assert "insights" in payload
+    assert "intel_sources" in payload
+    assert "strategies" in payload
     assert isinstance(payload["analyses"], list)
     assert isinstance(payload["reviews"], list)
     assert isinstance(payload["insights"], list)
+    assert isinstance(payload["intel_sources"], list)
+    assert isinstance(payload["strategies"], list)
   finally:
     gate_mod.build_gate_ws_payload = orig
