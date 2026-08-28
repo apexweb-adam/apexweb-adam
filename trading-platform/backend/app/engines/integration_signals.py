@@ -70,7 +70,7 @@ async def get_integration_boost(session: AsyncSession, symbol: str) -> tuple[flo
     if item.source == "polymarket_account":
       weight = 0.12
     if item.source == "wallet_tracker":
-      weight = 0.18
+      weight = 0.22 if item.sentiment > 0.4 else 0.16
     if item.source == "hyperliquid":
       weight = 0.16
     if item.source == "dexscreener":

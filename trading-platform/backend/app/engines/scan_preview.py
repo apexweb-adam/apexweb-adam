@@ -39,6 +39,8 @@ from app.engines.gate_entry_guard import (
   shadow_intel_composite_override,
   shadow_requires_macd,
   stocks_gate_entry_sentiment_ok,
+  stocks_negative_pf_blocks_entry,
+  whale_memecoin_aligned,
 )
 from app.engines.integration_signals import get_integration_boost
 from app.engines.paper_trading import PaperTradingEngine
@@ -73,9 +75,12 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
   )
 
   shadow_bot_wr: float | None = None
+  per_bot_stats: dict[str, Any] = {}
+  if shadow_mode or bot_type == "stocks_futures":
+    per_bot_all = await ProfitabilityGate(session).evaluate_per_bot()
+    per_bot_stats = per_bot_all.get(bot_type) or {}
   if shadow_mode:
-    per_bot = await ProfitabilityGate(session).evaluate_per_bot()
-    shadow_bot_wr = float((per_bot.get(bot_type) or {}).get("win_rate") or 0)
+    shadow_bot_wr = float(per_bot_stats.get("win_rate") or 0)
 
   chronic_losers: frozenset[str] = frozenset()
   hard_skip_sets = HardGateSkipSets(
@@ -223,11 +228,21 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
       composite=composite,
       entry_min_signal=entry_min_signal,
       integration_boost=integration_boost,
+      whale_aligned=whale_memecoin_aligned(integration_reason, integration_boost),
     )
 
     entry_direction_ok = signal.direction == "buy" or intel_override
 
     blockers: list[str] = []
+    if stocks_negative_pf_blocks_entry(
+      bot_type=bot_type,
+      symbol=symbol,
+      composite=composite,
+      proven_winners=proven_winners,
+      profit_factor=per_bot_stats.get("profit_factor"),
+      total_trades=int(per_bot_stats.get("total_trades") or 0),
+    ):
+      blockers.append("stocks_negative_pf")
     cooldown_remaining = await symbol_cooldown_remaining_seconds(
       session,
       bot_type,

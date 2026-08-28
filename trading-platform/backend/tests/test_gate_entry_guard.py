@@ -147,6 +147,58 @@ def test_shadow_intel_composite_override_crypto_high_composite_only():
   ) is False
 
 
+def test_whale_memecoin_aligned():
+  from app.engines.gate_entry_guard import whale_memecoin_aligned
+
+  assert whale_memecoin_aligned(
+    "wallet tracker:+0.45; dexscreener:+0.35", 0.12
+  ) is True
+  assert whale_memecoin_aligned("hyperliquid:+0.20; wallet tracker:+0.40", 0.11) is True
+  assert whale_memecoin_aligned("wallet tracker:+0.45", 0.12) is False
+  assert whale_memecoin_aligned("dexscreener:+0.35", 0.12) is False
+
+
+def test_shadow_intel_composite_override_whale_aligned_crypto():
+  assert shadow_intel_composite_override(
+    "crypto",
+    graduation_nudge=True,
+    shadow_mode=True,
+    composite=0.41,
+    entry_min_signal=0.26,
+    integration_boost=0.14,
+    whale_aligned=True,
+  ) is True
+
+
+def test_stocks_negative_pf_blocks_entry():
+  from app.engines.gate_entry_guard import stocks_negative_pf_blocks_entry
+
+  assert stocks_negative_pf_blocks_entry(
+    bot_type="stocks_futures",
+    symbol="TSLA",
+    composite=0.35,
+    proven_winners=frozenset({"NVDA"}),
+    profit_factor=0.62,
+    total_trades=15,
+  ) is True
+  assert stocks_negative_pf_blocks_entry(
+    bot_type="stocks_futures",
+    symbol="NVDA",
+    composite=0.45,
+    proven_winners=frozenset({"NVDA"}),
+    profit_factor=0.62,
+    total_trades=15,
+  ) is False
+  assert stocks_negative_pf_blocks_entry(
+    bot_type="crypto",
+    symbol="BTCUSDT",
+    composite=0.35,
+    proven_winners=frozenset(),
+    profit_factor=0.62,
+    total_trades=15,
+  ) is False
+
+
 def test_chronic_loser_blocks_shadow_entry_intel_bypass():
   from app.engines.gate_entry_guard import (
     chronic_loser_blocks_shadow_entry,

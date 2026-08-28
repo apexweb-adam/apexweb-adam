@@ -103,6 +103,10 @@ SHADOW_INTEL_COMPOSITE_ONLY_BY_BOT = {
   "crypto": 0.46,
   "commodities": 0.48,
 }
+WHALE_ALIGNED_COMPOSITE_ONLY_BY_BOT = {
+  "crypto": 0.40,
+  "commodities": 0.44,
+}
 SHADOW_INTEL_CHRONIC_POSITION_SCALE = 0.25
 SHADOW_CHRONIC_LOSS_COOLDOWN_MULTIPLIER = 2
 LARGE_LOSS_COOLDOWN_MULTIPLIER_BY_BOT = {
@@ -123,6 +127,7 @@ EARLY_VERIFICATION_SENTIMENT_EASE = 0.03
 EARLY_VERIFICATION_LOSS_WIND_DOWN_USD = 15.0
 EARLY_VERIFICATION_LOSS_WIND_DOWN_SECONDS = 7200
 EARLY_VERIFICATION_MACD_INTEGRATION_BYPASS = 0.05
+STOCKS_NEGATIVE_PF_MIN_COMPOSITE = 0.42
 STOCKS_SESSION_CLOSE_WIND_DOWN_MINUTES = 30
 STOCKS_SESSION_CLOSE_FORCE_MINUTES = 15
 DEFAULT_ENTRY_MIN_SIGNAL_FLOOR = 0.08
@@ -149,6 +154,16 @@ def gate_position_scale(composite: float, entry_min_signal: float, *, early_boos
   return 0.5
 
 
+def whale_memecoin_aligned(integration_reason: str, integration_boost: float) -> bool:
+  """True when whale tracker aligns with DexScreener or Hyperliquid on the same symbol."""
+  reason = integration_reason.lower()
+  if integration_boost < 0.10:
+    return False
+  has_whale = "wallet" in reason
+  has_meme_intel = "dexscreener" in reason or "hyperliquid" in reason or "memecoin_confluence" in reason
+  return has_whale and has_meme_intel
+
+
 def shadow_intel_composite_override(
   bot_type: str,
   *,
@@ -157,6 +172,7 @@ def shadow_intel_composite_override(
   composite: float,
   entry_min_signal: float,
   integration_boost: float,
+  whale_aligned: bool = False,
 ) -> bool:
   """Allow shadow long when intel composite is strong despite technical sell/hold."""
   if not (graduation_nudge and shadow_mode and bot_type in ("commodities", "crypto")):
@@ -165,11 +181,19 @@ def shadow_intel_composite_override(
     bot_type, SHADOW_INTEL_COMPOSITE_FLOOR
   )
   composite_only_floor = SHADOW_INTEL_COMPOSITE_ONLY_BY_BOT.get(bot_type)
+  if whale_aligned:
+    whale_floor = WHALE_ALIGNED_COMPOSITE_ONLY_BY_BOT.get(bot_type)
+    if whale_floor is not None and composite >= max(whale_floor, entry_min_signal + 0.08):
+      return True
   if composite_only_floor is not None:
     if composite >= max(composite_only_floor, entry_min_signal + 0.12):
       return True
   boost_floor = SHADOW_INTEL_BOOST_FLOOR_BY_BOT.get(bot_type, SHADOW_INTEL_BOOST_FLOOR)
+  if whale_aligned:
+    boost_floor = max(0.04, boost_floor - 0.02)
   composite_margin = 0.05 if bot_type == "crypto" else 0.15
+  if whale_aligned and bot_type == "crypto":
+    composite_margin = 0.03
   return (
     composite >= max(entry_min_signal + composite_margin, composite_floor)
     and integration_boost >= boost_floor
@@ -929,6 +953,27 @@ def stocks_session_info() -> dict[str, Any]:
 def stocks_gate_entry_sentiment_ok(sentiment: float, integration_boost: float) -> bool:
   """During gate tightening, stocks need non-negative sentiment or a TV/integration boost."""
   return sentiment >= 0 or integration_boost > 0.03
+
+
+def stocks_negative_pf_blocks_entry(
+  *,
+  bot_type: str,
+  symbol: str,
+  composite: float,
+  proven_winners: frozenset[str],
+  profit_factor: float | None,
+  total_trades: int,
+) -> bool:
+  """During early verification with negative PF, only allow strong proven-winner entries."""
+  if bot_type != "stocks_futures":
+    return False
+  if total_trades >= EARLY_VERIFICATION_MAX_TRADES:
+    return False
+  if profit_factor is None or profit_factor >= 1.0:
+    return False
+  if symbol in proven_winners and composite >= STOCKS_NEGATIVE_PF_MIN_COMPOSITE:
+    return False
+  return True
 
 
 async def build_gate_ws_payload(session: AsyncSession) -> dict[str, Any]:
