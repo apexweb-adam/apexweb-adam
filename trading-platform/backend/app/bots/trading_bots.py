@@ -12,6 +12,7 @@ from app.engines.gate_entry_guard import (
   get_chronic_loser_symbols,
   get_gate_entry_tightening,
   get_proven_winner_symbols,
+  stocks_in_us_session,
 )
 from app.engines.integration_signals import get_integration_boost
 from app.engines.intelligence_scoring import compute_bot_sentiment
@@ -179,6 +180,7 @@ class BaseBot(ABC):
             unrealized = (price - position.entry_price) * position.quantity
             wind_down = (
               unrealized > 0
+              or (unrealized < 0 and held_seconds >= 3600)
               or signal.direction == "sell"
               or signal.rsi >= 65
               or held_seconds >= 4 * 3600
@@ -202,6 +204,7 @@ class BaseBot(ABC):
               unrealized = (position.entry_price - price) * position.quantity
             wind_down = (
               unrealized > 0
+              or (unrealized < 0 and held_seconds >= 3600)
               or signal.direction == "sell"
               or held_seconds >= 2 * 3600
             )
@@ -441,12 +444,7 @@ class StocksFuturesBot(BaseBot):
     return await fetch_yfinance_data(symbol)
 
   def _in_us_session(self) -> bool:
-    now = datetime.utcnow()
-    if now.weekday() >= 5:
-      return False
-    minutes = now.hour * 60 + now.minute
-    # US regular session ~9:30–16:00 ET (13:30–21:00 UTC); extend 30m for closes
-    return 13 * 60 + 30 <= minutes <= 21 * 60 + 30
+    return stocks_in_us_session()
 
   async def scan_and_trade(self) -> list[dict]:
     in_session = self._in_us_session()

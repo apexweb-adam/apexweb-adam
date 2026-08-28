@@ -300,6 +300,13 @@ export type GateEntryTightening = {
   stocks_proven_winners_only?: boolean;
 };
 
+export type BotSessionInfo = {
+  in_session: boolean;
+  mode: "entries" | "winddown_only";
+};
+
+export type BotSessions = Record<string, BotSessionInfo>;
+
 export type PlatformStatus = {
   platform: string;
   database: { engine: string; persistent: boolean };

@@ -37,6 +37,9 @@ manager = ConnectionManager()
 
 
 async def build_live_payload(session: AsyncSession) -> dict:
+  from app.engines.gate_entry_guard import build_gate_ws_payload
+
+  gate_payload = await build_gate_ws_payload(session)
   portfolios = (await session.execute(select(Portfolio))).scalars().all()
   sell_trades = (await session.execute(select(Trade).where(Trade.action == "sell"))).scalars().all()
   positions = (
@@ -148,6 +151,7 @@ async def build_live_payload(session: AsyncSession) -> dict:
       }
       for item in recent_intel_rows
     ],
+    **gate_payload,
   }
 
 

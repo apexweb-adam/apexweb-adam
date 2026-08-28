@@ -47,6 +47,7 @@ import type {
   IntelRouting,
   ActiveGateStatus,
   EquityHistoryPoint,
+  BotSessions,
 } from "@/lib/api";
 import { enrichProfitabilityStatus, activeGateToProfitability, buildEquityHistoryFromTrades } from "@/lib/profitability";
 import { VerificationPnLChart } from "@/components/VerificationPnLChart";
@@ -55,7 +56,7 @@ import { IntelRoutingPanel } from "@/components/IntelRoutingPanel";
 type Tab = "overview" | "trades" | "positions" | "intelligence" | "learning" | "strategy";
 
 export default function Dashboard() {
-  const { stats, portfolios, bots, positions: livePositions, trades: liveTrades, recentIntel, connected, lastUpdate, lastTrade } = useLiveData();
+  const { stats, portfolios, bots, positions: livePositions, trades: liveTrades, recentIntel, connected, lastUpdate, lastTrade, profitabilityGate: liveProfitability, gateEntryTightening, botSessions } = useLiveData();
   const { data: tradesRest } = useAPI<Trade[]>("/trades?limit=50", 30000);
   const { data: gateTradesRest } = useAPI<Trade[]>("/trades?limit=200", 30000);
   const { data: positionsRest } = useAPI<Position[]>("/positions", 30000);
@@ -131,16 +132,20 @@ export default function Dashboard() {
   }, [equityHistory, profitability, equityHistoryFromTrades]);
 
   const gateStatus = useMemo(() => {
+    const profSource = connected && liveProfitability ? liveProfitability : profitability;
     if (activeGate?.active_bots) {
-      return activeGateToProfitability(activeGate, profitability ?? undefined);
+      return activeGateToProfitability(activeGate, profSource ?? undefined);
     }
     return enrichProfitabilityStatus(
-      profitability ?? undefined,
+      profSource ?? undefined,
       gateTrades,
       portfolios,
       strategies
     );
-  }, [activeGate, profitability, gateTrades, portfolios, strategies]);
+  }, [activeGate, liveProfitability, connected, profitability, gateTrades, portfolios, strategies]);
+
+  const liveGateTightening =
+    gateEntryTightening ?? platformStatus?.gate_entry_tightening;
 
   const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
     { id: "overview", label: "Overview", icon: <BarChart3 size={16} /> },
@@ -293,7 +298,11 @@ export default function Dashboard() {
               <Card title="Bot Status">
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
                   {bots.map((bot) => (
-                    <BotCard key={bot.bot_type} bot={bot} />
+                    <BotCard
+                      key={bot.bot_type}
+                      bot={bot}
+                      session={botSessions?.[bot.bot_type]}
+                    />
                   ))}
                   {bots.length === 0 &&
                     ["crypto", "stocks_futures", "commodities", "polymarket"].map((type) => (
@@ -526,75 +535,78 @@ export default function Dashboard() {
                       </div>
                     )}
                     <p className="text-xs text-gray-500">{gateStatus.recommendation}</p>
-                    {platformStatus?.gate_entry_tightening?.active && (
+                    {liveGateTightening?.active && (
                       <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs">
                         <p className="text-amber-400 font-medium mb-1">
                           Gate entry tightening active (WR{" "}
-                          {formatPct(platformStatus.gate_entry_tightening.win_rate)} &lt; 55%)
+                          {formatPct(liveGateTightening.win_rate)} &lt; 55%)
+                          {connected && gateEntryTightening && (
+                            <span className="text-amber-500/70"> · live WS</span>
+                          )}
                         </p>
                         <div className="space-y-0.5 text-gray-400">
                           <p>
-                            Min sentiment: {platformStatus.gate_entry_tightening.min_sentiment.toFixed(2)}
-                            {platformStatus.gate_entry_tightening.require_macd_bullish &&
+                            Min sentiment: {liveGateTightening.min_sentiment.toFixed(2)}
+                            {liveGateTightening.require_macd_bullish &&
                               " · MACD bullish required"}
                           </p>
                           <p>
-                            PM max positions: {platformStatus.gate_entry_tightening.max_pm_open_positions}
-                            {platformStatus.gate_entry_tightening.max_crypto_open_positions != null && (
+                            PM max positions: {liveGateTightening.max_pm_open_positions}
+                            {liveGateTightening.max_crypto_open_positions != null && (
                               <span>
                                 {" "}
-                                · crypto max {platformStatus.gate_entry_tightening.max_crypto_open_positions}
+                                · crypto max {liveGateTightening.max_crypto_open_positions}
                               </span>
                             )}
-                            {platformStatus.gate_entry_tightening.max_commodities_open_positions != null && (
+                            {liveGateTightening.max_commodities_open_positions != null && (
                               <span>
                                 {" "}
                                 · commodities max{" "}
-                                {platformStatus.gate_entry_tightening.max_commodities_open_positions}
+                                {liveGateTightening.max_commodities_open_positions}
                               </span>
                             )}
-                            {platformStatus.gate_entry_tightening.max_stocks_open_positions != null && (
+                            {liveGateTightening.max_stocks_open_positions != null && (
                               <span>
                                 {" "}
                                 · stocks max{" "}
-                                {platformStatus.gate_entry_tightening.max_stocks_open_positions}
+                                {liveGateTightening.max_stocks_open_positions}
                               </span>
                             )}
-                            {platformStatus.gate_entry_tightening.min_composite_boost > 0 && (
+                            {liveGateTightening.min_composite_boost > 0 && (
                               <span>
                                 {" "}
-                                · composite boost +{platformStatus.gate_entry_tightening.min_composite_boost.toFixed(2)}
+                                · composite boost +{liveGateTightening.min_composite_boost.toFixed(2)}
                               </span>
                             )}
                           </p>
-                          {(platformStatus.gate_entry_tightening.blocked_new_entries?.length ?? 0) > 0 && (
+                          {(liveGateTightening.blocked_new_entries?.length ?? 0) > 0 && (
                             <p className="text-amber-300/90">
                               No new entries:{" "}
-                              {platformStatus.gate_entry_tightening.blocked_new_entries
+                              {liveGateTightening.blocked_new_entries
                                 ?.map((b) => botLabel(b))
                                 .join(", ")}
                               {" "}(WR &lt; 40%, ≥15 trades)
                             </p>
                           )}
-                          {platformStatus.gate_entry_tightening.stocks_proven_winners_only && (
+                          {liveGateTightening.stocks_proven_winners_only && (
                             <p className="text-emerald-300 font-medium">
                               Stocks: proven winners only (NVDA-only new entries during gate)
                             </p>
                           )}
-                          {platformStatus.gate_entry_tightening.proven_winner_symbols &&
-                            Object.keys(platformStatus.gate_entry_tightening.proven_winner_symbols).length > 0 && (
+                          {liveGateTightening.proven_winner_symbols &&
+                            Object.keys(liveGateTightening.proven_winner_symbols).length > 0 && (
                               <p className="text-emerald-400/90">
                                 Proven winners (easier entries):{" "}
-                                {Object.entries(platformStatus.gate_entry_tightening.proven_winner_symbols)
+                                {Object.entries(liveGateTightening.proven_winner_symbols)
                                   .map(([bot, syms]) => `${botLabel(bot)}: ${syms.join(", ")}`)
                                   .join(" · ")}
                               </p>
                             )}
-                          {platformStatus.gate_entry_tightening.chronic_loser_symbols &&
-                            Object.keys(platformStatus.gate_entry_tightening.chronic_loser_symbols).length > 0 && (
+                          {liveGateTightening.chronic_loser_symbols &&
+                            Object.keys(liveGateTightening.chronic_loser_symbols).length > 0 && (
                               <p className="text-red-400/80">
                                 Chronic losers (skipped):{" "}
-                                {Object.entries(platformStatus.gate_entry_tightening.chronic_loser_symbols)
+                                {Object.entries(liveGateTightening.chronic_loser_symbols)
                                   .map(([bot, syms]) =>
                                     `${botLabel(bot)}: ${syms.slice(0, 3).join(", ")}${syms.length > 3 ? "…" : ""}`
                                   )
@@ -721,6 +733,7 @@ export default function Dashboard() {
                       <th className="text-right py-3 px-2">Entry</th>
                       <th className="text-right py-3 px-2">Current</th>
                       <th className="text-right py-3 px-2">Unrealized P&L</th>
+                      <th className="text-right py-3 px-2">Opened</th>
                       <th className="text-right py-3 px-2">Stop Loss</th>
                       <th className="text-right py-3 px-2">Take Profit</th>
                     </tr>
@@ -741,6 +754,9 @@ export default function Dashboard() {
                         </td>
                         <td className={cn("py-3 px-2 text-right font-medium", pnlColor(p.unrealized_pnl))}>
                           {formatCurrency(p.unrealized_pnl)}
+                        </td>
+                        <td className="py-3 px-2 text-right text-gray-500 text-xs">
+                          {p.opened_at ? formatTime(p.opened_at) : "—"}
                         </td>
                         <td className="py-3 px-2 text-right text-apex-red">
                           ${p.stop_loss?.toFixed(2)}
@@ -1011,12 +1027,38 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
   );
 }
 
-function BotCard({ bot }: { bot: { bot_type: string; status: string; last_action: string; last_scan_at?: string | null; trades_today: number; pnl_today: number; strategy_version: number } }) {
+function BotCard({
+  bot,
+  session,
+}: {
+  bot: {
+    bot_type: string;
+    status: string;
+    last_action: string;
+    last_scan_at?: string | null;
+    trades_today: number;
+    pnl_today: number;
+    strategy_version: number;
+  };
+  session?: { in_session: boolean; mode: "entries" | "winddown_only" };
+}) {
   return (
     <div className="p-4 rounded-lg bg-apex-dark border border-apex-border">
       <div className="flex items-center gap-2 mb-3">
         <Bot size={16} className="text-apex-gold" />
         <span className="text-sm font-bold text-white">{botLabel(bot.bot_type)}</span>
+        {session && bot.bot_type === "stocks_futures" && (
+          <span
+            className={cn(
+              "text-[10px] px-2 py-0.5 rounded-full font-medium",
+              session.in_session
+                ? "bg-apex-green/10 text-apex-green"
+                : "bg-apex-purple/10 text-apex-purple"
+            )}
+          >
+            {session.in_session ? "US session" : "After hours · wind-down"}
+          </span>
+        )}
         <span
           className={cn(
             "ml-auto text-[10px] px-2 py-0.5 rounded-full font-medium uppercase",
