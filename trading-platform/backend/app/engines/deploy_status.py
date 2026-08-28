@@ -27,7 +27,7 @@ DEFAULT_VERIFIED_DASHBOARD_URL = (
 )
 DEFAULT_VERIFIED_DEPLOYMENT_ID = "dpl_DMSgUEGsa2PTokNr99BXWoggczd7"
 EXPECTED_DASHBOARD_BUNDLE = "2026-08-28-r21"
-EXPECTED_PLATFORM_REVISION = "2026-08-28-r61"
+EXPECTED_PLATFORM_REVISION = "2026-08-28-r62"
 ACCEPTABLE_DASHBOARD_BUNDLES = frozenset({
   "2026-08-27-r9", "2026-08-27-r10", "2026-08-27-r11", "2026-08-27-r12",
   "2026-08-27-r13", "2026-08-27-r14", "2026-08-27-r15", "2026-08-27-r16",
@@ -330,6 +330,12 @@ async def build_deploy_status() -> dict[str, Any]:
   deployed = deployed_git_commit()
   latest = await fetch_latest_main_commit()
   latest_sha = (latest or {}).get("sha")
+
+  if deployed and not latest_sha:
+    ref = await fetch_main_sha_via_ref()
+    if ref and ref.get("sha"):
+      latest_sha = ref["sha"]
+      latest = latest or ref
 
   compare = await fetch_compare_to_main(deployed) if deployed else None
   if deployed and not compare and latest_sha and deployed != latest_sha:
