@@ -16,6 +16,11 @@ class Settings(BaseSettings):
     reddit_client_secret: str = ""
     twitter_bearer_token: str = ""
 
+    # On-chain wallet tracker (comma-separated 0x addresses)
+    wallet_tracker_addresses: str = ""
+    etherscan_api_key: str = ""
+    wallet_tracker_min_usd: float = 10_000.0
+
     # Integrations
     tradingview_webhook_secret: str = ""
     polymarket_api_url: str = "https://gamma-api.polymarket.com"

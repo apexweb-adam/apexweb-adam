@@ -31,6 +31,14 @@ services:
         sync: false
       - key: TWITTER_BEARER_TOKEN
         sync: false
+      - key: REDDIT_CLIENT_ID
+        sync: false
+      - key: REDDIT_CLIENT_SECRET
+        sync: false
+      - key: WALLET_TRACKER_ADDRESSES
+        sync: false
+      - key: ETHERSCAN_API_KEY
+        sync: false
       - key: TRADINGVIEW_WEBHOOK_SECRET
         sync: false
       - key: POLYMARKET_API_KEY
@@ -46,7 +54,7 @@ services:
       - key: GITHUB_TOKEN
         sync: false
       - key: PLATFORM_REVISION
-        value: "2026-08-28-r118"
+        value: "2026-08-28-r120"
       - key: DISABLE_AUTO_REDEPLOY
         value: "true"
       - key: ALLOW_STALE_API_REDEPLOY

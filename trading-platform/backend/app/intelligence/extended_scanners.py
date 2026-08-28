@@ -94,6 +94,9 @@ class ExtendedIntelligenceScanner(IntelligenceScanner):
       count += await self._scan_x_twitter()
     elif settings.newsapi_key:
       count += await self._scan_x_social_news_fallback()
+    from app.intelligence.wallet_tracker import scan_wallet_tracker
+
+    count += await scan_wallet_tracker(self.session)
     await self.session.commit()
     return count
 
