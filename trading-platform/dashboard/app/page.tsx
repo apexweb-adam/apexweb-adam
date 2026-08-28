@@ -1070,8 +1070,19 @@ function BotCard({
     pnl_today: number;
     strategy_version: number;
   };
-  session?: { in_session: boolean; mode: "entries" | "winddown_only" };
+  session?: {
+    in_session: boolean;
+    mode: "entries" | "winddown_only";
+    minutes_until_open?: number;
+    minutes_until_close?: number | null;
+  };
 }) {
+  const sessionHint =
+    session && bot.bot_type === "stocks_futures" && !session.in_session && session.minutes_until_open
+      ? `Opens in ${Math.floor(session.minutes_until_open / 60)}h ${session.minutes_until_open % 60}m`
+      : session && bot.bot_type === "stocks_futures" && session.in_session && session.minutes_until_close
+        ? `Closes in ${Math.floor(session.minutes_until_close / 60)}h ${session.minutes_until_close % 60}m`
+        : null;
   return (
     <div className="p-4 rounded-lg bg-apex-dark border border-apex-border">
       <div className="flex items-center gap-2 mb-3">
@@ -1088,6 +1099,9 @@ function BotCard({
           >
             {session.in_session ? "US session" : "After hours · wind-down"}
           </span>
+        )}
+        {sessionHint && (
+          <span className="text-[10px] text-gray-500">{sessionHint}</span>
         )}
         <span
           className={cn(

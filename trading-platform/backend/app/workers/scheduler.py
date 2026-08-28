@@ -98,6 +98,37 @@ async def redeploy_check_job() -> None:
       print(f"[Deploy] Stale ({reason}) — set RENDER_DEPLOY_HOOK on Render or GitHub secrets")
 
 
+async def stocks_pre_session_prep_job() -> None:
+  """30 min before US cash open: refresh TradingView boosts for proven stock winners."""
+  from app.engines.gate_entry_guard import get_proven_winner_symbols, stocks_session_info
+  from app.engines.integration_signals import refresh_tradingview_signals
+
+  session_info = stocks_session_info()
+  if session_info["in_session"]:
+    return
+
+  minutes_until_open = session_info.get("minutes_until_open")
+  if minutes_until_open is None or minutes_until_open > 45:
+    return
+
+  async with SessionLocal() as session:
+    winners = await get_proven_winner_symbols(session, "stocks_futures")
+    symbols = sorted(winners) if winners else ["NVDA"]
+    refreshed = await refresh_tradingview_signals(
+      session,
+      symbols,
+      reason_prefix="Pre-US-session TV refresh",
+    )
+  if refreshed:
+    print(
+      f"[StocksPrep] Refreshed TradingView signals for {', '.join(refreshed)} "
+      f"({minutes_until_open} min until open)"
+    )
+    from app.ws_manager import push_live_update
+
+    await push_live_update()
+
+
 async def risk_migration_job() -> None:
   async with SessionLocal() as session:
     from app.engines.strategy_migration import (
@@ -248,6 +279,14 @@ async def setup_scheduler() -> None:
   scheduler.add_job(content_study_job, "interval", hours=2, id="content_study")
   scheduler.add_job(risk_migration_job, "interval", minutes=15, id="risk_migration")
   scheduler.add_job(redeploy_check_job, "interval", hours=1, id="redeploy_check")
+  scheduler.add_job(
+    stocks_pre_session_prep_job,
+    "cron",
+    hour=13,
+    minute=0,
+    day_of_week="mon-fri",
+    id="stocks_pre_session_prep",
+  )
   scheduler.add_job(daily_review_job, "cron", hour=22, minute=0, id="daily_review")
   scheduler.add_job(verification_snapshot_job, "cron", hour=23, minute=0, id="verification_snapshot")
   scheduler.add_job(reset_daily_bot_stats_job, "cron", hour=0, minute=0, id="reset_daily_stats")
@@ -265,4 +304,5 @@ async def setup_scheduler() -> None:
       print(f"[Learning] Applied {pending} pending insight(s) on startup")
   await ensure_daily_review_on_startup()
   await verification_snapshot_job()
+  await stocks_pre_session_prep_job()
   await start_bots()
