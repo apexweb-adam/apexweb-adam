@@ -44,19 +44,19 @@ jobs:
               echo "Service apex-trading-backend not found. Deploy via Render Blueprint first." >&2
               exit 1
             fi
-            BODY="{}"
-            if [[ "$CLEAR_CACHE" == "true" ]]; then
-              BODY='{"clearCache": true}'
+            BODY='{"clearCache":"clear"}'
+            if [[ "$CLEAR_CACHE" != "true" ]]; then
+              BODY='{}'
             fi
             curl -fsS -X POST \
               -H "Authorization: Bearer $RENDER_API_KEY" \
               -H "Content-Type: application/json" \
               -d "$BODY" \
               "https://api.render.com/v1/services/${SERVICE_ID}/deploys"
-            echo "Deploy triggered for apex-trading-backend via API"
+            echo "Deploy triggered for apex-trading-backend via API (preferred)"
           elif [ -n "${RENDER_DEPLOY_HOOK:-}" ]; then
             curl -fsS -X POST "$RENDER_DEPLOY_HOOK"
-            echo "Triggered RENDER_DEPLOY_HOOK"
+            echo "Triggered RENDER_DEPLOY_HOOK (fallback)"
           else
             echo "::warning::RENDER_API_KEY and RENDER_DEPLOY_HOOK are not set — cannot trigger Render deploy from CI."
             echo "Render Blueprint autoDeploy may still deploy from GitHub pushes."
