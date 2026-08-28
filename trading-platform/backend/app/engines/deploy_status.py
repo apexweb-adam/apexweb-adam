@@ -27,7 +27,7 @@ DEFAULT_VERIFIED_DASHBOARD_URL = (
 )
 DEFAULT_VERIFIED_DEPLOYMENT_ID = "dpl_B7wrt1wpZ1Aw1Fu144iHgrYfU6MK"
 EXPECTED_DASHBOARD_BUNDLE = "2026-08-28-r22"
-EXPECTED_PLATFORM_REVISION = "2026-08-28-r70"
+EXPECTED_PLATFORM_REVISION = "2026-08-28-r71"
 ACCEPTABLE_DASHBOARD_BUNDLES = frozenset({
   "2026-08-27-r9", "2026-08-27-r10", "2026-08-27-r11", "2026-08-27-r12",
   "2026-08-27-r13", "2026-08-27-r14", "2026-08-27-r15", "2026-08-27-r16",
@@ -345,23 +345,48 @@ async def build_deploy_status() -> dict[str, Any]:
 
   is_stale = False
   pending_changes: list[dict[str, str]] = []
-  if deployed and compare and (compare.get("ahead_by") or 0) > 0:
-    is_stale = True
-    pending_changes = compare.get("commits") or []
-    if compare.get("head_sha"):
-      latest_sha = compare["head_sha"]
+  github_verified = False
+
+  if compare is not None:
+    github_verified = True
+    if (compare.get("ahead_by") or 0) > 0:
+      is_stale = True
+      pending_changes = compare.get("commits") or []
+      if compare.get("head_sha"):
+        latest_sha = compare["head_sha"]
+        if not latest:
+          latest = {
+            "sha": latest_sha,
+            "message": (pending_changes[-1].get("message") if pending_changes else ""),
+            "committed_at": None,
+          }
+  elif deployed and latest_sha:
+    github_verified = True
+    if deployed != latest_sha:
+      is_stale = True
+      pending_changes = (compare or {}).get("commits") or []
+
+  if not github_verified and deployed:
+    ref = await fetch_main_sha_via_ref()
+    if ref and ref.get("sha"):
+      github_verified = True
+      latest_sha = ref["sha"]
       if not latest:
-        latest = {
-          "sha": latest_sha,
-          "message": (pending_changes[-1].get("message") if pending_changes else ""),
-          "committed_at": None,
-        }
-  elif deployed and latest_sha and deployed != latest_sha:
-    is_stale = True
-    pending_changes = (compare or {}).get("commits") or []
+        latest = ref
+      if deployed != latest_sha:
+        is_stale = True
 
   if is_stale and deployed and not pending_changes:
     pending_changes = await fetch_commits_since(deployed)
+
+  if deployed and not github_verified:
+    is_stale = True
+    next_steps_unknown = (
+      "GitHub API unavailable — cannot confirm deploy freshness. "
+      "Set GITHUB_TOKEN on Render or verify manually in Render dashboard."
+    )
+  else:
+    next_steps_unknown = None
 
   stale_minutes: int | None = None
   committed_at = (latest or {}).get("committed_at")
@@ -373,7 +398,9 @@ async def build_deploy_status() -> dict[str, Any]:
       stale_minutes = None
 
   next_steps: list[str] = []
-  if is_stale:
+  if next_steps_unknown:
+    next_steps.append(next_steps_unknown)
+  if is_stale and not next_steps_unknown:
     next_steps.append(
       f"Render deploy is stale — running {deployed[:12] if deployed else '?'} "
       f"but main is {latest_sha[:12] if latest_sha else '?'}. "
@@ -414,7 +441,8 @@ async def build_deploy_status() -> dict[str, Any]:
     "is_stale": is_stale,
     "stale_minutes": stale_minutes,
     "pending_changes": pending_changes,
-    "commits_behind": len(pending_changes),
+    "commits_behind": len(pending_changes) if pending_changes else (1 if is_stale and not github_verified else 0),
+    "github_verified": github_verified,
     "next_steps": next_steps,
     **vercel,
   }
