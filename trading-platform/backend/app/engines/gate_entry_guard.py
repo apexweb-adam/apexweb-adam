@@ -34,6 +34,8 @@ BOT_MIN_SENTIMENT = {
 
 UNDERPERFORMER_MIN_TRADES = 15
 UNDERPERFORMER_MAX_WIN_RATE = 0.40
+CHRONIC_LOSER_MIN_TRADES = 3
+CHRONIC_LOSER_MAX_WIN_RATE = 0.35
 
 
 async def get_underperforming_bots(session: AsyncSession) -> frozenset[str]:
@@ -47,6 +49,42 @@ async def get_underperforming_bots(session: AsyncSession) -> frozenset[str]:
       continue
     if portfolio.win_rate < UNDERPERFORMER_MAX_WIN_RATE:
       blocked.add(bot_type)
+  return frozenset(blocked)
+
+
+async def get_chronic_loser_symbols(
+  session: AsyncSession,
+  bot_type: str,
+  *,
+  min_trades: int = CHRONIC_LOSER_MIN_TRADES,
+  max_win_rate: float = CHRONIC_LOSER_MAX_WIN_RATE,
+) -> frozenset[str]:
+  """Symbols with enough closed trades and poor win rate — skip new entries during gate."""
+  from app.models.entities import Trade
+
+  result = await session.execute(
+    select(Trade.symbol, Trade.is_winner).where(
+      Trade.bot_type == bot_type,
+      Trade.action == "sell",
+    )
+  )
+  stats: dict[str, dict[str, int]] = {}
+  for symbol, is_winner in result.all():
+    if not symbol:
+      continue
+    bucket = stats.setdefault(symbol, {"wins": 0, "losses": 0})
+    if is_winner is True:
+      bucket["wins"] += 1
+    elif is_winner is False:
+      bucket["losses"] += 1
+
+  blocked: set[str] = set()
+  for symbol, counts in stats.items():
+    decided = counts["wins"] + counts["losses"]
+    if decided < min_trades:
+      continue
+    if counts["wins"] / decided < max_win_rate:
+      blocked.add(symbol)
   return frozenset(blocked)
 
 

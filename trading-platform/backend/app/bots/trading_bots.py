@@ -7,7 +7,7 @@ from sqlalchemy import select
 
 from app.config import settings
 from app.database import SessionLocal
-from app.engines.gate_entry_guard import bot_min_sentiment, get_gate_entry_tightening
+from app.engines.gate_entry_guard import bot_min_sentiment, get_chronic_loser_symbols, get_gate_entry_tightening
 from app.engines.integration_signals import get_integration_boost
 from app.engines.intelligence_scoring import compute_bot_sentiment
 from app.engines.learning_engine import LearningEngine
@@ -89,14 +89,17 @@ class BaseBot(ABC):
       engine = PaperTradingEngine(session, self.bot_type)
       strategy = await engine.get_strategy()
       gate_tightening = await get_gate_entry_tightening(session)
+      chronic_losers: frozenset[str] = frozenset()
+      if gate_tightening.active:
+        chronic_losers = await get_chronic_loser_symbols(session, self.bot_type)
       open_positions = await engine.get_open_positions()
       open_count = len(open_positions)
       loss_streak = await engine.get_consecutive_losses()
       min_signal = strategy.min_signal_score
       if gate_tightening.active:
         if self.bot_type == "stocks_futures":
-          # Sole active bot during verification — slightly easier entries to build WR
-          min_signal = max(0.12, min_signal - 0.04)
+          # Sole active bot during verification — easier entries to build WR
+          min_signal = max(0.10, min_signal - 0.06)
         else:
           min_signal = min(0.95, min_signal + gate_tightening.min_composite_boost)
       if loss_streak >= 3:
@@ -160,6 +163,9 @@ class BaseBot(ABC):
         if cooldown and datetime.utcnow() < cooldown:
           continue
 
+        if gate_tightening.active and symbol in chronic_losers:
+          continue
+
         macd_required = self.bot_type == "crypto" or (
           gate_tightening.active
           and gate_tightening.require_macd_bullish
@@ -182,10 +188,20 @@ class BaseBot(ABC):
         ):
           continue
 
+        entry_min_signal = min_signal
+        if (
+          gate_tightening.active
+          and self.bot_type == "stocks_futures"
+          and integration_reason
+          and "tradingview" in integration_reason.lower()
+          and integration_boost > 0.04
+        ):
+          entry_min_signal = max(0.08, entry_min_signal - 0.03)
+
         if (
           signal.direction == "buy"
           and signal.volume_confirmed
-          and composite >= min_signal
+          and composite >= entry_min_signal
           and sentiment + integration_boost >= min_sentiment
           and self.bot_type not in gate_tightening.blocked_new_entries
         ):
