@@ -114,6 +114,25 @@ jobs:
               print('OK: all bots scanned within 5 minutes')
           "
 
+      - name: Check WebSocket live feed
+        run: |
+          pip install -q websockets
+          python3 << 'PY'
+          import asyncio, json, websockets
+
+          async def check():
+              uri = "wss://apex-trading-backend.onrender.com/api/ws"
+              async with websockets.connect(uri, open_timeout=20) as ws:
+                  msg = await asyncio.wait_for(ws.recv(), timeout=20)
+                  data = json.loads(msg)
+                  assert data.get("type") == "update", data
+                  assert "stats" in data and "portfolios" in data, list(data.keys())
+                  print("OK: WebSocket live update — equity=%s trades=%s" % (
+                      data["stats"].get("total_equity"), data["stats"].get("total_trades")))
+
+          asyncio.run(check())
+          PY
+
       - name: Check active-bot gate endpoint (production proxy)
         env:
           VERIFIED_PREVIEW: "https://apex-trading-dashboard-39gtc4hgx-apexweb-adams-projects.vercel.app"
