@@ -19,7 +19,7 @@ jobs:
 
       - name: Check production dashboard bundle and proxy
         env:
-          VERIFIED_PREVIEW: "https://apex-trading-dashboard-73nruanbo-apexweb-adams-projects.vercel.app"
+          VERIFIED_PREVIEW: "https://apex-trading-dashboard-git-main-apexweb-adams-projects.vercel.app"
         run: |
           set -euo pipefail
           DASHBOARD="https://apex-trading-dashboard-flame.vercel.app"
@@ -72,14 +72,14 @@ jobs:
           DASH_URL=$(curl -fsS "https://apex-trading-backend.onrender.com/api/dashboard-url" | python3 -c "import json,sys; print(json.load(sys.stdin).get('recommended_url',''))")
           echo "recommended_dashboard_url=$DASH_URL"
           if [[ "$DASH_URL" == *"git-main"* ]]; then
-            echo "::warning::Backend still recommends stale git-main alias — deploy r77+ for r25 preview routing"
-          elif [[ "$DASH_URL" == *"73nruanbo"* ]]; then
-            echo "OK: backend recommends verified r25 preview"
+            echo "OK: backend recommends verified git-main preview (r27+)"
+          elif [[ "$DASH_URL" == *"-flame"* ]]; then
+            echo "OK: backend recommends production -flame (bundle may still be stale until promote)"
           fi
 
-      - name: Check verified r25 preview dashboard
+      - name: Check verified r27 preview dashboard
         env:
-          VERIFIED_PREVIEW: "https://apex-trading-dashboard-73nruanbo-apexweb-adams-projects.vercel.app"
+          VERIFIED_PREVIEW: "https://apex-trading-dashboard-git-main-apexweb-adams-projects.vercel.app"
         run: |
           set -euo pipefail
           curl -fsS "$VERIFIED_PREVIEW/api/config" | python3 -c "
@@ -166,7 +166,7 @@ jobs:
 
       - name: Check active-bot gate endpoint (production proxy)
         env:
-          VERIFIED_PREVIEW: "https://apex-trading-dashboard-73nruanbo-apexweb-adams-projects.vercel.app"
+          VERIFIED_PREVIEW: "https://apex-trading-dashboard-git-main-apexweb-adams-projects.vercel.app"
         run: |
           set -euo pipefail
           PROD="https://apex-trading-dashboard-flame.vercel.app"

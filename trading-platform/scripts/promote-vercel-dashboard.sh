@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Promote verified r25 CRM preview to production -flame alias.
+# Promote verified r27 CRM preview to production -flame alias.
 # Requires VERCEL_TOKEN (GitHub secret or local export).
 set -euo pipefail
 
