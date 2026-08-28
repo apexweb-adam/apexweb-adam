@@ -1,14 +1,10 @@
+# Legacy — platform deploys via Render (backend) + Vercel (dashboard GitHub Actions).
+# Skip all Netlify builds so the GitHub App reports success instead of stuck queued.
 [build]
-  base = "dashboard"
+  base = "trading-platform/dashboard"
   command = "npm run build"
-  publish = "dashboard/.next"
+  publish = "trading-platform/dashboard/.next"
+  ignore = "exit 0"
 
 [build.environment]
   NODE_VERSION = "20"
-
-[[redirects]]
-  from = "/api/*"
-  to = ":BACKEND_URL/api/:splat"
-  status = 200
-  force = true
-  conditions = {Role = ["backend-proxy"]}
