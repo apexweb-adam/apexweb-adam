@@ -465,6 +465,7 @@ class CryptoBot(BaseBot):
 class StocksFuturesBot(BaseBot):
   bot_type = "stocks_futures"
   scan_interval = 30
+  gate_active_scan_interval = 15
 
   async def get_symbols(self) -> list[str]:
     stocks = [s.strip() for s in settings.stock_symbols.split(",")]
@@ -476,6 +477,27 @@ class StocksFuturesBot(BaseBot):
 
   def _in_us_session(self) -> bool:
     return stocks_in_us_session()
+
+  async def _effective_scan_interval(self) -> int:
+    """Scan proven winners more often during gated US session entries."""
+    if not self._in_us_session():
+      return self.scan_interval
+    async with SessionLocal() as session:
+      tightening = await get_gate_entry_tightening(session)
+      if tightening.active:
+        return self.gate_active_scan_interval
+    return self.scan_interval
+
+  async def run_loop(self) -> None:
+    self.running = True
+    while self.running:
+      try:
+        await self._record_scan_heartbeat()
+        await self.scan_and_trade()
+      except Exception as e:
+        print(f"[{self.bot_type}] Error in scan: {e}")
+        await self._record_scan_failure(str(e))
+      await asyncio.sleep(await self._effective_scan_interval())
 
   async def scan_and_trade(self) -> list[dict]:
     in_session = self._in_us_session()
