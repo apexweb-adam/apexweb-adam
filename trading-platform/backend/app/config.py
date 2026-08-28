@@ -64,7 +64,7 @@ class Settings(BaseSettings):
     )
     stock_symbols: str = "AAPL,MSFT,NVDA,TSLA,SPY,QQQ"
     futures_symbols: str = "ES=F,NQ=F"
-    commodity_symbols: str = "GC=F,SI=F,CL=F,EURUSD=X"
+    commodity_symbols: str = "GC=F,SI=F,CL=F,NG=F,HG=F,EURUSD=X"
 
     # Learning
     min_win_rate_target: float = 0.55
