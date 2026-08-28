@@ -305,6 +305,7 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
         "would_enter": not blockers,
         "blockers": blockers,
         "integration_boost": round(integration_boost, 3),
+        "intel_override": intel_override,
       }
     )
 

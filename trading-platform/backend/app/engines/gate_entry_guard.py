@@ -55,7 +55,7 @@ SHADOW_MAX_OPEN = {
 GRADUATION_NUDGE_MIN_WR = 0.48
 GRADUATION_NUDGE_MIN_WR_BY_BOT = {
   "crypto": 0.45,
-  "commodities": 0.48,
+  "commodities": 0.46,
 }
 
 
