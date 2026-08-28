@@ -752,7 +752,10 @@ async def trigger_deploy_admin(payload: dict[str, Any]) -> dict[str, Any]:
   if not settings.tradingview_webhook_secret or secret != settings.tradingview_webhook_secret:
     return {"status": "unauthorized"}
 
-  result = await maybe_trigger_stale_redeploy(force=bool(payload.get("force")))
+  result = await maybe_trigger_stale_redeploy(
+    force=bool(payload.get("force")),
+    allow_stale_hook=bool(payload.get("allow_stale_hook")),
+  )
   return {"status": "ok", **result, "timestamp": datetime.utcnow().isoformat()}
 
 

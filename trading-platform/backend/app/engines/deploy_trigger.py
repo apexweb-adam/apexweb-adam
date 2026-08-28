@@ -104,8 +104,9 @@ async def maybe_trigger_stale_redeploy(
       "forced": force,
     }
 
-  # Skip hook when stale unless explicitly forced — CI keep-alive should not loop old builds.
-  if stale and not force and not allow_stale_hook:
+  # Skip hook when stale — redeploys the last built commit, not latest main.
+  # force=True only bypasses cooldown and clears cache via API; it must not enable hook while stale.
+  if stale and not allow_stale_hook:
     return {
       "triggered": False,
       "reason": "stale_needs_api_or_manual_deploy",

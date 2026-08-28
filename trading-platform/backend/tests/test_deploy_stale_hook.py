@@ -14,3 +14,7 @@ def test_stale_hook_skip_reason_documented():
   assert "stale_needs_api_or_manual_deploy" in source
   assert "allow_stale_hook" in source
   assert "render-hook-recovery" in source
+  # Stale hook guard must not be bypassed by force alone
+  stale_guard = source.split("Skip hook when stale", 1)[1].split("hook = await resolve_render_deploy_hook", 1)[0]
+  assert "not allow_stale_hook" in stale_guard
+  assert "not force" not in stale_guard
