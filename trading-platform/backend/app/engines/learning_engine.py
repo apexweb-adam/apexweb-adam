@@ -183,6 +183,22 @@ class LearningEngine:
       await self.session.commit()
     return applied
 
+  async def dismiss_noise_insights(self, max_confidence: float = 0.5) -> int:
+    """Mark low-confidence intel-derived insights as applied without strategy changes."""
+    result = await self.session.execute(
+      select(LearningInsight).where(
+        LearningInsight.applied.is_(False),
+        LearningInsight.confidence < max_confidence,
+      )
+    )
+    dismissed = 0
+    for insight in result.scalars().all():
+      insight.applied = True
+      dismissed += 1
+    if dismissed:
+      await self.session.commit()
+    return dismissed
+
   async def _get_market_context(self, symbol: str, at_time: datetime) -> str:
     result = await self.session.execute(
       select(IntelligenceItem)
