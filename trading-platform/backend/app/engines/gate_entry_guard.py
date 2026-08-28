@@ -152,6 +152,27 @@ def in_shadow_graduation_nudge(
   )
 
 
+ACTIVE_GATE_GRADUATION_NUDGE_BOTS = frozenset({"commodities"})
+
+
+def bot_win_rate_for_graduation_nudge(
+  bot_type: str,
+  *,
+  shadow_mode: bool,
+  shadow_bot_wr: float | None,
+  per_bot_stats: dict[str, Any],
+) -> float | None:
+  """Win rate used for graduation nudge — shadow bots or active gate commodities."""
+  if shadow_mode:
+    return shadow_bot_wr
+  if bot_type in ACTIVE_GATE_GRADUATION_NUDGE_BOTS and per_bot_stats:
+    wr = per_bot_stats.get("win_rate")
+    if wr is None:
+      return None
+    return float(wr)
+  return None
+
+
 SHADOW_INTEL_COMPOSITE_FLOOR = 0.50
 SHADOW_INTEL_COMPOSITE_FLOOR_BY_BOT = {
   "crypto": 0.32,
@@ -313,7 +334,7 @@ def shadow_graduation_min_composite(
   shadow_mode: bool,
 ) -> float | None:
   """Absolute composite floor during graduation nudge — blocks weak eased entries."""
-  if graduation_nudge and shadow_mode:
+  if graduation_nudge:
     return SHADOW_GRADUATION_MIN_COMPOSITE_BY_BOT.get(bot_type)
   return None
 
@@ -408,7 +429,7 @@ def shadow_requires_macd(
   profit_factor: float | None = None,
   total_pnl: float | None = None,
 ) -> bool:
-  if shadow_mode and bot_type in ("commodities", "crypto"):
+  if bot_type in ("commodities", "crypto"):
     if bot_win_rate is not None and in_shadow_graduation_nudge(
       bot_type,
       bot_win_rate,
@@ -416,7 +437,7 @@ def shadow_requires_macd(
       total_pnl=total_pnl,
     ):
       return False
-    if bot_type == "crypto":
+    if bot_type == "crypto" and shadow_mode:
       return True
   if gate_tightening.active and gate_tightening.require_macd_bullish and bot_type == "commodities":
     return True

@@ -30,6 +30,7 @@ from app.engines.gate_entry_guard import (
   get_hard_gate_skip_components,
   get_proven_winner_symbols,
   hard_skip_blocks_shadow_entry,
+  bot_win_rate_for_graduation_nudge,
   in_shadow_graduation_nudge,
   is_symbol_in_trade_cooldown,
   symbol_cooldown_remaining_seconds,
@@ -75,11 +76,17 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
 
   shadow_bot_wr: float | None = None
   per_bot_stats: dict[str, Any] = {}
-  if shadow_mode or bot_type == "stocks_futures":
+  if shadow_mode or bot_type == "stocks_futures" or bot_type == "commodities":
     per_bot_all = await ProfitabilityGate(session).evaluate_per_bot()
     per_bot_stats = per_bot_all.get(bot_type) or {}
   if shadow_mode:
     shadow_bot_wr = float(per_bot_stats.get("win_rate") or 0)
+  bot_wr = bot_win_rate_for_graduation_nudge(
+    bot_type,
+    shadow_mode=shadow_mode,
+    shadow_bot_wr=shadow_bot_wr,
+    per_bot_stats=per_bot_stats,
+  )
 
   chronic_losers: frozenset[str] = frozenset()
   hard_skip_sets = HardGateSkipSets(
@@ -99,7 +106,20 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
     min_signal = shadow_entry_min_signal(
       bot_type,
       strategy.min_signal_score,
-      bot_win_rate=shadow_bot_wr,
+      bot_win_rate=bot_wr,
+      profit_factor=per_bot_stats.get("profit_factor"),
+      total_pnl=per_bot_stats.get("total_pnl"),
+    )
+  elif bot_type == "commodities" and in_shadow_graduation_nudge(
+    bot_type,
+    bot_wr,
+    profit_factor=per_bot_stats.get("profit_factor"),
+    total_pnl=per_bot_stats.get("total_pnl"),
+  ):
+    min_signal = shadow_entry_min_signal(
+      bot_type,
+      strategy.min_signal_score,
+      bot_win_rate=bot_wr,
       profit_factor=per_bot_stats.get("profit_factor"),
       total_pnl=per_bot_stats.get("total_pnl"),
     )
@@ -109,7 +129,7 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
   )
   graduation_nudge = in_shadow_graduation_nudge(
     bot_type,
-    shadow_bot_wr,
+    bot_wr,
     profit_factor=per_bot_stats.get("profit_factor"),
     total_pnl=per_bot_stats.get("total_pnl"),
   )
@@ -119,7 +139,7 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
   shadow_cap = shadow_max_open_for_bot(
     bot_type,
     shadow_mode=shadow_mode,
-    bot_win_rate=shadow_bot_wr,
+    bot_win_rate=bot_wr,
     profit_factor=per_bot_stats.get("profit_factor"),
     total_pnl=per_bot_stats.get("total_pnl"),
   )
@@ -222,7 +242,7 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
         or signal.macd_signal == "bullish"
         or bool(integration_reason and "tradingview" in integration_reason.lower())
       )
-    if graduation_nudge and shadow_mode and bot_type == "commodities":
+    if graduation_nudge and bot_type == "commodities":
       volume_required = (
         signal.volume_confirmed
         or composite >= entry_min_signal + 0.02
@@ -337,7 +357,7 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
       blockers.append("macd")
     if shadow_requires_macd(
       bot_type,
-      bot_win_rate=shadow_bot_wr,
+      bot_win_rate=bot_wr,
       gate_tightening=gate_tightening,
       shadow_mode=shadow_mode,
       profit_factor=per_bot_stats.get("profit_factor"),
@@ -393,7 +413,7 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
     "shadow_mode": shadow_mode,
     "graduation_nudge": graduation_nudge,
     "early_verification_boost": early_verification_boost,
-    "shadow_bot_wr": shadow_bot_wr,
+    "shadow_bot_wr": bot_wr if bot_wr is not None else shadow_bot_wr,
     "proven_winners": sorted(proven_winners),
     "min_signal": round(min_signal, 3),
     "symbols": previews,

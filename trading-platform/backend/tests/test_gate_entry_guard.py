@@ -265,8 +265,32 @@ def test_shadow_graduation_min_composite():
     "crypto", graduation_nudge=True, shadow_mode=True
   ) == 0.30
   assert shadow_graduation_min_composite(
+    "commodities", graduation_nudge=True, shadow_mode=False
+  ) == 0.28
+  assert shadow_graduation_min_composite(
     "crypto", graduation_nudge=False, shadow_mode=True
   ) is None
+
+
+def test_bot_win_rate_for_graduation_nudge_active_commodities():
+  from app.engines.gate_entry_guard import (
+    bot_win_rate_for_graduation_nudge,
+    in_shadow_graduation_nudge,
+  )
+
+  wr = bot_win_rate_for_graduation_nudge(
+    "commodities",
+    shadow_mode=False,
+    shadow_bot_wr=None,
+    per_bot_stats={"win_rate": 0.444, "profit_factor": 1.19, "total_pnl": 19.13},
+  )
+  assert wr == 0.444
+  assert in_shadow_graduation_nudge(
+    "commodities",
+    wr,
+    profit_factor=1.19,
+    total_pnl=19.13,
+  )
 
 
 def test_shadow_graduation_loss_wind_down():
