@@ -12,7 +12,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import BOT_TYPES
 from app.engines.profitability_gate import ProfitabilityGate
-from app.models.entities import Portfolio
 
 
 @dataclass(frozen=True)
@@ -583,17 +582,25 @@ async def _symbol_trade_stats(session: AsyncSession, bot_type: str) -> dict[str,
 
 
 async def get_underperforming_bots(session: AsyncSession) -> frozenset[str]:
-  """Bots with enough closed trades and win rate below floor during verification."""
+  """Bots with enough verification-period trades and win rate below floor."""
+  per_bot = await ProfitabilityGate(session).evaluate_per_bot()
   blocked: set[str] = set()
-  for bot_type in BOT_TYPES:
-    portfolio = (
-      await session.execute(select(Portfolio).where(Portfolio.bot_type == bot_type))
-    ).scalar_one_or_none()
-    if not portfolio or portfolio.total_trades < UNDERPERFORMER_MIN_TRADES:
+  for bot_type, stats in per_bot.items():
+    total = int(stats.get("total_trades") or 0)
+    win_rate = float(stats.get("win_rate") or 0)
+    if total < UNDERPERFORMER_MIN_TRADES:
       continue
-    if portfolio.win_rate < UNDERPERFORMER_MAX_WIN_RATE:
+    if win_rate < UNDERPERFORMER_MAX_WIN_RATE:
       blocked.add(bot_type)
   return frozenset(blocked)
+
+
+async def active_gate_entry_exempt_bots(session: AsyncSession) -> frozenset[str]:
+  """Non-paused bots must never be blocked from new entries — they serve the active gate."""
+  from app.engines.platform_settings import get_paused_bot_types
+
+  paused = set(await get_paused_bot_types(session))
+  return frozenset(bot for bot in BOT_TYPES if bot not in paused)
 
 
 async def get_chronic_loser_symbols(
@@ -1131,6 +1138,7 @@ async def get_gate_entry_tightening(session: AsyncSession) -> GateEntryTightenin
       else commodities_nudge_cap
     )
   blocked = await get_underperforming_bots(session)
+  blocked -= await active_gate_entry_exempt_bots(session)
   stocks_cap = 3 if "stocks_futures" not in blocked and deficit >= 0.02 else None
 
   return GateEntryTightening(
