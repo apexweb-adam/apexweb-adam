@@ -19,7 +19,7 @@ jobs:
 
       - name: Check production dashboard bundle and proxy
         env:
-          VERIFIED_PREVIEW: "https://apex-trading-dashboard-r8ur3gw5s-apexweb-adams-projects.vercel.app"
+          VERIFIED_PREVIEW: "https://apex-trading-dashboard-73nruanbo-apexweb-adams-projects.vercel.app"
         run: |
           set -euo pipefail
           DASHBOARD="https://apex-trading-dashboard-flame.vercel.app"
@@ -134,7 +134,7 @@ jobs:
 
       - name: Check active-bot gate endpoint (production proxy)
         env:
-          VERIFIED_PREVIEW: "https://apex-trading-dashboard-r8ur3gw5s-apexweb-adams-projects.vercel.app"
+          VERIFIED_PREVIEW: "https://apex-trading-dashboard-73nruanbo-apexweb-adams-projects.vercel.app"
         run: |
           set -euo pipefail
           PROD="https://apex-trading-dashboard-flame.vercel.app"
