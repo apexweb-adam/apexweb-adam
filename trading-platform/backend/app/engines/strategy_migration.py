@@ -32,6 +32,7 @@ def cap_verification_signal_score(bot_type: str, score: float) -> float:
 
 async def adapt_for_gate_win_rate(session: AsyncSession) -> int:
   """Raise min_signal_score and min_sentiment when gate win rate is below target."""
+  from app.engines.gate_entry_guard import get_underperforming_bots
   from app.engines.profitability_gate import ProfitabilityGate
 
   gate = await ProfitabilityGate(session).evaluate()
@@ -40,6 +41,7 @@ async def adapt_for_gate_win_rate(session: AsyncSession) -> int:
   if (gate.get("win_rate") or 0) >= ProfitabilityGate.MIN_WIN_RATE:
     return 0
 
+  blocked = await get_underperforming_bots(session)
   configs = list((await session.execute(select(StrategyConfig))).scalars().all())
   updated = 0
   for config in configs:
@@ -47,16 +49,22 @@ async def adapt_for_gate_win_rate(session: AsyncSession) -> int:
     if ceiling is None:
       continue
     changed = False
-    if config.min_signal_score < ceiling - 0.005:
-      config.min_signal_score = min(ceiling, config.min_signal_score + 0.01)
+    step = 0.02 if config.bot_type in blocked else 0.01
+    target_signal = ceiling if config.bot_type in blocked else min(ceiling, config.min_signal_score + step)
+    if config.min_signal_score < target_signal - 0.005:
+      config.min_signal_score = target_signal
       changed = True
-    sentiment_cap = 0.15
+    sentiment_cap = 0.18 if config.bot_type in blocked else 0.15
     if config.min_sentiment_score < sentiment_cap - 0.005:
-      config.min_sentiment_score = min(sentiment_cap, config.min_sentiment_score + 0.02)
+      config.min_sentiment_score = min(sentiment_cap, config.min_sentiment_score + (0.03 if config.bot_type in blocked else 0.02))
       changed = True
-    if config.bot_type == "polymarket" and config.stop_loss_pct > 0.03:
-      config.stop_loss_pct = 0.03
-      changed = True
+    if config.bot_type == "polymarket":
+      if config.stop_loss_pct > 0.03:
+        config.stop_loss_pct = 0.03
+        changed = True
+      if config.bot_type in blocked and config.max_position_pct > settings.polymarket_max_position_pct * 0.5:
+        config.max_position_pct = settings.polymarket_max_position_pct * 0.5
+        changed = True
     if changed:
       config.version += 1
       config.updated_at = datetime.utcnow()
