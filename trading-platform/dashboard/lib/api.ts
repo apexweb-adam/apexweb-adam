@@ -293,6 +293,7 @@ export type GateEntryTightening = {
   max_pm_open_positions: number | null;
   max_crypto_open_positions?: number | null;
   max_commodities_open_positions?: number | null;
+  blocked_new_entries?: string[];
 };
 
 export type PlatformStatus = {

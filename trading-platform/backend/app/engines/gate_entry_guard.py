@@ -4,9 +4,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import BOT_TYPES
 from app.engines.profitability_gate import ProfitabilityGate
+from app.models.entities import Portfolio
 
 
 @dataclass(frozen=True)
@@ -19,6 +22,7 @@ class GateEntryTightening:
   max_pm_open_positions: int | None = None
   max_crypto_open_positions: int | None = None
   max_commodities_open_positions: int | None = None
+  blocked_new_entries: frozenset[str] = frozenset()
 
 
 BOT_MIN_SENTIMENT = {
@@ -27,6 +31,31 @@ BOT_MIN_SENTIMENT = {
   "stocks_futures": 0.04,
   "polymarket": 0.12,
 }
+
+UNDERPERFORMER_MIN_TRADES = 15
+UNDERPERFORMER_MAX_WIN_RATE = 0.40
+
+
+async def get_underperforming_bots(session: AsyncSession) -> frozenset[str]:
+  """Bots with enough closed trades and win rate below floor during verification."""
+  blocked: set[str] = set()
+  for bot_type in BOT_TYPES:
+    portfolio = (
+      await session.execute(select(Portfolio).where(Portfolio.bot_type == bot_type))
+    ).scalar_one_or_none()
+    if not portfolio or portfolio.total_trades < UNDERPERFORMER_MIN_TRADES:
+      continue
+    if portfolio.win_rate < UNDERPERFORMER_MAX_WIN_RATE:
+      blocked.add(bot_type)
+  return frozenset(blocked)
+
+
+async def bot_allows_new_entries(session: AsyncSession, bot_type: str) -> bool:
+  """Block new entries for chronic underperformers while gate is active."""
+  tightening = await get_gate_entry_tightening(session)
+  if not tightening.active:
+    return True
+  return bot_type not in tightening.blocked_new_entries
 
 
 async def get_gate_entry_tightening(session: AsyncSession) -> GateEntryTightening:
@@ -47,9 +76,10 @@ async def get_gate_entry_tightening(session: AsyncSession) -> GateEntryTightenin
   deficit = ProfitabilityGate.MIN_WIN_RATE - win_rate
   boost = min(0.08, deficit * 0.4)
 
-  pm_cap = 2 if deficit >= 0.02 else None
+  pm_cap = 1 if deficit >= 0.05 else (2 if deficit >= 0.02 else None)
   crypto_cap = 1 if deficit >= 0.05 else (2 if deficit >= 0.02 else None)
   commodities_cap = 2 if deficit >= 0.02 else None
+  blocked = await get_underperforming_bots(session)
 
   return GateEntryTightening(
     active=True,
@@ -60,6 +90,7 @@ async def get_gate_entry_tightening(session: AsyncSession) -> GateEntryTightenin
     max_pm_open_positions=pm_cap,
     max_crypto_open_positions=crypto_cap,
     max_commodities_open_positions=commodities_cap,
+    blocked_new_entries=blocked,
   )
 
 

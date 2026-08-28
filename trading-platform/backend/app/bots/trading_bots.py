@@ -183,6 +183,7 @@ class BaseBot(ABC):
           and signal.volume_confirmed
           and composite >= min_signal
           and sentiment + integration_boost >= min_sentiment
+          and self.bot_type not in gate_tightening.blocked_new_entries
         ):
           reason = f"Signal:{signal.score:.2f} Sentiment:{sentiment:.2f}"
           if sentiment_sources:
@@ -480,6 +481,7 @@ class PolymarketBot(BaseBot):
               pm_sig.direction == "buy"
               and composite >= min_score
               and pm_sig.sentiment + integration_boost >= min_sentiment
+              and "polymarket" not in gate_tightening.blocked_new_entries
             ):
               reason = f"PM:{pm_sig.reason}"
               if integration_reason:

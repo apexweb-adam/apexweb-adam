@@ -523,6 +523,7 @@ async def get_platform_status(db: AsyncSession = Depends(get_db)) -> dict[str, A
       "max_pm_open_positions": gate_tightening.max_pm_open_positions,
       "max_crypto_open_positions": gate_tightening.max_crypto_open_positions,
       "max_commodities_open_positions": gate_tightening.max_commodities_open_positions,
+      "blocked_new_entries": sorted(gate_tightening.blocked_new_entries),
     },
     "bots": bots,
     "intelligence": {
