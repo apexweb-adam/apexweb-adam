@@ -35,6 +35,30 @@ async def health() -> dict[str, str]:
   return {"status": "ok", "mode": "paper_trading", "timestamp": datetime.utcnow().isoformat()}
 
 
+@router.get("/platform-urls")
+async def get_platform_urls() -> dict[str, Any]:
+  """Public CRM/API URLs when running via Cloud Agent tunnels."""
+  from app.engines.deploy_status import (
+    configured_public_backend_url,
+    configured_public_dashboard_url,
+    recommended_dashboard_url,
+  )
+
+  dashboard = configured_public_dashboard_url()
+  backend = configured_public_backend_url()
+  recommended = await recommended_dashboard_url()
+  ws = None
+  if backend:
+    ws = backend.replace("https://", "wss://").replace("http://", "ws://") + "/api/ws"
+  return {
+    "dashboard_url": dashboard,
+    "backend_url": backend,
+    "backend_ws": ws,
+    "recommended_dashboard_url": recommended,
+    "source": "env" if os.environ.get("PUBLIC_DASHBOARD_URL") else ("platform-urls.json" if dashboard else None),
+  }
+
+
 @router.get("/dashboard-url")
 async def get_dashboard_url() -> dict[str, Any]:
   """Canonical CRM dashboard URL — verified preview when Vercel production bundle is stale."""

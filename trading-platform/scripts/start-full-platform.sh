@@ -58,6 +58,9 @@ ensure_backend() {
   echo "Starting backend on :${BACKEND_PORT}..."
   (
     cd "$ROOT/backend"
+    if [[ -f "$ROOT/.platform-urls.json" ]]; then
+      export PLATFORM_URLS_FILE="$ROOT/.platform-urls.json"
+    fi
     PYTHONPATH=. python3 -m uvicorn app.main:app --host 0.0.0.0 --port "$BACKEND_PORT"
   ) &
   for _ in $(seq 1 45); do
@@ -129,11 +132,17 @@ cat > "$ROOT/.platform-urls.json" << EOF
 {
   "backend_url": "${BACKEND_PUBLIC}",
   "backend_ws": "wss://${BACKEND_PUBLIC#https://}/api/ws",
-  "dashboard_url": "${DASHBOARD_PUBLIC:-}",
-  "local_backend": "http://127.0.0.1:${BACKEND_PORT}",
-  "local_dashboard": "http://127.0.0.1:${DASHBOARD_PORT}"
+  "dashboard_url": "${DASHBOARD_PUBLIC:-}"
 }
 EOF
+
+if [[ -n "$DASHBOARD_PUBLIC" ]]; then
+  export PUBLIC_DASHBOARD_URL="$DASHBOARD_PUBLIC"
+fi
+if [[ -n "$BACKEND_PUBLIC" ]]; then
+  export PUBLIC_BACKEND_URL="$BACKEND_PUBLIC"
+fi
+export PLATFORM_URLS_FILE="$ROOT/.platform-urls.json"
 
 echo ""
 echo "=== Apex Trading Platform (public) ==="

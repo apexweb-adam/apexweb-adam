@@ -27,7 +27,7 @@ DEFAULT_VERIFIED_DASHBOARD_URL = (
 )
 DEFAULT_VERIFIED_DEPLOYMENT_ID = "dpl_29H1cYhLuLb1wN7L3HJD9yizZ8pL"
 EXPECTED_DASHBOARD_BUNDLE = "2026-08-28-r25"
-EXPECTED_PLATFORM_REVISION = "2026-08-28-r86"
+EXPECTED_PLATFORM_REVISION = "2026-08-28-r87"
 GIT_MAIN_ALIAS = "apex-trading-dashboard-git-main"
 ACCEPTABLE_DASHBOARD_BUNDLES = frozenset({
   "2026-08-27-r9", "2026-08-27-r10", "2026-08-27-r11", "2026-08-27-r12",
@@ -43,6 +43,82 @@ def configured_verified_dashboard_url() -> str:
 
 def configured_verified_deployment_id() -> str:
   return os.environ.get("VERIFIED_VERCEL_DEPLOYMENT_ID", DEFAULT_VERIFIED_DEPLOYMENT_ID)
+
+
+def _platform_root() -> str:
+  here = os.path.dirname(os.path.abspath(__file__))
+  return os.path.normpath(os.path.join(here, "../../.."))
+
+
+def configured_public_dashboard_url() -> str | None:
+  """Cloud Agent / tunnel CRM URL when set (PUBLIC_DASHBOARD_URL or .platform-urls.json)."""
+  env_url = os.environ.get("PUBLIC_DASHBOARD_URL", "").strip()
+  if env_url:
+    return env_url.rstrip("/")
+
+  paths: list[str] = []
+  custom = os.environ.get("PLATFORM_URLS_FILE", "").strip()
+  if custom:
+    paths.append(custom)
+  platform_root = _platform_root()
+  paths.append(os.path.join(platform_root, ".platform-urls.json"))
+  dash_file = os.path.join(platform_root, ".dashboard-tunnel-url")
+  if os.path.isfile(dash_file):
+    try:
+      with open(dash_file, encoding="utf-8") as handle:
+        url = handle.read().strip().rstrip("/")
+      if url.startswith("http"):
+        return url
+    except Exception:
+      pass
+  for path in paths:
+    try:
+      if not os.path.isfile(path):
+        continue
+      import json
+      with open(path, encoding="utf-8") as handle:
+        data = json.load(handle)
+      url = (data.get("dashboard_url") or "").strip().rstrip("/")
+      if url:
+        return url
+    except Exception:
+      continue
+  return None
+
+
+def configured_public_backend_url() -> str | None:
+  env_url = os.environ.get("PUBLIC_BACKEND_URL", "").strip()
+  if env_url:
+    return env_url.rstrip("/")
+
+  paths: list[str] = []
+  custom = os.environ.get("PLATFORM_URLS_FILE", "").strip()
+  if custom:
+    paths.append(custom)
+  platform_root = _platform_root()
+  paths.append(os.path.join(platform_root, ".platform-urls.json"))
+  tunnel_file = os.path.join(platform_root, ".tunnel-url")
+  if os.path.isfile(tunnel_file):
+    try:
+      with open(tunnel_file, encoding="utf-8") as handle:
+        url = handle.read().strip().rstrip("/")
+      if url.startswith("http"):
+        return url
+    except Exception:
+      pass
+  for path in paths:
+    try:
+      if not os.path.isfile(path):
+        continue
+      import json
+      with open(path, encoding="utf-8") as handle:
+        data = json.load(handle)
+      url = (data.get("backend_url") or "").strip().rstrip("/")
+      if url:
+        return url
+    except Exception:
+      continue
+  return None
 
 
 def is_git_main_alias(url: str) -> bool:
@@ -587,6 +663,13 @@ async def build_deploy_status() -> dict[str, Any]:
 
   platform_revision = os.environ.get("PLATFORM_REVISION", "").strip() or None
 
+  public_dashboard = configured_public_dashboard_url()
+  public_backend = configured_public_backend_url()
+  if public_dashboard:
+    vercel["public_dashboard_url"] = public_dashboard
+  if public_backend:
+    vercel["public_backend_url"] = public_backend
+
   return {
     "git_commit": deployed,
     "git_branch": os.environ.get("RENDER_GIT_BRANCH"),
@@ -607,7 +690,13 @@ async def build_deploy_status() -> dict[str, Any]:
 
 
 async def recommended_dashboard_url() -> str:
-  """Return the best live CRM URL — configured preview wins when probe succeeds."""
+  """Return the best live CRM URL — public tunnel, then verified preview, then production."""
+  public = configured_public_dashboard_url()
+  if public:
+    cfg = await probe_dashboard_config(public)
+    if cfg and bundle_is_acceptable(cfg):
+      return public
+
   configured_probe = await probe_configured_verified_dashboard()
   if configured_probe:
     return configured_probe["verified_dashboard_url"]
