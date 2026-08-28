@@ -1,0 +1,72 @@
+name: Render Hook Recovery
+
+# Manual recovery when Render autoDeploy lags — POST deploy hook once.
+# Use after merging backend changes when /api/status shows is_stale=true.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  trigger-hook:
+    runs-on: ubuntu-latest
+    env:
+      RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+      RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+    steps:
+      - name: Show current production commit
+        run: |
+          set -euo pipefail
+          STATUS=$(curl -fsS "https://apex-trading-backend.onrender.com/api/status")
+          echo "$STATUS" | python3 -c "
+          import json, sys
+          d = json.load(sys.stdin).get('deploy', {})
+          print('deployed', (d.get('git_commit') or '?')[:12])
+          print('main', (d.get('latest_main_commit') or '?')[:12])
+          print('stale', d.get('is_stale'), 'behind', d.get('commits_behind'))
+          "
+
+      - name: Trigger Render deploy
+        run: |
+          set -euo pipefail
+          if [ -n "${RENDER_API_KEY:-}" ]; then
+            SERVICES=$(curl -fsS -H "Authorization: Bearer $RENDER_API_KEY" \
+              "https://api.render.com/v1/services?limit=100")
+            SERVICE_ID=$(echo "$SERVICES" | python3 -c "
+          import json, sys
+          for item in json.load(sys.stdin):
+              svc = item.get('service') or item
+              if svc.get('name') == 'apex-trading-backend':
+                  print(svc['id'])
+                  break
+          ")
+            curl -fsS -X POST \
+              -H "Authorization: Bearer $RENDER_API_KEY" \
+              -H "Content-Type: application/json" \
+              -d '{"clearCache":"clear"}' \
+              "https://api.render.com/v1/services/${SERVICE_ID}/deploys"
+            echo "Deploy triggered via Render API"
+          elif [ -n "${RENDER_DEPLOY_HOOK:-}" ]; then
+            curl -fsS -X POST "$RENDER_DEPLOY_HOOK"
+            echo "Deploy hook triggered (recovery)"
+          else
+            echo "::error::Set RENDER_API_KEY or RENDER_DEPLOY_HOOK in GitHub secrets"
+            exit 1
+          fi
+
+      - name: Wait for deploy
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3 4 5 6 7 8 9 10; do
+            sleep 30
+            STATUS=$(curl -fsS "https://apex-trading-backend.onrender.com/api/status")
+            DEPLOYED=$(echo "$STATUS" | python3 -c "import json,sys; print(json.load(sys.stdin).get('deploy',{}).get('git_commit','')[:12])")
+            MAIN=$(curl -fsS "https://api.github.com/repos/apexweb-adam/apexweb-adam/git/ref/heads/main" | python3 -c "import json,sys; print(json.load(sys.stdin)['object']['sha'][:12])")
+            VH=$(curl -s -o /dev/null -w "%{http_code}" "https://apex-trading-backend.onrender.com/api/verification/history")
+            echo "attempt $attempt: deployed=$DEPLOYED main=$MAIN verification_history=$VH"
+            if [[ "$DEPLOYED" == "$MAIN" && "$VH" == "200" ]]; then
+              echo "Recovery deploy verified"
+              exit 0
+            fi
+          done
+          echo "::warning::Deploy not verified within 5 minutes — check Render dashboard"
+          exit 0
