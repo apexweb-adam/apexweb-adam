@@ -12,6 +12,8 @@ from app.engines.gate_entry_guard import (
   get_gate_entry_tightening,
   get_gate_skip_symbols,
   get_proven_winner_symbols,
+  gate_position_scale,
+  early_verification_active,
   in_shadow_graduation_nudge,
   shadow_entry_min_signal,
   shadow_intel_composite_override,
@@ -171,9 +173,18 @@ class BaseBot(ABC):
         gate_status = await ProfitabilityGate(session).evaluate()
         active_trades = int(gate_status.get("total_trades") or 0)
         active_wr = float(gate_status.get("win_rate") or 0)
-        if active_trades < 30 and active_wr >= ProfitabilityGate.MIN_WIN_RATE:
-          min_signal = max(0.08, min_signal - 0.06)
-          min_sentiment = max(0.0, min_sentiment - 0.05)
+        if early_verification_active(active_trades, active_wr):
+          from app.engines.gate_entry_guard import (
+            EARLY_VERIFICATION_MIN_SIGNAL_FLOOR,
+            EARLY_VERIFICATION_SENTIMENT_EASE,
+            EARLY_VERIFICATION_SIGNAL_EASE,
+          )
+
+          min_signal = max(
+            EARLY_VERIFICATION_MIN_SIGNAL_FLOOR,
+            min_signal - EARLY_VERIFICATION_SIGNAL_EASE,
+          )
+          min_sentiment = max(0.0, min_sentiment - EARLY_VERIFICATION_SENTIMENT_EASE)
           early_verification_boost = True
       shadow_open_cap = SHADOW_MAX_OPEN.get(self.bot_type) if shadow_mode else None
       graduation_nudge = in_shadow_graduation_nudge(self.bot_type, shadow_bot_wr)
@@ -442,6 +453,11 @@ class BaseBot(ABC):
           if integration_reason:
             reason += f" Integrations:{integration_boost:+.2f} ({integration_reason})"
           reason += f" | {signal.reason}"
+          buy_scale = SHADOW_POSITION_SCALE if shadow_mode else 1.0
+          if early_verification_boost and not shadow_mode:
+            buy_scale *= gate_position_scale(
+              composite, entry_min_signal, early_boost=True
+            )
           result = await engine.buy(
             symbol,
             price,
@@ -449,7 +465,7 @@ class BaseBot(ABC):
             sentiment,
             reason,
             strategy=f"v{strategy.version}",
-            position_scale=SHADOW_POSITION_SCALE if shadow_mode else 1.0,
+            position_scale=buy_scale,
           )
           if result:
             actions.append(result)
