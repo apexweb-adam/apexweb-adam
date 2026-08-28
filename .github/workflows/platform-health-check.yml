@@ -93,6 +93,7 @@ jobs:
           print('OK: verified preview active-gate proxy')
           "
 
+      - name: Check CRM landing page (/crm)
         run: |
           set -euo pipefail
           CRM=$(curl -fsS "https://apex-trading-backend.onrender.com/crm")
