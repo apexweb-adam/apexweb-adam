@@ -58,6 +58,24 @@ When stale:
 5. Add `RENDER_API_KEY` to **GitHub secrets** (CI deploys) and/or **Render env** (hourly self-heal via `redeploy_check_job`)
 6. Add `GITHUB_TOKEN` (fine-grained repo read) on Render for reliable staleness detection in `/api/status`
 
+### Ghost GitHub integrations (checksPass deadlock)
+
+If Render Auto-Deploy is **After CI Checks Pass** and deploys never start, check commit statuses on `main`:
+
+```bash
+curl -s "https://api.github.com/repos/apexweb-adam/apexweb-adam/commits/main/statuses" | jq '.[].context,.[].state'
+```
+
+**Queued** statuses from unused apps (Vercel, Netlify, Supabase, Cursor, Claude) keep combined status `pending` forever.
+
+Fix (pick one):
+
+1. **Render Dashboard** → Settings → Build & Deploy → **On Commit** (recommended)
+2. **GitHub** → repo **Settings → Integrations** → remove or disable unused GitHub Apps
+3. Add **`RENDER_API_KEY`** — deploys via API regardless of commit status
+
+After r83+, `/api/status` → `deploy.github_checks_blocker` lists blocking integrations.
+
 CI workflows and the in-app redeploy trigger skip the deploy hook when stale. The keep-alive workflow (every 10 min) only pings health; it triggers API deploy when stale (if `RENDER_API_KEY` is set).
 
 ## TradingView webhook (after Render live)
