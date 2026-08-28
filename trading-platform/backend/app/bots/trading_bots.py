@@ -509,7 +509,20 @@ class StocksFuturesBot(BaseBot):
           symbols = await self.get_symbols()
           await self._record_scan_result(len(symbols), [], "outside US market hours")
           return []
-    return await super().scan_and_trade(allow_new_entries=in_session)
+    actions = await super().scan_and_trade(allow_new_entries=in_session)
+    if in_session and not any(a.get("action") in ("buy", "sell") for a in actions):
+      interval = await self._effective_scan_interval()
+      if interval < self.scan_interval:
+        async with SessionLocal() as session:
+          gate_tightening = await get_gate_entry_tightening(session)
+          if gate_tightening.active:
+            symbols = await self.get_symbols()
+            await self._record_scan_result(
+              len(symbols),
+              actions,
+              f"US session · {interval}s scan · gate active",
+            )
+    return actions
 
 
 class CommoditiesBot(BaseBot):

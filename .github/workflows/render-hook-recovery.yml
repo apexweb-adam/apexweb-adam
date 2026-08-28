@@ -46,10 +46,10 @@ jobs:
               "https://api.render.com/v1/services/${SERVICE_ID}/deploys"
             echo "Deploy triggered via Render API"
           elif [ -n "${RENDER_DEPLOY_HOOK:-}" ]; then
-            STATUS=$(curl -fsS "https://apex-trading-backend.onrender.com/api/status")
-            STALE=$(echo "$STATUS" | python3 -c "import json,sys; d=json.load(sys.stdin).get('deploy',{}); print('true' if d.get('is_stale') or int(d.get('commits_behind') or 0)>0 else 'false')")
-            if [[ "$STALE" == "true" ]]; then
-              echo "::error::Backend stale — deploy hook redeploys old commit. Add RENDER_API_KEY or Manual Deploy in Render."
+            LATEST=$(curl -fsS "https://api.github.com/repos/apexweb-adam/apexweb-adam/git/ref/heads/main" | python3 -c "import json,sys; print(json.load(sys.stdin)['object']['sha'][:12])")
+            DEPLOYED=$(curl -fsS "https://apex-trading-backend.onrender.com/api/status" | python3 -c "import json,sys; print(json.load(sys.stdin).get('deploy',{}).get('git_commit','')[:12])")
+            if [[ -n "$DEPLOYED" && -n "$LATEST" && "$DEPLOYED" != "$LATEST" ]]; then
+              echo "::error::Backend stale — deployed $DEPLOYED, main is $LATEST. Deploy hook redeploys old commit. Add RENDER_API_KEY or Manual Deploy in Render."
               exit 1
             fi
             curl -fsS -X POST "$RENDER_DEPLOY_HOOK"
