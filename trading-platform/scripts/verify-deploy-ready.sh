@@ -53,17 +53,24 @@ else
   echo "○ Local backend not running (skip runtime checks)"
 fi
 
-# Production dashboard proxy
-DASH="https://apex-trading-dashboard-fvmoq5oyj-apexweb-adams-projects.vercel.app"
+# Render backend (permanent)
+RENDER="https://apex-trading-backend.onrender.com"
+
+# Production dashboard — prefer backend canonical URL, else r21 verified preview
+DASH="${VERIFIED_DASHBOARD_URL:-}"
+if [[ -z "$DASH" ]]; then
+  DASH=$(curl -sf "$RENDER/api/dashboard-url" 2>/dev/null | python3 -c "import sys,json; print(json.load(sys.stdin).get('recommended_url',''))" 2>/dev/null || true)
+fi
+if [[ -z "$DASH" ]]; then
+  DASH="https://apex-trading-dashboard-ihyxoyq1e-apexweb-adams-projects.vercel.app"
+fi
 LEGACY_DASH="https://apex-trading-dashboard-flame.vercel.app"
 if curl -sf "$DASH/api/backend/health" >/dev/null 2>&1; then
-  check "Production dashboard API proxy" 1
+  check "Production dashboard API proxy ($DASH)" 1
 else
   check "Production dashboard API proxy" 0
 fi
 
-# Render backend (permanent)
-RENDER="https://apex-trading-backend.onrender.com"
 CODE=$(curl -s -o /dev/null -w "%{http_code}" "$RENDER/api/health" 2>/dev/null || echo "000")
 if [[ "$CODE" == "200" ]]; then
   check "Render backend live ($RENDER)" 1
