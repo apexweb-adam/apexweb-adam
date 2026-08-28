@@ -5,6 +5,7 @@ on:
     branches: [main, cursor/apex-trading-platform-f603]
     paths:
       - 'trading-platform/dashboard/**'
+      - 'vercel.json'
       - '.github/workflows/deploy-trading-platform.yml'
   workflow_dispatch:
 
@@ -79,7 +80,7 @@ jobs:
       - name: Verify production dashboard bundle
         if: always()
         env:
-          EXPECTED_BUNDLE_REVISION: "2026-08-28-r24"
+          EXPECTED_BUNDLE_REVISION: "2026-08-28-r25"
         run: |
           set -euo pipefail
           PROD="https://apex-trading-dashboard-flame.vercel.app"

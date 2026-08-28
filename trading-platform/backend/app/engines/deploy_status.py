@@ -23,16 +23,16 @@ def github_headers() -> dict[str, str]:
   return headers
 PRODUCTION_DASHBOARD_URL = "https://apex-trading-dashboard-flame.vercel.app"
 DEFAULT_VERIFIED_DASHBOARD_URL = (
-  "https://apex-trading-dashboard-git-main-apexweb-adams-projects.vercel.app"
+  "https://apex-trading-dashboard-r8ur3gw5s-apexweb-adams-projects.vercel.app"
 )
-DEFAULT_VERIFIED_DEPLOYMENT_ID = "dpl_B7wrt1wpZ1Aw1Fu144iHgrYfU6MK"
-EXPECTED_DASHBOARD_BUNDLE = "2026-08-28-r24"
-EXPECTED_PLATFORM_REVISION = "2026-08-28-r74"
+DEFAULT_VERIFIED_DEPLOYMENT_ID = "dpl_s1AxACFMF67jum5r7HGX6uEsNdea"
+EXPECTED_DASHBOARD_BUNDLE = "2026-08-28-r25"
+EXPECTED_PLATFORM_REVISION = "2026-08-28-r75"
 ACCEPTABLE_DASHBOARD_BUNDLES = frozenset({
   "2026-08-27-r9", "2026-08-27-r10", "2026-08-27-r11", "2026-08-27-r12",
   "2026-08-27-r13", "2026-08-27-r14", "2026-08-27-r15", "2026-08-27-r16",
   "2026-08-28-r17", "2026-08-28-r18", "2026-08-28-r19", "2026-08-28-r20",
-  "2026-08-28-r24", "2026-08-28-r23", "2026-08-28-r22", "2026-08-28-r21",
+  "2026-08-28-r25", "2026-08-28-r24", "2026-08-28-r23", "2026-08-28-r22", "2026-08-28-r21",
 })
 
 
@@ -57,7 +57,9 @@ def verified_dashboard_candidates() -> list[str]:
       seen.add(normalized)
       candidates.append(normalized)
 
-  # Probe r21+ previews first — stale Render env vars must not block discovery.
+  # Newest acceptable previews first — git-main alias can lag behind main merges.
+  add("https://apex-trading-dashboard-r8ur3gw5s-apexweb-adams-projects.vercel.app")
+  add("https://apex-trading-dashboard-gdjavkmox-apexweb-adams-projects.vercel.app")
   add("https://apex-trading-dashboard-git-main-apexweb-adams-projects.vercel.app")
   add("https://apex-trading-dashboard-aiuir3aha-apexweb-adams-projects.vercel.app")
   add("https://apex-trading-dashboard-ihyxoyq1e-apexweb-adams-projects.vercel.app")
