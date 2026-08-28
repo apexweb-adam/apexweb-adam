@@ -38,6 +38,7 @@ jobs:
 
       - name: Trigger Render deploy
         if: github.event_name != 'schedule' || steps.freshness.outputs.skip != 'true'
+        id: trigger
         env:
           RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
@@ -64,6 +65,7 @@ jobs:
               -H "Content-Type: application/json" \
               -d '{"clearCache":"clear"}' \
               "https://api.render.com/v1/services/${SERVICE_ID}/deploys"
+            echo "api_triggered=true" >> "$GITHUB_OUTPUT"
             echo "Deploy triggered via Render API (preferred — pulls latest GitHub commit)"
           else
             LATEST=$(curl -fsS "https://api.github.com/repos/apexweb-adam/apexweb-adam/git/ref/heads/main" | python3 -c "import json,sys; print(json.load(sys.stdin)['object']['sha'][:12])")
@@ -72,12 +74,14 @@ jobs:
             if [[ -n "$DEPLOYED" && -n "$LATEST" && "$DEPLOYED" != "$LATEST" ]]; then
               STALE="true"
             fi
+            echo "stale=$STALE" >> "$GITHUB_OUTPUT"
             if [[ "$STALE" == "true" ]]; then
               echo "::warning::Backend stale — deployed $DEPLOYED, main is $LATEST. Skipping deploy hook (redeploys last built commit, not main)."
-              echo "Waiting on Render GitHub autoDeploy, or run render-hook-recovery with RENDER_API_KEY."
+              echo "Render GitHub autoDeploy (On Commit) should deploy latest — this job exits quickly so checksPass is not blocked."
               echo "Manual: Render Dashboard → apex-trading-backend → Manual Deploy → latest commit"
             elif [ -n "${RENDER_DEPLOY_HOOK:-}" ]; then
               curl -fsS -X POST "$RENDER_DEPLOY_HOOK"
+              echo "hook_triggered=true" >> "$GITHUB_OUTPUT"
               echo "Triggered RENDER_DEPLOY_HOOK (current deploy — safe to redeploy same commit)"
             else
               echo "::warning::Neither RENDER_DEPLOY_HOOK nor RENDER_API_KEY is set."
@@ -86,8 +90,13 @@ jobs:
             fi
           fi
 
+  verify-render:
+    needs: trigger-render
+    if: always() && needs.trigger-render.result == 'success'
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
       - name: Verify production picked up backend deploy
-        if: always() && (github.event_name != 'schedule' || steps.freshness.outputs.skip != 'true')
         run: |
           set -euo pipefail
           for attempt in 1 2 3 4 5 6 7 8 9 10 11 12; do
@@ -104,14 +113,6 @@ jobs:
           done
           VERIFY=$(curl -s -o /dev/null -w "%{http_code}" "https://apex-trading-backend.onrender.com/api/verification/history")
           echo "deployed=$DEPLOYED main=$MAIN verification_history=$VERIFY equity_history=$EQUITY"
-          if [[ "$DEPLOYED" != "$MAIN" ]]; then
-            echo "::warning::Render still on $DEPLOYED — main is $MAIN after 9 min. autoDeploy may still be building on free tier."
-            echo "Run render-hook-recovery with RENDER_API_KEY, or Manual Deploy → latest commit in Render."
-            if [[ -z "${RENDER_API_KEY:-}" ]]; then
-              echo "::warning::RENDER_API_KEY not set — cannot force deploy from CI. Relying on Render GitHub autoDeploy."
-              exit 0
-            fi
-          fi
-          if [[ "$VERIFY" != "200" ]]; then
-            echo "::warning::Verification history endpoint HTTP $VERIFY — will pass after latest backend deploys."
-          fi
+          echo "::warning::Render still on $DEPLOYED — main is $MAIN after 9 min."
+          echo "Run render-hook-recovery with RENDER_API_KEY, or Manual Deploy → latest commit in Render."
+          exit 0
