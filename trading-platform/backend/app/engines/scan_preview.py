@@ -16,6 +16,7 @@ from app.engines.gate_entry_guard import (
   SHADOW_MAX_OPEN,
   bot_min_sentiment,
   early_verification_active,
+  gate_entry_guards_active,
   gate_position_scale,
   get_gate_entry_tightening,
   get_gate_skip_symbols,
@@ -51,6 +52,13 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
   strategy = await engine.get_strategy()
   gate_tightening = await get_gate_entry_tightening(session)
 
+  gate_status = await ProfitabilityGate(session).evaluate()
+  entry_guards = gate_entry_guards_active(
+    gate_tightening=gate_tightening,
+    shadow_mode=shadow_mode,
+    live_trading_ready=bool(gate_status.get("live_trading_ready")),
+  )
+
   shadow_bot_wr: float | None = None
   if shadow_mode:
     per_bot = await ProfitabilityGate(session).evaluate_per_bot()
@@ -58,7 +66,7 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
 
   chronic_losers: frozenset[str] = frozenset()
   proven_winners: frozenset[str] = frozenset()
-  if gate_tightening.active or shadow_mode:
+  if entry_guards:
     chronic_losers = await get_gate_skip_symbols(session, bot_type)
     if bot_type in ("stocks_futures", "commodities"):
       proven_winners = await get_proven_winner_symbols(session, bot_type)
@@ -78,7 +86,6 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
 
   early_verification_boost = False
   if not shadow_mode and bot_type == "stocks_futures":
-    gate_status = await ProfitabilityGate(session).evaluate()
     active_trades = int(gate_status.get("total_trades") or 0)
     active_wr = float(gate_status.get("win_rate") or 0)
     if early_verification_active(active_trades, active_wr):
@@ -167,7 +174,7 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
     )
 
     blockers: list[str] = []
-    if gate_tightening.active and symbol in chronic_losers:
+    if entry_guards and symbol in chronic_losers:
       blockers.append("chronic_loser")
     if (
       gate_tightening.active
