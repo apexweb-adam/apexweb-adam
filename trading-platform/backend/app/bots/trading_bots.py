@@ -284,6 +284,32 @@ class BaseBot(ABC):
                   self._register_symbol_cooldown(symbol, after_loss=False)
               continue
 
+          if (
+            early_verification_boost
+            and self.bot_type == "stocks_futures"
+            and entry_guards
+            and symbol in hard_skip_sets.all
+          ):
+            unrealized = (price - position.entry_price) * position.quantity
+            wind_down = (
+              unrealized > 0
+              or signal.direction == "sell"
+              or held_seconds >= 1800
+            )
+            if wind_down:
+              reason = (
+                f"Gate wind-down (skip-listed {symbol}): uPnL ${unrealized:.2f} | {signal.reason}"
+              )
+              result = await engine.sell(symbol, price, reason)
+              if result:
+                actions.append(result)
+                if result.get("is_winner") is False:
+                  await self._analyze_loss(session, symbol)
+                  self._register_symbol_cooldown(symbol, after_loss=True)
+                else:
+                  self._register_symbol_cooldown(symbol, after_loss=False)
+              continue
+
           # Wind down legacy stock positions opened before proven-winners-only gate.
           if (
             gate_tightening.active
@@ -362,6 +388,7 @@ class BaseBot(ABC):
           symbol,
           chronic_symbols=chronic_losers,
           large_loss_symbols=hard_skip_sets.large,
+          graduation_nudge=graduation_nudge,
         ):
           continue
 

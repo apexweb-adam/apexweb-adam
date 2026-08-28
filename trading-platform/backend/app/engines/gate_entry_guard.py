@@ -65,6 +65,7 @@ SHADOW_GRADUATION_MIN_COMPOSITE_BY_BOT = {
   "crypto": 0.30,
   "commodities": 0.28,
 }
+SHADOW_GRADUATION_LOSS_COOLDOWN_MULTIPLIER = 2
 
 
 def shadow_min_signal_boost(bot_type: str, *, bot_win_rate: float | None = None) -> float:
@@ -552,6 +553,7 @@ async def is_symbol_in_trade_cooldown(
   *,
   chronic_symbols: frozenset[str] = frozenset(),
   large_loss_symbols: frozenset[str] = frozenset(),
+  graduation_nudge: bool = False,
 ) -> bool:
   """DB-backed re-entry cooldown — survives deploy restarts."""
   remaining = await symbol_cooldown_remaining_seconds(
@@ -560,6 +562,7 @@ async def is_symbol_in_trade_cooldown(
     symbol,
     chronic_symbols=chronic_symbols,
     large_loss_symbols=large_loss_symbols,
+    graduation_nudge=graduation_nudge,
   )
   return remaining > 0
 
@@ -571,6 +574,7 @@ async def symbol_cooldown_remaining_seconds(
   *,
   chronic_symbols: frozenset[str] = frozenset(),
   large_loss_symbols: frozenset[str] = frozenset(),
+  graduation_nudge: bool = False,
 ) -> int:
   """Seconds until symbol re-entry is allowed after last sell."""
   from app.models.entities import Trade
@@ -611,6 +615,12 @@ async def symbol_cooldown_remaining_seconds(
     and bot_type == "stocks_futures"
   ):
     seconds = int(seconds * EARLY_VERIFICATION_WIND_DOWN_COOLDOWN_MULTIPLIER)
+  if (
+    is_winner is False
+    and graduation_nudge
+    and bot_type in ("crypto", "commodities")
+  ):
+    seconds = int(seconds * SHADOW_GRADUATION_LOSS_COOLDOWN_MULTIPLIER)
   return max(0, int(seconds - elapsed))
 
 

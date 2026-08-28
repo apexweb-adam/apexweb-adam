@@ -124,6 +124,25 @@ def test_symbol_cooldown_wind_down_triples_stocks():
   assert 4100 <= remaining <= 5600
 
 
+def test_symbol_cooldown_graduation_nudge_doubles_crypto_loss():
+  from app.engines.gate_entry_guard import symbol_cooldown_remaining_seconds
+
+  session = AsyncMock()
+  executed = datetime.utcnow() - timedelta(minutes=20)
+  session.execute = AsyncMock(
+    return_value=MagicMock(first=lambda: (False, executed, "stop_loss"))
+  )
+  remaining = asyncio.run(
+    symbol_cooldown_remaining_seconds(
+      session,
+      "crypto",
+      "BTCUSDT",
+      graduation_nudge=True,
+    )
+  )
+  assert 1500 <= remaining <= 2500
+
+
 def test_large_recent_loss_symbols_blocks_until_win():
   session = AsyncMock()
   rows = [
