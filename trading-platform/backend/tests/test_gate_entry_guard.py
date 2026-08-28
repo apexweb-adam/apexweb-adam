@@ -30,6 +30,9 @@ def test_shadow_graduation_nudge_eases_commodities():
   assert in_shadow_graduation_nudge("crypto", 0.42) is False
   assert in_shadow_graduation_nudge("crypto", 0.42, profit_factor=1.1, total_pnl=5.0) is True
   assert in_shadow_graduation_nudge("crypto", 0.41, profit_factor=1.1, total_pnl=5.0) is False
+  assert in_shadow_graduation_nudge("commodities", 0.44, profit_factor=1.19, total_pnl=19.0) is True
+  assert in_shadow_graduation_nudge("commodities", 0.42, profit_factor=1.19, total_pnl=19.0) is True
+  assert in_shadow_graduation_nudge("commodities", 0.41, profit_factor=1.19, total_pnl=19.0) is False
   assert shadow_min_signal_boost("commodities", bot_win_rate=0.50) < shadow_min_signal_boost(
     "commodities"
   )
