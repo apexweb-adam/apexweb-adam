@@ -536,6 +536,27 @@ async def get_platform_status(db: AsyncSession = Depends(get_db)) -> dict[str, A
       "polymarket_api_key": bool(settings.polymarket_api_key),
       "newsapi": bool(settings.newsapi_key),
       "twitter_x": bool(settings.twitter_bearer_token),
+      "reddit_oauth": bool(settings.reddit_client_id and settings.reddit_client_secret),
+      "wallet_tracker": bool(settings.wallet_tracker_addresses),
+      "wallet_tracker_webhook": bool(settings.tradingview_webhook_secret),
+      "wallet_tracker_webhook_url": (
+        "https://apex-trading-backend.onrender.com/api/webhooks/wallet"
+        if settings.tradingview_webhook_secret
+        else None
+      ),
+      "wallet_tracker_example_payload": (
+        {
+          "secret": "<TRADINGVIEW_WEBHOOK_SECRET>",
+          "symbol": "BTCUSDT",
+          "action": "buy",
+          "amount_usd": 50000,
+          "address": "0x…",
+          "chain": "ethereum",
+          "tx_hash": "0x…",
+        }
+        if settings.tradingview_webhook_secret
+        else None
+      ),
     },
     "scheduler": {
       "intelligence_scan": "every 5 min",
@@ -557,6 +578,8 @@ async def get_platform_status(db: AsyncSession = Depends(get_db)) -> dict[str, A
           settings.polymarket_wallet_address or settings.polymarket_deposit_address
         ),
         "polymarket_api": bool(settings.polymarket_api_key),
+        "reddit": bool(settings.reddit_client_id and settings.reddit_client_secret),
+        "wallet_tracker": bool(settings.wallet_tracker_addresses),
       },
       "render_blueprint": "https://render.com/deploy?repo=https://github.com/apexweb-adam/apexweb-adam",
       "supabase_project": "zzgmovjapeyauvpdpuqe",
@@ -893,6 +916,48 @@ async def reset_paper_trading_admin(payload: dict[str, Any], db: AsyncSession = 
     "strategy_updated": strategy_updated,
     "bot_versions_synced": synced,
     "timestamp": datetime.utcnow().isoformat(),
+  }
+
+
+@router.post("/webhooks/wallet")
+async def wallet_webhook(payload: dict[str, Any], db: AsyncSession = Depends(get_db)):
+  """Ingest whale wallet moves or external social-monitor events into intel pipeline."""
+  from app.config import settings
+  from app.intelligence.wallet_tracker import ingest_wallet_webhook
+  from app.ws_manager import push_live_update
+
+  secret = payload.get("secret", "")
+  if not settings.tradingview_webhook_secret or secret != settings.tradingview_webhook_secret:
+    return {"status": "unauthorized"}
+
+  result = await ingest_wallet_webhook(db, payload)
+  await push_live_update()
+  return result
+
+
+@router.post("/admin/test-wallet-webhook")
+async def test_wallet_webhook(payload: dict[str, Any], db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
+  """Inject a sample whale-wallet alert to verify webhook pipeline."""
+  secret = payload.get("secret", "")
+  if not settings.tradingview_webhook_secret or secret != settings.tradingview_webhook_secret:
+    return {"status": "unauthorized"}
+
+  sample = {
+    "secret": settings.tradingview_webhook_secret,
+    "symbol": payload.get("symbol", "BTCUSDT"),
+    "action": payload.get("action", "buy"),
+    "amount_usd": payload.get("amount_usd", 25000),
+    "address": payload.get("address", "0xtestwhale"),
+    "chain": "ethereum",
+    "tx_hash": f"test-{datetime.utcnow().timestamp()}",
+    "message": payload.get("message", "Test whale accumulation alert"),
+  }
+  result = await wallet_webhook(sample, db)
+  return {
+    "status": "ok",
+    "webhook_url": "https://apex-trading-backend.onrender.com/api/webhooks/wallet",
+    "sample_payload": {k: v for k, v in sample.items() if k != "secret"},
+    "result": result,
   }
 
 

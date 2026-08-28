@@ -21,6 +21,7 @@ BOT_SOURCE_WEIGHTS: dict[str, dict[str, float]] = {
     "polymarket": 0.55,
     "tradingview": 1.1,
     "polymarket_account": 0.5,
+    "wallet_tracker": 1.45,
   },
   "stocks_futures": {
     "news": 1.25,
@@ -33,6 +34,7 @@ BOT_SOURCE_WEIGHTS: dict[str, dict[str, float]] = {
     "polymarket": 0.5,
     "tradingview": 1.2,
     "polymarket_account": 0.4,
+    "wallet_tracker": 0.35,
   },
   "commodities": {
     "political": 1.45,
@@ -45,6 +47,7 @@ BOT_SOURCE_WEIGHTS: dict[str, dict[str, float]] = {
     "polymarket": 0.65,
     "tradingview": 1.0,
     "polymarket_account": 0.35,
+    "wallet_tracker": 0.25,
   },
   "polymarket": {
     "polymarket": 1.5,
@@ -57,6 +60,7 @@ BOT_SOURCE_WEIGHTS: dict[str, dict[str, float]] = {
     "youtube": 0.6,
     "tiktok": 0.4,
     "tradingview": 0.9,
+    "wallet_tracker": 0.4,
   },
 }
 

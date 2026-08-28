@@ -17,6 +17,7 @@ INTEL_SOURCE_ORDER = [
   "tiktok",
   "polymarket",
   "polymarket_account",
+  "wallet_tracker",
   "political",
   "tradingview",
   "newsapi",
@@ -58,12 +59,14 @@ async def build_intel_sources(session: AsyncSession) -> list[dict[str, Any]]:
 
   configured = {
     "news": True,
-    "reddit": True,
+    "reddit": bool(settings.reddit_client_id and settings.reddit_client_secret) or True,
     "youtube": True,
     "polymarket": True,
     "polymarket_account": bool(
       settings.polymarket_wallet_address or settings.polymarket_deposit_address
     ),
+    "wallet_tracker": bool(settings.wallet_tracker_addresses)
+    or bool(settings.tradingview_webhook_secret),
     "political": True,
     "tiktok": True,
     "tradingview": bool(settings.tradingview_webhook_secret),
