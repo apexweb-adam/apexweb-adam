@@ -274,7 +274,7 @@ def test_hard_skip_blocks_shadow_entry_large_loss_bypass_strong_intel():
   ) is True
 
 
-def test_hard_skip_blocks_shadow_entry_review_never_bypassed():
+def test_hard_skip_blocks_shadow_entry_review_never_bypassed_in_shadow():
   from app.engines.gate_entry_guard import hard_skip_blocks_shadow_entry
 
   assert hard_skip_blocks_shadow_entry(
@@ -288,6 +288,35 @@ def test_hard_skip_blocks_shadow_entry_review_never_bypassed():
     intel_override=True,
     composite=0.80,
     integration_boost=0.20,
+  ) is True
+
+
+def test_hard_skip_blocks_shadow_entry_review_bypass_active_commodities():
+  from app.engines.gate_entry_guard import hard_skip_blocks_shadow_entry
+
+  assert hard_skip_blocks_shadow_entry(
+    "SI=F",
+    bot_type="commodities",
+    recent_skip=frozenset(),
+    large_skip=frozenset(),
+    review_skip=frozenset({"SI=F"}),
+    graduation_nudge=True,
+    shadow_mode=False,
+    intel_override=False,
+    composite=0.50,
+    integration_boost=0.0,
+  ) is False
+  assert hard_skip_blocks_shadow_entry(
+    "CL=F",
+    bot_type="commodities",
+    recent_skip=frozenset(),
+    large_skip=frozenset(),
+    review_skip=frozenset({"CL=F"}),
+    graduation_nudge=True,
+    shadow_mode=False,
+    intel_override=False,
+    composite=0.40,
+    integration_boost=0.0,
   ) is True
 
 
