@@ -23,9 +23,9 @@ def github_headers() -> dict[str, str]:
   return headers
 PRODUCTION_DASHBOARD_URL = "https://apex-trading-dashboard-flame.vercel.app"
 DEFAULT_VERIFIED_DASHBOARD_URL = (
-  "https://apex-trading-dashboard-edv5hefqa-apexweb-adams-projects.vercel.app"
+  "https://apex-trading-dashboard-jwi0so16v-apexweb-adams-projects.vercel.app"
 )
-DEFAULT_VERIFIED_DEPLOYMENT_ID = "dpl_AtSLEsY1fkNDvA9ZDdycLB5BANf8"
+DEFAULT_VERIFIED_DEPLOYMENT_ID = "dpl_FUESxpakSQJUngFmWKzrHbN7PUwH"
 EXPECTED_DASHBOARD_BUNDLE = "2026-08-27-r14"
 ACCEPTABLE_DASHBOARD_BUNDLES = frozenset({
   "2026-08-27-r9", "2026-08-27-r10", "2026-08-27-r11", "2026-08-27-r12", "2026-08-27-r13", "2026-08-27-r14",
@@ -55,6 +55,7 @@ def verified_dashboard_candidates() -> list[str]:
 
   # Probe best-known previews first so stale Render env vars do not block r10/r11 discovery.
   add(DEFAULT_VERIFIED_DASHBOARD_URL)
+  add("https://apex-trading-dashboard-jwi0so16v-apexweb-adams-projects.vercel.app")
   add("https://apex-trading-dashboard-edv5hefqa-apexweb-adams-projects.vercel.app")
   add("https://apex-trading-dashboard-4dc50ssd9-apexweb-adams-projects.vercel.app")
   add("https://apex-trading-dashboard-ekn183k28-apexweb-adams-projects.vercel.app")
@@ -165,6 +166,24 @@ async def fetch_latest_main_commit() -> dict[str, Any] | None:
         import asyncio
         await asyncio.sleep(1.0)
         continue
+  return await fetch_main_sha_via_ref()
+
+
+async def fetch_main_sha_via_ref() -> dict[str, Any] | None:
+  """Lightweight fallback when commits/main is rate-limited."""
+  headers = github_headers()
+  try:
+    async with httpx.AsyncClient(timeout=10.0) as client:
+      response = await client.get(
+        f"https://api.github.com/repos/{GITHUB_REPO}/git/ref/heads/main",
+        headers=headers,
+      )
+      if response.status_code == 200:
+        sha = (response.json().get("object") or {}).get("sha")
+        if sha:
+          return {"sha": sha, "message": "", "committed_at": None}
+  except Exception:
+    pass
   return None
 
 
