@@ -109,92 +109,147 @@ def _transfer_sentiment(
   return 0.0
 
 
+async def _add_token_transfer_intel(
+  session: AsyncSession,
+  *,
+  address: str,
+  tx: dict,
+) -> bool:
+  """Persist one token transfer as wallet_tracker intel. Returns True if added."""
+  tx_hash = tx.get("hash", "")
+  if not tx_hash:
+    return False
+  existing = await session.execute(
+    select(IntelligenceItem).where(
+      IntelligenceItem.source == "wallet_tracker",
+      IntelligenceItem.url == tx_hash[:1000],
+    )
+  )
+  if existing.scalar_one_or_none():
+    return False
+
+  token_symbol = tx.get("tokenSymbol", "TOKEN")
+  mapped = _TOKEN_SYMBOL_MAP.get(token_symbol.upper(), token_symbol.upper())
+  from_addr = tx.get("from", "")
+  to_addr = tx.get("to", "")
+  usd_est = _token_value_usd(
+    tx.get("value", "0"),
+    tx.get("tokenDecimal", 18),
+    token_symbol,
+  )
+  if usd_est < settings.wallet_tracker_min_usd:
+    return False
+
+  direction = "IN" if to_addr.lower() == address.lower() else "OUT"
+  sentiment = _transfer_sentiment(
+    watched=address,
+    from_addr=from_addr,
+    to_addr=to_addr,
+    usd_estimate=usd_est,
+  )
+  title = (
+    f"[Whale {direction}] {mapped} ${usd_est:,.0f} "
+    f"({address[:6]}…{address[-4:]})"
+  )
+  content = (
+    f"Token {token_symbol} transfer {direction} | "
+    f"from {from_addr[:10]}… to {to_addr[:10]}… | "
+    f"est ${usd_est:,.0f} | tx {tx_hash[:18]}…"
+  )
+  full_text = f"{title} {content} {mapped}"
+  session.add(
+    IntelligenceItem(
+      source="wallet_tracker",
+      category=categorize(full_text) or "crypto",
+      title=title[:500],
+      content=content[:2000],
+      url=tx_hash[:1000],
+      sentiment=sentiment if sentiment != 0 else analyze_sentiment(full_text),
+      relevance_score=max(0.65, relevance_score(full_text, "crypto")),
+      symbols_mentioned=(extract_symbols(full_text) or mapped)[:200],
+    )
+  )
+  return True
+
+
+async def _scan_etherscan_token_txs(
+  client: httpx.AsyncClient,
+  session: AsyncSession,
+  address: str,
+  *,
+  api_key: str,
+) -> int:
+  count = 0
+  response = await client.get(
+    "https://api.etherscan.io/v2/api",
+    params={
+      "chainid": 1,
+      "module": "account",
+      "action": "tokentx",
+      "address": address,
+      "page": 1,
+      "offset": 15,
+      "sort": "desc",
+      "apikey": api_key,
+    },
+  )
+  data = response.json()
+  if data.get("status") != "1":
+    print(f"Etherscan V2 error for {address[:10]}…: {data.get('message')} {data.get('result')}")
+    return 0
+  for tx in data.get("result", []):
+    if await _add_token_transfer_intel(session, address=address, tx=tx):
+      count += 1
+  return count
+
+
+async def _scan_blockscout_token_txs(
+  client: httpx.AsyncClient,
+  session: AsyncSession,
+  address: str,
+) -> int:
+  """Free Etherscan-compatible fallback — no API key required."""
+  count = 0
+  response = await client.get(
+    "https://eth.blockscout.com/api",
+    params={
+      "module": "account",
+      "action": "tokentx",
+      "address": address,
+      "page": 1,
+      "offset": 10,
+      "sort": "desc",
+    },
+  )
+  data = response.json()
+  if data.get("status") != "1":
+    return 0
+  for tx in data.get("result", []):
+    if await _add_token_transfer_intel(session, address=address, tx=tx):
+      count += 1
+  return count
+
+
 async def scan_wallet_tracker(session: AsyncSession) -> int:
-  """Poll Etherscan token transfers for configured whale/smart-money addresses."""
+  """Poll Etherscan (or Blockscout fallback) token transfers for whale addresses."""
   addresses = tracked_wallet_addresses()
   if not addresses:
     return 0
-  if not settings.etherscan_api_key:
-    return 0
 
-  api_key = settings.etherscan_api_key
+  use_etherscan = bool(settings.etherscan_api_key)
+  # Cap free-tier scans to avoid rate limits when using Blockscout.
+  scan_addresses = addresses if use_etherscan else addresses[:6]
   count = 0
 
   async with httpx.AsyncClient(timeout=20) as client:
-    for address in addresses:
+    for address in scan_addresses:
       try:
-        response = await client.get(
-          "https://api.etherscan.io/v2/api",
-          params={
-            "chainid": 1,
-            "module": "account",
-            "action": "tokentx",
-            "address": address,
-            "page": 1,
-            "offset": 15,
-            "sort": "desc",
-            "apikey": api_key,
-          },
-        )
-        data = response.json()
-        if data.get("status") != "1":
-          print(f"Etherscan V2 error for {address[:10]}…: {data.get('message')} {data.get('result')}")
-          continue
-        for tx in data.get("result", []):
-          tx_hash = tx.get("hash", "")
-          if not tx_hash:
-            continue
-          existing = await session.execute(
-            select(IntelligenceItem).where(
-              IntelligenceItem.source == "wallet_tracker",
-              IntelligenceItem.url == tx_hash[:1000],
-            )
+        if use_etherscan:
+          count += await _scan_etherscan_token_txs(
+            client, session, address, api_key=settings.etherscan_api_key
           )
-          if existing.scalar_one_or_none():
-            continue
-
-          token_symbol = tx.get("tokenSymbol", "TOKEN")
-          mapped = _TOKEN_SYMBOL_MAP.get(token_symbol.upper(), token_symbol.upper())
-          from_addr = tx.get("from", "")
-          to_addr = tx.get("to", "")
-          usd_est = _token_value_usd(
-            tx.get("value", "0"),
-            tx.get("tokenDecimal", 18),
-            token_symbol,
-          )
-          if usd_est < settings.wallet_tracker_min_usd:
-            continue
-
-          direction = "IN" if to_addr.lower() == address else "OUT"
-          sentiment = _transfer_sentiment(
-            watched=address,
-            from_addr=from_addr,
-            to_addr=to_addr,
-            usd_estimate=usd_est,
-          )
-          title = (
-            f"[Whale {direction}] {mapped} ${usd_est:,.0f} "
-            f"({address[:6]}…{address[-4:]})"
-          )
-          content = (
-            f"Token {token_symbol} transfer {direction} | "
-            f"from {from_addr[:10]}… to {to_addr[:10]}… | "
-            f"est ${usd_est:,.0f} | tx {tx_hash[:18]}…"
-          )
-          full_text = f"{title} {content} {mapped}"
-          session.add(
-            IntelligenceItem(
-              source="wallet_tracker",
-              category=categorize(full_text) or "crypto",
-              title=title[:500],
-              content=content[:2000],
-              url=tx_hash[:1000],
-              sentiment=sentiment if sentiment != 0 else analyze_sentiment(full_text),
-              relevance_score=max(0.65, relevance_score(full_text, "crypto")),
-              symbols_mentioned=extract_symbols(full_text) or mapped,
-            )
-          )
-          count += 1
+        elif settings.wallet_tracker_use_blockscout_fallback:
+          count += await _scan_blockscout_token_txs(client, session, address)
       except Exception as e:
         print(f"Wallet tracker scan error for {address[:10]}…: {e}")
   return count

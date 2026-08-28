@@ -25,10 +25,9 @@ def tracked_solana_addresses() -> list[str]:
   return []
 
 
-async def scan_solana_wallets(session: AsyncSession) -> int:
+async def _scan_solana_helius(session: AsyncSession, addresses: list[str]) -> int:
   """Poll Helius enhanced transactions for Solana whale wallets."""
-  addresses = tracked_solana_addresses()
-  if not addresses or not settings.helius_api_key:
+  if not settings.helius_api_key:
     return 0
 
   count = 0
@@ -95,10 +94,74 @@ async def scan_solana_wallets(session: AsyncSession) -> int:
               url=sig[:1000],
               sentiment=sentiment or (0.3 if "swap" in desc.lower() else 0.0),
               relevance_score=max(0.7, relevance_score(full_text, "crypto")),
-              symbols_mentioned=extract_symbols(full_text) or symbol,
+              symbols_mentioned=(extract_symbols(full_text) or symbol)[:200],
             )
           )
           count += 1
       except Exception as e:
         print(f"Solana wallet scan error for {address[:8]}…: {e}")
+  return count
+
+
+async def _scan_solana_public_rpc(session: AsyncSession, addresses: list[str]) -> int:
+  """Free Solana JSON-RPC fallback when Helius API key is not set."""
+  count = 0
+  rpc = settings.solana_rpc_url.strip() or "https://api.mainnet-beta.solana.com"
+  async with httpx.AsyncClient(timeout=25) as client:
+    for address in addresses[:3]:
+      try:
+        response = await client.post(
+          rpc,
+          json={
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "getSignaturesForAddress",
+            "params": [address, {"limit": 5}],
+          },
+        )
+        if response.status_code != 200:
+          continue
+        entries = response.json().get("result") or []
+        for entry in entries:
+          if entry.get("err"):
+            continue
+          sig = entry.get("signature", "")
+          if not sig:
+            continue
+          existing = await session.execute(
+            select(IntelligenceItem).where(
+              IntelligenceItem.source == "wallet_tracker",
+              IntelligenceItem.url == sig[:1000],
+            )
+          )
+          if existing.scalar_one_or_none():
+            continue
+          title = f"[SOL Whale activity] {address[:8]}…"
+          content = f"Recent on-chain activity | wallet {address[:12]}… | sig {sig[:18]}…"
+          full_text = f"{title} {content} SOLUSDT"
+          session.add(
+            IntelligenceItem(
+              source="wallet_tracker",
+              category="crypto",
+              title=title[:500],
+              content=content[:2000],
+              url=sig[:1000],
+              sentiment=0.2,
+              relevance_score=0.65,
+              symbols_mentioned="SOLUSDT",
+            )
+          )
+          count += 1
+      except Exception as e:
+        print(f"Solana RPC fallback error for {address[:8]}…: {e}")
+  return count
+
+
+async def scan_solana_wallets(session: AsyncSession) -> int:
+  addresses = tracked_solana_addresses()
+  if not addresses:
+    return 0
+  count = await _scan_solana_helius(session, addresses)
+  if count == 0 and settings.wallet_tracker_use_blockscout_fallback:
+    count += await _scan_solana_public_rpc(session, addresses)
   return count

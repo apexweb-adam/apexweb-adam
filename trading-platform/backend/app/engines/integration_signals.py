@@ -84,6 +84,12 @@ async def get_integration_boost(session: AsyncSession, symbol: str) -> tuple[flo
     tag = item.source.replace("_", " ")
     reasons.append(f"{tag}:{item.sentiment:+.2f}")
 
+  dex_bullish = any(i.source == "dexscreener" and i.sentiment > 0.1 for i in items)
+  hl_bullish = any(i.source == "hyperliquid" and i.sentiment > 0.1 for i in items)
+  if dex_bullish and hl_bullish:
+    boost += 0.06
+    reasons.append("memecoin_confluence:+0.06")
+
   boost = max(-0.25, min(0.25, boost))
   return boost, "; ".join(reasons[:3])
 
