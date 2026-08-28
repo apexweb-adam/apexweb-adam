@@ -44,3 +44,18 @@ def test_trade_metrics_all_winners_infinite_pf():
   m = gate._trade_metrics(sells, portfolios)
   assert m["win_rate"] == 1.0
   assert m["_profit_factor_raw"] == float("inf")
+
+
+def test_sells_since_filters_before_verification_start():
+  from datetime import datetime
+
+  from app.engines.profitability_gate import _sells_since
+
+  start = datetime(2026, 8, 27, 15, 54, 5)
+  old = _sell("stocks_futures", True, 10)
+  old.executed_at = datetime(2026, 8, 27, 10, 0, 0)
+  new = _sell("stocks_futures", True, 5)
+  new.executed_at = datetime(2026, 8, 27, 19, 0, 0)
+  filtered = _sells_since([old, new], start)
+  assert len(filtered) == 1
+  assert filtered[0].pnl == 5
