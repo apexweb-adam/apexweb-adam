@@ -13,6 +13,7 @@ from app.database import SessionLocal, get_db, is_postgres
 from app.engines.deploy_status import build_deploy_status, recommended_dashboard_url
 from app.engines.profitability_gate import ProfitabilityGate
 from app.engines.trade_stats import aggregate_win_rate
+from app.engines.verification_snapshot import serialize_verification_snapshot
 from app.models.entities import (
   BotState,
   DailyReview,
@@ -523,7 +524,9 @@ async def get_platform_status(db: AsyncSession = Depends(get_db)) -> dict[str, A
       "vercel_promote_url": deploy_info.get("vercel_promote_url"),
       "production_proxy_operational": deploy_info.get("production_proxy_operational"),
       "verified_bundle_revision": deploy_info.get("verified_bundle_revision"),
-      "platform_revision": os.environ.get("PLATFORM_REVISION"),
+      "platform_revision": deploy_info.get("platform_revision") or os.environ.get("PLATFORM_REVISION"),
+      "expected_platform_revision": deploy_info.get("expected_platform_revision"),
+      "platform_revision_current": deploy_info.get("platform_revision_current"),
       "git_commit": deploy_info.get("git_commit"),
       "git_branch": deploy_info.get("git_branch"),
       "latest_main_commit": deploy_info.get("latest_main_commit"),
