@@ -893,6 +893,12 @@ def hard_skip_blocks_shadow_entry(
       composite_only = SHADOW_INTEL_COMPOSITE_ONLY_BY_BOT.get(bot_type)
       if composite_only is not None and composite >= composite_only:
         return False
+      if (
+        intel_override
+        and composite_only is not None
+        and composite >= composite_only - 0.02
+      ):
+        return False
     return True
   large_bypass_floor = SHADOW_LARGE_LOSS_BYPASS_COMPOSITE_BY_BOT.get(
     bot_type, SHADOW_LARGE_LOSS_BYPASS_COMPOSITE
