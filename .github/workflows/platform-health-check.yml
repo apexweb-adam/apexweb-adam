@@ -19,7 +19,7 @@ jobs:
 
       - name: Check production dashboard bundle and proxy
         env:
-          VERIFIED_PREVIEW: "https://apex-trading-dashboard-git-main-apexweb-adams-projects.vercel.app"
+          VERIFIED_PREVIEW: "https://apex-trading-dashboard-r8ur3gw5s-apexweb-adams-projects.vercel.app"
         run: |
           set -euo pipefail
           DASHBOARD="https://apex-trading-dashboard-flame.vercel.app"
@@ -28,8 +28,8 @@ jobs:
           import json, os
           with open("/tmp/dash-config.json") as f:
               cfg = json.load(f)
-          expected = "2026-08-28-r24"
-          acceptable = {"2026-08-28-r24", "2026-08-28-r23", "2026-08-28-r22", "2026-08-28-r21", "2026-08-28-r20"}
+          expected = "2026-08-28-r25"
+          acceptable = {"2026-08-28-r25", "2026-08-28-r24", "2026-08-28-r23", "2026-08-28-r22", "2026-08-28-r21", "2026-08-28-r20"}
           rev = cfg.get("bundleRevision")
           current = rev in acceptable and (cfg.get("features") or {}).get("activeGate") is True
           if current:
@@ -134,7 +134,7 @@ jobs:
 
       - name: Check active-bot gate endpoint (production proxy)
         env:
-          VERIFIED_PREVIEW: "https://apex-trading-dashboard-git-main-apexweb-adams-projects.vercel.app"
+          VERIFIED_PREVIEW: "https://apex-trading-dashboard-r8ur3gw5s-apexweb-adams-projects.vercel.app"
         run: |
           set -euo pipefail
           PROD="https://apex-trading-dashboard-flame.vercel.app"

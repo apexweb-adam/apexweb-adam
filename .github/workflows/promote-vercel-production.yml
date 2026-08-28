@@ -27,8 +27,8 @@ jobs:
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
       VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID || 'team_K7OUE7uroVXeVUf42cUAQvAl' }}
       VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID || 'prj_HGbG5vHgfutHi31QfXDqSsTnTAGv' }}
-      EXPECTED_BUNDLE_REVISION: "2026-08-28-r24"
-      ACCEPTABLE_BUNDLE_REVISIONS: "2026-08-28-r24,2026-08-28-r23,2026-08-28-r22,2026-08-28-r21,2026-08-28-r20,2026-08-28-r19,2026-08-28-r18,2026-08-28-r17,2026-08-27-r16"
+      EXPECTED_BUNDLE_REVISION: "2026-08-28-r25"
+      ACCEPTABLE_BUNDLE_REVISIONS: "2026-08-28-r25,2026-08-28-r24,2026-08-28-r23,2026-08-28-r22,2026-08-28-r21,2026-08-28-r20,2026-08-28-r19,2026-08-28-r18,2026-08-28-r17,2026-08-27-r16"
     steps:
       - name: Skip if production already current
         id: freshness
@@ -64,8 +64,8 @@ jobs:
           INPUT_PREVIEW_URL: ${{ inputs.preview_url || '' }}
         run: |
           set -euo pipefail
-          FALLBACK_ID="dpl_B7wrt1wpZ1Aw1Fu144iHgrYfU6MK"
-          FALLBACK_URL="https://apex-trading-dashboard-git-main-apexweb-adams-projects.vercel.app"
+          FALLBACK_ID="dpl_s1AxACFMF67jum5r7HGX6uEsNdea"
+          FALLBACK_URL="https://apex-trading-dashboard-r8ur3gw5s-apexweb-adams-projects.vercel.app"
           if [[ -n "$INPUT_DEPLOYMENT_ID" && -n "$INPUT_PREVIEW_URL" ]]; then
             echo "deployment_id=$INPUT_DEPLOYMENT_ID" >> "$GITHUB_OUTPUT"
             echo "preview_url=$INPUT_PREVIEW_URL" >> "$GITHUB_OUTPUT"

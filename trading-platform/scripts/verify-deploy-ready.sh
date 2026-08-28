@@ -62,7 +62,7 @@ if [[ -z "$DASH" ]]; then
   DASH=$(curl -sf "$RENDER/api/dashboard-url" 2>/dev/null | python3 -c "import sys,json; print(json.load(sys.stdin).get('recommended_url',''))" 2>/dev/null || true)
 fi
 if [[ -z "$DASH" ]]; then
-  DASH="https://apex-trading-dashboard-git-main-apexweb-adams-projects.vercel.app"
+  DASH="https://apex-trading-dashboard-r8ur3gw5s-apexweb-adams-projects.vercel.app"
 fi
 LEGACY_DASH="https://apex-trading-dashboard-flame.vercel.app"
 if curl -sf "$DASH/api/backend/health" >/dev/null 2>&1; then
