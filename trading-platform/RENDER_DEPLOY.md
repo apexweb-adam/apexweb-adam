@@ -72,7 +72,8 @@ Fix (pick one):
 
 1. **Render Dashboard** → Settings → Build & Deploy → **On Commit** (recommended)
 2. **GitHub** → repo **Settings → Integrations** → remove or disable unused GitHub Apps
-3. Add **`RENDER_API_KEY`** — deploys via API regardless of commit status
+3. **Vercel** → `apex-trading-dashboard` → Settings → Git → **Disconnect** (dashboard deploys via GitHub Actions now; linked Git causes perpetual `queued` check suites)
+4. Add **`RENDER_API_KEY`** — deploys via API regardless of commit status
 
 After r83+, `/api/status` → `deploy.github_checks_blocker` lists blocking integrations.
 
