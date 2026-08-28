@@ -18,6 +18,7 @@ import {
 import { useState, useMemo, useEffect } from "react";
 import { useLiveData } from "@/lib/useLiveData";
 import { useAPI } from "@/lib/useAPI";
+import { fetchAPI } from "@/lib/api";
 import {
   VERIFIED_PREVIEW_URL,
   VERIFIED_PROMOTE_DEPLOYMENT_ID,
@@ -38,6 +39,7 @@ import type {
   TradeAnalysis,
   DailyReview,
   LearningInsight,
+  ScanPreview,
   StrategyConfig,
   ProfitabilityStatus,
   VerificationSnapshot,
@@ -1223,10 +1225,63 @@ function BotCard({
           )}
         </p>
       )}
+      {gate?.graduation?.paused && <BotScanPreview botType={bot.bot_type} />}
       <div className="flex justify-between text-[10px] text-gray-500">
         <span>{bot.trades_today} trades today</span>
         <span>Strategy v{bot.strategy_version}</span>
       </div>
+    </div>
+  );
+}
+
+function BotScanPreview({ botType }: { botType: string }) {
+  const [preview, setPreview] = useState<ScanPreview | null>(null);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchAPI<ScanPreview>(`/bots/${botType}/scan-preview`)
+      .then((data) => {
+        if (!cancelled) setPreview(data);
+      })
+      .catch(() => {
+        if (!cancelled) setError(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [botType]);
+
+  if (error) return null;
+  if (!preview) {
+    return <p className="text-[10px] text-gray-600 mb-2">Scan preview loading…</p>;
+  }
+
+  const candidates = preview.symbols
+    .filter((row) => !row.skip)
+    .sort((a, b) => (b.composite ?? 0) - (a.composite ?? 0))
+    .slice(0, 2);
+
+  if (candidates.length === 0) return null;
+
+  return (
+    <div className="mb-2 rounded border border-apex-border/60 bg-apex-dark/40 p-2">
+      <p className="text-[10px] text-gray-500 mb-1">
+        Scan preview
+        {preview.graduation_nudge && (
+          <span className="text-amber-500/90"> · graduation nudge</span>
+        )}
+      </p>
+      <ul className="space-y-1">
+        {candidates.map((row) => (
+          <li key={row.symbol} className="flex items-center justify-between gap-2 text-[10px]">
+            <span className="text-gray-300 font-medium">{row.symbol}</span>
+            <span className={row.would_enter ? "text-apex-green" : "text-gray-500"}>
+              {row.would_enter ? "would enter" : (row.blockers ?? []).slice(0, 2).join(", ")}
+            </span>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

@@ -14,6 +14,7 @@ from app.engines.gate_entry_guard import (
   get_proven_winner_symbols,
   in_shadow_graduation_nudge,
   shadow_entry_min_signal,
+  shadow_intel_composite_override,
   shadow_requires_macd,
   stocks_gate_entry_sentiment_ok,
   stocks_in_us_session,
@@ -408,8 +409,17 @@ class BaseBot(ABC):
         ):
           continue
 
+        entry_direction_ok = signal.direction == "buy" or shadow_intel_composite_override(
+          self.bot_type,
+          graduation_nudge=graduation_nudge,
+          shadow_mode=shadow_mode,
+          composite=composite,
+          entry_min_signal=entry_min_signal,
+          integration_boost=integration_boost,
+        )
+
         if (
-          signal.direction == "buy"
+          entry_direction_ok
           and volume_required
           and composite >= entry_min_signal
           and sentiment + integration_boost >= min_sentiment
@@ -418,6 +428,15 @@ class BaseBot(ABC):
           reason = f"Signal:{signal.score:.2f} Sentiment:{sentiment:.2f}"
           if shadow_mode:
             reason = f"[shadow] {reason}"
+          if shadow_intel_composite_override(
+            self.bot_type,
+            graduation_nudge=graduation_nudge,
+            shadow_mode=shadow_mode,
+            composite=composite,
+            entry_min_signal=entry_min_signal,
+            integration_boost=integration_boost,
+          ):
+            reason = f"[shadow-intel] {reason}"
           if sentiment_sources:
             reason += f" Intel:[{sentiment_sources}]"
           if integration_reason:

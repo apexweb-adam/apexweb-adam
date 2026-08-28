@@ -116,6 +116,24 @@ else
   bad "Per-bot gate endpoint missing or incomplete"
 fi
 
+# Scan preview diagnostics (paused bot entry blockers)
+SCAN_PREVIEW=$(curl -fsS -m 45 "$BACKEND/api/bots/commodities/scan-preview" 2>/dev/null || echo "{}")
+python3 << PY
+import json, sys
+d = json.loads('''$SCAN_PREVIEW''')
+if d.get("bot_type") != "commodities":
+    sys.exit(1)
+if "symbols" not in d or not isinstance(d["symbols"], list):
+    sys.exit(1)
+print(f"  shadow={d.get('shadow_mode')} nudge={d.get('graduation_nudge')} symbols={len(d['symbols'])}")
+sys.exit(0)
+PY
+if [[ $? -eq 0 ]]; then
+  ok "Commodities scan-preview (/api/bots/commodities/scan-preview)"
+else
+  bad "Scan-preview endpoint missing or invalid (deploy r95+)"
+fi
+
 # CRM landing
 CRM=$(curl -fsS -m 35 "$BACKEND/crm" 2>/dev/null || echo "")
 if echo "$CRM" | grep -q "Apex Trading CRM"; then
