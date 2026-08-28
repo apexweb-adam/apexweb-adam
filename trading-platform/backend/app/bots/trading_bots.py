@@ -94,7 +94,11 @@ class BaseBot(ABC):
       loss_streak = await engine.get_consecutive_losses()
       min_signal = strategy.min_signal_score
       if gate_tightening.active:
-        min_signal = min(0.95, min_signal + gate_tightening.min_composite_boost)
+        if self.bot_type == "stocks_futures":
+          # Sole active bot during verification — slightly easier entries to build WR
+          min_signal = max(0.12, min_signal - 0.04)
+        else:
+          min_signal = min(0.95, min_signal + gate_tightening.min_composite_boost)
       if loss_streak >= 3:
         min_signal = min(0.95, min_signal + 0.08)
       min_sentiment = max(
@@ -303,7 +307,7 @@ class CryptoBot(BaseBot):
 
 class StocksFuturesBot(BaseBot):
   bot_type = "stocks_futures"
-  scan_interval = 45
+  scan_interval = 30
 
   async def get_symbols(self) -> list[str]:
     stocks = [s.strip() for s in settings.stock_symbols.split(",")]
