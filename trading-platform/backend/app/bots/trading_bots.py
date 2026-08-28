@@ -184,6 +184,13 @@ class BaseBot(ABC):
         if gate_tightening.active and symbol in chronic_losers:
           continue
 
+        if (
+          gate_tightening.active
+          and self.bot_type == "stocks_futures"
+          and signal.rsi > 68
+        ):
+          continue
+
         macd_required = self.bot_type == "crypto" or (
           gate_tightening.active
           and gate_tightening.require_macd_bullish
@@ -224,6 +231,12 @@ class BaseBot(ABC):
           and integration_boost > 0.04
         ):
           entry_min_signal = max(0.08, entry_min_signal - 0.03)
+        if (
+          gate_tightening.active
+          and self.bot_type == "stocks_futures"
+          and signal.rsi_divergence == "bullish"
+        ):
+          entry_min_signal = max(0.08, entry_min_signal - 0.02)
 
         if (
           signal.direction == "buy"
