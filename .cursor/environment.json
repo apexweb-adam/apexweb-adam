@@ -4,8 +4,8 @@
   "terminals": [
     {
       "name": "trading-platform",
-      "command": "trading-platform/scripts/start-with-tunnel.sh",
-      "description": "Backend + Cloudflare tunnel for 24/7 paper trading (interim until Render deploy)"
+      "command": "trading-platform/scripts/start-full-platform.sh",
+      "description": "Backend + dashboard + Cloudflare tunnels for 24/7 public CRM"
     }
   ],
   "ports": [

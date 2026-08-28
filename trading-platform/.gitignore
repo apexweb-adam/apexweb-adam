@@ -17,3 +17,9 @@ out/
 
 # OS
 .DS_Store
+
+# Cloud agent runtime (Cloudflare quick tunnels)
+.tunnel-url
+.dashboard-tunnel-url
+.platform-urls.json
+.bin/
