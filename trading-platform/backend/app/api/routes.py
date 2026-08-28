@@ -489,19 +489,10 @@ async def get_platform_status(db: AsyncSession = Depends(get_db)) -> dict[str, A
 
   active_sources = sum(1 for s in sources if s["status"] in ("active", "degraded"))
   deploy_info = await build_deploy_status()
-  from app.engines.gate_entry_guard import get_gate_entry_tightening, get_gate_skip_symbols, get_proven_winner_symbols
+  from app.engines.gate_entry_guard import build_gate_ws_payload
 
-  gate_tightening = await get_gate_entry_tightening(db)
-  chronic_loser_symbols: dict[str, list[str]] = {}
-  proven_winner_symbols: dict[str, list[str]] = {}
-  if gate_tightening.active:
-    for bot_type in BOT_TYPES:
-      skip = await get_gate_skip_symbols(db, bot_type)
-      if skip:
-        chronic_loser_symbols[bot_type] = sorted(skip)
-      winners = await get_proven_winner_symbols(db, bot_type)
-      if winners:
-        proven_winner_symbols[bot_type] = sorted(winners)
+  gate_payload = await build_gate_ws_payload(db)
+  gate_tightening_data = gate_payload["gate_entry_tightening"]
   tv_items = next((s["items_collected"] for s in sources if s["source"] == "tradingview"), 0)
   base_next_steps = (
     []
@@ -524,23 +515,8 @@ async def get_platform_status(db: AsyncSession = Depends(get_db)) -> dict[str, A
     },
     "stats": stats,
     "profitability_gate": profitability,
-    "gate_entry_tightening": {
-      "active": gate_tightening.active,
-      "win_rate": gate_tightening.win_rate,
-      "min_sentiment": gate_tightening.min_sentiment,
-      "require_macd_bullish": gate_tightening.require_macd_bullish,
-      "min_composite_boost": gate_tightening.min_composite_boost,
-      "max_pm_open_positions": gate_tightening.max_pm_open_positions,
-      "max_crypto_open_positions": gate_tightening.max_crypto_open_positions,
-      "max_commodities_open_positions": gate_tightening.max_commodities_open_positions,
-      "max_stocks_open_positions": gate_tightening.max_stocks_open_positions,
-      "blocked_new_entries": sorted(gate_tightening.blocked_new_entries),
-      "chronic_loser_symbols": chronic_loser_symbols,
-      "proven_winner_symbols": proven_winner_symbols,
-      "stocks_proven_winners_only": bool(
-        gate_tightening.active and proven_winner_symbols.get("stocks_futures")
-      ),
-    },
+    "gate_entry_tightening": gate_tightening_data,
+    "bot_sessions": gate_payload.get("bot_sessions"),
     "bots": bots,
     "intelligence": {
       "active_sources": active_sources,
