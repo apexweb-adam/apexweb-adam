@@ -23,12 +23,13 @@ def github_headers() -> dict[str, str]:
   return headers
 PRODUCTION_DASHBOARD_URL = "https://apex-trading-dashboard-flame.vercel.app"
 DEFAULT_VERIFIED_DASHBOARD_URL = (
-  "https://apex-trading-dashboard-mz9mzjoaq-apexweb-adams-projects.vercel.app"
+  "https://apex-trading-dashboard-39gtc4hgx-apexweb-adams-projects.vercel.app"
 )
-DEFAULT_VERIFIED_DEPLOYMENT_ID = "dpl_69sDuoc6owonxneDQdEponBf4uwF"
-EXPECTED_DASHBOARD_BUNDLE = "2026-08-27-r15"
+DEFAULT_VERIFIED_DEPLOYMENT_ID = "dpl_GpWprv2SKRA78p46JEXZtRUX4oCQ"
+EXPECTED_DASHBOARD_BUNDLE = "2026-08-27-r16"
 ACCEPTABLE_DASHBOARD_BUNDLES = frozenset({
-  "2026-08-27-r9", "2026-08-27-r10", "2026-08-27-r11", "2026-08-27-r12", "2026-08-27-r13", "2026-08-27-r14", "2026-08-27-r15",
+  "2026-08-27-r9", "2026-08-27-r10", "2026-08-27-r11", "2026-08-27-r12",
+  "2026-08-27-r13", "2026-08-27-r14", "2026-08-27-r15", "2026-08-27-r16",
 })
 
 
@@ -55,6 +56,7 @@ def verified_dashboard_candidates() -> list[str]:
 
   # Probe best-known previews first so stale Render env vars do not block r10/r11 discovery.
   add(DEFAULT_VERIFIED_DASHBOARD_URL)
+  add("https://apex-trading-dashboard-39gtc4hgx-apexweb-adams-projects.vercel.app")
   add("https://apex-trading-dashboard-mz9mzjoaq-apexweb-adams-projects.vercel.app")
   add("https://apex-trading-dashboard-jwi0so16v-apexweb-adams-projects.vercel.app")
   add("https://apex-trading-dashboard-edv5hefqa-apexweb-adams-projects.vercel.app")
@@ -83,6 +85,8 @@ def bundle_is_acceptable(cfg: dict[str, Any]) -> bool:
 def bundle_rank(cfg: dict[str, Any]) -> int:
   revision = str(cfg.get("bundleRevision") or "")
   if revision == EXPECTED_DASHBOARD_BUNDLE:
+    return 8
+  if revision == "2026-08-27-r15":
     return 7
   if revision == "2026-08-27-r14":
     return 6

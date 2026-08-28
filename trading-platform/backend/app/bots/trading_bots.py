@@ -163,6 +163,33 @@ class BaseBot(ABC):
           elif self.bot_type == "commodities":
             min_hold = settings.commodities_min_hold_seconds
           allow_signal_exit = held_seconds >= min_hold
+
+          # Wind down legacy stock positions opened before proven-winners-only gate.
+          if (
+            gate_tightening.active
+            and self.bot_type == "stocks_futures"
+            and proven_winners
+            and symbol not in proven_winners
+          ):
+            unrealized = (price - position.entry_price) * position.quantity
+            wind_down = (
+              unrealized > 0
+              or signal.direction == "sell"
+              or signal.rsi >= 65
+              or held_seconds >= 4 * 3600
+            )
+            if wind_down:
+              reason = f"Gate wind-down (non-proven {symbol}): uPnL ${unrealized:.2f} | {signal.reason}"
+              result = await engine.sell(symbol, price, reason)
+              if result:
+                actions.append(result)
+                if result.get("is_winner") is False:
+                  await self._analyze_loss(session, symbol)
+                  self._register_symbol_cooldown(symbol, after_loss=True)
+                else:
+                  self._register_symbol_cooldown(symbol, after_loss=False)
+              continue
+
           if allow_signal_exit and (signal.direction == "sell" or integration_boost < -0.1):
             reason = f"Sell signal: {signal.reason}"
             if integration_reason:
