@@ -80,6 +80,35 @@ def test_stocks_bot_default_scan_outside_session():
   asyncio.run(_run())
 
 
+def test_stocks_bot_faster_scan_during_verification_period():
+  bot = StocksFuturesBot()
+  gate_result = {"total_trades": 5, "win_rate": 1.0}
+  tightening = GateEntryTightening(
+    active=False,
+    win_rate=1.0,
+    min_sentiment=0.0,
+    require_macd_bullish=False,
+    min_composite_boost=0.0,
+  )
+
+  async def _run():
+    with patch("app.bots.trading_bots.stocks_in_us_session", return_value=True):
+      with patch("app.config.settings.paper_trading_only", True):
+        with patch(
+          "app.engines.profitability_gate.ProfitabilityGate.evaluate",
+          return_value=gate_result,
+        ):
+          with patch(
+            "app.bots.trading_bots.get_gate_entry_tightening",
+            return_value=tightening,
+          ):
+            assert await bot._effective_scan_interval() == 15
+
+  import asyncio
+
+  asyncio.run(_run())
+
+
 def test_stocks_session_info_in_session():
   with patch("app.engines.gate_entry_guard.datetime") as mock_dt:
     mock_dt.utcnow.return_value = datetime(2026, 8, 28, 15, 0, 0)
