@@ -26,6 +26,7 @@ export async function GET() {
       live_trading_ready: gate.live_trading_ready,
       checks: gate.checks,
       recommendation: gate.recommendation,
+      per_bot: gate.per_bot,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "active gate failed";

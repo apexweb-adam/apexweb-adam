@@ -180,6 +180,17 @@ export type EquityHistoryPoint = {
   cumulative_pnl: number;
 };
 
+export type PerBotGateStatus = {
+  paused: boolean;
+  total_trades: number;
+  win_rate: number;
+  profit_factor: number | null;
+  total_pnl: number;
+  graduation_ready: boolean;
+  graduation_blockers: string[];
+  recommendation: string;
+};
+
 export type ProfitabilityStatus = {
   live_trading_ready: boolean;
   paper_trading_only: boolean;
@@ -201,6 +212,7 @@ export type ProfitabilityStatus = {
     total_pnl: number;
   };
   equity_history?: EquityHistoryPoint[];
+  per_bot?: Record<string, PerBotGateStatus>;
 };
 
 /** Backend /api/active-gate shape (via /api/backend/active-gate proxy). */
@@ -218,6 +230,7 @@ export type ActiveGateStatus = {
   live_trading_ready?: boolean;
   checks: ProfitabilityStatus["checks"];
   recommendation: string;
+  per_bot?: Record<string, PerBotGateStatus>;
 };
 
 export type VerificationSnapshot = {

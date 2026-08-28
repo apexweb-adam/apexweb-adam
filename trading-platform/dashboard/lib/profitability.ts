@@ -164,5 +164,6 @@ export function activeGateToProfitability(
     recommendation: gate.recommendation,
     checks: gate.checks,
     aggregate: gate.aggregate,
+    per_bot: gate.per_bot ?? base?.per_bot,
   };
 }

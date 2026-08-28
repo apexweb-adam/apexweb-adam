@@ -1,4 +1,4 @@
-import type { EquityHistoryPoint, Portfolio, ProfitabilityStatus, StrategyConfig, Trade } from "./api";
+import type { EquityHistoryPoint, PerBotGateStatus, Portfolio, ProfitabilityStatus, StrategyConfig, Trade } from "./api";
 import { buildEquityHistoryFromTrades, enrichProfitabilityStatus } from "./profitability";
 import { resolveBackendHttpUrl } from "./production-backend";
 
@@ -14,13 +14,19 @@ async function fetchBackendJson<T>(path: string): Promise<T> {
 
 /** Active-bot gate: excludes paused bots even when Render has not deployed gate logic. */
 export async function fetchActiveGateStatus(): Promise<ProfitabilityStatus> {
-  const [profitability, strategies, portfolios, trades] = await Promise.all([
+  const [profitability, strategies, portfolios, trades, perBotRes] = await Promise.all([
     fetchBackendJson<ProfitabilityStatus>("profitability"),
     fetchBackendJson<StrategyConfig[]>("strategies"),
     fetchBackendJson<Portfolio[]>("portfolios"),
     fetchBackendJson<Trade[]>("trades?limit=200"),
+    fetchBackendJson<{ bots: Record<string, PerBotGateStatus> }>("gate/per-bot").catch(() => ({ bots: {} })),
   ]);
-  return enrichProfitabilityStatus(profitability, trades, portfolios, strategies) ?? profitability;
+  const enriched =
+    enrichProfitabilityStatus(profitability, trades, portfolios, strategies) ?? profitability;
+  if (perBotRes.bots && Object.keys(perBotRes.bots).length > 0) {
+    enriched.per_bot = perBotRes.bots;
+  }
+  return enriched;
 }
 
 /** Equity curve from trades when backend /equity-history is not deployed yet. */

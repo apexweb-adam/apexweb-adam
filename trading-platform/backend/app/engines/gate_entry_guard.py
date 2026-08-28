@@ -232,6 +232,35 @@ async def sync_gate_bot_pauses(session: AsyncSession) -> list[str]:
   return paused_now
 
 
+async def try_graduate_paused_bots(session: AsyncSession) -> list[str]:
+  """Unpause bots that meet per-bot graduation thresholds without hurting active gate.
+
+  Only graduates when the active (non-paused) gate win rate is at or above target,
+  or when active gate has fewer than 30 trades (early verification).
+  """
+  from app.engines.platform_settings import is_bot_paused, set_bot_paused
+
+  gate = ProfitabilityGate(session)
+  active = await gate.evaluate()
+  active_wr = float(active.get("win_rate") or 0)
+  active_total = int(active.get("total_trades") or 0)
+  if active_total >= 30 and active_wr < ProfitabilityGate.MIN_WIN_RATE:
+    return []
+
+  per_bot = await gate.evaluate_per_bot()
+  graduated: list[str] = []
+  for bot_type, stats in per_bot.items():
+    if not stats.get("paused"):
+      continue
+    if not stats.get("graduation_ready"):
+      continue
+    if not await is_bot_paused(session, bot_type):
+      continue
+    await set_bot_paused(session, bot_type, False)
+    graduated.append(bot_type)
+  return graduated
+
+
 async def get_gate_entry_tightening(session: AsyncSession) -> GateEntryTightening:
   """Return stricter entry rules while aggregate gate win rate is below target."""
   gate = await ProfitabilityGate(session).evaluate()
@@ -366,8 +395,10 @@ async def build_gate_ws_payload(session: AsyncSession) -> dict[str, Any]:
 
   in_session = stocks_in_us_session()
   session_info = stocks_session_info()
+  per_bot = await ProfitabilityGate(session).evaluate_per_bot()
   return {
     "profitability_gate": profitability,
+    "per_bot_gate": per_bot,
     "gate_entry_tightening": {
       "active": gate_tightening.active,
       "win_rate": gate_tightening.win_rate,

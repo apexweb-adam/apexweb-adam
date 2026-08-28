@@ -4,7 +4,7 @@ from typing import Any
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import settings
+from app.config import BOT_TYPES, settings
 from app.engines.platform_settings import get_paused_bot_types, get_verification_started_at
 from app.engines.trade_stats import aggregate_win_rate
 from app.models.entities import Portfolio, Trade
@@ -34,6 +34,10 @@ class ProfitabilityGate:
   MIN_WIN_RATE = 0.55
   MIN_PROFIT_FACTOR = 1.3
   MIN_DAYS = 30
+  # Per-bot graduation from pause — conservative bar before rejoining active gate.
+  GRADUATION_MIN_TRADES = 20
+  GRADUATION_MIN_WIN_RATE = 0.55
+  GRADUATION_MIN_PROFIT_FACTOR = 1.3
 
   def __init__(self, session: AsyncSession):
     self.session = session
@@ -179,3 +183,61 @@ class ProfitabilityGate:
       },
       "equity_history": equity_history,
     }
+
+  async def evaluate_per_bot(self) -> dict[str, dict[str, Any]]:
+    """Gate metrics per bot since verification_started_at (includes paused bots)."""
+    sells = list(
+      (await self.session.execute(select(Trade).where(Trade.action == "sell"))).scalars().all()
+    )
+    portfolios = list((await self.session.execute(select(Portfolio))).scalars().all())
+    paused_bots = await get_paused_bot_types(self.session)
+    paused_set = set(paused_bots)
+    verification_start = await get_verification_started_at(self.session)
+    period_sells = _sells_since(sells, verification_start)
+
+    by_bot: dict[str, list[Trade]] = {bot: [] for bot in BOT_TYPES}
+    for trade in period_sells:
+      if trade.bot_type in by_bot:
+        by_bot[trade.bot_type].append(trade)
+
+    portfolio_by_bot = {p.bot_type: p for p in portfolios}
+    out: dict[str, dict[str, Any]] = {}
+    for bot_type in BOT_TYPES:
+      bot_sells = by_bot[bot_type]
+      metrics = self._trade_metrics(bot_sells, [portfolio_by_bot[bot_type]] if bot_type in portfolio_by_bot else [])
+      total = metrics["total_trades"]
+      wr = metrics["win_rate"]
+      pf = metrics["_profit_factor_raw"]
+      pnl = metrics["total_pnl"]
+      ready = (
+        total >= self.GRADUATION_MIN_TRADES
+        and wr >= self.GRADUATION_MIN_WIN_RATE
+        and pf >= self.GRADUATION_MIN_PROFIT_FACTOR
+        and pnl > 0
+      )
+      blockers: list[str] = []
+      if total < self.GRADUATION_MIN_TRADES:
+        blockers.append(f"{self.GRADUATION_MIN_TRADES - total} more trades")
+      if wr < self.GRADUATION_MIN_WIN_RATE:
+        blockers.append(f"win rate ≥ {self.GRADUATION_MIN_WIN_RATE:.0%}")
+      if pf < self.GRADUATION_MIN_PROFIT_FACTOR:
+        blockers.append(f"profit factor ≥ {self.GRADUATION_MIN_PROFIT_FACTOR}")
+      if pnl <= 0:
+        blockers.append("positive PnL")
+      out[bot_type] = {
+        "paused": bot_type in paused_set,
+        "total_trades": total,
+        "win_rate": wr,
+        "profit_factor": metrics["profit_factor"],
+        "total_pnl": pnl,
+        "graduation_ready": ready,
+        "graduation_blockers": blockers,
+        "recommendation": (
+          "Ready to unpause for gate verification"
+          if ready and bot_type in paused_set
+          else "Continue paper trading"
+          if bot_type in paused_set
+          else "Active in gate"
+        ),
+      }
+    return out
