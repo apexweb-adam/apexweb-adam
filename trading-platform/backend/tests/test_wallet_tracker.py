@@ -49,6 +49,47 @@ def test_wallet_tracker_configured():
     assert wallet_tracker_configured() is False
 
 
+def test_scan_wallet_tracker_blockscout_fallback():
+  from app.intelligence.wallet_tracker import scan_wallet_tracker
+
+  session = AsyncMock()
+  session.execute = AsyncMock(return_value=MagicMock(scalar_one_or_none=MagicMock(return_value=None)))
+  session.add = MagicMock()
+
+  mock_response = MagicMock()
+  mock_response.json.return_value = {
+    "status": "1",
+    "result": [
+      {
+        "hash": "0xblockscout1",
+        "tokenSymbol": "USDT",
+        "from": "0xother",
+        "to": "0xd8da6bf26964af9d7eed9e03e53415d37aa96045",
+        "value": "10000000000",
+        "tokenDecimal": "6",
+      }
+    ],
+  }
+
+  mock_get = AsyncMock(return_value=mock_response)
+  mock_client = MagicMock()
+  mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+  mock_client.__aexit__ = AsyncMock(return_value=None)
+  mock_client.get = mock_get
+
+  with patch("app.intelligence.wallet_tracker.settings") as mock_settings, patch(
+    "app.intelligence.wallet_tracker.tracked_wallet_addresses",
+    return_value=["0xd8da6bf26964af9d7eed9e03e53415d37aa96045"],
+  ), patch("app.intelligence.wallet_tracker.httpx.AsyncClient", return_value=mock_client):
+    mock_settings.etherscan_api_key = ""
+    mock_settings.wallet_tracker_use_blockscout_fallback = True
+    mock_settings.wallet_tracker_min_usd = 1000
+    count = asyncio.run(scan_wallet_tracker(session))
+
+  assert count == 1
+  session.add.assert_called_once()
+
+
 def test_transfer_sentiment_accumulation():
   watched = "0xwhale"
   assert _transfer_sentiment(

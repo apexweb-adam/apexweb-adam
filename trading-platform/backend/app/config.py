@@ -23,6 +23,8 @@ class Settings(BaseSettings):
     helius_api_key: str = ""
     etherscan_api_key: str = ""
     wallet_tracker_min_usd: float = 5_000.0
+    wallet_tracker_use_blockscout_fallback: bool = True
+    solana_rpc_url: str = "https://api.mainnet-beta.solana.com"
     memecoin_min_liquidity_usd: float = 25_000.0
     hyperliquid_enabled: bool = True
 
