@@ -73,7 +73,7 @@ else
 fi
 
 if [[ -z "${VALUES[PLATFORM_REVISION]:-}" ]]; then
-  VALUES[PLATFORM_REVISION]="2026-08-28-r118"
+  VALUES[PLATFORM_REVISION]=$(grep '^EXPECTED_PLATFORM_REVISION' "$ROOT/backend/app/engines/deploy_status.py" | sed -n 's/.*"\([^"]*\)".*/\1/p')
 fi
 
 synced=0
