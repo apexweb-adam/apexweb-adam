@@ -315,6 +315,17 @@ export default function Dashboard() {
                         botSessions?.[bot.bot_type] ??
                         platformStatus?.bot_sessions?.[bot.bot_type]
                       }
+                      gate={
+                        liveGateTightening?.active
+                          ? {
+                              blocked: liveGateTightening.blocked_new_entries?.includes(
+                                bot.bot_type
+                              ),
+                              provenWinners:
+                                liveGateTightening.proven_winner_symbols?.[bot.bot_type],
+                            }
+                          : undefined
+                      }
                     />
                   ))}
                   {bots.length === 0 &&
@@ -1060,6 +1071,7 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
 function BotCard({
   bot,
   session,
+  gate,
 }: {
   bot: {
     bot_type: string;
@@ -1076,6 +1088,10 @@ function BotCard({
     minutes_until_open?: number;
     minutes_until_close?: number | null;
   };
+  gate?: {
+    blocked?: boolean;
+    provenWinners?: string[];
+  };
 }) {
   const sessionHint =
     session && bot.bot_type === "stocks_futures" && !session.in_session && session.minutes_until_open
@@ -1083,11 +1099,29 @@ function BotCard({
       : session && bot.bot_type === "stocks_futures" && session.in_session && session.minutes_until_close
         ? `Closes in ${Math.floor(session.minutes_until_close / 60)}h ${session.minutes_until_close % 60}m`
         : null;
+  const preSessionPrep =
+    session &&
+    bot.bot_type === "stocks_futures" &&
+    !session.in_session &&
+    session.minutes_until_open != null &&
+    session.minutes_until_open <= 45
+      ? "TV prep active"
+      : null;
   return (
     <div className="p-4 rounded-lg bg-apex-dark border border-apex-border">
-      <div className="flex items-center gap-2 mb-3">
+      <div className="flex items-center gap-2 mb-3 flex-wrap">
         <Bot size={16} className="text-apex-gold" />
         <span className="text-sm font-bold text-white">{botLabel(bot.bot_type)}</span>
+        {gate?.blocked && (
+          <span className="text-[10px] px-2 py-0.5 rounded-full font-medium bg-red-500/10 text-red-400">
+            entries blocked
+          </span>
+        )}
+        {gate?.provenWinners && gate.provenWinners.length > 0 && (
+          <span className="text-[10px] px-2 py-0.5 rounded-full font-medium bg-emerald-500/10 text-emerald-400">
+            {gate.provenWinners.join(", ")}
+          </span>
+        )}
         {session && bot.bot_type === "stocks_futures" && (
           <span
             className={cn(
@@ -1099,6 +1133,9 @@ function BotCard({
           >
             {session.in_session ? "US session" : "After hours · wind-down"}
           </span>
+        )}
+        {preSessionPrep && (
+          <span className="text-[10px] text-apex-gold/90">{preSessionPrep}</span>
         )}
         {sessionHint && (
           <span className="text-[10px] text-gray-500">{sessionHint}</span>
