@@ -9,7 +9,6 @@ import {
 const STALE_PRODUCTION_HOSTS = [
   "apex-trading-dashboard-flame.vercel.app",
   "apex-trading-dashboard-apexweb-adams-projects.vercel.app",
-  "apex-trading-dashboard-git-main-apexweb-adams-projects.vercel.app",
 ];
 
 export async function middleware(request: NextRequest) {
