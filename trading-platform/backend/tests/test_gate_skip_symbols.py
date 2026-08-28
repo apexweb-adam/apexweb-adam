@@ -1,7 +1,7 @@
 """Tests for gate skip symbol helpers."""
 
 import asyncio
-from datetime import datetime
+from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock
 
 from app.engines.gate_entry_guard import (
@@ -9,12 +9,33 @@ from app.engines.gate_entry_guard import (
   get_gate_skip_symbols,
   get_large_recent_loss_symbols,
   get_recent_loser_symbols,
+  is_symbol_in_trade_cooldown,
   get_review_blocked_symbols,
 )
 
 
 def _trade_row(symbol: str, is_winner: bool | None):
   return (symbol, is_winner)
+
+
+def test_is_symbol_in_trade_cooldown_after_win():
+  session = AsyncMock()
+  executed = datetime.utcnow() - timedelta(minutes=5)
+  session.execute = AsyncMock(
+    return_value=MagicMock(first=lambda: (True, executed))
+  )
+  blocked = asyncio.run(is_symbol_in_trade_cooldown(session, "commodities", "SI=F"))
+  assert blocked is True
+
+
+def test_is_symbol_in_trade_cooldown_expired():
+  session = AsyncMock()
+  executed = datetime.utcnow() - timedelta(hours=2)
+  session.execute = AsyncMock(
+    return_value=MagicMock(first=lambda: (True, executed))
+  )
+  blocked = asyncio.run(is_symbol_in_trade_cooldown(session, "commodities", "SI=F"))
+  assert blocked is False
 
 
 def test_large_recent_loss_symbols_blocks_until_win():

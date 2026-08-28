@@ -128,7 +128,10 @@ class PaperTradingEngine:
     if quantity <= 0 or position_value > portfolio.balance:
       return None
 
-    stop_loss = price * (1 - strategy_cfg.stop_loss_pct)
+    stop_pct = strategy_cfg.stop_loss_pct
+    if position_scale < 1.0:
+      stop_pct = max(0.01, stop_pct * min(1.0, position_scale * 1.2))
+    stop_loss = price * (1 - stop_pct)
     take_profit = price * (1 + strategy_cfg.take_profit_pct)
 
     position = Position(
