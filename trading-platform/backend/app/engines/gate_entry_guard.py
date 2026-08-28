@@ -65,6 +65,7 @@ SHADOW_GRADUATION_MIN_COMPOSITE_BY_BOT = {
   "crypto": 0.30,
   "commodities": 0.28,
 }
+SHADOW_GRADUATION_LOSS_WIND_DOWN_USD = 1.0
 SHADOW_GRADUATION_LOSS_COOLDOWN_MULTIPLIER = 2
 
 
@@ -244,6 +245,23 @@ def early_verification_macd_ok(
   if macd_signal == "bullish":
     return True
   return integration_boost > EARLY_VERIFICATION_MACD_INTEGRATION_BYPASS
+
+
+def shadow_graduation_loss_wind_down(
+  *,
+  graduation_nudge: bool,
+  shadow_mode: bool,
+  bot_type: str,
+  unrealized: float,
+  held_seconds: float,
+  min_hold_seconds: int,
+) -> bool:
+  """Exit losing shadow positions during graduation nudge after min hold to cut churn."""
+  if not (graduation_nudge and shadow_mode and bot_type in ("crypto", "commodities")):
+    return False
+  if held_seconds < min_hold_seconds:
+    return False
+  return unrealized <= -SHADOW_GRADUATION_LOSS_WIND_DOWN_USD
 
 
 def stocks_session_close_wind_down(
@@ -873,9 +891,12 @@ def stocks_session_info() -> dict[str, Any]:
   if in_session:
     close_at = at_minutes(now, close_minutes)
     minutes_until_close = max(0, int((close_at - now).total_seconds() // 60))
+    mode = "entries"
+    if minutes_until_close <= STOCKS_SESSION_CLOSE_WIND_DOWN_MINUTES:
+      mode = "winddown"
     return {
       "in_session": True,
-      "mode": "entries",
+      "mode": mode,
       "session_open_utc": at_minutes(now, open_minutes).isoformat(),
       "session_close_utc": close_at.isoformat(),
       "minutes_until_open": 0,

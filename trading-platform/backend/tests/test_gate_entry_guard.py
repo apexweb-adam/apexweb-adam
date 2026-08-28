@@ -215,6 +215,51 @@ def test_shadow_graduation_min_composite():
   ) is None
 
 
+def test_shadow_graduation_loss_wind_down():
+  from app.engines.gate_entry_guard import shadow_graduation_loss_wind_down
+
+  assert shadow_graduation_loss_wind_down(
+    graduation_nudge=True,
+    shadow_mode=True,
+    bot_type="crypto",
+    unrealized=-1.5,
+    held_seconds=900,
+    min_hold_seconds=900,
+  ) is True
+  assert shadow_graduation_loss_wind_down(
+    graduation_nudge=True,
+    shadow_mode=True,
+    bot_type="crypto",
+    unrealized=-0.5,
+    held_seconds=900,
+    min_hold_seconds=900,
+  ) is False
+  assert shadow_graduation_loss_wind_down(
+    graduation_nudge=True,
+    shadow_mode=True,
+    bot_type="crypto",
+    unrealized=-2.0,
+    held_seconds=600,
+    min_hold_seconds=900,
+  ) is False
+  assert shadow_graduation_loss_wind_down(
+    graduation_nudge=False,
+    shadow_mode=True,
+    bot_type="crypto",
+    unrealized=-2.0,
+    held_seconds=900,
+    min_hold_seconds=900,
+  ) is False
+  assert shadow_graduation_loss_wind_down(
+    graduation_nudge=True,
+    shadow_mode=True,
+    bot_type="stocks_futures",
+    unrealized=-2.0,
+    held_seconds=900,
+    min_hold_seconds=900,
+  ) is False
+
+
 def test_early_verification_macd_ok():
   from app.engines.gate_entry_guard import early_verification_macd_ok
 

@@ -132,6 +132,16 @@ def test_stocks_session_info_in_session():
     assert info["minutes_until_close"] > 0
 
 
+def test_stocks_session_info_winddown_last_30_minutes():
+  with patch("app.engines.gate_entry_guard.datetime") as mock_dt:
+    mock_dt.utcnow.return_value = datetime(2026, 8, 28, 21, 10, 0)
+    mock_dt.side_effect = lambda *a, **k: datetime(*a, **k)
+    info = stocks_session_info()
+    assert info["in_session"] is True
+    assert info["mode"] == "winddown"
+    assert info["minutes_until_close"] == 20
+
+
 def test_stocks_session_info_before_open():
   with patch("app.engines.gate_entry_guard.datetime") as mock_dt:
     mock_dt.utcnow.return_value = datetime(2026, 8, 28, 5, 12, 0)
