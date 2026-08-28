@@ -21,6 +21,8 @@ def test_shadow_min_signal_boost_per_bot():
 
 def test_shadow_graduation_nudge_eases_commodities():
   assert in_shadow_graduation_nudge("commodities", 0.50) is True
+  assert in_shadow_graduation_nudge("commodities", 0.47) is True
+  assert in_shadow_graduation_nudge("commodities", 0.45) is False
   assert in_shadow_graduation_nudge("commodities", 0.40) is False
   assert in_shadow_graduation_nudge("crypto", 0.46) is True
   assert in_shadow_graduation_nudge("crypto", 0.44) is False
