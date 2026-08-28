@@ -508,6 +508,19 @@ export default function Dashboard() {
                           </p>
                           <p>
                             PM max positions: {platformStatus.gate_entry_tightening.max_pm_open_positions}
+                            {platformStatus.gate_entry_tightening.max_crypto_open_positions != null && (
+                              <span>
+                                {" "}
+                                · crypto max {platformStatus.gate_entry_tightening.max_crypto_open_positions}
+                              </span>
+                            )}
+                            {platformStatus.gate_entry_tightening.max_commodities_open_positions != null && (
+                              <span>
+                                {" "}
+                                · commodities max{" "}
+                                {platformStatus.gate_entry_tightening.max_commodities_open_positions}
+                              </span>
+                            )}
                             {platformStatus.gate_entry_tightening.min_composite_boost > 0 && (
                               <span>
                                 {" "}

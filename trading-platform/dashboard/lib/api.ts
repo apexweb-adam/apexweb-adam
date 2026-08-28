@@ -290,7 +290,9 @@ export type GateEntryTightening = {
   min_sentiment: number;
   require_macd_bullish: boolean;
   min_composite_boost: number;
-  max_pm_open_positions: number;
+  max_pm_open_positions: number | null;
+  max_crypto_open_positions?: number | null;
+  max_commodities_open_positions?: number | null;
 };
 
 export type PlatformStatus = {
