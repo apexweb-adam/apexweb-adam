@@ -122,6 +122,16 @@ if [[ "$CODE" == "200" ]]; then
       check "Render git commit matches repo ($REMOTE_COMMIT)" 1
     else
       echo "○ Render commit $REMOTE_COMMIT ≠ local $LOCAL_COMMIT — redeploy recommended"
+      echo "  → See trading-platform/DEPLOY_UNBLOCK.md"
+    fi
+  fi
+  if [[ -x "$(dirname "$0")/check-github-blockers.sh" ]]; then
+    if "$(dirname "$0")/check-github-blockers.sh" >/tmp/github-blockers.txt 2>&1; then
+      check "GitHub check-suites not blocking Render" 1
+    else
+      echo "○ GitHub check-suites blocking Render checksPass:"
+      tail -n 8 /tmp/github-blockers.txt | sed 's/^/  /'
+      echo "  → trading-platform/DEPLOY_UNBLOCK.md"
     fi
   fi
 else
@@ -134,6 +144,6 @@ echo ""
 if [[ "$FAIL" -eq 0 ]]; then
   echo "All checks passed."
 else
-  echo "Some checks failed — see SUPABASE_SETUP.md and RENDER_DEPLOY.md"
+  echo "Some checks failed — see SUPABASE_SETUP.md, RENDER_DEPLOY.md, and DEPLOY_UNBLOCK.md"
   exit 1
 fi
