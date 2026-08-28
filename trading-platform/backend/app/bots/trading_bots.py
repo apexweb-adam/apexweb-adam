@@ -187,6 +187,14 @@ class BaseBot(ABC):
         if (
           gate_tightening.active
           and self.bot_type == "stocks_futures"
+          and proven_winners
+          and symbol not in proven_winners
+        ):
+          continue
+
+        if (
+          gate_tightening.active
+          and self.bot_type == "stocks_futures"
           and signal.rsi > 68
         ):
           continue

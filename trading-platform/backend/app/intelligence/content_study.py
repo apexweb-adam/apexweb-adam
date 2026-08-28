@@ -95,6 +95,24 @@ TRADING_KNOWLEDGE_BASE = [
 ]
 
 
+def _is_trading_relevant_intel(title: str, content: str, source: str) -> bool:
+  """Skip sports betting and irrelevant prediction-market noise for learning insights."""
+  text = f"{title} {content}".lower()
+  noise_markers = (
+    "spread:", "o/u ", "over/under", "bo3)", "bo5)",
+    "counter-strike", " vs. ", " vs ", "mlb-", "nfl-", "nba-",
+    "will win the 2026", "will win the 2027", "uefa champions",
+    "counter-strike:", "dota", "valorant",
+  )
+  if any(marker in text for marker in noise_markers):
+    return False
+  if source in ("polymarket", "polymarket_account") and not any(
+    kw in text for kw in ("crypto", "bitcoin", "ethereum", "fed", "rate", "election", "trump", "tariff", "oil", "gold")
+  ):
+    return False
+  return True
+
+
 class ContentStudyEngine:
   """Studies trading content from YouTube, podcasts, Reddit, and applies insights to strategy."""
 
@@ -169,6 +187,10 @@ class ContentStudyEngine:
     )
     for item in event_result.scalars().all():
       if abs(item.sentiment) < 0.1:
+        item.applied = True
+        continue
+      if not _is_trading_relevant_intel(item.title, item.content or "", item.source):
+        item.applied = True
         continue
       direction = "long" if item.sentiment > 0 else "cautious"
       symbols = item.symbols_mentioned or "macro markets"
@@ -197,6 +219,9 @@ class ContentStudyEngine:
     items = list(result.scalars().all())
 
     for item in items:
+      if not _is_trading_relevant_intel(item.title, item.content or "", item.source):
+        item.applied = True
+        continue
       if abs(item.sentiment) > 0.3 and item.relevance_score > 0.6:
         impact = ""
         if item.sentiment > 0.3:
@@ -205,6 +230,10 @@ class ContentStudyEngine:
           impact = f"Bearish sentiment on {item.symbols_mentioned} - tighten stops and reduce long exposure"
 
         if impact:
+          confidence = item.relevance_score * abs(item.sentiment)
+          if confidence < 0.5:
+            item.applied = True
+            continue
           await self.learner.apply_external_insight(
             source_type=item.source,
             title=item.title,

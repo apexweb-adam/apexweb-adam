@@ -537,6 +537,9 @@ async def get_platform_status(db: AsyncSession = Depends(get_db)) -> dict[str, A
       "blocked_new_entries": sorted(gate_tightening.blocked_new_entries),
       "chronic_loser_symbols": chronic_loser_symbols,
       "proven_winner_symbols": proven_winner_symbols,
+      "stocks_proven_winners_only": bool(
+        gate_tightening.active and proven_winner_symbols.get("stocks_futures")
+      ),
     },
     "bots": bots,
     "intelligence": {
@@ -739,9 +742,13 @@ async def run_content_study_admin(payload: dict[str, Any]) -> dict[str, Any]:
     pending_applied = await learner.apply_pending_insights(
       min_confidence=float(payload.get("min_confidence", 0.55))
     )
+    dismissed = await learner.dismiss_noise_insights(
+      max_confidence=float(payload.get("dismiss_below", 0.5))
+    )
   return {
     "status": "ok",
     "pending_insights_applied": pending_applied,
+    "noise_insights_dismissed": dismissed,
     "timestamp": datetime.utcnow().isoformat(),
   }
 
