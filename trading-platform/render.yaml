@@ -39,6 +39,8 @@ services:
         sync: false
       - key: RENDER_DEPLOY_HOOK
         sync: false
+      - key: RENDER_API_KEY
+        sync: false
       - key: GITHUB_TOKEN
         sync: false
       - key: PLATFORM_REVISION
