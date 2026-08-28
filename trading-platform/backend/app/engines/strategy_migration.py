@@ -373,3 +373,59 @@ async def dedupe_polymarket_positions(session: AsyncSession) -> int:
     portfolio.updated_at = datetime.utcnow()
     await session.commit()
   return closed
+
+
+async def close_non_macro_polymarket_positions(session: AsyncSession) -> int:
+  """Exit open PM positions that fail macro/sports filter (legacy sports noise)."""
+  from app.engines.paper_trading import PaperTradingEngine
+  from app.engines.polymarket_data import fetch_polymarket_data, is_macro_relevant_symbol
+
+  engine = PaperTradingEngine(session, "polymarket")
+  positions = await engine.get_open_positions()
+  closed = 0
+  for pos in positions:
+    if is_macro_relevant_symbol(pos.symbol):
+      continue
+    price, _ = await fetch_polymarket_data(pos.symbol)
+    if price <= 0:
+      price = pos.current_price or pos.entry_price
+    if price <= 0:
+      continue
+    result = await engine.sell(
+      pos.symbol,
+      price,
+      "Close non-macro PM position (sports/noise filter)",
+    )
+    if result:
+      closed += 1
+  if closed:
+    await session.commit()
+  return closed
+
+
+async def close_non_macro_polymarket_positions(session: AsyncSession) -> int:
+  """Exit open PM positions that fail macro/sports filter (legacy sports noise)."""
+  from app.engines.paper_trading import PaperTradingEngine
+  from app.engines.polymarket_data import fetch_polymarket_data, is_macro_relevant_symbol
+
+  engine = PaperTradingEngine(session, "polymarket")
+  positions = await engine.get_open_positions()
+  closed = 0
+  for pos in positions:
+    if is_macro_relevant_symbol(pos.symbol):
+      continue
+    price, _ = await fetch_polymarket_data(pos.symbol)
+    if price <= 0:
+      price = pos.current_price or pos.entry_price
+    if price <= 0:
+      continue
+    result = await engine.sell(
+      pos.symbol,
+      price,
+      "Close non-macro PM position (sports/noise filter)",
+    )
+    if result:
+      closed += 1
+  if closed:
+    await session.commit()
+  return closed
