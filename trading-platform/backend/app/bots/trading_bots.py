@@ -264,6 +264,14 @@ class BaseBot(ABC):
         ):
           continue
 
+        if (
+          gate_tightening.active
+          and self.bot_type == "stocks_futures"
+          and signal.macd_signal != "bullish"
+          and integration_boost <= 0.03
+        ):
+          continue
+
         macd_required = self.bot_type == "crypto" or (
           gate_tightening.active
           and gate_tightening.require_macd_bullish

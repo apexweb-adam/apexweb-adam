@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.models.entities import IntelligenceItem
 
 # Source weights by bot type (1.0 = baseline). Higher = more influence on composite sentiment.
@@ -62,6 +63,18 @@ BOT_SOURCE_WEIGHTS: dict[str, dict[str, float]] = {
 DEFAULT_WEIGHT = 0.6
 MAX_ITEMS = 25
 MAX_AGE_HOURS = 48
+
+# Proxy/degraded feeds carry less signal than native APIs (see /intelligence/sources).
+PROXY_SOURCE_MULTIPLIERS: dict[str, float] = {
+  "tiktok": 0.45,
+}
+
+
+def _proxy_source_multiplier(source: str) -> float:
+  mult = PROXY_SOURCE_MULTIPLIERS.get(source, 1.0)
+  if source == "x" and not settings.twitter_bearer_token:
+    return min(mult, 0.55)
+  return mult
 
 
 def _symbol_aliases(symbol: str) -> set[str]:
@@ -161,6 +174,7 @@ async def compute_bot_sentiment(
 
   for item in items:
     src_weight = _source_weight(bot_type, item.source)
+    src_weight *= _proxy_source_multiplier(item.source)
     if item.source == "political":
       src_weight *= _political_event_boost(bot_type, item.category or "")
     relevance = max(0.1, min(1.0, item.relevance_score or 0.5))
