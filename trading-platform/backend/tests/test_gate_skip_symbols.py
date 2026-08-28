@@ -18,6 +18,20 @@ def _trade_row(symbol: str, is_winner: bool | None):
   return (symbol, is_winner)
 
 
+def test_symbol_cooldown_remaining_seconds_after_loss():
+  from app.engines.gate_entry_guard import symbol_cooldown_remaining_seconds
+
+  session = AsyncMock()
+  executed = datetime.utcnow() - timedelta(minutes=5)
+  session.execute = AsyncMock(
+    return_value=MagicMock(first=lambda: (False, executed))
+  )
+  remaining = asyncio.run(
+    symbol_cooldown_remaining_seconds(session, "commodities", "SI=F")
+  )
+  assert 600 <= remaining <= 1200
+
+
 def test_is_symbol_in_trade_cooldown_after_win():
   session = AsyncMock()
   executed = datetime.utcnow() - timedelta(minutes=5)

@@ -31,6 +31,7 @@ from app.engines.gate_entry_guard import (
   hard_skip_blocks_shadow_entry,
   in_shadow_graduation_nudge,
   is_symbol_in_trade_cooldown,
+  symbol_cooldown_remaining_seconds,
   shadow_entry_min_signal,
   shadow_intel_composite_override,
   shadow_requires_macd,
@@ -143,12 +144,16 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
     composite = max(0.0, composite + integration_boost)
 
     entry_min_signal = min_signal
-    if gate_tightening.active and bot_type == "stocks_futures" and symbol in proven_winners:
+    if (
+      (gate_tightening.active or early_verification_boost)
+      and bot_type == "stocks_futures"
+      and symbol in proven_winners
+    ):
       entry_min_signal = apply_entry_min_signal_ease(
         entry_min_signal, 0.02, early_boost=early_verification_boost
       )
     if (
-      gate_tightening.active
+      (gate_tightening.active or early_verification_boost)
       and bot_type == "stocks_futures"
       and integration_reason
       and "tradingview" in integration_reason.lower()
@@ -168,7 +173,11 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
     )
 
     volume_required = signal.volume_confirmed
-    if gate_tightening.active and bot_type == "stocks_futures" and symbol in proven_winners:
+    if (
+      (gate_tightening.active or early_verification_boost)
+      and bot_type == "stocks_futures"
+      and symbol in proven_winners
+    ):
       volume_required = (
         signal.volume_confirmed
         or integration_boost > 0.03
@@ -209,7 +218,8 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
     entry_direction_ok = signal.direction == "buy" or intel_override
 
     blockers: list[str] = []
-    if await is_symbol_in_trade_cooldown(session, bot_type, symbol):
+    cooldown_remaining = await symbol_cooldown_remaining_seconds(session, bot_type, symbol)
+    if cooldown_remaining > 0:
       blockers.append("symbol_cooldown")
     if entry_guards and hard_skip_blocks_shadow_entry(
       symbol,
@@ -233,7 +243,7 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
     ):
       blockers.append("chronic_loser")
     if (
-      gate_tightening.active
+      (gate_tightening.active or early_verification_boost)
       and bot_type == "stocks_futures"
       and proven_winners
       and symbol not in proven_winners
@@ -306,6 +316,7 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
         "blockers": blockers,
         "integration_boost": round(integration_boost, 3),
         "intel_override": intel_override,
+        "cooldown_seconds": cooldown_remaining or None,
       }
     )
 

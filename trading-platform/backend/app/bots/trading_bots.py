@@ -24,6 +24,8 @@ from app.engines.gate_entry_guard import (
   hard_skip_blocks_shadow_entry,
   in_shadow_graduation_nudge,
   is_symbol_in_trade_cooldown,
+  EARLY_VERIFICATION_LOSS_WIND_DOWN_SECONDS,
+  EARLY_VERIFICATION_LOSS_WIND_DOWN_USD,
   shadow_entry_min_signal,
   shadow_intel_composite_override,
   shadow_requires_macd,
@@ -156,7 +158,6 @@ class BaseBot(ABC):
       if entry_guards:
         chronic_losers = await get_chronic_loser_symbols(session, self.bot_type)
         hard_skip_sets = await get_hard_gate_skip_components(session, self.bot_type)
-      if gate_tightening.active or shadow_mode:
         if self.bot_type in ("stocks_futures", "commodities"):
           proven_winners = await get_proven_winner_symbols(session, self.bot_type)
           if proven_winners:
@@ -247,6 +248,28 @@ class BaseBot(ABC):
             min_hold = settings.commodities_min_hold_seconds
           allow_signal_exit = held_seconds >= min_hold
 
+          if (
+            early_verification_boost
+            and self.bot_type == "stocks_futures"
+          ):
+            unrealized = (price - position.entry_price) * position.quantity
+            if (
+              unrealized <= -EARLY_VERIFICATION_LOSS_WIND_DOWN_USD
+              and held_seconds >= EARLY_VERIFICATION_LOSS_WIND_DOWN_SECONDS
+            ):
+              reason = (
+                f"Early verification wind-down (uPnL ${unrealized:.2f}) | {signal.reason}"
+              )
+              result = await engine.sell(symbol, price, reason)
+              if result:
+                actions.append(result)
+                if result.get("is_winner") is False:
+                  await self._analyze_loss(session, symbol)
+                  self._register_symbol_cooldown(symbol, after_loss=True)
+                else:
+                  self._register_symbol_cooldown(symbol, after_loss=False)
+              continue
+
           # Wind down legacy stock positions opened before proven-winners-only gate.
           if (
             gate_tightening.active
@@ -323,7 +346,7 @@ class BaseBot(ABC):
           continue
 
         if (
-          gate_tightening.active
+          (gate_tightening.active or early_verification_boost)
           and self.bot_type == "stocks_futures"
           and proven_winners
           and symbol not in proven_winners
@@ -388,12 +411,16 @@ class BaseBot(ABC):
           continue
 
         entry_min_signal = min_signal
-        if gate_tightening.active and self.bot_type == "stocks_futures" and symbol in proven_winners:
+        if (
+          (gate_tightening.active or early_verification_boost)
+          and self.bot_type == "stocks_futures"
+          and symbol in proven_winners
+        ):
           entry_min_signal = apply_entry_min_signal_ease(
             entry_min_signal, 0.02, early_boost=early_verification_boost
           )
         if (
-          gate_tightening.active
+          (gate_tightening.active or early_verification_boost)
           and self.bot_type == "stocks_futures"
           and integration_reason
           and "tradingview" in integration_reason.lower()
@@ -403,7 +430,7 @@ class BaseBot(ABC):
             entry_min_signal, 0.03, early_boost=early_verification_boost
           )
         if (
-          gate_tightening.active
+          (gate_tightening.active or early_verification_boost)
           and self.bot_type == "stocks_futures"
           and signal.rsi_divergence == "bullish"
         ):
@@ -450,7 +477,7 @@ class BaseBot(ABC):
 
         volume_required = signal.volume_confirmed
         if (
-          gate_tightening.active
+          (gate_tightening.active or early_verification_boost)
           and self.bot_type == "stocks_futures"
           and symbol in proven_winners
         ):

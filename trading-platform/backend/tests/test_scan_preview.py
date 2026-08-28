@@ -87,8 +87,8 @@ def test_build_scan_preview_commodities_structure():
                         return_value=True,
                       ):
                         with patch(
-                          "app.engines.scan_preview.is_symbol_in_trade_cooldown",
-                          new=AsyncMock(return_value=False),
+                          "app.engines.scan_preview.symbol_cooldown_remaining_seconds",
+                          new=AsyncMock(return_value=0),
                         ):
                           return await build_scan_preview(session, "commodities")
 
@@ -172,8 +172,8 @@ def test_build_scan_preview_commodities_intel_override_on_sell_signal():
                         return_value=True,
                       ):
                         with patch(
-                          "app.engines.scan_preview.is_symbol_in_trade_cooldown",
-                          new=AsyncMock(return_value=False),
+                          "app.engines.scan_preview.symbol_cooldown_remaining_seconds",
+                          new=AsyncMock(return_value=0),
                         ):
                           return await build_scan_preview(session, "commodities")
 
@@ -257,8 +257,8 @@ def test_build_scan_preview_commodities_chronic_loser_intel_bypass():
                         return_value=True,
                       ):
                         with patch(
-                          "app.engines.scan_preview.is_symbol_in_trade_cooldown",
-                          new=AsyncMock(return_value=False),
+                          "app.engines.scan_preview.symbol_cooldown_remaining_seconds",
+                          new=AsyncMock(return_value=0),
                         ):
                           return await build_scan_preview(session, "commodities")
 
@@ -351,8 +351,8 @@ def test_build_scan_preview_stocks_early_verification_volume_relax():
                         return_value=True,
                       ):
                         with patch(
-                          "app.engines.scan_preview.is_symbol_in_trade_cooldown",
-                          new=AsyncMock(return_value=False),
+                          "app.engines.scan_preview.symbol_cooldown_remaining_seconds",
+                          new=AsyncMock(return_value=0),
                         ):
                           return await build_scan_preview(session, "stocks_futures")
 
@@ -447,8 +447,8 @@ def test_build_scan_preview_stocks_early_verification_blocks_weak_raw_signal():
                         return_value=True,
                       ):
                         with patch(
-                          "app.engines.scan_preview.is_symbol_in_trade_cooldown",
-                          new=AsyncMock(return_value=False),
+                          "app.engines.scan_preview.symbol_cooldown_remaining_seconds",
+                          new=AsyncMock(return_value=0),
                         ):
                           return await build_scan_preview(session, "stocks_futures")
 
@@ -527,8 +527,8 @@ def test_build_scan_preview_crypto_intel_override_on_sell_signal():
                       return_value=True,
                     ):
                       with patch(
-                        "app.engines.scan_preview.is_symbol_in_trade_cooldown",
-                        new=AsyncMock(return_value=False),
+                        "app.engines.scan_preview.symbol_cooldown_remaining_seconds",
+                        new=AsyncMock(return_value=0),
                       ):
                         return await build_scan_preview(session, "crypto")
 
