@@ -301,7 +301,10 @@ export default function Dashboard() {
                     <BotCard
                       key={bot.bot_type}
                       bot={bot}
-                      session={botSessions?.[bot.bot_type]}
+                      session={
+                        botSessions?.[bot.bot_type] ??
+                        platformStatus?.bot_sessions?.[bot.bot_type]
+                      }
                     />
                   ))}
                   {bots.length === 0 &&
