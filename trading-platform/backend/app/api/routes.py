@@ -723,6 +723,19 @@ async def run_daily_review_admin(payload: dict[str, Any]) -> dict[str, Any]:
   return {"status": "ok", "timestamp": datetime.utcnow().isoformat()}
 
 
+@router.post("/admin/run-intelligence-scan")
+async def run_intelligence_scan_admin(payload: dict[str, Any]) -> dict[str, Any]:
+  """Force immediate intel scan (DexScreener, Hyperliquid, whales, X, Reddit)."""
+  from app.workers.scheduler import intelligence_job
+
+  secret = payload.get("secret", "")
+  if not settings.tradingview_webhook_secret or secret != settings.tradingview_webhook_secret:
+    return {"status": "unauthorized"}
+
+  await intelligence_job()
+  return {"status": "ok", "timestamp": datetime.utcnow().isoformat()}
+
+
 @router.post("/admin/run-content-study")
 async def run_content_study_admin(payload: dict[str, Any]) -> dict[str, Any]:
   """Run content study and apply pending learning insights (requires webhook secret)."""
