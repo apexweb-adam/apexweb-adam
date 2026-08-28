@@ -7,7 +7,7 @@ BACKEND="${BACKEND_URL:-https://apex-trading-backend.onrender.com}"
 DASHBOARD="${DASHBOARD_URL:-https://apex-trading-dashboard-flame.vercel.app}"
 FLAME="${FLAME_URL:-https://apex-trading-dashboard-flame.vercel.app}"
 GIT_MAIN="https://apex-trading-dashboard-git-main-apexweb-adams-projects.vercel.app"
-EXPECTED_BUNDLE="2026-08-28-r27"
+EXPECTED_BUNDLE="2026-08-28-r28"
 
 pass=0
 fail=0

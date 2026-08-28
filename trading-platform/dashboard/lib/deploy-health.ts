@@ -1,5 +1,5 @@
 /** Bump when dashboard features change — compared in /api/config for stale Vercel detection. */
-export const DASHBOARD_BUNDLE_REVISION = "2026-08-28-r27";
+export const DASHBOARD_BUNDLE_REVISION = "2026-08-28-r28";
 
 /** Verified preview when production -flame bundle is stale (matches backend VERIFIED_DASHBOARD_URL). */
 export const VERIFIED_PREVIEW_URL =
