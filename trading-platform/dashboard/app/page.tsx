@@ -493,6 +493,38 @@ export default function Dashboard() {
                         </span>
                       </p>
                     )}
+                    {gateStatus.verification_day != null && (
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-[10px] text-gray-500 uppercase tracking-wide">
+                          <span>Verification period</span>
+                          <span>{Math.min(30, gateStatus.verification_day)}/30 days</span>
+                        </div>
+                        <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-apex-gold/80 rounded-full transition-all"
+                            style={{
+                              width: `${Math.min(100, ((gateStatus.verification_day ?? 1) / 30) * 100)}%`,
+                            }}
+                          />
+                        </div>
+                      </div>
+                    )}
+                    {gateStatus.win_rate != null && (
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-[10px] text-gray-500 uppercase tracking-wide">
+                          <span>Win rate {formatPct(gateStatus.win_rate)}</span>
+                          <span>Target 55%</span>
+                        </div>
+                        <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-apex-green/80 rounded-full transition-all"
+                            style={{
+                              width: `${Math.min(100, (gateStatus.win_rate / 0.55) * 100)}%`,
+                            }}
+                          />
+                        </div>
+                      </div>
+                    )}
                     <p className="text-xs text-gray-500">{gateStatus.recommendation}</p>
                     {platformStatus?.gate_entry_tightening?.active && (
                       <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs">
@@ -519,6 +551,13 @@ export default function Dashboard() {
                                 {" "}
                                 · commodities max{" "}
                                 {platformStatus.gate_entry_tightening.max_commodities_open_positions}
+                              </span>
+                            )}
+                            {platformStatus.gate_entry_tightening.max_stocks_open_positions != null && (
+                              <span>
+                                {" "}
+                                · stocks max{" "}
+                                {platformStatus.gate_entry_tightening.max_stocks_open_positions}
                               </span>
                             )}
                             {platformStatus.gate_entry_tightening.min_composite_boost > 0 && (

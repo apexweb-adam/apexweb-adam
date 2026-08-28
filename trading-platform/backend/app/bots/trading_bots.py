@@ -32,6 +32,15 @@ from app.engines.signal_engine import SignalEngine
 from app.models.entities import BotState, Trade
 
 
+def _prioritize_symbols(symbols: list[str], proven: frozenset[str]) -> list[str]:
+  """Scan proven winners first during gate so the active bot captures best setups early."""
+  if not proven:
+    return symbols
+  winners = [s for s in symbols if s in proven]
+  rest = [s for s in symbols if s not in proven]
+  return winners + rest
+
+
 class BaseBot(ABC):
   bot_type: str = "base"
   scan_interval: int = 30
@@ -100,6 +109,7 @@ class BaseBot(ABC):
         chronic_losers = await get_chronic_loser_symbols(session, self.bot_type)
         if self.bot_type == "stocks_futures":
           proven_winners = await get_proven_winner_symbols(session, self.bot_type)
+          symbols = _prioritize_symbols(symbols, proven_winners)
       open_positions = await engine.get_open_positions()
       open_count = len(open_positions)
       loss_streak = await engine.get_consecutive_losses()
@@ -193,6 +203,13 @@ class BaseBot(ABC):
           gate_tightening.max_commodities_open_positions is not None
           and self.bot_type == "commodities"
           and open_count >= gate_tightening.max_commodities_open_positions
+        ):
+          continue
+
+        if (
+          gate_tightening.max_stocks_open_positions is not None
+          and self.bot_type == "stocks_futures"
+          and open_count >= gate_tightening.max_stocks_open_positions
         ):
           continue
 
