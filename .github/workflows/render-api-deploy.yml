@@ -28,8 +28,6 @@ jobs:
       - name: Trigger Render deploy
         run: |
           set -euo pipefail
-          STATUS=$(curl -fsS "https://apex-trading-backend.onrender.com/api/status" || echo '{}')
-          STALE=$(echo "$STATUS" | python3 -c "import json,sys; d=json.load(sys.stdin).get('deploy',{}); print('true' if d.get('is_stale') or int(d.get('commits_behind') or 0)>0 else 'false')" 2>/dev/null || echo "false")
           if [ -n "${RENDER_API_KEY:-}" ]; then
             SERVICES=$(curl -fsS -H "Authorization: Bearer $RENDER_API_KEY" \
               "https://api.render.com/v1/services?limit=100")
@@ -57,8 +55,10 @@ jobs:
               "https://api.render.com/v1/services/${SERVICE_ID}/deploys"
             echo "Deploy triggered for apex-trading-backend via API (preferred)"
           elif [ -n "${RENDER_DEPLOY_HOOK:-}" ]; then
-            if [[ "$STALE" == "true" ]]; then
-              echo "::warning::Backend stale — skipping deploy hook (redeploys old commit). Use Manual Deploy or RENDER_API_KEY."
+            LATEST=$(curl -fsS "https://api.github.com/repos/apexweb-adam/apexweb-adam/git/ref/heads/main" | python3 -c "import json,sys; print(json.load(sys.stdin)['object']['sha'][:12])")
+            DEPLOYED=$(curl -fsS "https://apex-trading-backend.onrender.com/api/status" | python3 -c "import json,sys; print(json.load(sys.stdin).get('deploy',{}).get('git_commit','')[:12])")
+            if [[ -n "$DEPLOYED" && -n "$LATEST" && "$DEPLOYED" != "$LATEST" ]]; then
+              echo "::warning::Backend stale — deployed $DEPLOYED, main is $LATEST. Skipping deploy hook."
             else
               curl -fsS -X POST "$RENDER_DEPLOY_HOOK"
               echo "Triggered RENDER_DEPLOY_HOOK (current deploy only)"
