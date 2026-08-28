@@ -48,11 +48,8 @@ jobs:
               sys.exit(0)
           hook = os.environ.get("RENDER_DEPLOY_HOOK", "").strip()
           api_key = os.environ.get("RENDER_API_KEY", "").strip()
-          if hook:
-              req = urllib.request.Request(hook, method="POST")
-              with urllib.request.urlopen(req, timeout=30) as resp:
-                  print("Triggered RENDER_DEPLOY_HOOK", resp.status)
-              sys.exit(0)
+          commits_behind = int(dep.get("commits_behind") or 0)
+          clear_cache = commits_behind > 0
           if api_key:
               req = urllib.request.Request(
                   "https://api.render.com/v1/services?limit=100",
@@ -66,20 +63,24 @@ jobs:
                   if svc.get("name") == "apex-trading-backend":
                       service_id = svc["id"]
                       break
-              if not service_id:
-                  print("::warning::apex-trading-backend not found in Render API")
+              if service_id:
+                  body = json.dumps({"clearCache": "clear"} if clear_cache else {}).encode()
+                  req = urllib.request.Request(
+                      f"https://api.render.com/v1/services/{service_id}/deploys",
+                      data=body,
+                      headers={
+                          "Authorization": f"Bearer {api_key}",
+                          "Content-Type": "application/json",
+                      },
+                      method="POST",
+                  )
+                  with urllib.request.urlopen(req, timeout=30) as resp:
+                      print("Triggered Render API deploy (preferred)", resp.status)
                   sys.exit(0)
-              req = urllib.request.Request(
-                  f"https://api.render.com/v1/services/{service_id}/deploys",
-                  data=b"{}",
-                  headers={
-                      "Authorization": f"Bearer {api_key}",
-                      "Content-Type": "application/json",
-                  },
-                  method="POST",
-              )
+          if hook:
+              req = urllib.request.Request(hook, method="POST")
               with urllib.request.urlopen(req, timeout=30) as resp:
-                  print("Triggered Render API deploy", resp.status)
+                  print("Triggered RENDER_DEPLOY_HOOK (fallback)", resp.status)
               sys.exit(0)
-          print("::warning::Render deploy stale — set RENDER_DEPLOY_HOOK or RENDER_API_KEY in GitHub secrets")
+          print("::warning::Render deploy stale — set RENDER_API_KEY or RENDER_DEPLOY_HOOK in GitHub secrets")
           PY

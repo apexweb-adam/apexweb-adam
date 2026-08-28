@@ -38,10 +38,7 @@ jobs:
         if: github.event_name != 'schedule' || steps.freshness.outputs.skip != 'true'
         run: |
           set -euo pipefail
-          if [ -n "${RENDER_DEPLOY_HOOK:-}" ]; then
-            curl -fsS -X POST "$RENDER_DEPLOY_HOOK"
-            echo "Triggered RENDER_DEPLOY_HOOK"
-          elif [ -n "${RENDER_API_KEY:-}" ]; then
+          if [ -n "${RENDER_API_KEY:-}" ]; then
             SERVICES=$(curl -fsS -H "Authorization: Bearer $RENDER_API_KEY" \
               "https://api.render.com/v1/services?limit=100")
             SERVICE_ID=$(echo "$SERVICES" | python3 -c "
@@ -60,9 +57,12 @@ jobs:
             curl -fsS -X POST \
               -H "Authorization: Bearer $RENDER_API_KEY" \
               -H "Content-Type: application/json" \
-              -d "{}" \
+              -d '{"clearCache":"clear"}' \
               "https://api.render.com/v1/services/${SERVICE_ID}/deploys"
-            echo "Deploy triggered via Render API"
+            echo "Deploy triggered via Render API (preferred — pulls latest GitHub commit)"
+          elif [ -n "${RENDER_DEPLOY_HOOK:-}" ]; then
+            curl -fsS -X POST "$RENDER_DEPLOY_HOOK"
+            echo "Triggered RENDER_DEPLOY_HOOK (fallback)"
           else
             echo "::warning::Neither RENDER_DEPLOY_HOOK nor RENDER_API_KEY is set."
             echo "Render Blueprint autoDeploy from GitHub may still deploy — verify:"
