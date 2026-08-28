@@ -105,6 +105,8 @@ EARLY_VERIFICATION_ENTRY_MIN_SIGNAL_FLOOR = 0.18
 EARLY_VERIFICATION_MIN_RAW_SIGNAL_SCORE = 0.12
 EARLY_VERIFICATION_SIGNAL_EASE = 0.04
 EARLY_VERIFICATION_SENTIMENT_EASE = 0.03
+EARLY_VERIFICATION_LOSS_WIND_DOWN_USD = 15.0
+EARLY_VERIFICATION_LOSS_WIND_DOWN_SECONDS = 7200
 DEFAULT_ENTRY_MIN_SIGNAL_FLOOR = 0.08
 
 
@@ -473,6 +475,16 @@ async def is_symbol_in_trade_cooldown(
   symbol: str,
 ) -> bool:
   """DB-backed re-entry cooldown — survives deploy restarts."""
+  remaining = await symbol_cooldown_remaining_seconds(session, bot_type, symbol)
+  return remaining > 0
+
+
+async def symbol_cooldown_remaining_seconds(
+  session: AsyncSession,
+  bot_type: str,
+  symbol: str,
+) -> int:
+  """Seconds until symbol re-entry is allowed after last sell."""
   from app.models.entities import Trade
 
   result = await session.execute(
@@ -487,15 +499,15 @@ async def is_symbol_in_trade_cooldown(
   )
   row = result.first()
   if not row:
-    return False
+    return 0
   is_winner, executed_at = row
   if not executed_at or is_winner is None:
-    return False
+    return 0
   if executed_at.tzinfo is not None:
     executed_at = executed_at.replace(tzinfo=None)
   elapsed = (datetime.utcnow() - executed_at).total_seconds()
   seconds = _bot_cooldown_seconds(bot_type, after_loss=is_winner is False)
-  return elapsed < seconds
+  return max(0, int(seconds - elapsed))
 
 
 @dataclass(frozen=True)
