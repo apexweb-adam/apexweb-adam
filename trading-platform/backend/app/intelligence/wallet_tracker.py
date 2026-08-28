@@ -114,16 +114,19 @@ async def scan_wallet_tracker(session: AsyncSession) -> int:
   addresses = tracked_wallet_addresses()
   if not addresses:
     return 0
+  if not settings.etherscan_api_key:
+    return 0
 
-  api_key = settings.etherscan_api_key or "YourApiKeyToken"
+  api_key = settings.etherscan_api_key
   count = 0
 
   async with httpx.AsyncClient(timeout=20) as client:
     for address in addresses:
       try:
         response = await client.get(
-          "https://api.etherscan.io/api",
+          "https://api.etherscan.io/v2/api",
           params={
+            "chainid": 1,
             "module": "account",
             "action": "tokentx",
             "address": address,
@@ -135,6 +138,7 @@ async def scan_wallet_tracker(session: AsyncSession) -> int:
         )
         data = response.json()
         if data.get("status") != "1":
+          print(f"Etherscan V2 error for {address[:10]}…: {data.get('message')} {data.get('result')}")
           continue
         for tx in data.get("result", []):
           tx_hash = tx.get("hash", "")
