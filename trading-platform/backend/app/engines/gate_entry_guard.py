@@ -122,6 +122,8 @@ EARLY_VERIFICATION_SENTIMENT_EASE = 0.03
 EARLY_VERIFICATION_LOSS_WIND_DOWN_USD = 15.0
 EARLY_VERIFICATION_LOSS_WIND_DOWN_SECONDS = 7200
 EARLY_VERIFICATION_MACD_INTEGRATION_BYPASS = 0.05
+STOCKS_SESSION_CLOSE_WIND_DOWN_MINUTES = 30
+STOCKS_SESSION_CLOSE_FORCE_MINUTES = 15
 DEFAULT_ENTRY_MIN_SIGNAL_FLOOR = 0.08
 
 
@@ -242,6 +244,25 @@ def early_verification_macd_ok(
   if macd_signal == "bullish":
     return True
   return integration_boost > EARLY_VERIFICATION_MACD_INTEGRATION_BYPASS
+
+
+def stocks_session_close_wind_down(
+  *,
+  in_session: bool,
+  minutes_until_close: int | None,
+  unrealized: float,
+  signal_direction: str,
+) -> bool:
+  """Day-trading stocks: flatten into the close and never hold after the session."""
+  if not in_session:
+    return True
+  if minutes_until_close is None:
+    return False
+  if minutes_until_close <= STOCKS_SESSION_CLOSE_FORCE_MINUTES:
+    return True
+  if minutes_until_close <= STOCKS_SESSION_CLOSE_WIND_DOWN_MINUTES:
+    return unrealized < 0 or signal_direction == "sell" or unrealized > 0
+  return False
 
 
 def shadow_entry_min_signal(

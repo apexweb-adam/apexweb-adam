@@ -223,6 +223,41 @@ def test_early_verification_macd_ok():
   assert early_verification_macd_ok(macd_signal="bearish", integration_boost=0.02) is False
 
 
+def test_stocks_session_close_wind_down():
+  from app.engines.gate_entry_guard import stocks_session_close_wind_down
+
+  assert stocks_session_close_wind_down(
+    in_session=False,
+    minutes_until_close=None,
+    unrealized=5.0,
+    signal_direction="buy",
+  ) is True
+  assert stocks_session_close_wind_down(
+    in_session=True,
+    minutes_until_close=10,
+    unrealized=5.0,
+    signal_direction="buy",
+  ) is True
+  assert stocks_session_close_wind_down(
+    in_session=True,
+    minutes_until_close=25,
+    unrealized=-2.0,
+    signal_direction="buy",
+  ) is True
+  assert stocks_session_close_wind_down(
+    in_session=True,
+    minutes_until_close=25,
+    unrealized=2.0,
+    signal_direction="buy",
+  ) is True
+  assert stocks_session_close_wind_down(
+    in_session=True,
+    minutes_until_close=45,
+    unrealized=-2.0,
+    signal_direction="buy",
+  ) is False
+
+
 def test_shadow_requires_macd_crypto_nudge_off():
   assert shadow_requires_macd(
     "crypto",
