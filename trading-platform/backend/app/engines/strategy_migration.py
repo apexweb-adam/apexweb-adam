@@ -208,10 +208,32 @@ async def migrate_symbol_columns(session: AsyncSession) -> bool:
 
   altered = False
   for table in ("positions", "trades", "trade_analyses"):
-    await session.execute(
-      text(f"ALTER TABLE {table} ALTER COLUMN symbol TYPE VARCHAR(64)")
+    result = await session.execute(
+      text(
+        """
+        SELECT character_maximum_length
+        FROM information_schema.columns
+        WHERE table_schema = 'public'
+          AND table_name = :table
+          AND column_name = 'symbol'
+        """
+      ),
+      {"table": table},
     )
-    altered = True
+    current = result.scalar_one_or_none()
+    if current is not None and int(current) >= 64:
+      continue
+    try:
+      await session.execute(
+        text(f"ALTER TABLE {table} ALTER COLUMN symbol TYPE VARCHAR(64)")
+      )
+      altered = True
+    except Exception as exc:
+      # Non-owner roles (e.g. apex_render_backend) cannot ALTER — skip if already wide enough.
+      if current is not None and int(current) >= 32:
+        print(f"[Strategy] Skipping symbol migration on {table} ({exc.__class__.__name__})")
+        continue
+      raise
   if altered:
     await session.commit()
   return altered
