@@ -31,7 +31,7 @@ export async function GET() {
     apiUrl: backendHttpUrl(),
     wsUrl: backendWsUrl(),
     mode: "proxy",
-    bundleRevision: process.env.PLATFORM_BUNDLE_REVISION || DASHBOARD_BUNDLE_REVISION,
+    bundleRevision: DASHBOARD_BUNDLE_REVISION,
     features: DASHBOARD_FEATURES,
     githubMainCommit: mainCommit,
     deployedGitSha: process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 12) ?? null,
