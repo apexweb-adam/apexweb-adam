@@ -57,6 +57,8 @@ GRADUATION_NUDGE_MIN_WR_BY_BOT = {
   "crypto": 0.43,
   "commodities": 0.44,
 }
+PROFITABLE_SHADOW_NUDGE_MIN_WR = 0.42
+PROFITABLE_SHADOW_MIN_PF = 1.0
 SHADOW_GRADUATION_MIN_HOLD_BY_BOT = {
   "crypto": 900,
   "commodities": 600,
@@ -69,11 +71,22 @@ SHADOW_GRADUATION_LOSS_WIND_DOWN_USD = 1.0
 SHADOW_GRADUATION_LOSS_COOLDOWN_MULTIPLIER = 2
 
 
-def shadow_min_signal_boost(bot_type: str, *, bot_win_rate: float | None = None) -> float:
+def shadow_min_signal_boost(
+  bot_type: str,
+  *,
+  bot_win_rate: float | None = None,
+  profit_factor: float | None = None,
+  total_pnl: float | None = None,
+) -> float:
   base = SHADOW_MIN_SIGNAL_BOOST_BY_BOT.get(bot_type, SHADOW_MIN_SIGNAL_BOOST)
   if bot_win_rate is None:
     return base
-  if in_shadow_graduation_nudge(bot_type, bot_win_rate):
+  if in_shadow_graduation_nudge(
+    bot_type,
+    bot_win_rate,
+    profit_factor=profit_factor,
+    total_pnl=total_pnl,
+  ):
     if bot_type == "commodities":
       return max(0.08, base - 0.05)
     if bot_type == "crypto":
@@ -81,13 +94,28 @@ def shadow_min_signal_boost(bot_type: str, *, bot_win_rate: float | None = None)
   return base
 
 
-def in_shadow_graduation_nudge(bot_type: str, bot_win_rate: float | None) -> bool:
+def in_shadow_graduation_nudge(
+  bot_type: str,
+  bot_win_rate: float | None,
+  *,
+  profit_factor: float | None = None,
+  total_pnl: float | None = None,
+) -> bool:
   """Paused bot is close to per-bot graduation WR — ease shadow filters."""
   if bot_win_rate is None:
     return False
   from app.engines.profitability_gate import ProfitabilityGate
 
   floor = GRADUATION_NUDGE_MIN_WR_BY_BOT.get(bot_type, GRADUATION_NUDGE_MIN_WR)
+  if (
+    bot_type == "crypto"
+    and profit_factor is not None
+    and profit_factor >= PROFITABLE_SHADOW_MIN_PF
+    and total_pnl is not None
+    and total_pnl > 0
+    and bot_win_rate >= PROFITABLE_SHADOW_NUDGE_MIN_WR
+  ):
+    floor = min(floor, PROFITABLE_SHADOW_NUDGE_MIN_WR)
   return (
     bot_type in ("commodities", "crypto")
     and floor <= bot_win_rate < ProfitabilityGate.GRADUATION_MIN_WIN_RATE
@@ -312,6 +340,8 @@ def shadow_entry_min_signal(
   strategy_min_signal: float,
   *,
   bot_win_rate: float | None = None,
+  profit_factor: float | None = None,
+  total_pnl: float | None = None,
 ) -> float:
   """Compute shadow entry threshold — eases when a paused bot is close to graduation WR."""
   from app.engines.profitability_gate import ProfitabilityGate
@@ -321,11 +351,21 @@ def shadow_entry_min_signal(
   base = min(strategy_min_signal, ceiling) if ceiling else strategy_min_signal
   if (
     bot_win_rate is not None
-    and in_shadow_graduation_nudge(bot_type, bot_win_rate)
+    and in_shadow_graduation_nudge(
+      bot_type,
+      bot_win_rate,
+      profit_factor=profit_factor,
+      total_pnl=total_pnl,
+    )
     and bot_type in ("commodities", "crypto")
   ):
     base = max(0.16, base - 0.06)
-  boost = shadow_min_signal_boost(bot_type, bot_win_rate=bot_win_rate)
+  boost = shadow_min_signal_boost(
+    bot_type,
+    bot_win_rate=bot_win_rate,
+    profit_factor=profit_factor,
+    total_pnl=total_pnl,
+  )
   return min(0.95, base + boost)
 
 
@@ -335,9 +375,16 @@ def shadow_requires_macd(
   bot_win_rate: float | None,
   gate_tightening: GateEntryTightening,
   shadow_mode: bool,
+  profit_factor: float | None = None,
+  total_pnl: float | None = None,
 ) -> bool:
   if shadow_mode and bot_type in ("commodities", "crypto"):
-    if bot_win_rate is not None and in_shadow_graduation_nudge(bot_type, bot_win_rate):
+    if bot_win_rate is not None and in_shadow_graduation_nudge(
+      bot_type,
+      bot_win_rate,
+      profit_factor=profit_factor,
+      total_pnl=total_pnl,
+    ):
       return False
     if bot_type == "crypto":
       return True
