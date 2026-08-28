@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -166,3 +168,57 @@ def bot_min_sentiment(bot_type: str, tightening: GateEntryTightening) -> float:
   if not tightening.active:
     return 0.0
   return max(tightening.min_sentiment, BOT_MIN_SENTIMENT.get(bot_type, 0.05))
+
+
+def stocks_in_us_session() -> bool:
+  """US regular session ~9:30–16:00 ET (13:30–21:00 UTC); extend 30m for closes."""
+  now = datetime.utcnow()
+  if now.weekday() >= 5:
+    return False
+  minutes = now.hour * 60 + now.minute
+  return 13 * 60 + 30 <= minutes <= 21 * 60 + 30
+
+
+async def build_gate_ws_payload(session: AsyncSession) -> dict[str, Any]:
+  """Gate tightening + profitability summary for WebSocket and status APIs."""
+  gate_tightening = await get_gate_entry_tightening(session)
+  profitability = await ProfitabilityGate(session).evaluate()
+
+  chronic_loser_symbols: dict[str, list[str]] = {}
+  proven_winner_symbols: dict[str, list[str]] = {}
+  if gate_tightening.active:
+    for bot_type in BOT_TYPES:
+      losers = await get_chronic_loser_symbols(session, bot_type)
+      if losers:
+        chronic_loser_symbols[bot_type] = sorted(losers)
+      winners = await get_proven_winner_symbols(session, bot_type)
+      if winners:
+        proven_winner_symbols[bot_type] = sorted(winners)
+
+  in_session = stocks_in_us_session()
+  return {
+    "profitability_gate": profitability,
+    "gate_entry_tightening": {
+      "active": gate_tightening.active,
+      "win_rate": gate_tightening.win_rate,
+      "min_sentiment": gate_tightening.min_sentiment,
+      "require_macd_bullish": gate_tightening.require_macd_bullish,
+      "min_composite_boost": gate_tightening.min_composite_boost,
+      "max_pm_open_positions": gate_tightening.max_pm_open_positions,
+      "max_crypto_open_positions": gate_tightening.max_crypto_open_positions,
+      "max_commodities_open_positions": gate_tightening.max_commodities_open_positions,
+      "max_stocks_open_positions": gate_tightening.max_stocks_open_positions,
+      "blocked_new_entries": sorted(gate_tightening.blocked_new_entries),
+      "chronic_loser_symbols": chronic_loser_symbols,
+      "proven_winner_symbols": proven_winner_symbols,
+      "stocks_proven_winners_only": bool(
+        gate_tightening.active and proven_winner_symbols.get("stocks_futures")
+      ),
+    },
+    "bot_sessions": {
+      "stocks_futures": {
+        "in_session": in_session,
+        "mode": "entries" if in_session else "winddown_only",
+      },
+    },
+  }

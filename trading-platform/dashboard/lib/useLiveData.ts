@@ -10,6 +10,9 @@ import {
   type Trade,
   type Position,
   type RecentIntelItem,
+  type ProfitabilityStatus,
+  type GateEntryTightening,
+  type BotSessions,
 } from "./api";
 
 type LiveData = {
@@ -19,6 +22,9 @@ type LiveData = {
   positions: Position[];
   trades: Trade[];
   recentIntel: RecentIntelItem[];
+  profitabilityGate: ProfitabilityStatus | null;
+  gateEntryTightening: GateEntryTightening | null;
+  botSessions: BotSessions | null;
   connected: boolean;
   lastUpdate: string | null;
   lastTrade: Record<string, unknown> | null;
@@ -31,12 +37,16 @@ export function useLiveData(): LiveData {
   const [positions, setPositions] = useState<Position[]>([]);
   const [trades, setTrades] = useState<Trade[]>([]);
   const [recentIntel, setRecentIntel] = useState<RecentIntelItem[]>([]);
+  const [profitabilityGate, setProfitabilityGate] = useState<ProfitabilityStatus | null>(null);
+  const [gateEntryTightening, setGateEntryTightening] = useState<GateEntryTightening | null>(null);
+  const [botSessions, setBotSessions] = useState<BotSessions | null>(null);
   const [connected, setConnected] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<string | null>(null);
   const [lastTrade, setLastTrade] = useState<Record<string, unknown> | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pollTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const refreshFromApiRef = useRef<() => Promise<void>>(async () => {});
 
   const refreshFromApi = useCallback(async () => {
     try {
@@ -58,6 +68,8 @@ export function useLiveData(): LiveData {
     }
   }, []);
 
+  refreshFromApiRef.current = refreshFromApi;
+
   const applyUpdate = useCallback((data: Record<string, unknown>) => {
     if (data.stats) setStats(data.stats as Stats);
     if (data.portfolios) setPortfolios(data.portfolios as Portfolio[]);
@@ -65,6 +77,11 @@ export function useLiveData(): LiveData {
     if (data.positions) setPositions(data.positions as Position[]);
     if (data.trades) setTrades(data.trades as Trade[]);
     if (data.recent_intel) setRecentIntel(data.recent_intel as RecentIntelItem[]);
+    if (data.profitability_gate) setProfitabilityGate(data.profitability_gate as ProfitabilityStatus);
+    if (data.gate_entry_tightening) {
+      setGateEntryTightening(data.gate_entry_tightening as GateEntryTightening);
+    }
+    if (data.bot_sessions) setBotSessions(data.bot_sessions as BotSessions);
     if (data.timestamp) setLastUpdate(String(data.timestamp));
   }, []);
 
@@ -92,6 +109,7 @@ export function useLiveData(): LiveData {
         } else if (data.type === "trade") {
           setLastTrade(data.trade);
           setLastUpdate(data.timestamp);
+          void refreshFromApiRef.current();
         }
       };
     } catch {
@@ -117,5 +135,18 @@ export function useLiveData(): LiveData {
     };
   }, [connect, refreshFromApi]);
 
-  return { stats, portfolios, bots, positions, trades, recentIntel, connected, lastUpdate, lastTrade };
+  return {
+    stats,
+    portfolios,
+    bots,
+    positions,
+    trades,
+    recentIntel,
+    profitabilityGate,
+    gateEntryTightening,
+    botSessions,
+    connected,
+    lastUpdate,
+    lastTrade,
+  };
 }
