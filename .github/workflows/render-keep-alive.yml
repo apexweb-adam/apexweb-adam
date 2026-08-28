@@ -30,6 +30,7 @@ jobs:
       - name: Check deploy staleness
         env:
           RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
         run: |
           set -euo pipefail
           URL="https://apex-trading-backend.onrender.com"
@@ -46,10 +47,39 @@ jobs:
           if not stale:
               sys.exit(0)
           hook = os.environ.get("RENDER_DEPLOY_HOOK", "").strip()
+          api_key = os.environ.get("RENDER_API_KEY", "").strip()
           if hook:
               req = urllib.request.Request(hook, method="POST")
               with urllib.request.urlopen(req, timeout=30) as resp:
                   print("Triggered RENDER_DEPLOY_HOOK", resp.status)
-          else:
-              print("::warning::Render deploy stale — set RENDER_DEPLOY_HOOK in GitHub secrets or manual deploy")
+              sys.exit(0)
+          if api_key:
+              req = urllib.request.Request(
+                  "https://api.render.com/v1/services?limit=100",
+                  headers={"Authorization": f"Bearer {api_key}"},
+              )
+              with urllib.request.urlopen(req, timeout=30) as resp:
+                  services = json.load(resp)
+              service_id = None
+              for item in services:
+                  svc = item.get("service") or item
+                  if svc.get("name") == "apex-trading-backend":
+                      service_id = svc["id"]
+                      break
+              if not service_id:
+                  print("::warning::apex-trading-backend not found in Render API")
+                  sys.exit(0)
+              req = urllib.request.Request(
+                  f"https://api.render.com/v1/services/{service_id}/deploys",
+                  data=b"{}",
+                  headers={
+                      "Authorization": f"Bearer {api_key}",
+                      "Content-Type": "application/json",
+                  },
+                  method="POST",
+              )
+              with urllib.request.urlopen(req, timeout=30) as resp:
+                  print("Triggered Render API deploy", resp.status)
+              sys.exit(0)
+          print("::warning::Render deploy stale — set RENDER_DEPLOY_HOOK or RENDER_API_KEY in GitHub secrets")
           PY

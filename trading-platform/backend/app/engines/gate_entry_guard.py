@@ -47,15 +47,19 @@ async def get_gate_entry_tightening(session: AsyncSession) -> GateEntryTightenin
   deficit = ProfitabilityGate.MIN_WIN_RATE - win_rate
   boost = min(0.08, deficit * 0.4)
 
+  pm_cap = 2 if deficit >= 0.02 else None
+  crypto_cap = 1 if deficit >= 0.05 else (2 if deficit >= 0.02 else None)
+  commodities_cap = 2 if deficit >= 0.02 else None
+
   return GateEntryTightening(
     active=True,
     win_rate=win_rate,
     min_sentiment=0.04 + boost,
     require_macd_bullish=deficit >= 0.02,
     min_composite_boost=boost,
-    max_pm_open_positions=3 if deficit >= 0.02 else None,
-    max_crypto_open_positions=2 if deficit >= 0.02 else None,
-    max_commodities_open_positions=2 if deficit >= 0.02 else None,
+    max_pm_open_positions=pm_cap,
+    max_crypto_open_positions=crypto_cap,
+    max_commodities_open_positions=commodities_cap,
   )
 
 
