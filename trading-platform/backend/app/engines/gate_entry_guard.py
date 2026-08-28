@@ -328,7 +328,11 @@ CHRONIC_LOSER_MAX_WIN_RATE = 0.35
 RECENT_LOSER_DAYS = 7
 RECENT_LOSER_MIN_LOSSES = 2
 RECENT_LARGE_LOSS_USD = 25.0
+RECENT_LARGE_LOSS_USD_BY_BOT = {
+  "stocks_futures": 15.0,
+}
 RECENT_LARGE_LOSS_HOURS = 24
+EARLY_VERIFICATION_WIND_DOWN_COOLDOWN_MULTIPLIER = 3
 SHADOW_LARGE_LOSS_BYPASS_COMPOSITE = 0.55
 SHADOW_LARGE_LOSS_BYPASS_COMPOSITE_BY_BOT = {
   "commodities": 0.42,
@@ -434,7 +438,7 @@ async def get_large_recent_loss_symbols(
   bot_type: str,
   *,
   hours: int = RECENT_LARGE_LOSS_HOURS,
-  min_loss_usd: float = RECENT_LARGE_LOSS_USD,
+  min_loss_usd: float | None = None,
   recovery_win_ratio: float = 0.25,
 ) -> frozenset[str]:
   """Skip symbols with a recent large loss until a meaningful recovery win.
@@ -443,6 +447,9 @@ async def get_large_recent_loss_symbols(
   """
   from app.models.entities import Trade
 
+  loss_floor = min_loss_usd
+  if loss_floor is None:
+    loss_floor = RECENT_LARGE_LOSS_USD_BY_BOT.get(bot_type, RECENT_LARGE_LOSS_USD)
   cutoff = datetime.utcnow() - timedelta(hours=hours)
   result = await session.execute(
     select(Trade.symbol, Trade.pnl, Trade.is_winner, Trade.executed_at).where(
@@ -461,7 +468,7 @@ async def get_large_recent_loss_symbols(
   for symbol, sells in sells_by_symbol.items():
     pending_loss: float | None = None
     for pnl, is_winner in sells:
-      if is_winner is False and pnl is not None and pnl <= -min_loss_usd:
+      if is_winner is False and pnl is not None and pnl <= -loss_floor:
         pending_loss = abs(pnl)
         continue
       if pending_loss is not None and pnl is not None and pnl >= pending_loss * recovery_win_ratio:
@@ -597,6 +604,13 @@ async def symbol_cooldown_remaining_seconds(
   large_mult = LARGE_LOSS_COOLDOWN_MULTIPLIER_BY_BOT.get(bot_type)
   if is_winner is False and large_mult and symbol in large_loss_symbols:
     seconds = int(seconds * large_mult)
+  if (
+    is_winner is False
+    and reason
+    and "Early verification wind-down" in reason
+    and bot_type == "stocks_futures"
+  ):
+    seconds = int(seconds * EARLY_VERIFICATION_WIND_DOWN_COOLDOWN_MULTIPLIER)
   return max(0, int(seconds - elapsed))
 
 

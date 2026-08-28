@@ -90,6 +90,40 @@ def test_is_symbol_in_trade_cooldown_expired():
   assert blocked is False
 
 
+def test_large_recent_loss_symbols_stocks_lower_threshold():
+  session = AsyncMock()
+  now = datetime.utcnow()
+  rows = [
+    ("AAPL", -21.31, False, now - timedelta(minutes=30)),
+  ]
+  session.execute = AsyncMock(return_value=MagicMock(all=lambda: rows))
+
+  blocked = asyncio.run(get_large_recent_loss_symbols(session, "stocks_futures"))
+  assert "AAPL" in blocked
+  blocked_default = asyncio.run(get_large_recent_loss_symbols(session, "crypto"))
+  assert "AAPL" not in blocked_default
+
+
+def test_symbol_cooldown_wind_down_triples_stocks():
+  from app.engines.gate_entry_guard import symbol_cooldown_remaining_seconds
+
+  session = AsyncMock()
+  executed = datetime.utcnow() - timedelta(minutes=20)
+  session.execute = AsyncMock(
+    return_value=MagicMock(
+      first=lambda: (
+        False,
+        executed,
+        "Early verification wind-down (uPnL $-21.31) | MACD bullish",
+      )
+    )
+  )
+  remaining = asyncio.run(
+    symbol_cooldown_remaining_seconds(session, "stocks_futures", "AAPL")
+  )
+  assert 4100 <= remaining <= 5600
+
+
 def test_large_recent_loss_symbols_blocks_until_win():
   session = AsyncMock()
   rows = [
