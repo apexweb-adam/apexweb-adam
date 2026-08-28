@@ -17,8 +17,50 @@ from app.engines.platform_settings import (
 )
 
 LAST_REDEPLOY_KEY = "last_redeploy_trigger_at"
-REDEPLOY_COOLDOWN = timedelta(hours=1)
+LAST_FAILED_DEPLOY_KEY = "last_failed_deploy_at"
+REDEPLOY_COOLDOWN = timedelta(hours=6)
+FAILED_DEPLOY_COOLDOWN = timedelta(hours=24)
 RENDER_SERVICE_NAME = "apex-trading-backend"
+IN_PROGRESS_STATUSES = frozenset({
+  "build_in_progress",
+  "update_in_progress",
+  "pre_deploy_in_progress",
+})
+
+
+def auto_redeploy_enabled() -> bool:
+  raw = os.environ.get("DISABLE_AUTO_REDEPLOY", "").strip().lower()
+  return raw not in ("1", "true", "yes", "on")
+
+
+async def fetch_latest_render_deploy_status() -> dict[str, Any] | None:
+  """Return the most recent deploy record for apex-trading-backend, if API key is set."""
+  api_key = os.environ.get("RENDER_API_KEY", "").strip()
+  if not api_key:
+    return None
+
+  headers = {"Authorization": f"Bearer {api_key}"}
+  async with httpx.AsyncClient(timeout=20.0) as client:
+    services = await client.get("https://api.render.com/v1/services?limit=100", headers=headers)
+    services.raise_for_status()
+    service_id = None
+    for item in services.json():
+      svc = item.get("service") or item
+      if svc.get("name") == RENDER_SERVICE_NAME:
+        service_id = svc["id"]
+        break
+    if not service_id:
+      return None
+
+    deploys = await client.get(
+      f"https://api.render.com/v1/services/{service_id}/deploys?limit=1",
+      headers=headers,
+    )
+    deploys.raise_for_status()
+    items = deploys.json()
+    if not items:
+      return None
+    return items[0].get("deploy") or items[0]
 
 
 async def resolve_render_deploy_hook() -> str:
@@ -67,10 +109,38 @@ async def maybe_trigger_stale_redeploy(
   allow_stale_hook: bool = False,
 ) -> dict[str, Any]:
   """Redeploy when deploy is stale — prefer Render API, then deploy hook."""
+  if not auto_redeploy_enabled() and not force:
+    return {"triggered": False, "reason": "auto_redeploy_disabled"}
+
   status = await build_deploy_status()
 
   if not force and not status.get("is_stale"):
     return {"triggered": False, "reason": "deploy_current", "deploy": status}
+
+  latest_deploy = await fetch_latest_render_deploy_status()
+  if latest_deploy:
+    deploy_status = (latest_deploy.get("status") or "").lower()
+    if deploy_status in IN_PROGRESS_STATUSES:
+      return {
+        "triggered": False,
+        "reason": "deploy_in_progress",
+        "deploy": status,
+        "render_deploy_status": deploy_status,
+      }
+    if deploy_status in ("update_failed", "build_failed") and not force:
+      finished = latest_deploy.get("finishedAt") or latest_deploy.get("updatedAt")
+      if finished:
+        try:
+          finished_at = datetime.fromisoformat(str(finished).replace("Z", "+00:00")).replace(tzinfo=None)
+          if datetime.utcnow() - finished_at < FAILED_DEPLOY_COOLDOWN:
+            return {
+              "triggered": False,
+              "reason": "recent_deploy_failed",
+              "deploy": status,
+              "render_deploy_status": deploy_status,
+            }
+        except ValueError:
+          pass
 
   commits_behind = int(status.get("commits_behind") or 0)
   stale = bool(status.get("is_stale") or commits_behind > 0)

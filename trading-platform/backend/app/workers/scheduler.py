@@ -86,16 +86,20 @@ async def reset_daily_bot_stats_job() -> None:
 
 
 async def redeploy_check_job() -> None:
-  """Hourly: trigger Render redeploy when running build is behind main."""
-  from app.engines.deploy_trigger import maybe_trigger_stale_redeploy
+  """Periodic staleness log only — deploy triggers are manual or CI to avoid Render email spam."""
+  from app.engines.deploy_trigger import auto_redeploy_enabled, maybe_trigger_stale_redeploy
+
+  if not auto_redeploy_enabled():
+    return
 
   result = await maybe_trigger_stale_redeploy()
   if result.get("triggered"):
     print(f"[Deploy] {result.get('message')}")
   elif result.get("deploy", {}).get("is_stale"):
     reason = result.get("reason", "unknown")
-    if reason not in ("cooldown",):
-      print(f"[Deploy] Stale ({reason}) — set RENDER_DEPLOY_HOOK on Render or GitHub secrets")
+    if reason in ("cooldown", "deploy_in_progress", "recent_deploy_failed"):
+      return
+    print(f"[Deploy] Stale ({reason}) — use Render Manual Deploy or workflow_dispatch render-hook-recovery")
 
 
 async def stocks_pre_session_prep_job() -> None:
@@ -226,13 +230,18 @@ async def ensure_verification_period_on_startup() -> None:
 
 async def setup_scheduler() -> None:
   await init_db()
-  from app.engines.deploy_trigger import maybe_trigger_stale_redeploy
+  from app.engines.deploy_trigger import auto_redeploy_enabled, maybe_trigger_stale_redeploy
 
-  redeploy = await maybe_trigger_stale_redeploy()
-  if redeploy.get("triggered"):
-    print(f"[Deploy] {redeploy.get('message')}")
-  elif redeploy.get("deploy", {}).get("is_stale"):
-    print(f"[Deploy] Stale ({redeploy.get('reason')}) — manual deploy or set RENDER_DEPLOY_HOOK on Render")
+  if auto_redeploy_enabled():
+    redeploy = await maybe_trigger_stale_redeploy()
+    if redeploy.get("triggered"):
+      print(f"[Deploy] {redeploy.get('message')}")
+    elif redeploy.get("deploy", {}).get("is_stale"):
+      reason = redeploy.get("reason", "unknown")
+      if reason not in ("cooldown", "deploy_in_progress", "recent_deploy_failed"):
+        print(f"[Deploy] Stale ({reason}) — manual deploy or set RENDER_DEPLOY_HOOK on Render")
+  else:
+    print("[Deploy] Auto-redeploy disabled (DISABLE_AUTO_REDEPLOY)")
 
   await ensure_verification_period_on_startup()
   async with SessionLocal() as session:
@@ -284,7 +293,7 @@ async def setup_scheduler() -> None:
   scheduler.add_job(intelligence_job, "interval", minutes=5, id="intelligence_scan")
   scheduler.add_job(content_study_job, "interval", hours=2, id="content_study")
   scheduler.add_job(risk_migration_job, "interval", minutes=15, id="risk_migration")
-  scheduler.add_job(redeploy_check_job, "interval", hours=1, id="redeploy_check")
+  scheduler.add_job(redeploy_check_job, "interval", hours=6, id="redeploy_check")
   scheduler.add_job(
     stocks_pre_session_prep_job,
     "interval",

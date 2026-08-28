@@ -18,12 +18,21 @@ from app.workers.scheduler import setup_scheduler, stop_bots
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+  from app.database import is_postgres
+
   commit = settings.render_git_commit or os.environ.get("RENDER_GIT_COMMIT") or "unknown"
   revision = os.environ.get("PLATFORM_REVISION", "unknown")
+  on_render = bool(os.environ.get("RENDER"))
   print(
     f"[Startup] {settings.app_name} commit={commit[:12]} "
-    f"revision={revision} paper_only={settings.paper_trading_only}"
+    f"revision={revision} paper_only={settings.paper_trading_only} "
+    f"db={'postgres' if is_postgres() else 'sqlite'}"
   )
+  if on_render and not is_postgres():
+    print(
+      "[Startup] WARNING: Render is using ephemeral SQLite — gate data resets on every deploy. "
+      "Set DATABASE_URL to Supabase (see SUPABASE_SETUP.md) and run scripts/sync-render-env.sh"
+    )
   await setup_scheduler()
   yield
   stop_bots()
