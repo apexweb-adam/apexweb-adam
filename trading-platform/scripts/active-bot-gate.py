@@ -10,7 +10,7 @@ import urllib.request
 
 BACKEND_API = "https://apex-trading-backend.onrender.com"
 PRODUCTION_DASHBOARD = "https://apex-trading-dashboard-flame.vercel.app"
-VERIFIED_PREVIEW = "https://apex-trading-dashboard-jwi0so16v-apexweb-adams-projects.vercel.app"
+VERIFIED_PREVIEW = "https://apex-trading-dashboard-mz9mzjoaq-apexweb-adams-projects.vercel.app"
 EXPECTED_BUNDLE = "2026-08-27-r15"
 
 
