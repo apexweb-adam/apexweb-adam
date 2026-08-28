@@ -28,6 +28,7 @@ from app.engines.gate_entry_guard import (
   shadow_chronic_position_scale,
   shadow_graduation_min_hold_seconds,
   shadow_graduation_min_composite,
+  shadow_graduation_loss_wind_down,
   EARLY_VERIFICATION_LOSS_WIND_DOWN_SECONDS,
   EARLY_VERIFICATION_LOSS_WIND_DOWN_USD,
   shadow_entry_min_signal,
@@ -263,6 +264,32 @@ class BaseBot(ABC):
               default_seconds=settings.commodities_min_hold_seconds,
             )
           allow_signal_exit = held_seconds >= min_hold
+
+          if (
+            shadow_mode
+            and self.bot_type in ("crypto", "commodities")
+            and shadow_graduation_loss_wind_down(
+              graduation_nudge=graduation_nudge,
+              shadow_mode=shadow_mode,
+              bot_type=self.bot_type,
+              unrealized=(price - position.entry_price) * position.quantity,
+              held_seconds=held_seconds,
+              min_hold_seconds=min_hold,
+            )
+          ):
+            unrealized = (price - position.entry_price) * position.quantity
+            reason = (
+              f"Shadow graduation wind-down (uPnL ${unrealized:.2f}) | {signal.reason}"
+            )
+            result = await engine.sell(symbol, price, reason)
+            if result:
+              actions.append(result)
+              if result.get("is_winner") is False:
+                await self._analyze_loss(session, symbol)
+                self._register_symbol_cooldown(symbol, after_loss=True)
+              else:
+                self._register_symbol_cooldown(symbol, after_loss=False)
+            continue
 
           if self.bot_type == "stocks_futures":
             unrealized = (price - position.entry_price) * position.quantity
