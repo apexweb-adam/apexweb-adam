@@ -52,6 +52,8 @@ SHADOW_MAX_OPEN = {
   "polymarket": 2,
 }
 SHADOW_GRADUATION_NUDGE_MAX_OPEN = 2
+SHADOW_PROFITABLE_GRADUATION_NUDGE_MAX_OPEN = 3
+ACTIVE_GATE_GRADUATION_NUDGE_MAX_OPEN = 3
 GATE_RECOVERY_ROTATION_CANDIDATES = ("crypto", "commodities")
 GATE_RECOVERY_MIN_PF = 1.0
 
@@ -97,6 +99,29 @@ def shadow_min_signal_boost(
   return base
 
 
+def is_profitable_graduation_nudge(
+  bot_type: str,
+  bot_win_rate: float | None,
+  *,
+  profit_factor: float | None = None,
+  total_pnl: float | None = None,
+) -> bool:
+  """Paused/shadow bot is in graduation nudge with positive PF and PnL."""
+  if bot_win_rate is None:
+    return False
+  return in_shadow_graduation_nudge(
+    bot_type,
+    bot_win_rate,
+    profit_factor=profit_factor,
+    total_pnl=total_pnl,
+  ) and (
+    profit_factor is not None
+    and profit_factor >= PROFITABLE_SHADOW_MIN_PF
+    and total_pnl is not None
+    and total_pnl > 0
+  )
+
+
 def shadow_max_open_for_bot(
   bot_type: str,
   *,
@@ -120,7 +145,15 @@ def shadow_max_open_for_bot(
       total_pnl=total_pnl,
     )
   ):
-    return max(base, SHADOW_GRADUATION_NUDGE_MAX_OPEN)
+    nudge_cap = SHADOW_GRADUATION_NUDGE_MAX_OPEN
+    if is_profitable_graduation_nudge(
+      bot_type,
+      bot_win_rate,
+      profit_factor=profit_factor,
+      total_pnl=total_pnl,
+    ):
+      nudge_cap = SHADOW_PROFITABLE_GRADUATION_NUDGE_MAX_OPEN
+    return max(base, nudge_cap)
   return base
 
 
@@ -138,7 +171,7 @@ def in_shadow_graduation_nudge(
 
   floor = GRADUATION_NUDGE_MIN_WR_BY_BOT.get(bot_type, GRADUATION_NUDGE_MIN_WR)
   if (
-    bot_type == "crypto"
+    bot_type in ("crypto", "commodities")
     and profit_factor is not None
     and profit_factor >= PROFITABLE_SHADOW_MIN_PF
     and total_pnl is not None
@@ -1064,6 +1097,16 @@ async def get_gate_entry_tightening(session: AsyncSession) -> GateEntryTightenin
   gate = await ProfitabilityGate(session).evaluate()
   win_rate = float(gate.get("win_rate") or 0)
   total = int(gate.get("total_trades") or 0)
+  per_bot = await ProfitabilityGate(session).evaluate_per_bot()
+  comm = per_bot.get("commodities") or {}
+  commodities_nudge_cap: int | None = None
+  if not comm.get("paused") and is_profitable_graduation_nudge(
+    "commodities",
+    comm.get("win_rate"),
+    profit_factor=comm.get("profit_factor"),
+    total_pnl=comm.get("total_pnl"),
+  ):
+    commodities_nudge_cap = ACTIVE_GATE_GRADUATION_NUDGE_MAX_OPEN
 
   if total < 30 or win_rate >= ProfitabilityGate.MIN_WIN_RATE:
     return GateEntryTightening(
@@ -1072,6 +1115,7 @@ async def get_gate_entry_tightening(session: AsyncSession) -> GateEntryTightenin
       min_sentiment=0.0,
       require_macd_bullish=False,
       min_composite_boost=0.0,
+      max_commodities_open_positions=commodities_nudge_cap,
     )
 
   deficit = ProfitabilityGate.MIN_WIN_RATE - win_rate
@@ -1080,6 +1124,12 @@ async def get_gate_entry_tightening(session: AsyncSession) -> GateEntryTightenin
   pm_cap = 1 if deficit >= 0.05 else (2 if deficit >= 0.02 else None)
   crypto_cap = 1 if deficit >= 0.05 else (2 if deficit >= 0.02 else None)
   commodities_cap = 2 if deficit >= 0.02 else None
+  if commodities_nudge_cap is not None:
+    commodities_cap = (
+      max(commodities_cap, commodities_nudge_cap)
+      if commodities_cap is not None
+      else commodities_nudge_cap
+    )
   blocked = await get_underperforming_bots(session)
   stocks_cap = 3 if "stocks_futures" not in blocked and deficit >= 0.02 else None
 

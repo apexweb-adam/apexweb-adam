@@ -4,6 +4,7 @@ import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from app.engines.gate_entry_guard import (
+  get_gate_entry_tightening,
   shadow_max_open_for_bot,
   sync_gate_recovery_rotation,
 )
@@ -16,6 +17,17 @@ def test_shadow_max_open_for_bot_raises_cap_during_profitable_nudge():
     bot_win_rate=0.422,
     profit_factor=1.06,
     total_pnl=5.63,
+  )
+  assert cap == 3
+
+
+def test_shadow_max_open_for_bot_raises_cap_to_two_when_nudge_not_profitable():
+  cap = shadow_max_open_for_bot(
+    "crypto",
+    shadow_mode=True,
+    bot_win_rate=0.43,
+    profit_factor=1.06,
+    total_pnl=-1.0,
   )
   assert cap == 2
 
@@ -134,3 +146,31 @@ def test_sync_gate_recovery_rotation_reactivates_when_all_paused():
   assert result == {"paused": "all", "activated": "commodities"}
   set_pause.assert_awaited_once()
   assert set_pause.await_args.args[1:] == ("commodities", False)
+
+
+def test_get_gate_entry_tightening_raises_commodities_cap_during_profitable_nudge():
+  gate_result = {
+    "total_trades": 29,
+    "win_rate": 0.444,
+  }
+  per_bot = {
+    "commodities": {
+      "paused": False,
+      "win_rate": 0.444,
+      "profit_factor": 1.19,
+      "total_pnl": 19.13,
+    },
+  }
+
+  with patch("app.engines.gate_entry_guard.ProfitabilityGate") as GateCls:
+    gate = GateCls.return_value
+    gate.evaluate = AsyncMock(return_value=gate_result)
+    gate.evaluate_per_bot = AsyncMock(return_value=per_bot)
+    with patch(
+      "app.engines.gate_entry_guard.get_underperforming_bots",
+      AsyncMock(return_value=frozenset()),
+    ):
+      tightening = asyncio.run(get_gate_entry_tightening(MagicMock()))
+
+  assert tightening.active is False
+  assert tightening.max_commodities_open_positions == 3
