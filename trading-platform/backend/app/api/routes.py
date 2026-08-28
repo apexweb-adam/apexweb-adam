@@ -549,7 +549,9 @@ async def get_platform_status(db: AsyncSession = Depends(get_db)) -> dict[str, A
       "daily_reviews": len(reviews),
       "insights_applied": sum(1 for i in insights if i.applied),
       "insights_total": len(insights),
+      "insights_pending": sum(1 for i in insights if not i.applied),
       "verification_snapshots": snapshot_count,
+      "content_study_admin": "POST /api/admin/run-content-study with secret to study content and apply pending insights",
     },
     "integrations": {
       "tradingview_webhook": bool(settings.tradingview_webhook_secret),
@@ -719,6 +721,29 @@ async def run_daily_review_admin(payload: dict[str, Any]) -> dict[str, Any]:
 
   await daily_review_job()
   return {"status": "ok", "timestamp": datetime.utcnow().isoformat()}
+
+
+@router.post("/admin/run-content-study")
+async def run_content_study_admin(payload: dict[str, Any]) -> dict[str, Any]:
+  """Run content study and apply pending learning insights (requires webhook secret)."""
+  from app.engines.learning_engine import LearningEngine
+  from app.workers.scheduler import content_study_job
+
+  secret = payload.get("secret", "")
+  if not settings.tradingview_webhook_secret or secret != settings.tradingview_webhook_secret:
+    return {"status": "unauthorized"}
+
+  await content_study_job()
+  async with SessionLocal() as session:
+    learner = LearningEngine(session)
+    pending_applied = await learner.apply_pending_insights(
+      min_confidence=float(payload.get("min_confidence", 0.55))
+    )
+  return {
+    "status": "ok",
+    "pending_insights_applied": pending_applied,
+    "timestamp": datetime.utcnow().isoformat(),
+  }
 
 
 @router.post("/admin/set-bot-paused")

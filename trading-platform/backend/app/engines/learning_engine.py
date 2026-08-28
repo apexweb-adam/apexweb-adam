@@ -165,6 +165,24 @@ class LearningEngine:
     await self.session.commit()
     return insight
 
+  async def apply_pending_insights(self, min_confidence: float = 0.55) -> int:
+    """Apply stored insights that were not yet applied to strategy configs."""
+    result = await self.session.execute(
+      select(LearningInsight).where(
+        LearningInsight.applied.is_(False),
+        LearningInsight.confidence >= min_confidence,
+      )
+    )
+    applied = 0
+    for insight in result.scalars().all():
+      if insight.strategy_impact:
+        await self._apply_insight_to_strategies(insight.strategy_impact)
+      insight.applied = True
+      applied += 1
+    if applied:
+      await self.session.commit()
+    return applied
+
   async def _get_market_context(self, symbol: str, at_time: datetime) -> str:
     result = await self.session.execute(
       select(IntelligenceItem)
