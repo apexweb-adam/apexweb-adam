@@ -56,7 +56,7 @@ import { IntelRoutingPanel } from "@/components/IntelRoutingPanel";
 type Tab = "overview" | "trades" | "positions" | "intelligence" | "learning" | "strategy";
 
 export default function Dashboard() {
-  const { stats, portfolios, bots, positions: livePositions, trades: liveTrades, recentIntel, analyses: liveAnalyses, reviews: liveReviews, insights: liveInsights, strategies: liveStrategies, intelSources: liveIntelSources, connected, lastUpdate, lastTrade, profitabilityGate: liveProfitability, gateEntryTightening, botSessions } = useLiveData();
+  const { stats, portfolios, bots, positions: livePositions, trades: liveTrades, recentIntel, analyses: liveAnalyses, reviews: liveReviews, insights: liveInsights, strategies: liveStrategies, intelSources: liveIntelSources, verificationHistory: liveVerificationHistory, connected, lastUpdate, lastTrade, profitabilityGate: liveProfitability, gateEntryTightening, botSessions } = useLiveData();
   const { data: tradesRest } = useAPI<Trade[]>("/trades?limit=50", 30000);
   const { data: gateTradesRest } = useAPI<Trade[]>("/trades?limit=200", 30000);
   const { data: positionsRest } = useAPI<Position[]>("/positions", 30000);
@@ -73,12 +73,16 @@ export default function Dashboard() {
   const insights = connected && liveInsights.length > 0 ? liveInsights : (insightsRest ?? []);
   const strategies = connected && liveStrategies.length > 0 ? liveStrategies : (strategiesRest ?? []);
   const intelSources = connected && liveIntelSources.length > 0 ? liveIntelSources : (intelSourcesRest ?? []);
-  const { data: profitability } = useAPI<ProfitabilityStatus>("/profitability", 15000);
-  const { data: activeGate } = useAPI<ActiveGateStatus>("/active-gate", 15000);
-  const { data: verificationHistory } = useAPI<VerificationSnapshot[]>(
+  const { data: verificationHistoryRest } = useAPI<VerificationSnapshot[]>(
     "/verification/history?limit=30",
     60000
   );
+  const verificationHistory =
+    connected && liveVerificationHistory.length > 0
+      ? liveVerificationHistory
+      : (verificationHistoryRest ?? []);
+  const { data: profitability } = useAPI<ProfitabilityStatus>("/profitability", 15000);
+  const { data: activeGate } = useAPI<ActiveGateStatus>("/active-gate", 15000);
   const { data: equityHistory } = useAPI<EquityHistoryPoint[]>("/equity-history", 60000);
   const { data: intelRouting } = useAPI<IntelRouting>("/intelligence/routing", 60000);
   const { data: platformStatus } = useAPI<PlatformStatus>("/status", 30000);
@@ -129,10 +133,13 @@ export default function Dashboard() {
     [gateTrades]
   );
   const chartEquityHistory = useMemo(() => {
+    if (connected && (liveProfitability?.equity_history?.length ?? 0) > 0) {
+      return liveProfitability!.equity_history!;
+    }
     if ((equityHistory?.length ?? 0) > 0) return equityHistory!;
     if ((profitability?.equity_history?.length ?? 0) > 0) return profitability!.equity_history!;
     return equityHistoryFromTrades;
-  }, [equityHistory, profitability, equityHistoryFromTrades]);
+  }, [connected, liveProfitability, equityHistory, profitability, equityHistoryFromTrades]);
 
   const gateStatus = useMemo(() => {
     const profSource = connected && liveProfitability ? liveProfitability : profitability;

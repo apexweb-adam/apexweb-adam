@@ -343,20 +343,7 @@ async def get_verification_history(
     .limit(min(limit, 90))
   )
   snapshots = result.scalars().all()
-  return [
-    {
-      "snapshot_date": s.snapshot_date,
-      "verification_day": s.verification_day,
-      "total_trades": s.total_trades,
-      "win_rate": s.win_rate,
-      "profit_factor": s.profit_factor,
-      "total_pnl": s.total_pnl,
-      "performance_checks_passed": s.performance_checks_passed,
-      "live_trading_ready": s.live_trading_ready,
-      "created_at": s.created_at.isoformat() if s.created_at else None,
-    }
-    for s in snapshots
-  ]
+  return [serialize_verification_snapshot(s) for s in snapshots]
 
 
 @router.get("/intelligence/routing")

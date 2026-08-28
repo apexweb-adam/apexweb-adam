@@ -12,6 +12,7 @@ from app.engines.gate_entry_guard import (
   get_gate_entry_tightening,
   get_gate_skip_symbols,
   get_proven_winner_symbols,
+  stocks_gate_entry_sentiment_ok,
   stocks_in_us_session,
 )
 from app.engines.integration_signals import get_integration_boost
@@ -126,12 +127,8 @@ class BaseBot(ABC):
         symbols = held_symbols
       loss_streak = await engine.get_consecutive_losses()
       min_signal = strategy.min_signal_score
-      if gate_tightening.active:
-        if self.bot_type == "stocks_futures":
-          # Sole active bot during verification — easier entries to build WR
-          min_signal = max(0.10, min_signal - 0.06)
-        else:
-          min_signal = min(0.95, min_signal + gate_tightening.min_composite_boost)
+      if gate_tightening.active and self.bot_type != "stocks_futures":
+        min_signal = min(0.95, min_signal + gate_tightening.min_composite_boost)
       if loss_streak >= 3:
         min_signal = min(0.95, min_signal + 0.08)
       min_sentiment = max(
@@ -326,6 +323,13 @@ class BaseBot(ABC):
             or integration_boost > 0.03
             or bool(integration_reason and "tradingview" in integration_reason.lower())
           )
+
+        if (
+          gate_tightening.active
+          and self.bot_type == "stocks_futures"
+          and not stocks_gate_entry_sentiment_ok(sentiment, integration_boost)
+        ):
+          continue
 
         if (
           signal.direction == "buy"

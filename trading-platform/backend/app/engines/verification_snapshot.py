@@ -1,12 +1,27 @@
 from datetime import datetime
+from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.engines.profitability_gate import ProfitabilityGate
 from app.models.entities import VerificationSnapshot
 
 PERFORMANCE_CHECK_KEYS = ("min_win_rate", "min_profit_factor", "positive_pnl", "paper_trading_only")
+
+
+def serialize_verification_snapshot(snapshot: VerificationSnapshot) -> dict[str, Any]:
+  return {
+    "snapshot_date": snapshot.snapshot_date,
+    "verification_day": snapshot.verification_day,
+    "total_trades": snapshot.total_trades,
+    "win_rate": snapshot.win_rate,
+    "profit_factor": snapshot.profit_factor,
+    "total_pnl": snapshot.total_pnl,
+    "performance_checks_passed": snapshot.performance_checks_passed,
+    "live_trading_ready": snapshot.live_trading_ready,
+    "created_at": snapshot.created_at.isoformat() if snapshot.created_at else None,
+  }
 
 
 async def record_verification_snapshot(session: AsyncSession, *, when: datetime | None = None) -> VerificationSnapshot:

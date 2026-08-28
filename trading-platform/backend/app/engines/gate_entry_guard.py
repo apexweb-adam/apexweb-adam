@@ -257,6 +257,11 @@ def stocks_in_us_session() -> bool:
   return 13 * 60 + 30 <= minutes <= 21 * 60 + 30
 
 
+def stocks_gate_entry_sentiment_ok(sentiment: float, integration_boost: float) -> bool:
+  """During gate tightening, stocks need non-negative sentiment or a TV/integration boost."""
+  return sentiment >= 0 or integration_boost > 0.03
+
+
 async def build_gate_ws_payload(session: AsyncSession) -> dict[str, Any]:
   """Gate tightening + profitability summary for WebSocket and status APIs."""
   gate_tightening = await get_gate_entry_tightening(session)
