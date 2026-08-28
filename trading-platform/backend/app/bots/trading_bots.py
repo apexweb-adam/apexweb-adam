@@ -24,6 +24,7 @@ from app.engines.gate_entry_guard import (
   gate_entry_guards_active,
   gate_position_scale,
   hard_skip_blocks_shadow_entry,
+  bot_win_rate_for_graduation_nudge,
   in_shadow_graduation_nudge,
   is_symbol_in_trade_cooldown,
   shadow_chronic_position_scale,
@@ -156,11 +157,17 @@ class BaseBot(ABC):
       )
       shadow_bot_wr: float | None = None
       per_bot_stats: dict[str, Any] = {}
-      if shadow_mode or self.bot_type == "stocks_futures":
+      if shadow_mode or self.bot_type == "stocks_futures" or self.bot_type == "commodities":
         per_bot_all = await ProfitabilityGate(session).evaluate_per_bot()
         per_bot_stats = per_bot_all.get(self.bot_type) or {}
       if shadow_mode:
         shadow_bot_wr = float(per_bot_stats.get("win_rate") or 0)
+      bot_wr = bot_win_rate_for_graduation_nudge(
+        self.bot_type,
+        shadow_mode=shadow_mode,
+        shadow_bot_wr=shadow_bot_wr,
+        per_bot_stats=per_bot_stats,
+      )
       chronic_losers: frozenset[str] = frozenset()
       hard_skip_sets = HardGateSkipSets(
         recent=frozenset(),
@@ -189,7 +196,23 @@ class BaseBot(ABC):
         min_signal = shadow_entry_min_signal(
           self.bot_type,
           strategy.min_signal_score,
-          bot_win_rate=shadow_bot_wr,
+          bot_win_rate=bot_wr,
+          profit_factor=per_bot_stats.get("profit_factor"),
+          total_pnl=per_bot_stats.get("total_pnl"),
+        )
+      elif (
+        self.bot_type == "commodities"
+        and in_shadow_graduation_nudge(
+          self.bot_type,
+          bot_wr,
+          profit_factor=per_bot_stats.get("profit_factor"),
+          total_pnl=per_bot_stats.get("total_pnl"),
+        )
+      ):
+        min_signal = shadow_entry_min_signal(
+          self.bot_type,
+          strategy.min_signal_score,
+          bot_win_rate=bot_wr,
           profit_factor=per_bot_stats.get("profit_factor"),
           total_pnl=per_bot_stats.get("total_pnl"),
         )
@@ -225,7 +248,7 @@ class BaseBot(ABC):
           early_verification_boost = True
       graduation_nudge = in_shadow_graduation_nudge(
         self.bot_type,
-        shadow_bot_wr,
+        bot_wr,
         profit_factor=per_bot_stats.get("profit_factor"),
         total_pnl=per_bot_stats.get("total_pnl"),
       )
@@ -234,7 +257,7 @@ class BaseBot(ABC):
       shadow_open_cap = shadow_max_open_for_bot(
         self.bot_type,
         shadow_mode=shadow_mode,
-        bot_win_rate=shadow_bot_wr,
+        bot_win_rate=bot_wr,
         profit_factor=per_bot_stats.get("profit_factor"),
         total_pnl=per_bot_stats.get("total_pnl"),
       )
@@ -517,7 +540,7 @@ class BaseBot(ABC):
 
         macd_required = shadow_requires_macd(
           self.bot_type,
-          bot_win_rate=shadow_bot_wr,
+          bot_win_rate=bot_wr,
           gate_tightening=gate_tightening,
           shadow_mode=shadow_mode,
           profit_factor=per_bot_stats.get("profit_factor"),
@@ -653,7 +676,7 @@ class BaseBot(ABC):
             or signal.macd_signal == "bullish"
             or bool(integration_reason and "tradingview" in integration_reason.lower())
           )
-        if graduation_nudge and shadow_mode and self.bot_type == "commodities":
+        if graduation_nudge and self.bot_type == "commodities":
           volume_required = (
             signal.volume_confirmed
             or composite >= entry_min_signal + 0.02
