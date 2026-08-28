@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings, BOT_TYPES
 from app.database import SessionLocal, get_db, is_postgres
+from app.intelligence.wallet_tracker import wallet_tracker_configured
 from app.engines.deploy_status import build_deploy_status, recommended_dashboard_url
 from app.engines.profitability_gate import ProfitabilityGate
 from app.engines.trade_stats import aggregate_win_rate
@@ -537,7 +538,7 @@ async def get_platform_status(db: AsyncSession = Depends(get_db)) -> dict[str, A
       "newsapi": bool(settings.newsapi_key),
       "twitter_x": bool(settings.twitter_bearer_token),
       "reddit_oauth": bool(settings.reddit_client_id and settings.reddit_client_secret),
-      "wallet_tracker": bool(settings.wallet_tracker_addresses),
+      "wallet_tracker": wallet_tracker_configured(),
       "wallet_tracker_webhook": bool(settings.tradingview_webhook_secret),
       "wallet_tracker_webhook_url": (
         "https://apex-trading-backend.onrender.com/api/webhooks/wallet"
@@ -579,7 +580,7 @@ async def get_platform_status(db: AsyncSession = Depends(get_db)) -> dict[str, A
         ),
         "polymarket_api": bool(settings.polymarket_api_key),
         "reddit": bool(settings.reddit_client_id and settings.reddit_client_secret),
-        "wallet_tracker": bool(settings.wallet_tracker_addresses),
+        "wallet_tracker": wallet_tracker_configured(),
       },
       "render_blueprint": "https://render.com/deploy?repo=https://github.com/apexweb-adam/apexweb-adam",
       "supabase_project": "zzgmovjapeyauvpdpuqe",

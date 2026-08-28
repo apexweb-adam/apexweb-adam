@@ -18,6 +18,7 @@ class Settings(BaseSettings):
 
     # On-chain wallet tracker (comma-separated 0x addresses)
     wallet_tracker_addresses: str = ""
+    wallet_tracker_use_defaults: bool = True
     etherscan_api_key: str = ""
     wallet_tracker_min_usd: float = 10_000.0
 
