@@ -116,20 +116,25 @@ if [[ "$CODE" == "200" ]]; then
     echo "○ Dashboard bundle $BUNDLE — promote r25 preview or deploy latest backend"
   fi
   REMOTE_COMMIT=$(echo "$STATUS_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin).get('deploy',{}).get('git_commit') or '')" 2>/dev/null || true)
-  LOCAL_COMMIT=$(git -C "$(dirname "$0")/.." rev-parse --short HEAD 2>/dev/null || git rev-parse --short HEAD 2>/dev/null || echo "")
+  LOCAL_COMMIT=$(git rev-parse HEAD 2>/dev/null || echo "")
   if [[ -n "$REMOTE_COMMIT" && -n "$LOCAL_COMMIT" ]]; then
-    if [[ "$REMOTE_COMMIT" == "$LOCAL_COMMIT" || "$REMOTE_COMMIT" == "${LOCAL_COMMIT:0:7}"* ]]; then
-      check "Render git commit matches repo ($REMOTE_COMMIT)" 1
+    if [[ "${REMOTE_COMMIT:0:12}" == "${LOCAL_COMMIT:0:12}" ]]; then
+      check "Render git commit matches repo (${REMOTE_COMMIT:0:12})" 1
     else
-      echo "○ Render commit $REMOTE_COMMIT ≠ local $LOCAL_COMMIT — redeploy recommended"
-      echo "  → See trading-platform/DEPLOY_UNBLOCK.md"
+      check "Render git commit matches repo (deployed ${REMOTE_COMMIT:0:12}, want ${LOCAL_COMMIT:0:12})" 0
+      echo "  → trading-platform/DEPLOY_UNBLOCK.md"
     fi
   fi
-  if [[ -x "$(dirname "$0")/check-github-blockers.sh" ]]; then
-    if "$(dirname "$0")/check-github-blockers.sh" >/tmp/github-blockers.txt 2>&1; then
+  BLOCKERS_SCRIPT="$ROOT/scripts/check-github-blockers.sh"
+  if [[ -x "$BLOCKERS_SCRIPT" ]]; then
+    set +e
+    "$BLOCKERS_SCRIPT" >/tmp/github-blockers.txt 2>&1
+    blockers_rc=$?
+    set -e
+    if [[ "$blockers_rc" -eq 0 ]]; then
       check "GitHub check-suites not blocking Render" 1
     else
-      echo "○ GitHub check-suites blocking Render checksPass:"
+      check "GitHub check-suites not blocking Render checksPass" 0
       tail -n 8 /tmp/github-blockers.txt | sed 's/^/  /'
       echo "  → trading-platform/DEPLOY_UNBLOCK.md"
     fi
