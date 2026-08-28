@@ -423,16 +423,12 @@ async def get_review_blocked_symbols(
     )
   )
   blocked: set[str] = set()
-  patterns = (
-    re.compile(r"Most losses on (\S+)"),
-    re.compile(r"Gate skip recommended for (\S+)"),
-  )
+  explicit_skip = re.compile(r"Gate skip recommended for (\S+)")
   for (patterns_found,) in result.all():
     if not patterns_found:
       continue
-    for pattern in patterns:
-      for match in pattern.finditer(patterns_found):
-        blocked.add(match.group(1).rstrip(",.)"))
+    for match in explicit_skip.finditer(patterns_found):
+      blocked.add(match.group(1).rstrip(",.)"))
   return frozenset(blocked)
 
 
