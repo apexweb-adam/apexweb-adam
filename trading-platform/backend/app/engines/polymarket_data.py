@@ -68,7 +68,17 @@ SPORTS_MARKET_EXCLUDE = [
   "soccer", "football", "basketball", "baseball", "tennis", "golf", "cricket",
   "champions league", "premier league", "world cup", "super bowl", "march madness",
   "ncaa", "pga", "ufc", "boxing", "nascar", "olympics",
+  "lal-", "efl-", "epl-", "bundesliga", "serie-a", "la-liga", "spread", "bo3",
+  "counter-strike", "cs2", "dota", "esports", "-draw", "-total", " vs ",
 ]
+
+
+def is_macro_relevant_symbol(symbol: str) -> bool:
+  """Heuristic macro check from PM: symbol slug when market metadata is unavailable."""
+  if not symbol.startswith("PM:"):
+    return True
+  slug = symbol[3:]
+  return is_macro_relevant_market({"slug": slug, "question": slug.replace("-", " ")})
 
 
 def is_macro_relevant_market(market: dict) -> bool:

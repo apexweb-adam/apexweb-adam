@@ -521,6 +521,7 @@ async def get_platform_status(db: AsyncSession = Depends(get_db)) -> dict[str, A
       "require_macd_bullish": gate_tightening.require_macd_bullish,
       "min_composite_boost": gate_tightening.min_composite_boost,
       "max_pm_open_positions": gate_tightening.max_pm_open_positions,
+      "max_crypto_open_positions": gate_tightening.max_crypto_open_positions,
     },
     "bots": bots,
     "intelligence": {
@@ -652,6 +653,7 @@ async def apply_risk_migrations(payload: dict[str, Any], db: AsyncSession = Depe
     ensure_polymarket_strategy,
     fix_breakeven_trade_labels,
     dedupe_polymarket_positions,
+    close_non_macro_polymarket_positions,
     recalculate_portfolio_win_rates,
     reconcile_portfolio_balances,
     sync_bot_strategy_versions,
@@ -671,6 +673,7 @@ async def apply_risk_migrations(payload: dict[str, Any], db: AsyncSession = Depe
   breakeven_fixed = await fix_breakeven_trade_labels(db)
   portfolios_updated = await recalculate_portfolio_win_rates(db)
   pm_deduped = await dedupe_polymarket_positions(db)
+  pm_sports_closed = await close_non_macro_polymarket_positions(db)
   return {
     "status": "ok",
     "strategies_clamped": clamped,
@@ -682,6 +685,7 @@ async def apply_risk_migrations(payload: dict[str, Any], db: AsyncSession = Depe
     "breakeven_trades_fixed": breakeven_fixed,
     "portfolios_recalculated": portfolios_updated,
     "polymarket_duplicates_closed": pm_deduped,
+    "polymarket_sports_closed": pm_sports_closed,
     "timestamp": datetime.utcnow().isoformat(),
   }
 

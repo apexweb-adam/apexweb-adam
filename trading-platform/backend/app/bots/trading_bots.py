@@ -89,6 +89,8 @@ class BaseBot(ABC):
       engine = PaperTradingEngine(session, self.bot_type)
       strategy = await engine.get_strategy()
       gate_tightening = await get_gate_entry_tightening(session)
+      open_positions = await engine.get_open_positions()
+      open_count = len(open_positions)
       loss_streak = await engine.get_consecutive_losses()
       min_signal = strategy.min_signal_score
       if gate_tightening.active:
@@ -163,6 +165,13 @@ class BaseBot(ABC):
           continue
 
         if (
+          gate_tightening.max_crypto_open_positions is not None
+          and self.bot_type == "crypto"
+          and open_count >= gate_tightening.max_crypto_open_positions
+        ):
+          continue
+
+        if (
           signal.direction == "buy"
           and signal.volume_confirmed
           and composite >= min_signal
@@ -179,6 +188,7 @@ class BaseBot(ABC):
           )
           if result:
             actions.append(result)
+            open_count += 1
 
       stop_actions = await engine.update_positions(prices)
       actions.extend(stop_actions)
