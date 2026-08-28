@@ -70,7 +70,7 @@ async def crm_landing():
   deploy = await build_deploy_status()
   stale = deploy.get("vercel_bundle_stale")
   proxy_ok = deploy.get("production_proxy_operational")
-  promote_id = deploy.get("vercel_promote_deployment_id") or "dpl_7nvzwTX8dwLLDDDBVHnUVWdvNs78"
+  promote_id = deploy.get("vercel_promote_deployment_id") or "dpl_AtSLEsY1fkNDvA9ZDdycLB5BANf8"
 
   async with SessionLocal() as session:
     gate = await ProfitabilityGate(session).evaluate()
