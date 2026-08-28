@@ -34,6 +34,30 @@ class BaseBot(ABC):
   def __init__(self):
     self.signal_engine = SignalEngine()
     self.running = False
+    self._symbol_cooldown_until: dict[str, datetime] = {}
+
+  def _cooldown_seconds(self, *, after_loss: bool) -> int | None:
+    if self.bot_type == "crypto":
+      return (
+        settings.crypto_loss_cooldown_seconds
+        if after_loss
+        else settings.crypto_reentry_cooldown_seconds
+      )
+    if self.bot_type == "commodities":
+      return (
+        settings.commodities_loss_cooldown_seconds
+        if after_loss
+        else settings.commodities_reentry_cooldown_seconds
+      )
+    return None
+
+  def _register_symbol_cooldown(self, symbol: str, *, after_loss: bool) -> None:
+    if not symbol:
+      return
+    seconds = self._cooldown_seconds(after_loss=after_loss)
+    if seconds is None:
+      return
+    self._symbol_cooldown_until[symbol] = datetime.utcnow() + timedelta(seconds=seconds)
 
   @abstractmethod
   async def get_symbols(self) -> list[str]:
@@ -121,6 +145,13 @@ class BaseBot(ABC):
               actions.append(result)
               if result.get("is_winner") is False:
                 await self._analyze_loss(session, symbol)
+                self._register_symbol_cooldown(symbol, after_loss=True)
+              else:
+                self._register_symbol_cooldown(symbol, after_loss=False)
+          continue
+
+        cooldown = self._symbol_cooldown_until.get(symbol)
+        if cooldown and datetime.utcnow() < cooldown:
           continue
 
         macd_required = self.bot_type == "crypto" or (
@@ -155,6 +186,7 @@ class BaseBot(ABC):
       for action in stop_actions:
         if action.get("is_winner") is False:
           await self._analyze_loss(session, action.get("symbol", ""))
+          self._register_symbol_cooldown(action.get("symbol", ""), after_loss=True)
 
     await self._record_scan_result(len(symbols), actions)
 
@@ -242,7 +274,7 @@ class BaseBot(ABC):
 
 class CryptoBot(BaseBot):
   bot_type = "crypto"
-  scan_interval = 15
+  scan_interval = 30
 
   async def get_symbols(self) -> list[str]:
     return [s.strip() for s in settings.crypto_symbols.split(",")]

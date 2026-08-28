@@ -37,6 +37,10 @@ class Settings(BaseSettings):
     # Min hold before signal-based exit (stop-loss still immediate)
     crypto_min_hold_seconds: int = 300
     commodities_min_hold_seconds: int = 180
+    crypto_loss_cooldown_seconds: int = 1800
+    crypto_reentry_cooldown_seconds: int = 900
+    commodities_loss_cooldown_seconds: int = 1200
+    commodities_reentry_cooldown_seconds: int = 600
 
     # Bot tuning
     crypto_symbols: str = (

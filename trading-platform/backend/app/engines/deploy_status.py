@@ -27,6 +27,7 @@ DEFAULT_VERIFIED_DASHBOARD_URL = (
 )
 DEFAULT_VERIFIED_DEPLOYMENT_ID = "dpl_42zPqzLoftwSZddPxVfp7ztRiVES"
 EXPECTED_DASHBOARD_BUNDLE = "2026-08-27-r10"
+ACCEPTABLE_DASHBOARD_BUNDLES = frozenset({"2026-08-27-r9", "2026-08-27-r10"})
 
 
 def configured_verified_dashboard_url() -> str:
@@ -54,6 +55,7 @@ def verified_dashboard_candidates() -> list[str]:
   for part in (os.environ.get("VERIFIED_DASHBOARD_FALLBACKS") or "").split(","):
     add(part)
   add(DEFAULT_VERIFIED_DASHBOARD_URL)
+  add("https://apex-trading-dashboard-git-main-apexweb-adams-projects.vercel.app")
   add("https://apex-trading-dashboard-apexweb-adams-projects.vercel.app")
   return candidates
 
@@ -62,6 +64,21 @@ def bundle_is_current(cfg: dict[str, Any]) -> bool:
   revision = cfg.get("bundleRevision")
   active_gate = (cfg.get("features") or {}).get("activeGate") is True
   return revision == EXPECTED_DASHBOARD_BUNDLE and active_gate
+
+
+def bundle_is_acceptable(cfg: dict[str, Any]) -> bool:
+  revision = cfg.get("bundleRevision")
+  active_gate = (cfg.get("features") or {}).get("activeGate") is True
+  return revision in ACCEPTABLE_DASHBOARD_BUNDLES and active_gate
+
+
+def bundle_rank(cfg: dict[str, Any]) -> int:
+  revision = str(cfg.get("bundleRevision") or "")
+  if revision == EXPECTED_DASHBOARD_BUNDLE:
+    return 2
+  if revision in ACCEPTABLE_DASHBOARD_BUNDLES:
+    return 1
+  return 0
 
 
 async def probe_dashboard_config(url: str) -> dict[str, Any] | None:
@@ -77,15 +94,25 @@ async def probe_dashboard_config(url: str) -> dict[str, Any] | None:
 
 
 async def discover_verified_dashboard() -> dict[str, Any]:
-  """Probe candidate preview URLs and return the first with the expected bundle."""
+  """Probe candidates and return the URL with the best acceptable bundle."""
+  best: dict[str, Any] | None = None
+  best_rank = -1
+
   for url in verified_dashboard_candidates():
     cfg = await probe_dashboard_config(url)
-    if cfg and bundle_is_current(cfg):
-      return {
+    if not cfg or not bundle_is_acceptable(cfg):
+      continue
+    rank = bundle_rank(cfg)
+    if rank > best_rank:
+      best_rank = rank
+      best = {
         "verified_dashboard_url": url,
         "vercel_bundle_revision": cfg.get("bundleRevision"),
         "discovered": url != configured_verified_dashboard_url(),
       }
+
+  if best:
+    return best
 
   fallback = configured_verified_dashboard_url()
   return {
