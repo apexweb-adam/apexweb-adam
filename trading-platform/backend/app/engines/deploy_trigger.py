@@ -61,25 +61,26 @@ async def trigger_render_api_deploy(*, clear_cache: bool = False) -> dict[str, A
     return {"ok": True, "service_id": service_id, "deploy": deploy.json()}
 
 
-async def maybe_trigger_stale_redeploy() -> dict[str, Any]:
+async def maybe_trigger_stale_redeploy(*, force: bool = False) -> dict[str, Any]:
   """Redeploy once per hour when deploy is stale — prefer Render API over deploy hook."""
   status = await build_deploy_status()
 
-  if not status.get("is_stale"):
+  if not force and not status.get("is_stale"):
     return {"triggered": False, "reason": "deploy_current", "deploy": status}
 
-  async with SessionLocal() as session:
-    last_raw = await get_platform_setting(session, LAST_REDEPLOY_KEY)
-    if last_raw:
-      try:
-        last = datetime.fromisoformat(last_raw.replace("Z", "+00:00")).replace(tzinfo=None)
-        if datetime.utcnow() - last < REDEPLOY_COOLDOWN:
-          return {"triggered": False, "reason": "cooldown", "deploy": status}
-      except ValueError:
-        pass
+  if not force:
+    async with SessionLocal() as session:
+      last_raw = await get_platform_setting(session, LAST_REDEPLOY_KEY)
+      if last_raw:
+        try:
+          last = datetime.fromisoformat(last_raw.replace("Z", "+00:00")).replace(tzinfo=None)
+          if datetime.utcnow() - last < REDEPLOY_COOLDOWN:
+            return {"triggered": False, "reason": "cooldown", "deploy": status}
+        except ValueError:
+          pass
 
   commits_behind = int(status.get("commits_behind") or 0)
-  clear_cache = commits_behind > 0
+  clear_cache = force or commits_behind > 0
 
   api_result = await trigger_render_api_deploy(clear_cache=clear_cache)
   if api_result.get("ok"):
@@ -87,10 +88,11 @@ async def maybe_trigger_stale_redeploy() -> dict[str, Any]:
       await set_platform_setting(session, LAST_REDEPLOY_KEY, datetime.utcnow().isoformat())
     return {
       "triggered": True,
-      "reason": "stale_redeploy_api",
+      "reason": "force_redeploy_api" if force else "stale_redeploy_api",
       "deploy": status,
       "message": "Render redeploy triggered via Render API",
       "clear_cache": clear_cache,
+      "forced": force,
     }
 
   hook = await resolve_render_deploy_hook()
@@ -113,7 +115,8 @@ async def maybe_trigger_stale_redeploy() -> dict[str, Any]:
 
   return {
     "triggered": True,
-    "reason": "stale_redeploy_hook",
+    "reason": "force_redeploy_hook" if force else "stale_redeploy_hook",
     "deploy": status,
     "message": "Render redeploy triggered via deploy hook",
+    "forced": force,
   }
