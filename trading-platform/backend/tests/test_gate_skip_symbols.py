@@ -188,12 +188,28 @@ def test_review_blocked_symbols_parses_gate_skip_recommendation():
   assert "CL=F" in blocked
 
 
+def test_review_blocked_symbols_ignores_informational_most_losses():
+  session = AsyncMock()
+  session.execute = AsyncMock(
+    return_value=MagicMock(
+      all=lambda: [
+        ("More losing trades than winning; Most losses on BTCUSDT (9 trades)",),
+      ]
+    )
+  )
+  blocked = asyncio.run(get_review_blocked_symbols(session, "crypto"))
+  assert "BTCUSDT" not in blocked
+
+
 def test_review_blocked_symbols_parses_patterns():
   session = AsyncMock()
   session.execute = AsyncMock(
     return_value=MagicMock(
       all=lambda: [
-        ("More losing trades than winning; Most losses on ETHUSDT (3 trades)",),
+        (
+          "More losing trades than winning; Most losses on ETHUSDT (3 trades); "
+          "Gate skip recommended for ETHUSDT until win rate recovers",
+        ),
       ]
     )
   )
