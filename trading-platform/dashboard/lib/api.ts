@@ -300,7 +300,7 @@ export type GateEntryTightening = {
 
 export type BotSessionInfo = {
   in_session: boolean;
-  mode: "entries" | "winddown_only";
+  mode: "entries" | "winddown_only" | "pre_session" | "outside_session";
   session_open_utc?: string;
   session_close_utc?: string;
   minutes_until_open?: number;

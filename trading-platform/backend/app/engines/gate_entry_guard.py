@@ -321,9 +321,16 @@ def stocks_session_info() -> dict[str, Any]:
     open_at = at_minutes(next_weekday(now + timedelta(days=1)), open_minutes)
 
   minutes_until_open = max(0, int((open_at - now).total_seconds() // 60))
+  after_close_today = weekday < 5 and now_minutes > close_minutes
+  if after_close_today:
+    mode = "winddown_only"
+  elif minutes_until_open <= 90:
+    mode = "pre_session"
+  else:
+    mode = "outside_session"
   return {
     "in_session": False,
-    "mode": "winddown_only",
+    "mode": mode,
     "session_open_utc": open_at.isoformat(),
     "session_close_utc": at_minutes(open_at, close_minutes).isoformat(),
     "minutes_until_open": minutes_until_open,

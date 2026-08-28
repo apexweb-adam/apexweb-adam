@@ -646,6 +646,25 @@ async def apply_risk_migrations(payload: dict[str, Any], db: AsyncSession = Depe
   }
 
 
+@router.post("/admin/run-stocks-prep")
+async def run_stocks_prep_admin(payload: dict[str, Any]) -> dict[str, Any]:
+  """Refresh TradingView signals for proven stock winners within 90 min of US open."""
+  from app.engines.gate_entry_guard import stocks_session_info
+  from app.workers.scheduler import stocks_pre_session_prep_job
+
+  secret = payload.get("secret", "")
+  if not settings.tradingview_webhook_secret or secret != settings.tradingview_webhook_secret:
+    return {"status": "unauthorized"}
+
+  session_info = stocks_session_info()
+  await stocks_pre_session_prep_job()
+  return {
+    "status": "ok",
+    "session": session_info,
+    "timestamp": datetime.utcnow().isoformat(),
+  }
+
+
 @router.post("/admin/run-daily-review")
 async def run_daily_review_admin(payload: dict[str, Any]) -> dict[str, Any]:
   """Upsert today's daily reviews for all bots (requires webhook secret)."""
