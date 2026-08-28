@@ -2,11 +2,6 @@
   "buildCommand": "npm run build",
   "outputDirectory": ".next",
   "framework": "nextjs",
-  "git": {
-    "deploymentEnabled": {
-      "main": false
-    }
-  },
   "rewrites": [
     {
       "source": "/api/active-gate",

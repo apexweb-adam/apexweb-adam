@@ -54,9 +54,10 @@ When stale:
 1. **Render Dashboard** → `apex-trading-backend` → **Manual Deploy** → **Deploy latest commit**
 2. Verify **Settings → Build & Deploy → Auto-Deploy** is **On Commit** (not *After CI Checks Pass* — Vercel rate limits can block deploys)
 3. Blueprint `render.yaml` sets `autoDeployTrigger: commit` and `branch: main`
-4. Root `vercel.json` sets `git.deploymentEnabled.main: false` so Vercel GitHub integration does not post failing commit statuses on backend-only pushes
-5. Add `RENDER_API_KEY` to **GitHub secrets** (CI deploys) and/or **Render env** (hourly self-heal via `redeploy_check_job`)
-6. Add `GITHUB_TOKEN` (fine-grained repo read) on Render for reliable staleness detection in `/api/status`
+4. Root `vercel.json` uses `ignoreCommand` to skip dashboard builds on backend-only pushes (do **not** set `git.deploymentEnabled.main: false` — that leaves Vercel checks stuck `queued`)
+5. `trading-platform/netlify.toml` sets `ignore = "exit 0"` so Netlify skips builds (otherwise stuck `queued`)
+6. Add `RENDER_API_KEY` to **GitHub secrets** (CI deploys) and/or **Render env** (hourly self-heal via `redeploy_check_job`)
+7. Add `GITHUB_TOKEN` (fine-grained repo read) on Render for reliable staleness detection in `/api/status`
 
 ### Ghost GitHub integrations (checksPass deadlock)
 
@@ -72,7 +73,7 @@ Fix (pick one):
 
 1. **Render Dashboard** → Settings → Build & Deploy → **On Commit** (recommended)
 2. **GitHub** → repo **Settings → Integrations** → remove or disable unused GitHub Apps
-3. **Vercel** → `apex-trading-dashboard` → Settings → Git → **Disconnect** (dashboard deploys via GitHub Actions now; linked Git causes perpetual `queued` check suites)
+3. **Vercel** → `apex-trading-dashboard` → ensure Git linked; use `ignoreCommand` not `deploymentEnabled.main: false`
 4. Add **`RENDER_API_KEY`** — deploys via API regardless of commit status
 
 After r83+, `/api/status` → `deploy.github_checks_blocker` lists blocking integrations.
