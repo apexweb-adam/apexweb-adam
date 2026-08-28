@@ -112,6 +112,8 @@ class BaseBot(ABC):
           symbols = _prioritize_symbols(symbols, proven_winners)
       open_positions = await engine.get_open_positions()
       open_count = len(open_positions)
+      held_symbols = [p.symbol for p in open_positions if p.symbol]
+      symbols = list(dict.fromkeys(held_symbols + symbols))
       loss_streak = await engine.get_consecutive_losses()
       min_signal = strategy.min_signal_score
       if gate_tightening.active:
