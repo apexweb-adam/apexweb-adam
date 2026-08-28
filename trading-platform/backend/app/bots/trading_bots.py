@@ -19,6 +19,7 @@ from app.engines.gate_entry_guard import (
   get_hard_gate_skip_components,
   get_proven_winner_symbols,
   early_verification_active,
+  early_verification_macd_ok,
   gate_entry_guards_active,
   gate_position_scale,
   hard_skip_blocks_shadow_entry,
@@ -26,6 +27,7 @@ from app.engines.gate_entry_guard import (
   is_symbol_in_trade_cooldown,
   shadow_chronic_position_scale,
   shadow_graduation_min_hold_seconds,
+  shadow_graduation_min_composite,
   EARLY_VERIFICATION_LOSS_WIND_DOWN_SECONDS,
   EARLY_VERIFICATION_LOSS_WIND_DOWN_USD,
   shadow_entry_min_signal,
@@ -390,9 +392,19 @@ class BaseBot(ABC):
           continue
 
         if (
-          gate_tightening.active
+          (gate_tightening.active or early_verification_boost)
           and self.bot_type == "stocks_futures"
           and signal.rsi > 68
+        ):
+          continue
+
+        if (
+          early_verification_boost
+          and self.bot_type == "stocks_futures"
+          and not early_verification_macd_ok(
+            macd_signal=signal.macd_signal,
+            integration_boost=integration_boost,
+          )
         ):
           continue
 
@@ -469,6 +481,13 @@ class BaseBot(ABC):
           entry_min_signal,
           early_boost=early_verification_boost,
         )
+        grad_composite_floor = shadow_graduation_min_composite(
+          self.bot_type,
+          graduation_nudge=graduation_nudge,
+          shadow_mode=shadow_mode,
+        )
+        if grad_composite_floor is not None:
+          entry_min_signal = max(entry_min_signal, grad_composite_floor)
 
         intel_override = shadow_intel_composite_override(
           self.bot_type,

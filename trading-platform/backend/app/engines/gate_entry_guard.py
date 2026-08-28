@@ -61,6 +61,10 @@ SHADOW_GRADUATION_MIN_HOLD_BY_BOT = {
   "crypto": 900,
   "commodities": 600,
 }
+SHADOW_GRADUATION_MIN_COMPOSITE_BY_BOT = {
+  "crypto": 0.30,
+  "commodities": 0.28,
+}
 
 
 def shadow_min_signal_boost(bot_type: str, *, bot_win_rate: float | None = None) -> float:
@@ -116,6 +120,7 @@ EARLY_VERIFICATION_SIGNAL_EASE = 0.04
 EARLY_VERIFICATION_SENTIMENT_EASE = 0.03
 EARLY_VERIFICATION_LOSS_WIND_DOWN_USD = 15.0
 EARLY_VERIFICATION_LOSS_WIND_DOWN_SECONDS = 7200
+EARLY_VERIFICATION_MACD_INTEGRATION_BYPASS = 0.05
 DEFAULT_ENTRY_MIN_SIGNAL_FLOOR = 0.08
 
 
@@ -213,6 +218,29 @@ def shadow_graduation_min_hold_seconds(
   if graduation_nudge and shadow_mode:
     return SHADOW_GRADUATION_MIN_HOLD_BY_BOT.get(bot_type, default_seconds)
   return default_seconds
+
+
+def shadow_graduation_min_composite(
+  bot_type: str,
+  *,
+  graduation_nudge: bool,
+  shadow_mode: bool,
+) -> float | None:
+  """Absolute composite floor during graduation nudge — blocks weak eased entries."""
+  if graduation_nudge and shadow_mode:
+    return SHADOW_GRADUATION_MIN_COMPOSITE_BY_BOT.get(bot_type)
+  return None
+
+
+def early_verification_macd_ok(
+  *,
+  macd_signal: str,
+  integration_boost: float,
+) -> bool:
+  """Early verification stocks need MACD alignment unless TV integration is strong."""
+  if macd_signal == "bullish":
+    return True
+  return integration_boost > EARLY_VERIFICATION_MACD_INTEGRATION_BYPASS
 
 
 def shadow_entry_min_signal(
