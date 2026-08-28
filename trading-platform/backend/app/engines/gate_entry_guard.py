@@ -900,8 +900,14 @@ async def sync_gate_bot_pauses(session: AsyncSession) -> list[str]:
 
   blocked = await get_underperforming_bots(session)
   paused_now: list[str] = []
+  active_bots = [
+    bot for bot in BOT_TYPES
+    if not await is_bot_paused(session, bot)
+  ]
   for bot_type in blocked:
     if bot_type == "stocks_futures":
+      continue
+    if bot_type in active_bots and len(active_bots) == 1:
       continue
     if await is_bot_paused(session, bot_type):
       continue
@@ -920,23 +926,9 @@ def _gate_recovery_candidate_score(stats: dict[str, Any]) -> float | None:
   return float(pf) * (1.0 + wr)
 
 
-async def sync_gate_recovery_rotation(session: AsyncSession) -> dict[str, str] | None:
-  """Pause a losing stocks gate during early verification and activate a profitable shadow bot."""
-  from app.engines.platform_settings import get_paused_bot_types, is_bot_paused, set_bot_paused
-
-  gate = await ProfitabilityGate(session).evaluate()
-  active_trades = int(gate.get("total_trades") or 0)
-  active_pf = gate.get("profit_factor")
-  active_pnl = float(gate.get("total_pnl") or 0)
-
-  if active_trades >= EARLY_VERIFICATION_MAX_TRADES:
-    return None
-  if active_pf is None or active_pf >= GATE_RECOVERY_MIN_PF:
-    return None
-  if active_pnl >= 0:
-    return None
-  if await is_bot_paused(session, "stocks_futures"):
-    return None
+async def _best_gate_recovery_candidate(session: AsyncSession) -> str | None:
+  """Pick the best paused shadow bot to serve as active gate."""
+  from app.engines.platform_settings import get_paused_bot_types
 
   paused = set(await get_paused_bot_types(session))
   per_bot = await ProfitabilityGate(session).evaluate_per_bot()
@@ -962,7 +954,36 @@ async def sync_gate_recovery_rotation(session: AsyncSession) -> dict[str, str] |
       continue
     best_bot = bot_type
     best_score = score
+  return best_bot
 
+
+async def sync_gate_recovery_rotation(session: AsyncSession) -> dict[str, str] | None:
+  """Pause a losing stocks gate during early verification and activate a profitable shadow bot."""
+  from app.engines.platform_settings import get_paused_bot_types, is_bot_paused, set_bot_paused
+
+  paused_types = set(await get_paused_bot_types(session))
+  active_bots = [bot for bot in BOT_TYPES if bot not in paused_types]
+
+  if not active_bots:
+    best_bot = await _best_gate_recovery_candidate(session)
+    if best_bot is None:
+      return None
+    await set_bot_paused(session, best_bot, False)
+    return {"paused": "all", "activated": best_bot}
+
+  gate = await ProfitabilityGate(session).evaluate()
+  active_trades = int(gate.get("total_trades") or 0)
+  active_pf = gate.get("profit_factor")
+  active_pnl = float(gate.get("total_pnl") or 0)
+
+  if active_trades >= EARLY_VERIFICATION_MAX_TRADES:
+    return None
+  if active_pf is not None and active_pf >= GATE_RECOVERY_MIN_PF and active_pnl > 0:
+    return None
+  if await is_bot_paused(session, "stocks_futures"):
+    return None
+
+  best_bot = await _best_gate_recovery_candidate(session)
   if best_bot is None:
     return None
 
