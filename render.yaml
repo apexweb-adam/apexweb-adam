@@ -1,15 +1,17 @@
 # One-click deploy: https://dashboard.render.com → New → Blueprint → this repo
 # Database: Supabase Postgres (free tier — no Render disk needed)
-# autoDeploy: pushes to main should redeploy apex-trading-backend
+# autoDeployTrigger: commit — deploy on every main push (not checksPass; Vercel CI failures block checksPass)
 services:
   - type: web
     name: apex-trading-backend
     runtime: docker
+    repo: https://github.com/apexweb-adam/apexweb-adam
+    branch: main
     rootDir: trading-platform
     dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
     plan: free
-    autoDeploy: true
+    autoDeployTrigger: commit
     healthCheckPath: /api/health
     envVars:
       - key: PAPER_TRADING_ONLY
@@ -41,4 +43,4 @@ services:
       - key: RENDER_DEPLOY_HOOK
         sync: false
       - key: PLATFORM_REVISION
-        value: "2026-08-28-r79"
+        value: "2026-08-28-r80"
