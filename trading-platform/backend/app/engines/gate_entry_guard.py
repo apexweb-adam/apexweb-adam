@@ -642,11 +642,14 @@ def shadow_graduation_loss_wind_down(
     return False
   if held_seconds < min_hold_seconds:
     return False
-  if is_profitable_graduation_nudge(
-    bot_type,
-    bot_win_rate,
-    profit_factor=profit_factor,
-    total_pnl=total_pnl,
+  if (
+    shadow_mode
+    and is_profitable_graduation_nudge(
+      bot_type,
+      bot_win_rate,
+      profit_factor=profit_factor,
+      total_pnl=total_pnl,
+    )
   ):
     threshold = PROFITABLE_SHADOW_LOSS_WIND_DOWN_USD
   else:
@@ -700,11 +703,14 @@ def shadow_graduation_profit_lock(
     return False
   if held_seconds < min_hold_seconds:
     return False
-  if is_profitable_graduation_nudge(
-    bot_type,
-    bot_win_rate,
-    profit_factor=profit_factor,
-    total_pnl=total_pnl,
+  if (
+    shadow_mode
+    and is_profitable_graduation_nudge(
+      bot_type,
+      bot_win_rate,
+      profit_factor=profit_factor,
+      total_pnl=total_pnl,
+    )
   ):
     threshold = PROFITABLE_SHADOW_PROFIT_LOCK_USD
   else:
