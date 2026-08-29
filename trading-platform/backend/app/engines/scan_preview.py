@@ -150,12 +150,14 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
     graduation_nudge=graduation_nudge,
     shadow_mode=shadow_mode,
   )
+  loss_streak = await engine.get_consecutive_losses()
   min_signal = apply_gate_tightening_min_signal(
     min_signal,
     bot_type,
     gate_tightening=gate_tightening,
     graduation_nudge=graduation_nudge,
     shadow_mode=shadow_mode,
+    loss_streak=loss_streak,
   )
   open_count = len(await engine.get_open_positions())
   from app.engines.gate_entry_guard import shadow_max_open_for_bot

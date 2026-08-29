@@ -653,3 +653,33 @@ def test_open_position_cap_blocks_shadow_not_gate_tightening():
     gate_tightening=tightening,
     shadow_open_cap=None,
   ) is True
+
+
+def test_apply_gate_tightening_skips_loss_streak_during_graduation_nudge():
+  from app.engines.gate_entry_guard import apply_gate_tightening_min_signal
+
+  tightening = GateEntryTightening(
+    active=True,
+    win_rate=0.44,
+    min_sentiment=0.04,
+    require_macd_bullish=True,
+    min_composite_boost=0.04,
+  )
+  base = apply_gate_tightening_min_signal(
+    0.31,
+    "commodities",
+    gate_tightening=tightening,
+    graduation_nudge=False,
+    shadow_mode=False,
+    loss_streak=3,
+  )
+  eased = apply_gate_tightening_min_signal(
+    0.31,
+    "commodities",
+    gate_tightening=tightening,
+    graduation_nudge=True,
+    shadow_mode=False,
+    loss_streak=3,
+  )
+  assert base == pytest.approx(0.43)
+  assert eased == pytest.approx(0.31)
