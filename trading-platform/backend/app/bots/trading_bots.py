@@ -69,6 +69,7 @@ from app.engines.gate_entry_guard import (
   commodities_weekend_forex_entry_blocked,
   commodities_gold_proxy_duplicate_entry_blocked,
   commodities_gold_proxy_duplicate_wind_down,
+  commodities_weekend_spot_post_profit_lock_entry_blocked,
   GATE_INDEX_ETF_SYMBOLS,
   HardGateSkipSets,
 )
@@ -1032,6 +1033,15 @@ class BaseBot(ABC):
         if commodities_gold_proxy_duplicate_entry_blocked(symbol, held_symbols):
           continue
 
+        if await commodities_weekend_spot_post_profit_lock_entry_blocked(
+          session,
+          bot_type=self.bot_type,
+          shadow_mode=shadow_mode,
+          graduation_nudge=graduation_nudge,
+          symbol=symbol,
+        ):
+          continue
+
         if gate_cap_pressure_proxy_entry_blocked(
           bot_type=self.bot_type,
           shadow_mode=shadow_mode,
@@ -1100,6 +1110,7 @@ class BaseBot(ABC):
           if result:
             actions.append(result)
             open_count += 1
+            held_symbols.append(symbol)
 
       stop_actions = await engine.update_positions(prices)
       actions.extend(stop_actions)
