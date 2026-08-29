@@ -1745,6 +1745,14 @@ function BotScanPreview({ botType }: { botType: string }) {
             · cap pressure
           </span>
         )}
+        {preview.crypto_shadow_raw_floor_active
+          && !preview.crypto_momentum_retreat
+          && preview.crypto_momentum_retreat_min_raw_signal != null && (
+          <span className="text-amber-300/90" title="Raw technical floor until 50% WR">
+            {" "}
+            · raw floor {preview.crypto_momentum_retreat_min_raw_signal}
+          </span>
+        )}
         {preview.crypto_momentum_retreat && (
           <span className="text-amber-400/90" title="WR/PF below momentum tier — entry filters tightened">
             {" "}
