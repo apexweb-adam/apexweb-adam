@@ -70,6 +70,7 @@ from app.engines.gate_entry_guard import (
   commodities_gold_proxy_duplicate_entry_blocked,
   commodities_gold_proxy_duplicate_wind_down,
   commodities_weekend_spot_post_profit_lock_entry_blocked,
+  commodities_weekend_spot_post_lock_wind_down,
   GATE_INDEX_ETF_SYMBOLS,
   HardGateSkipSets,
 )
@@ -464,6 +465,31 @@ class BaseBot(ABC):
             unrealized = (price - position.entry_price) * position.quantity
             reason = (
               f"Gold proxy dedup wind-down (uPnL ${unrealized:.2f}) | {signal.reason}"
+            )
+            result = await engine.sell(symbol, price, reason)
+            if result:
+              actions.append(result)
+              if result.get("is_winner") is False:
+                await self._analyze_loss(session, symbol)
+                self._register_symbol_cooldown(symbol, after_loss=True)
+              else:
+                self._register_symbol_cooldown(symbol, after_loss=False)
+            continue
+
+          if await commodities_weekend_spot_post_lock_wind_down(
+            session,
+            bot_type=self.bot_type,
+            shadow_mode=shadow_mode,
+            graduation_nudge=graduation_nudge,
+            symbol=symbol,
+            unrealized=(price - position.entry_price) * position.quantity,
+            held_seconds=held_seconds,
+            min_hold_seconds=min_hold,
+            position_opened_at=opened,
+          ):
+            unrealized = (price - position.entry_price) * position.quantity
+            reason = (
+              f"Weekend spot post-lock wind-down (uPnL ${unrealized:.2f}) | {signal.reason}"
             )
             result = await engine.sell(symbol, price, reason)
             if result:

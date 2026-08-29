@@ -1037,21 +1037,10 @@ def commodities_gold_proxy_duplicate_wind_down(
   return True
 
 
-async def commodities_weekend_spot_post_profit_lock_entry_blocked(
+async def _commodities_recent_weekend_spot_profit_lock_at(
   session: AsyncSession,
-  *,
-  bot_type: str,
-  shadow_mode: bool,
-  graduation_nudge: bool,
-  symbol: str,
-) -> bool:
-  """After banking weekend spot profits, block re-entry until CME reopen."""
-  if shadow_mode or bot_type != "commodities" or not graduation_nudge:
-    return False
-  if symbol not in COMMODITIES_WEEKEND_SPOT_SYMBOLS:
-    return False
-  if not commodities_futures_weekend_closed():
-    return False
+) -> datetime | None:
+  """Most recent winning weekend spot sell with profit lock, if still in post-lock window."""
   from app.models.entities import Trade
 
   result = await session.execute(
@@ -1068,16 +1057,68 @@ async def commodities_weekend_spot_post_profit_lock_entry_blocked(
   )
   locked_at = result.scalar_one_or_none()
   if not locked_at:
-    return False
+    return None
   session_info = commodities_session_info()
   minutes_until = session_info.get("minutes_until_open")
-  if minutes_until is None:
-    return False
+  if minutes_until is None or minutes_until <= 0:
+    return None
   if locked_at.tzinfo is not None:
     locked_at = locked_at.replace(tzinfo=None)
   if (datetime.utcnow() - locked_at).total_seconds() > 7 * 86400:
+    return None
+  return locked_at
+
+
+async def commodities_weekend_spot_post_profit_lock_entry_blocked(
+  session: AsyncSession,
+  *,
+  bot_type: str,
+  shadow_mode: bool,
+  graduation_nudge: bool,
+  symbol: str,
+) -> bool:
+  """After banking weekend spot profits, block re-entry until CME reopen."""
+  if shadow_mode or bot_type != "commodities" or not graduation_nudge:
     return False
-  return minutes_until > 0
+  if symbol not in COMMODITIES_WEEKEND_SPOT_SYMBOLS:
+    return False
+  if not commodities_futures_weekend_closed():
+    return False
+  return (await _commodities_recent_weekend_spot_profit_lock_at(session)) is not None
+
+
+async def commodities_weekend_spot_post_lock_wind_down(
+  session: AsyncSession,
+  *,
+  bot_type: str,
+  shadow_mode: bool,
+  graduation_nudge: bool,
+  symbol: str,
+  unrealized: float,
+  held_seconds: float,
+  min_hold_seconds: int,
+  position_opened_at: datetime | None,
+) -> bool:
+  """Exit weekend spot re-entries after profit lock — preserve cap for Monday futures."""
+  if shadow_mode or bot_type != "commodities" or not graduation_nudge:
+    return False
+  if symbol not in COMMODITIES_WEEKEND_SPOT_SYMBOLS:
+    return False
+  if not commodities_futures_weekend_closed():
+    return False
+  locked_at = await _commodities_recent_weekend_spot_profit_lock_at(session)
+  if not locked_at:
+    return False
+  min_hold = min(min_hold_seconds, COMMODITIES_GOLD_PROXY_DEDUP_MIN_HOLD_SECONDS)
+  if held_seconds < min_hold:
+    return False
+  if position_opened_at is not None:
+    opened = position_opened_at
+    if opened.tzinfo is not None:
+      opened = opened.replace(tzinfo=None)
+    if opened < locked_at:
+      return False
+  return unrealized < COMMODITIES_WEEKEND_SPOT_PROFIT_LOCK_USD
 
 
 def commodities_cap_pressure_loser_wind_down(

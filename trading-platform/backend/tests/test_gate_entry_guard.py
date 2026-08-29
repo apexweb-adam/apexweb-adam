@@ -1833,3 +1833,62 @@ def test_commodities_weekend_spot_post_profit_lock_entry_blocked():
       )
       is False
     )
+
+
+def test_commodities_weekend_spot_post_lock_wind_down():
+  import asyncio
+  from datetime import datetime
+  from unittest.mock import AsyncMock, MagicMock, patch
+
+  from app.engines.gate_entry_guard import commodities_weekend_spot_post_lock_wind_down
+
+  locked_at = datetime(2026, 8, 29, 13, 20, 0)
+  reentry_opened = datetime(2026, 8, 29, 13, 25, 0)
+  session = AsyncMock()
+  session.execute = AsyncMock(
+    return_value=MagicMock(scalar_one_or_none=MagicMock(return_value=locked_at))
+  )
+  base = dict(
+    bot_type="commodities",
+    shadow_mode=False,
+    graduation_nudge=True,
+    symbol="XAUUSDT",
+    held_seconds=600,
+    min_hold_seconds=600,
+    position_opened_at=reentry_opened,
+  )
+  with patch("app.engines.gate_entry_guard.datetime") as mock_dt:
+    mock_dt.utcnow.return_value = datetime(2026, 8, 29, 14, 0, 0)
+    mock_dt.side_effect = lambda *a, **k: datetime(*a, **k)
+    assert (
+      asyncio.run(
+        commodities_weekend_spot_post_lock_wind_down(session, unrealized=-0.36, **base)
+      )
+      is True
+    )
+    assert (
+      asyncio.run(
+        commodities_weekend_spot_post_lock_wind_down(session, unrealized=1.5, **base)
+      )
+      is False
+    )
+    assert (
+      asyncio.run(
+        commodities_weekend_spot_post_lock_wind_down(
+          session,
+          unrealized=-0.36,
+          **{**base, "position_opened_at": datetime(2026, 8, 29, 12, 0, 0)},
+        )
+      )
+      is False
+    )
+    assert (
+      asyncio.run(
+        commodities_weekend_spot_post_lock_wind_down(
+          session,
+          unrealized=-0.36,
+          **{**base, "held_seconds": 30},
+        )
+      )
+      is False
+    )
