@@ -149,6 +149,29 @@ def test_phantom_poll_wallet_addresses_explicit_override():
     assert addresses == ["custom_wallet_only"]
 
 
+def test_top_token_holdings_filters_stables_and_sorts():
+  from app.intelligence.phantom_tracker import STABLECOIN_MINTS, _top_token_holdings
+
+  usdc = next(iter(STABLECOIN_MINTS))
+  accounts = [
+    {"account": {"data": {"parsed": {"info": {"mint": usdc, "tokenAmount": {"uiAmount": 999999}}}}}},
+    {"account": {"data": {"parsed": {"info": {"mint": "mint_a", "tokenAmount": {"uiAmount": 100}}}}}},
+    {"account": {"data": {"parsed": {"info": {"mint": "mint_b", "tokenAmount": {"uiAmount": 5000}}}}}},
+  ]
+  top = _top_token_holdings(accounts, limit=2)
+  assert top == [("mint_b", 5000.0), ("mint_a", 100.0)]
+
+
+def test_resolve_mint_symbols_uses_known_map():
+  from app.intelligence.phantom_tracker import KNOWN_SOLANA_MINT_SYMBOLS, _resolve_mint_symbols
+
+  mint = next(iter(KNOWN_SOLANA_MINT_SYMBOLS))
+  mock_client = MagicMock()
+  symbols = asyncio.run(_resolve_mint_symbols(mock_client, [mint]))
+  assert symbols[mint] == KNOWN_SOLANA_MINT_SYMBOLS[mint]
+  mock_client.get.assert_not_called()
+
+
 def test_scan_phantom_portfolios_ingests_holdings():
   from app.intelligence.phantom_tracker import scan_phantom_portfolios
 
@@ -173,6 +196,12 @@ def test_scan_phantom_portfolios_ingests_holdings():
   with patch("app.intelligence.phantom_tracker.settings") as mock_settings, patch(
     "app.intelligence.phantom_tracker.phantom_poll_wallet_addresses",
     return_value=["wallet1234567890123456789012345678901234"],
+  ), patch(
+    "app.intelligence.phantom_tracker._resolve_mint_symbols",
+    new=AsyncMock(return_value={"mint_bonk": "BONK"}),
+  ), patch(
+    "app.intelligence.phantom_tracker._top_token_holdings",
+    return_value=[("mint_bonk", 1_000_000.0)],
   ), patch("httpx.AsyncClient", return_value=mock_client):
     mock_settings.phantom_enabled = True
     mock_settings.phantom_portfolio_poll_enabled = True
