@@ -41,6 +41,7 @@ from app.engines.gate_entry_guard import (
   is_symbol_in_trade_cooldown,
   open_position_cap_blocks_entry,
   symbol_cooldown_remaining_seconds,
+  commodities_session_info,
   commodities_weekend_futures_entry_blocked,
   gate_cap_pressure_proxy_entry_blocked,
   shadow_entry_min_signal,
@@ -50,6 +51,7 @@ from app.engines.gate_entry_guard import (
   shadow_requires_macd,
   stocks_proven_winner_sentiment_gate_ok,
   stocks_negative_pf_blocks_entry,
+  stocks_session_info,
   whale_memecoin_aligned,
 )
 from app.engines.integration_signals import get_integration_boost
@@ -530,6 +532,13 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
     )
 
   previews.sort(key=lambda row: row.get("composite", 0), reverse=True)
+  session = (
+    commodities_session_info()
+    if bot_type == "commodities"
+    else stocks_session_info()
+    if bot_type == "stocks_futures"
+    else None
+  )
   return {
     "bot_type": bot_type,
     "shadow_mode": shadow_mode,
@@ -538,5 +547,6 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
     "shadow_bot_wr": bot_wr if bot_wr is not None else shadow_bot_wr,
     "proven_winners": sorted(proven_winners),
     "min_signal": round(min_signal, 3),
+    "session": session,
     "symbols": previews,
   }
