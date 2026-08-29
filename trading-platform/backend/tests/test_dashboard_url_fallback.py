@@ -40,6 +40,31 @@ def test_discover_skips_stale_git_main_when_configured_is_newer():
   assert result["vercel_bundle_revision"] == "2026-08-28-r25"
 
 
+def test_verified_candidates_include_r31_recovery_preview():
+  candidates = deploy_status.verified_dashboard_candidates()
+  assert "https://apex-trading-dashboard-4am3sz5kv-apexweb-adams-projects.vercel.app" in candidates
+
+
+def test_discover_prefers_r31_over_stale_git_main():
+  r31 = "https://apex-trading-dashboard-4am3sz5kv-apexweb-adams-projects.vercel.app"
+  git_main = "https://apex-trading-dashboard-git-main-apexweb-adams-projects.vercel.app"
+
+  async def fake_probe(url: str):
+    if url == r31:
+      return {"bundleRevision": "2026-08-29-r31", "features": {"activeGate": True}}
+    if url == git_main:
+      return {"bundleRevision": "2026-08-28-r29", "features": {"activeGate": True}}
+    return None
+
+  with patch.object(deploy_status, "probe_dashboard_config", side_effect=fake_probe):
+    with patch.object(deploy_status, "configured_verified_dashboard_url", return_value=r31):
+      with patch.object(deploy_status, "verified_dashboard_candidates", return_value=[r31, git_main]):
+        result = asyncio.run(deploy_status.discover_verified_dashboard())
+
+  assert result["verified_dashboard_url"] == r31
+  assert result["vercel_bundle_revision"] == "2026-08-29-r31"
+
+
 def test_recommended_dashboard_url_uses_configured_probe():
   configured_url = "https://apex-trading-dashboard-73nruanbo-apexweb-adams-projects.vercel.app"
 

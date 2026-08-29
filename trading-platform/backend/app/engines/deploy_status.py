@@ -27,10 +27,10 @@ def github_headers() -> dict[str, str]:
     headers["Authorization"] = f"Bearer {token}"
   return headers
 PRODUCTION_DASHBOARD_URL = "https://apex-trading-dashboard-flame.vercel.app"
-DEFAULT_VERIFIED_DASHBOARD_URL = "https://apex-trading-dashboard-flame.vercel.app"
-DEFAULT_VERIFIED_DEPLOYMENT_ID = "dpl_9cVRxRBgcHVStS2A35ZmPFbwrZTS"
+DEFAULT_VERIFIED_DASHBOARD_URL = "https://apex-trading-dashboard-4am3sz5kv-apexweb-adams-projects.vercel.app"
+DEFAULT_VERIFIED_DEPLOYMENT_ID = "dpl_GQTTm469KGGRkiKfwrULaLieM5VE"
 EXPECTED_DASHBOARD_BUNDLE = "2026-08-29-r31"
-EXPECTED_PLATFORM_REVISION = "2026-08-29-r178"
+EXPECTED_PLATFORM_REVISION = "2026-08-29-r179"
 GIT_MAIN_ALIAS = "apex-trading-dashboard-git-main"
 ACCEPTABLE_DASHBOARD_BUNDLES = frozenset({
   "2026-08-27-r9", "2026-08-27-r10", "2026-08-27-r11", "2026-08-27-r12",
@@ -144,7 +144,8 @@ def verified_dashboard_candidates() -> list[str]:
 
   # Configured verified URL first — env is authoritative when probe succeeds.
   add(configured_verified_dashboard_url())
-  # Newest main-branch previews (r27+) — prefer before stale git-main alias.
+  # Newest main-branch previews (r31 recovery preview) — prefer before stale git-main alias.
+  add("https://apex-trading-dashboard-4am3sz5kv-apexweb-adams-projects.vercel.app")
   add("https://apex-trading-dashboard-fh95xdpz2-apexweb-adams-projects.vercel.app")
   add("https://apex-trading-dashboard-git-main-apexweb-adams-projects.vercel.app")
   add("https://apex-trading-dashboard-73nruanbo-apexweb-adams-projects.vercel.app")
