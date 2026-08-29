@@ -41,6 +41,9 @@ from app.engines.gate_entry_guard import (
   CRYPTO_MOMENTUM_RETREAT_MIN_RAW_SIGNAL,
   CRYPTO_MOMENTUM_RETREAT_LOSS_WIND_DOWN_USD,
   COMMODITIES_ACTIVE_GATE_LOSS_WIND_DOWN_USD,
+  COMMODITIES_GRADUATION_OPEN_COMPOSITE_FLOOR,
+  COMMODITIES_HIGH_COMPOSITE_RECOVERY_FLOOR,
+  commodities_recovery_composite_floor,
   crypto_graduation_entry_ease_active,
   crypto_strong_momentum_nudge,
   crypto_pre_graduation_nudge,
@@ -690,6 +693,7 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
             symbol=symbol,
             composite=composite,
             blockers=blockers,
+            graduation_nudge=graduation_nudge,
           )
           or stocks_monday_recovery_ready(
             bot_type=bot_type,
@@ -710,6 +714,7 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
           signal_direction=signal.direction,
           macd_signal=signal.macd_signal,
           blockers=blockers,
+          graduation_nudge=graduation_nudge,
         ),
         "monday_gate_skip_ready": monday_gate_skip_ready,
         "integration_boost": round(integration_boost, 3),
@@ -796,6 +801,16 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
     "commodities_gate_loss_wind_down_usd": (
       COMMODITIES_ACTIVE_GATE_LOSS_WIND_DOWN_USD
       if bot_type == "commodities" and not shadow_mode and graduation_nudge
+      else None
+    ),
+    "commodities_graduation_open_composite_floor": (
+      commodities_recovery_composite_floor(graduation_nudge=True)
+      if bot_type == "commodities" and not shadow_mode and graduation_nudge
+      else None
+    ),
+    "commodities_high_composite_recovery_floor": (
+      COMMODITIES_HIGH_COMPOSITE_RECOVERY_FLOOR
+      if bot_type == "commodities" and not shadow_mode
       else None
     ),
     "crypto_shadow_raw_floor_active": crypto_shadow_raw_floor,
