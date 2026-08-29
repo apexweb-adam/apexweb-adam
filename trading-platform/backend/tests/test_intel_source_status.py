@@ -90,3 +90,69 @@ def test_build_intel_sources_includes_tiktok():
 
   tiktok = next(s for s in sources if s["source"] == "tiktok")
   assert tiktok["status"] == "active"
+
+
+def test_fomo_active_when_bearer_expired_but_recent_webhook_items():
+  import asyncio
+  from app.engines.intel_source_status import build_intel_sources
+
+  session = AsyncMock()
+  now = datetime.now(timezone.utc)
+  session.execute = AsyncMock(
+    return_value=type(
+      "Result",
+      (),
+      {
+        "all": lambda self: [
+          ("fomo", now - timedelta(hours=2)),
+        ]
+      },
+    )()
+  )
+
+  with patch("app.engines.intel_source_status.settings") as mock_settings:
+    mock_settings.reddit_client_id = ""
+    mock_settings.reddit_client_secret = ""
+    mock_settings.polymarket_wallet_address = ""
+    mock_settings.polymarket_deposit_address = ""
+    mock_settings.tradingview_webhook_secret = "secret"
+    mock_settings.twitter_bearer_token = ""
+    mock_settings.newsapi_key = ""
+    mock_settings.hyperliquid_enabled = False
+    mock_settings.phantom_portfolio_poll_enabled = False
+    with patch(
+      "app.engines.intel_source_status.wallet_tracker_configured",
+      return_value=False,
+    ):
+      with patch(
+        "app.engines.intel_source_status.fomo_configured",
+        return_value=True,
+      ):
+        with patch(
+          "app.engines.intel_source_status.get_fomo_bearer_status",
+          AsyncMock(
+            return_value={
+              "configured": True,
+              "polling_active": False,
+              "expired": True,
+            }
+          ),
+        ):
+          with patch(
+            "app.engines.intel_source_status.get_axiom_session_status",
+            AsyncMock(
+              return_value={
+                "configured": False,
+                "polling_active": False,
+                "poll_mode": "off",
+                "multi_wallet_ready": False,
+                "tracked_wallets": 0,
+              }
+            ),
+          ):
+            sources = asyncio.run(build_intel_sources(session))
+
+  fomo = next(s for s in sources if s["source"] == "fomo")
+  assert fomo["status"] == "active"
+  assert fomo["webhook_fallback_active"] is True
+  assert fomo["webhook_recent"] is True

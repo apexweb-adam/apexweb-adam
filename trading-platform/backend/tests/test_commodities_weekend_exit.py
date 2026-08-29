@@ -131,6 +131,7 @@ def test_commodities_weekend_spot_cooldown_eased():
 def test_commodities_weekend_spot_gate_skip_bypass():
   from app.engines.gate_entry_guard import (
     COMMODITIES_WEEKEND_SPOT_GATE_SKIP_COMPOSITE_FLOOR,
+    chronic_loser_blocks_shadow_entry,
     commodities_weekend_spot_gate_skip_bypass,
     hard_skip_blocks_shadow_entry,
     symbol_cooldown_remaining_seconds,
@@ -166,6 +167,17 @@ def test_commodities_weekend_spot_gate_skip_bypass():
       intel_override=False,
       composite=0.434,
       integration_boost=0.067,
+      signal_direction="buy",
+      macd_signal="bullish",
+    ) is False
+    assert chronic_loser_blocks_shadow_entry(
+      "PAXGUSDT",
+      frozenset({"PAXGUSDT"}),
+      bot_type="commodities",
+      graduation_nudge=True,
+      shadow_mode=False,
+      intel_override=False,
+      composite=0.417,
       signal_direction="buy",
       macd_signal="bullish",
     ) is False
