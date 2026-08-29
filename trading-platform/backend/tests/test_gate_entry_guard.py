@@ -1154,6 +1154,37 @@ def test_shadow_graduation_loss_wind_down_profitable_nudge_threshold():
   ) is False
 
 
+def test_crypto_momentum_retreat_cap_pressure_nudge():
+  from app.engines.gate_entry_guard import (
+    CRYPTO_MOMENTUM_RETREAT_CAP_PRESSURE_LOSER_USD,
+    crypto_cap_pressure_loser_threshold,
+    crypto_cap_pressure_nudge,
+    shadow_cap_pressure_loser_wind_down,
+  )
+
+  retreat = dict(
+    bot_type="crypto",
+    shadow_mode=True,
+    graduation_nudge=True,
+    bot_win_rate=0.468,
+    profit_factor=1.07,
+    total_pnl=9.85,
+  )
+  assert crypto_cap_pressure_nudge(**retreat) is True
+  assert crypto_cap_pressure_loser_threshold(**retreat) == min(
+    CRYPTO_MOMENTUM_RETREAT_CAP_PRESSURE_LOSER_USD,
+    0.35,
+  )
+  assert shadow_cap_pressure_loser_wind_down(
+    unrealized=-0.40,
+    held_seconds=900,
+    min_hold_seconds=900,
+    open_count=2,
+    shadow_open_cap=2,
+    **retreat,
+  ) is True
+
+
 def test_crypto_cap_pressure_nudge_covers_pre_graduation_tier():
   from app.engines.gate_entry_guard import (
     crypto_cap_pressure_nudge,
@@ -1164,12 +1195,13 @@ def test_crypto_cap_pressure_nudge_covers_pre_graduation_tier():
   stats = dict(
     bot_type="crypto",
     shadow_mode=True,
+    graduation_nudge=True,
     bot_win_rate=0.50,
     profit_factor=1.25,
     total_pnl=31.0,
   )
   assert crypto_cap_pressure_nudge(**stats) is True
-  assert crypto_cap_pressure_loser_threshold(**stats) == 1.5
+  assert crypto_cap_pressure_loser_threshold(**stats) == 0.35
   assert crypto_cap_pressure_effective_min_hold(900, -6.5) == 60
   assert crypto_cap_pressure_effective_min_hold(900, -2.5) == 300
   from app.engines.gate_entry_guard import shadow_cap_pressure_loser_wind_down
@@ -1177,6 +1209,7 @@ def test_crypto_cap_pressure_nudge_covers_pre_graduation_tier():
   base = dict(
     bot_type="crypto",
     shadow_mode=True,
+    graduation_nudge=True,
     held_seconds=900,
     min_hold_seconds=900,
     open_count=3,
@@ -1201,6 +1234,7 @@ def test_shadow_cap_pressure_pre_graduation_large_loser_fast_exit():
   pre_grad = dict(
     bot_type="crypto",
     shadow_mode=True,
+    graduation_nudge=True,
     min_hold_seconds=900,
     open_count=4,
     shadow_open_cap=4,

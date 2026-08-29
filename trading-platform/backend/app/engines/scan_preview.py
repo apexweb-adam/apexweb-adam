@@ -727,6 +727,7 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
     and crypto_cap_pressure_nudge(
       bot_type,
       shadow_mode,
+      graduation_nudge,
       bot_wr,
       per_bot_stats.get("profit_factor"),
       per_bot_stats.get("total_pnl"),

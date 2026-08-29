@@ -433,6 +433,7 @@ class BaseBot(ABC):
             continue
 
           if shadow_cap_pressure_loser_wind_down(
+            graduation_nudge=graduation_nudge,
             bot_type=self.bot_type,
             shadow_mode=shadow_mode,
             unrealized=(price - position.entry_price) * position.quantity,
