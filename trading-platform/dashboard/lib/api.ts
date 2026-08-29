@@ -224,6 +224,7 @@ export type ScanPreview = {
   stocks_trade_count_nudge?: boolean;
   crypto_strong_momentum_nudge?: boolean;
   crypto_pre_graduation_nudge?: boolean;
+  crypto_cap_pressure_active?: boolean;
   early_verification_boost?: boolean;
   shadow_bot_wr: number | null;
   proven_winners: string[];

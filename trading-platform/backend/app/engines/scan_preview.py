@@ -36,6 +36,7 @@ from app.engines.gate_entry_guard import (
   crypto_graduation_entry_min_signal,
   crypto_strong_momentum_nudge,
   crypto_pre_graduation_nudge,
+  crypto_cap_pressure_nudge,
   graduation_nudge_min_sentiment,
   graduation_nudge_sentiment_ok,
   in_shadow_graduation_nudge,
@@ -669,6 +670,19 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
     if bot_type == "stocks_futures"
     else None
   )
+  crypto_cap_pressure = (
+    bot_type == "crypto"
+    and shadow_mode
+    and shadow_cap is not None
+    and open_count >= shadow_cap
+    and crypto_cap_pressure_nudge(
+      bot_type,
+      shadow_mode,
+      bot_wr,
+      per_bot_stats.get("profit_factor"),
+      per_bot_stats.get("total_pnl"),
+    )
+  )
   return {
     "bot_type": bot_type,
     "shadow_mode": shadow_mode,
@@ -676,6 +690,7 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
     "stocks_trade_count_nudge": stocks_trade_count_nudge,
     "crypto_strong_momentum_nudge": crypto_strong_momentum,
     "crypto_pre_graduation_nudge": crypto_pre_graduation,
+    "crypto_cap_pressure_active": crypto_cap_pressure,
     "early_verification_boost": early_verification_boost,
     "shadow_bot_wr": bot_wr if bot_wr is not None else shadow_bot_wr,
     "proven_winners": sorted(proven_winners),

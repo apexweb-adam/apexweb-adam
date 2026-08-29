@@ -1038,7 +1038,24 @@ def test_shadow_graduation_loss_wind_down_profitable_nudge_threshold():
   ) is False
 
 
-def test_shadow_cap_pressure_loser_wind_down():
+def test_crypto_cap_pressure_nudge_covers_pre_graduation_tier():
+  from app.engines.gate_entry_guard import (
+    crypto_cap_pressure_nudge,
+    crypto_cap_pressure_effective_min_hold,
+    crypto_cap_pressure_loser_threshold,
+  )
+
+  stats = dict(
+    bot_type="crypto",
+    shadow_mode=True,
+    bot_win_rate=0.50,
+    profit_factor=1.25,
+    total_pnl=31.0,
+  )
+  assert crypto_cap_pressure_nudge(**stats) is True
+  assert crypto_cap_pressure_loser_threshold(**stats) == 1.5
+  assert crypto_cap_pressure_effective_min_hold(900, -6.5) == 60
+  assert crypto_cap_pressure_effective_min_hold(900, -2.5) == 300
   from app.engines.gate_entry_guard import shadow_cap_pressure_loser_wind_down
 
   base = dict(
