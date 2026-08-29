@@ -51,6 +51,7 @@ from app.engines.gate_entry_guard import (
   CRYPTO_MOMENTUM_RETREAT_LOSS_WIND_DOWN_USD,
   COMMODITIES_ACTIVE_GATE_LOSS_WIND_DOWN_USD,
   COMMODITIES_GRADUATION_OPEN_COMPOSITE_FLOOR,
+  COMMODITIES_GRADUATION_PF_PROFIT_LOCK_USD,
   COMMODITIES_HIGH_COMPOSITE_RECOVERY_FLOOR,
   commodities_recovery_composite_floor,
   crypto_graduation_entry_ease_active,
@@ -69,6 +70,7 @@ from app.engines.gate_entry_guard import (
   commodities_monday_futures_gate_skip_bypass,
   commodities_session_info,
   commodities_gate_fast_scan_active,
+  commodities_reopen_imminent_scan_active,
   commodities_weekend_futures_entry_blocked,
   commodities_weekend_forex_entry_blocked,
   commodities_weekend_spot_entry_blocked,
@@ -201,6 +203,14 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
   commodities_fast_scan_active = commodities_gate_fast_scan_active(
     commodities_session_info() if bot_type == "commodities" else None,
     graduation_nudge=graduation_nudge if bot_type == "commodities" else False,
+  )
+  commodities_reopen_imminent = (
+    commodities_reopen_imminent_scan_active(
+      commodities_session_info(),
+      graduation_nudge=graduation_nudge,
+    )
+    if bot_type == "commodities" and graduation_nudge
+    else False
   )
   crypto_strong_momentum = crypto_strong_momentum_nudge(
     bot_type,
@@ -913,6 +923,7 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
     "stocks_trade_count_nudge": stocks_trade_count_nudge,
     "stocks_gate_fast_scan_active": stocks_fast_scan_active,
     "commodities_gate_fast_scan_active": commodities_fast_scan_active,
+    "commodities_reopen_imminent_scan": commodities_reopen_imminent,
     "crypto_strong_momentum_nudge": crypto_strong_momentum,
     "crypto_pre_graduation_nudge": crypto_pre_graduation,
     "crypto_cap_pressure_active": crypto_cap_pressure,
@@ -927,6 +938,11 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
     ),
     "crypto_momentum_retreat_cap_room_aligned_composite_floor": (
       CRYPTO_MOMENTUM_RETREAT_CAP_ROOM_ALIGNED_COMPOSITE_FLOOR
+      if crypto_momentum_retreat
+      else None
+    ),
+    "crypto_chronic_loser_aligned_composite_floor": (
+      CRYPTO_MOMENTUM_RETREAT_ALIGNED_COMPOSITE_FLOOR
       if crypto_momentum_retreat
       else None
     ),
@@ -960,6 +976,16 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
     "commodities_gate_loss_wind_down_usd": (
       COMMODITIES_ACTIVE_GATE_LOSS_WIND_DOWN_USD
       if bot_type == "commodities" and not shadow_mode and graduation_nudge
+      else None
+    ),
+    "commodities_graduation_pf_profit_lock_usd": (
+      COMMODITIES_GRADUATION_PF_PROFIT_LOCK_USD
+      if (
+        bot_type == "commodities"
+        and not shadow_mode
+        and graduation_nudge
+        and (per_bot_stats.get("profit_factor") or 0) < 1.3
+      )
       else None
     ),
     "commodities_graduation_open_composite_floor": (

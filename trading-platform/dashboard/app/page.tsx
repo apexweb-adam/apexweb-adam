@@ -1635,7 +1635,13 @@ function SessionPrepBanner({ sessionPrep }: { sessionPrep: SessionPrepStatus | n
               {entry.gate_fast_scan_active ? (
                 <span className="text-sky-400/90" title="15s scan interval during prep">
                   {" "}
-                  · fast scan 15s
+                  · fast scan {entry.gate_reopen_imminent ? "5s" : "15s"}
+                </span>
+              ) : null}
+              {entry.gate_reopen_imminent ? (
+                <span className="text-lime-400/90" title="Ultra-fast scan before CME reopen">
+                  {" "}
+                  · reopen imminent
                 </span>
               ) : null}
               {!inSession && entry.prep_active ? (
@@ -1836,6 +1842,18 @@ function BotScanPreview({ botType }: { botType: string }) {
           <span className="text-amber-300/90" title="Active gate commodities graduation loss wind-down">
             {" "}
             · gate loss wind-down ${preview.commodities_gate_loss_wind_down_usd}
+          </span>
+        )}
+        {preview.commodities_graduation_pf_profit_lock_usd != null && (
+          <span className="text-lime-400/90" title="Bank wins early while PF below 1.3">
+            {" "}
+            · PF profit lock ${preview.commodities_graduation_pf_profit_lock_usd}
+          </span>
+        )}
+        {preview.commodities_reopen_imminent_scan && (
+          <span className="text-lime-400/90" title="5s scan interval before CME reopen">
+            {" "}
+            · reopen scan 5s
           </span>
         )}
         {preview.recovery_candidates && preview.recovery_candidates.length > 0 && (

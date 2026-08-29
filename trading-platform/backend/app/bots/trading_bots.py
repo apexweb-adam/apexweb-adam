@@ -1565,6 +1565,7 @@ class CommoditiesBot(BaseBot):
     """Scan faster during CME session and graduation prep while gate is active."""
     from app.engines.gate_entry_guard import (
       bot_win_rate_for_graduation_nudge,
+      commodities_effective_scan_interval,
       commodities_gate_fast_scan_active,
       commodities_session_info,
       in_shadow_graduation_nudge,
@@ -1574,32 +1575,38 @@ class CommoditiesBot(BaseBot):
     session_info = commodities_session_info()
     graduation_nudge = False
     fast_scan = commodities_gate_fast_scan_active(session_info)
+    async with SessionLocal() as session:
+      per_bot = (await ProfitabilityGate(session).evaluate_per_bot()).get("commodities") or {}
+      bot_wr = bot_win_rate_for_graduation_nudge(
+        "commodities",
+        shadow_mode=False,
+        shadow_bot_wr=None,
+        per_bot_stats=per_bot,
+      )
+      graduation_nudge = in_shadow_graduation_nudge(
+        "commodities",
+        bot_wr,
+        profit_factor=per_bot.get("profit_factor"),
+        total_pnl=per_bot.get("total_pnl"),
+      )
     if not fast_scan:
-      async with SessionLocal() as session:
-        per_bot = (await ProfitabilityGate(session).evaluate_per_bot()).get("commodities") or {}
-        bot_wr = bot_win_rate_for_graduation_nudge(
-          "commodities",
-          shadow_mode=False,
-          shadow_bot_wr=None,
-          per_bot_stats=per_bot,
-        )
-        graduation_nudge = in_shadow_graduation_nudge(
-          "commodities",
-          bot_wr,
-          profit_factor=per_bot.get("profit_factor"),
-          total_pnl=per_bot.get("total_pnl"),
-        )
       fast_scan = commodities_gate_fast_scan_active(
         session_info,
         graduation_nudge=graduation_nudge,
       )
-    if not fast_scan:
-      return self.scan_interval
-    async with SessionLocal() as session:
-      tightening = await get_gate_entry_tightening(session)
-      if tightening.active:
-        return self.gate_active_scan_interval
-    return self.scan_interval
+    gate_tightening_active = False
+    if fast_scan:
+      async with SessionLocal() as session:
+        tightening = await get_gate_entry_tightening(session)
+        gate_tightening_active = tightening.active
+    return commodities_effective_scan_interval(
+      gate_active_interval=self.gate_active_scan_interval,
+      default_interval=self.scan_interval,
+      session_info=session_info,
+      graduation_nudge=graduation_nudge,
+      gate_tightening_active=gate_tightening_active,
+      fast_scan=fast_scan,
+    )
 
   async def run_loop(self) -> None:
     self.running = True
