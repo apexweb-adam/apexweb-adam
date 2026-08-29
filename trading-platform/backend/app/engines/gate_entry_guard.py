@@ -624,6 +624,7 @@ STOCKS_TRADE_COUNT_GRADUATION_GAP = 5
 STOCKS_TRADE_COUNT_RECOVERY_MIN_COMPOSITE = 0.34
 STOCKS_TRADE_COUNT_MIN_SENTIMENT = 0.05
 COMMODITIES_HIGH_COMPOSITE_RECOVERY_FLOOR = 0.48
+COMMODITIES_GRADUATION_OPEN_COMPOSITE_FLOOR = 0.44
 COMMODITIES_FUTURES_WEEKEND_FLAT_EXIT_BAND_USD = 1.0
 COMMODITIES_WEEKEND_SPOT_SYMBOLS = frozenset({"XAUUSDT", "PAXGUSDT"})
 COMMODITIES_GOLD_PROXY_PREFERRED = "XAUUSDT"
@@ -1155,6 +1156,7 @@ def chronic_loser_blocks_shadow_entry(
     composite=composite or 0.0,
     signal_direction=signal_direction or "buy",
     macd_signal=macd_signal or "bullish",
+    graduation_nudge=graduation_nudge,
   ):
     return False
   if commodities_weekend_spot_gate_skip_bypass(
@@ -2408,6 +2410,7 @@ def hard_skip_blocks_shadow_entry(
       composite=composite,
       signal_direction=signal_direction,
       macd_signal=macd_signal,
+      graduation_nudge=graduation_nudge,
     )
   )
   if symbol in review_skip:
@@ -3246,7 +3249,14 @@ def commodities_monday_futures_gate_skip_bypass(
     return False
   if signal_direction != "buy" or macd_signal != "bullish":
     return False
-  return composite >= COMMODITIES_HIGH_COMPOSITE_RECOVERY_FLOOR
+  return composite >= commodities_recovery_composite_floor(graduation_nudge)
+
+
+def commodities_recovery_composite_floor(graduation_nudge: bool = False) -> float:
+  """Eased composite floor for gate commodities during CME prep/open window."""
+  if graduation_nudge and commodities_monday_scan_priority_active(commodities_session_info()):
+    return COMMODITIES_GRADUATION_OPEN_COMPOSITE_FLOOR
+  return COMMODITIES_HIGH_COMPOSITE_RECOVERY_FLOOR
 
 
 def stocks_monday_gate_skip_bypass(
@@ -3285,6 +3295,7 @@ def commodities_high_composite_recovery_entry_ok(
   composite: float,
   signal_direction: str,
   macd_signal: str,
+  graduation_nudge: bool = False,
 ) -> bool:
   """Active-gate commodities can re-enter chronic futures with strong aligned composites."""
   from app.engines.market_data import CRYPTO_LIVE_PRICE_PROXY
@@ -3295,7 +3306,7 @@ def commodities_high_composite_recovery_entry_ok(
     return False
   if signal_direction != "buy" or macd_signal != "bullish":
     return False
-  return composite >= COMMODITIES_HIGH_COMPOSITE_RECOVERY_FLOOR
+  return composite >= commodities_recovery_composite_floor(graduation_nudge)
 
 
 def stocks_proven_winner_sentiment_gate_ok(
@@ -3353,6 +3364,7 @@ def commodities_monday_open_ready(
   signal_direction: str,
   macd_signal: str,
   blockers: list[str],
+  graduation_nudge: bool = False,
 ) -> bool:
   """Bullish high-composite futures that will enter as soon as CME reopens."""
   if not commodities_high_composite_recovery_entry_ok(
@@ -3362,6 +3374,7 @@ def commodities_monday_open_ready(
     composite=composite,
     signal_direction=signal_direction,
     macd_signal=macd_signal,
+    graduation_nudge=graduation_nudge,
   ):
     return False
   if not blockers:
@@ -3376,6 +3389,7 @@ def commodities_monday_recovery_ready(
   symbol: str,
   composite: float,
   blockers: list[str],
+  graduation_nudge: bool = False,
 ) -> bool:
   """High-composite commodities futures blocked only by weekend or sell signal."""
   if not commodities_high_composite_recovery_entry_ok(
@@ -3385,6 +3399,7 @@ def commodities_monday_recovery_ready(
     composite=composite,
     signal_direction="buy",
     macd_signal="bullish",
+    graduation_nudge=graduation_nudge,
   ):
     return False
   if not blockers:

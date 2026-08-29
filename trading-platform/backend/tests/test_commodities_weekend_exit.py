@@ -274,6 +274,7 @@ def test_commodities_monday_open_hour_graduation_cap_bonus():
 
 def test_commodities_monday_futures_gate_skip_bypass():
   from app.engines.gate_entry_guard import (
+    COMMODITIES_GRADUATION_OPEN_COMPOSITE_FLOOR,
     COMMODITIES_HIGH_COMPOSITE_RECOVERY_FLOOR,
     chronic_loser_blocks_shadow_entry,
     commodities_monday_futures_gate_skip_bypass,
@@ -293,8 +294,12 @@ def test_commodities_monday_futures_gate_skip_bypass():
     mock_dt.utcnow.return_value = datetime(2026, 8, 31, 0, 15, 0)
     mock_dt.side_effect = lambda *a, **k: datetime(*a, **k)
     assert commodities_monday_futures_gate_skip_bypass(**base) is True
+    eased = COMMODITIES_GRADUATION_OPEN_COMPOSITE_FLOOR + 0.029
     assert commodities_monday_futures_gate_skip_bypass(
-      **{**base, "composite": COMMODITIES_HIGH_COMPOSITE_RECOVERY_FLOOR - 0.01}
+      **{**base, "composite": eased}
+    ) is True
+    assert commodities_monday_futures_gate_skip_bypass(
+      **{**base, "composite": COMMODITIES_GRADUATION_OPEN_COMPOSITE_FLOOR - 0.01}
     ) is False
     assert hard_skip_blocks_shadow_entry(
       "NG=F",
