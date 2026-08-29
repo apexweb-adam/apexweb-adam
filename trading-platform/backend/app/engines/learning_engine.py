@@ -9,6 +9,38 @@ from app.models.entities import DailyReview, IntelligenceItem, LearningInsight, 
 LEARNING_NOISE_DISMISS_MAX_CONFIDENCE = 0.54
 
 
+def _target_bot_types_from_impact(impact: str) -> set[str] | None:
+  """Return bot types mentioned in impact text; None means apply to all configs."""
+  text = impact.lower()
+  targets: set[str] = set()
+  if any(
+    k in text
+    for k in (
+      "crypto bot",
+      "crypto entries",
+      "memecoin",
+      "fomo",
+      "dexscreener",
+      "hyperliquid",
+      "whale",
+      "solana",
+      "hl perp",
+      "pump.fun",
+    )
+  ):
+    targets.add("crypto")
+  if any(k in text for k in ("commodities bot", "gold", "oil", "commodit", "geopolitical")):
+    targets.add("commodities")
+  if any(
+    k in text
+    for k in ("stocks bot", "stocks_futures", "futures bot", "day-trad", "day trad", "macd")
+  ):
+    targets.add("stocks_futures")
+  if any(k in text for k in ("polymarket", "prediction market", "prediction-market")):
+    targets.add("polymarket")
+  return targets if targets else None
+
+
 class LearningEngine:
   """Analyzes losing trades, runs daily reviews, and adapts strategy parameters."""
 
@@ -364,9 +396,12 @@ class LearningEngine:
 
     result = await self.session.execute(select(StrategyConfig))
     configs = list(result.scalars().all())
+    targets = _target_bot_types_from_impact(impact)
+    impact_lower = impact.lower()
 
     for config in configs:
-      impact_lower = impact.lower()
+      if targets is not None and config.bot_type not in targets:
+        continue
       changed = False
       if "rsi" in impact_lower and "oversold" in impact_lower:
         config.rsi_oversold = max(25, config.rsi_oversold - 2)
