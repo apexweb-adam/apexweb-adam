@@ -177,10 +177,13 @@ def commodities_effective_open_cap(
   graduation_nudge: bool,
   shadow_mode: bool,
 ) -> int | None:
-  """Give commodities one extra slot on weekends during graduation nudge for spot proxies."""
+  """Give commodities one extra slot during graduation nudge on weekends and Monday open hour."""
   if cap is None or bot_type != "commodities" or shadow_mode or not graduation_nudge:
     return cap
   if commodities_futures_weekend_closed():
+    return cap + COMMODITIES_WEEKEND_GRADUATION_CAP_BONUS
+  session = commodities_session_info()
+  if session.get("in_session") and commodities_monday_scan_priority_active(session):
     return cap + COMMODITIES_WEEKEND_GRADUATION_CAP_BONUS
   return cap
 
@@ -707,6 +710,16 @@ def chronic_loser_blocks_shadow_entry(
   ):
     return False
   if commodities_weekend_spot_gate_skip_bypass(
+    bot_type=bot_type,
+    shadow_mode=shadow_mode,
+    symbol=symbol,
+    graduation_nudge=graduation_nudge,
+    signal_direction=signal_direction or "buy",
+    macd_signal=macd_signal or "bullish",
+    composite=composite or 0.0,
+  ):
+    return False
+  if commodities_monday_futures_gate_skip_bypass(
     bot_type=bot_type,
     shadow_mode=shadow_mode,
     symbol=symbol,
@@ -1426,6 +1439,16 @@ async def symbol_cooldown_remaining_seconds(
     composite=composite,
   ):
     return 0
+  if commodities_monday_futures_gate_skip_bypass(
+    bot_type=bot_type,
+    shadow_mode=shadow_mode,
+    symbol=symbol,
+    graduation_nudge=graduation_nudge,
+    signal_direction=signal_direction,
+    macd_signal=macd_signal,
+    composite=composite,
+  ):
+    return 0
   from app.models.entities import Trade
 
   result = await session.execute(
@@ -1593,6 +1616,16 @@ def hard_skip_blocks_shadow_entry(
       composite=composite,
     ):
       return False
+    if commodities_monday_futures_gate_skip_bypass(
+      bot_type=bot_type,
+      shadow_mode=shadow_mode,
+      symbol=symbol,
+      graduation_nudge=graduation_nudge,
+      signal_direction=signal_direction,
+      macd_signal=macd_signal,
+      composite=composite,
+    ):
+      return False
     if graduation_nudge_easing_active(
       bot_type,
       graduation_nudge=graduation_nudge,
@@ -1608,6 +1641,16 @@ def hard_skip_blocks_shadow_entry(
     if recovery_ok:
       return False
     if commodities_weekend_spot_gate_skip_bypass(
+      bot_type=bot_type,
+      shadow_mode=shadow_mode,
+      symbol=symbol,
+      graduation_nudge=graduation_nudge,
+      signal_direction=signal_direction,
+      macd_signal=macd_signal,
+      composite=composite,
+    ):
+      return False
+    if commodities_monday_futures_gate_skip_bypass(
       bot_type=bot_type,
       shadow_mode=shadow_mode,
       symbol=symbol,
@@ -2259,6 +2302,30 @@ def commodities_weekend_spot_gate_skip_bypass(
   return composite >= COMMODITIES_WEEKEND_SPOT_GATE_SKIP_COMPOSITE_FLOOR
 
 
+def commodities_monday_futures_gate_skip_bypass(
+  *,
+  bot_type: str,
+  shadow_mode: bool,
+  symbol: str,
+  graduation_nudge: bool,
+  signal_direction: str,
+  macd_signal: str,
+  composite: float,
+) -> bool:
+  """CME futures bypass gate_skip/chronic blocks pre-open and first hour after reopen."""
+  if shadow_mode or bot_type != "commodities":
+    return False
+  if not graduation_nudge:
+    return False
+  if not is_commodities_futures_symbol(symbol):
+    return False
+  if not commodities_monday_scan_priority_active(commodities_session_info()):
+    return False
+  if signal_direction != "buy" or macd_signal != "bullish":
+    return False
+  return composite >= COMMODITIES_HIGH_COMPOSITE_RECOVERY_FLOOR
+
+
 def commodities_high_composite_recovery_entry_ok(
   *,
   bot_type: str,
@@ -2313,6 +2380,14 @@ def stocks_proven_winner_sentiment_gate_ok(
 COMMODITIES_MONDAY_RECOVERY_SOFT_BLOCKERS = frozenset({
   "weekend_futures_closed",
   "signal_sell",
+  "open_cap",
+  "open_cap_proxy",
+  "gate_skip",
+  "chronic_loser",
+  "symbol_cooldown",
+  "macd",
+  "volume",
+  "sentiment_gate",
 })
 
 

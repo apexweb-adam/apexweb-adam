@@ -236,3 +236,88 @@ def test_commodities_weekend_graduation_open_cap_bonus():
       shadow_open_cap=None,
       graduation_nudge=True,
     ) is True
+
+
+def test_commodities_monday_open_hour_graduation_cap_bonus():
+  from app.engines.gate_entry_guard import (
+    GateEntryTightening,
+    commodities_effective_open_cap,
+    open_position_cap_blocks_entry,
+  )
+
+  tightening = GateEntryTightening(
+    active=False,
+    win_rate=0.44,
+    min_sentiment=0.0,
+    require_macd_bullish=False,
+    min_composite_boost=0.0,
+    max_commodities_open_positions=3,
+  )
+  with patch("app.engines.gate_entry_guard.datetime") as mock_dt:
+    mock_dt.utcnow.return_value = datetime(2026, 8, 31, 0, 30, 0)
+    mock_dt.side_effect = lambda *a, **k: datetime(*a, **k)
+    assert commodities_effective_open_cap(
+      3,
+      bot_type="commodities",
+      graduation_nudge=True,
+      shadow_mode=False,
+    ) == 4
+    assert open_position_cap_blocks_entry(
+      "commodities",
+      shadow_mode=False,
+      open_count=3,
+      gate_tightening=tightening,
+      shadow_open_cap=None,
+      graduation_nudge=True,
+    ) is False
+
+
+def test_commodities_monday_futures_gate_skip_bypass():
+  from app.engines.gate_entry_guard import (
+    COMMODITIES_HIGH_COMPOSITE_RECOVERY_FLOOR,
+    chronic_loser_blocks_shadow_entry,
+    commodities_monday_futures_gate_skip_bypass,
+    hard_skip_blocks_shadow_entry,
+  )
+
+  base = dict(
+    bot_type="commodities",
+    shadow_mode=False,
+    symbol="NG=F",
+    graduation_nudge=True,
+    signal_direction="buy",
+    macd_signal="bullish",
+    composite=COMMODITIES_HIGH_COMPOSITE_RECOVERY_FLOOR + 0.05,
+  )
+  with patch("app.engines.gate_entry_guard.datetime") as mock_dt:
+    mock_dt.utcnow.return_value = datetime(2026, 8, 31, 0, 15, 0)
+    mock_dt.side_effect = lambda *a, **k: datetime(*a, **k)
+    assert commodities_monday_futures_gate_skip_bypass(**base) is True
+    assert commodities_monday_futures_gate_skip_bypass(
+      **{**base, "composite": COMMODITIES_HIGH_COMPOSITE_RECOVERY_FLOOR - 0.01}
+    ) is False
+    assert hard_skip_blocks_shadow_entry(
+      "NG=F",
+      bot_type="commodities",
+      recent_skip=frozenset({"NG=F"}),
+      large_skip=frozenset(),
+      review_skip=frozenset(),
+      graduation_nudge=True,
+      shadow_mode=False,
+      intel_override=False,
+      composite=0.55,
+      integration_boost=0.05,
+      signal_direction="buy",
+      macd_signal="bullish",
+    ) is False
+    assert chronic_loser_blocks_shadow_entry(
+      "NG=F",
+      frozenset({"NG=F"}),
+      bot_type="commodities",
+      graduation_nudge=True,
+      shadow_mode=False,
+      intel_override=False,
+      composite=0.55,
+      signal_direction="buy",
+      macd_signal="bullish",
+    ) is False

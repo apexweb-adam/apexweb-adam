@@ -515,7 +515,10 @@ def test_commodities_monday_recovery_ready():
     **base, blockers=["weekend_futures_closed", "signal_sell"]
   ) is True
   assert commodities_monday_recovery_ready(
-    **base, blockers=["weekend_futures_closed", "chronic_loser"]
+    **base, blockers=["weekend_futures_closed", "open_cap"]
+  ) is True
+  assert commodities_monday_recovery_ready(
+    **base, blockers=["weekend_futures_closed", "already_held"]
   ) is False
   assert commodities_monday_recovery_ready(
     **{**base, "shadow_mode": True}, blockers=["weekend_futures_closed"]
