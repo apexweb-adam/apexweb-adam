@@ -35,6 +35,7 @@ from app.engines.gate_entry_guard import (
   crypto_momentum_retreat_entry_min_signal,
   crypto_momentum_retreat_raw_signal_ok,
   crypto_retreat_cap_full_min_hold,
+  crypto_momentum_retreat_cooldown_bypass,
   graduation_nudge_min_sentiment,
   graduation_nudge_sentiment_ok,
   in_shadow_graduation_nudge,
@@ -800,7 +801,24 @@ class BaseBot(ABC):
           macd_signal=signal.macd_signal,
           composite=composite,
         )
-        if not weekend_spot_cooldown_waived and not monday_stocks_cooldown_waived:
+        retreat_cooldown_waived = crypto_momentum_retreat_cooldown_bypass(
+          bot_type=self.bot_type,
+          shadow_mode=shadow_mode,
+          graduation_nudge=graduation_nudge,
+          bot_win_rate=per_bot_stats.get("win_rate"),
+          profit_factor=per_bot_stats.get("profit_factor"),
+          total_pnl=per_bot_stats.get("total_pnl"),
+          signal_direction=signal.direction,
+          macd_signal=signal.macd_signal,
+          composite=composite,
+          open_count=open_count,
+          shadow_open_cap=shadow_open_cap,
+        )
+        if (
+          not weekend_spot_cooldown_waived
+          and not monday_stocks_cooldown_waived
+          and not retreat_cooldown_waived
+        ):
           cooldown = self._symbol_cooldown_until.get(symbol)
           if cooldown and datetime.utcnow() < cooldown:
             continue
@@ -818,6 +836,10 @@ class BaseBot(ABC):
           proven_winners=proven_winners,
           bot_win_rate=per_bot_stats.get("win_rate"),
           total_trades=int(per_bot_stats.get("total_trades") or 0),
+          open_count=open_count,
+          shadow_open_cap=shadow_open_cap,
+          profit_factor=per_bot_stats.get("profit_factor"),
+          total_pnl=per_bot_stats.get("total_pnl"),
         ):
           continue
 

@@ -39,6 +39,7 @@ from app.engines.gate_entry_guard import (
   crypto_momentum_retreat_raw_signal_ok,
   crypto_momentum_retreat_raw_signal_floor,
   crypto_momentum_retreat_gate_skip_bypass,
+  crypto_momentum_retreat_cooldown_bypass,
   crypto_shadow_raw_signal_floor_active,
   CRYPTO_MOMENTUM_RETREAT_MIN_RAW_SIGNAL,
   CRYPTO_MOMENTUM_RETREAT_ALIGNED_RAW_SIGNAL,
@@ -507,6 +508,10 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
       proven_winners=proven_winners,
       bot_win_rate=per_bot_stats.get("win_rate"),
       total_trades=int(per_bot_stats.get("total_trades") or 0),
+      open_count=open_count,
+      shadow_open_cap=shadow_cap,
+      profit_factor=per_bot_stats.get("profit_factor"),
+      total_pnl=per_bot_stats.get("total_pnl"),
     )
     if cooldown_remaining > 0:
       blockers.append("symbol_cooldown")
@@ -692,6 +697,7 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
 
     monday_gate_skip_ready = False
     crypto_retreat_gate_skip_ready = False
+    crypto_retreat_cooldown_ready = False
     if bot_type == "stocks_futures":
       monday_gate_skip_ready = stocks_monday_gate_skip_bypass(
         bot_type=bot_type,
@@ -715,6 +721,19 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
         signal_direction=signal.direction,
         macd_signal=signal.macd_signal,
         composite=composite,
+      )
+      crypto_retreat_cooldown_ready = crypto_momentum_retreat_cooldown_bypass(
+        bot_type=bot_type,
+        shadow_mode=shadow_mode,
+        graduation_nudge=graduation_nudge,
+        bot_win_rate=per_bot_stats.get("win_rate"),
+        profit_factor=per_bot_stats.get("profit_factor"),
+        total_pnl=per_bot_stats.get("total_pnl"),
+        signal_direction=signal.direction,
+        macd_signal=signal.macd_signal,
+        composite=composite,
+        open_count=open_count,
+        shadow_open_cap=shadow_cap,
       )
 
     previews.append(
@@ -775,6 +794,7 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
         ),
         "monday_gate_skip_ready": monday_gate_skip_ready,
         "crypto_retreat_gate_skip_ready": crypto_retreat_gate_skip_ready,
+        "crypto_retreat_cooldown_ready": crypto_retreat_cooldown_ready,
         "integration_boost": round(integration_boost, 3),
         "intel_override": intel_override,
         "cooldown_seconds": cooldown_remaining or None,

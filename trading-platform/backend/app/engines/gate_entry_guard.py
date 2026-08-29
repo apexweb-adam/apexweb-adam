@@ -1163,6 +1163,41 @@ def crypto_momentum_retreat_gate_skip_bypass(
   )
 
 
+def crypto_momentum_retreat_cooldown_bypass(
+  *,
+  bot_type: str,
+  shadow_mode: bool,
+  graduation_nudge: bool,
+  bot_win_rate: float | None,
+  profit_factor: float | None,
+  total_pnl: float | None,
+  signal_direction: str,
+  macd_signal: str,
+  composite: float,
+  open_count: int | None = None,
+  shadow_open_cap: int | None = None,
+  last_exit_reason: str | None = None,
+) -> bool:
+  """Waive re-entry cooldown for aligned retreat setups when cap has room or after cap-pressure rotation."""
+  if not crypto_momentum_retreat_gate_skip_bypass(
+    bot_type=bot_type,
+    shadow_mode=shadow_mode,
+    graduation_nudge=graduation_nudge,
+    bot_win_rate=bot_win_rate,
+    profit_factor=profit_factor,
+    total_pnl=total_pnl,
+    signal_direction=signal_direction,
+    macd_signal=macd_signal,
+    composite=composite,
+  ):
+    return False
+  if last_exit_reason and "cap-pressure" in last_exit_reason:
+    return True
+  if open_count is not None and shadow_open_cap is not None:
+    return open_count < shadow_open_cap
+  return False
+
+
 def crypto_shadow_raw_signal_floor_active(
   bot_type: str,
   shadow_mode: bool,
@@ -2444,6 +2479,10 @@ async def is_symbol_in_trade_cooldown(
   proven_winners: frozenset[str] = frozenset(),
   bot_win_rate: float | None = None,
   total_trades: int = 0,
+  open_count: int | None = None,
+  shadow_open_cap: int | None = None,
+  profit_factor: float | None = None,
+  total_pnl: float | None = None,
 ) -> bool:
   """DB-backed re-entry cooldown — survives deploy restarts."""
   remaining = await symbol_cooldown_remaining_seconds(
@@ -2460,6 +2499,10 @@ async def is_symbol_in_trade_cooldown(
     proven_winners=proven_winners,
     bot_win_rate=bot_win_rate,
     total_trades=total_trades,
+    open_count=open_count,
+    shadow_open_cap=shadow_open_cap,
+    profit_factor=profit_factor,
+    total_pnl=total_pnl,
   )
   return remaining > 0
 
@@ -2479,6 +2522,10 @@ async def symbol_cooldown_remaining_seconds(
   proven_winners: frozenset[str] = frozenset(),
   bot_win_rate: float | None = None,
   total_trades: int = 0,
+  open_count: int | None = None,
+  shadow_open_cap: int | None = None,
+  profit_factor: float | None = None,
+  total_pnl: float | None = None,
 ) -> int:
   """Seconds until symbol re-entry is allowed after last sell."""
   if commodities_weekend_spot_gate_skip_bypass(
@@ -2526,6 +2573,23 @@ async def symbol_cooldown_remaining_seconds(
     .limit(1)
   )
   row = result.first()
+  if row:
+    _, _, last_reason, _ = row
+    if crypto_momentum_retreat_cooldown_bypass(
+      bot_type=bot_type,
+      shadow_mode=shadow_mode,
+      graduation_nudge=graduation_nudge,
+      bot_win_rate=bot_win_rate,
+      profit_factor=profit_factor,
+      total_pnl=total_pnl,
+      signal_direction=signal_direction,
+      macd_signal=macd_signal,
+      composite=composite,
+      open_count=open_count,
+      shadow_open_cap=shadow_open_cap,
+      last_exit_reason=last_reason,
+    ):
+      return 0
   if not row:
     return 0
   is_winner, executed_at, reason, pnl = row
