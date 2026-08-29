@@ -35,6 +35,7 @@ from app.engines.gate_entry_guard import (
   commodities_graduation_entry_min_signal,
   crypto_graduation_entry_min_signal,
   crypto_momentum_retreat_entry_min_signal,
+  crypto_momentum_retreat_active,
   crypto_graduation_entry_ease_active,
   crypto_strong_momentum_nudge,
   crypto_pre_graduation_nudge,
@@ -706,18 +707,28 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
       per_bot_stats.get("total_pnl"),
     )
   )
-  crypto_momentum_retreat = (
-    bot_type == "crypto"
-    and shadow_mode
-    and graduation_nudge
-    and not crypto_graduation_entry_ease_active(
-      bot_type,
-      shadow_mode,
-      bot_wr,
-      per_bot_stats.get("profit_factor"),
-      per_bot_stats.get("total_pnl"),
-    )
+  crypto_momentum_retreat = crypto_momentum_retreat_active(
+    bot_type,
+    shadow_mode,
+    graduation_nudge,
+    bot_wr,
+    per_bot_stats.get("profit_factor"),
+    per_bot_stats.get("total_pnl"),
   )
+  effective_min_signal = min_signal
+  if crypto_momentum_retreat:
+    effective_min_signal = max(
+      min_signal,
+      crypto_momentum_retreat_entry_min_signal(
+        min_signal,
+        bot_type=bot_type,
+        graduation_nudge=graduation_nudge,
+        shadow_mode=shadow_mode,
+        bot_win_rate=bot_wr,
+        profit_factor=per_bot_stats.get("profit_factor"),
+        total_pnl=per_bot_stats.get("total_pnl"),
+      ),
+    )
   return {
     "bot_type": bot_type,
     "shadow_mode": shadow_mode,
@@ -727,10 +738,13 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
     "crypto_pre_graduation_nudge": crypto_pre_graduation,
     "crypto_cap_pressure_active": crypto_cap_pressure,
     "crypto_momentum_retreat": crypto_momentum_retreat,
+    "crypto_momentum_retreat_min_signal": (
+      round(effective_min_signal, 3) if crypto_momentum_retreat else None
+    ),
     "early_verification_boost": early_verification_boost,
     "shadow_bot_wr": bot_wr if bot_wr is not None else shadow_bot_wr,
     "proven_winners": sorted(proven_winners),
-    "min_signal": round(min_signal, 3),
+    "min_signal": round(effective_min_signal, 3),
     "open_count": open_count,
     "shadow_open_cap": shadow_cap,
     "held_symbols": sorted(held_symbols),

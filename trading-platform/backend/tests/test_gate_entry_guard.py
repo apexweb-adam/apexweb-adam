@@ -1697,6 +1697,45 @@ def test_crypto_momentum_retreat_entry_min_signal_floor():
   assert crypto_momentum_retreat_entry_min_signal(0.34, **strong) == pytest.approx(0.34)
 
 
+def test_crypto_momentum_retreat_profit_lock_threshold():
+  from app.engines.gate_entry_guard import shadow_graduation_profit_lock
+
+  retreat = dict(
+    graduation_nudge=True,
+    shadow_mode=True,
+    bot_type="crypto",
+    unrealized=1.30,
+    held_seconds=600,
+    min_hold_seconds=300,
+    bot_win_rate=0.448,
+    profit_factor=1.07,
+    total_pnl=10.8,
+  )
+  assert shadow_graduation_profit_lock(**retreat) is True
+  assert shadow_graduation_profit_lock(**{**retreat, "unrealized": 1.10}) is False
+
+
+def test_crypto_momentum_retreat_active():
+  from app.engines.gate_entry_guard import crypto_momentum_retreat_active
+
+  assert crypto_momentum_retreat_active(
+    "crypto",
+    shadow_mode=True,
+    graduation_nudge=True,
+    bot_win_rate=0.448,
+    profit_factor=1.07,
+    total_pnl=10.8,
+  )
+  assert not crypto_momentum_retreat_active(
+    "crypto",
+    shadow_mode=True,
+    graduation_nudge=True,
+    bot_win_rate=0.50,
+    profit_factor=1.25,
+    total_pnl=31.0,
+  )
+
+
 def test_shadow_requires_macd_when_crypto_momentum_retreat():
   from app.engines.gate_entry_guard import GateEntryTightening, shadow_requires_macd
 

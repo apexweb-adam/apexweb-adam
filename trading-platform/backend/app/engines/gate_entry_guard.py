@@ -111,6 +111,7 @@ CRYPTO_PRE_GRADUATION_LOSS_WIND_DOWN_USD = 2.0
 CRYPTO_GRADUATION_ENTRY_EASE_MIN_WR = 0.47
 CRYPTO_GRADUATION_ENTRY_EASE_MIN_PF = 1.10
 CRYPTO_MOMENTUM_RETREAT_MIN_SIGNAL = 0.48
+CRYPTO_MOMENTUM_RETREAT_PROFIT_LOCK_USD = 1.25
 CRYPTO_PRE_GRADUATION_CAP_PRESSURE_LOSER_USD = 1.5
 CRYPTO_STRONG_MOMENTUM_CAP_PRESSURE_LOSER_USD = 1.0
 CRYPTO_CAP_PRESSURE_MODERATE_LOSER_USD = 2.0
@@ -271,6 +272,26 @@ def crypto_graduation_entry_ease_active(
     total_pnl > 0
     and profit_factor >= CRYPTO_GRADUATION_ENTRY_EASE_MIN_PF
     and bot_win_rate >= CRYPTO_GRADUATION_ENTRY_EASE_MIN_WR
+  )
+
+
+def crypto_momentum_retreat_active(
+  bot_type: str,
+  shadow_mode: bool,
+  graduation_nudge: bool,
+  bot_win_rate: float | None = None,
+  profit_factor: float | None = None,
+  total_pnl: float | None = None,
+) -> bool:
+  """Crypto shadow in momentum retreat — WR/PF below entry-ease tier."""
+  if not (graduation_nudge and shadow_mode and bot_type == "crypto"):
+    return False
+  return not crypto_graduation_entry_ease_active(
+    bot_type,
+    shadow_mode,
+    bot_win_rate,
+    profit_factor,
+    total_pnl,
   )
 
 
@@ -1306,6 +1327,15 @@ def shadow_graduation_profit_lock(
     total_pnl,
   ):
     threshold = min(threshold, CRYPTO_NEAR_GRADUATION_PROFIT_LOCK_USD)
+  if crypto_momentum_retreat_active(
+    bot_type,
+    shadow_mode,
+    graduation_nudge,
+    bot_win_rate,
+    profit_factor,
+    total_pnl,
+  ):
+    threshold = min(threshold, CRYPTO_MOMENTUM_RETREAT_PROFIT_LOCK_USD)
   return unrealized >= threshold
 
 
