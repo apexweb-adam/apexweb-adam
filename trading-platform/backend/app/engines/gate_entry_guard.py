@@ -1411,6 +1411,7 @@ async def symbol_cooldown_remaining_seconds(
     bot_type == "commodities"
     and symbol in COMMODITIES_WEEKEND_SPOT_SYMBOLS
     and commodities_futures_weekend_closed()
+    and not is_feed_artifact_loss(bot_type, symbol, pnl, reason)
   ):
     seconds = int(seconds * COMMODITIES_WEEKEND_SPOT_COOLDOWN_MULTIPLIER)
   return max(0, int(seconds - elapsed))
