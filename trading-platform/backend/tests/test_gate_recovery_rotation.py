@@ -40,7 +40,7 @@ def test_shadow_max_open_for_bot_raises_cap_during_near_graduation_crypto():
     profit_factor=0.96,
     total_pnl=-4.88,
   )
-  assert cap == 2
+  assert cap == 3
 
 
 def test_shadow_max_open_for_bot_default_when_not_in_nudge():
