@@ -6,7 +6,9 @@ Zapier, or manual forwarding from alerts). See platform status for payload schem
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+import base64
+import json
+from datetime import datetime, timedelta, timezone
 
 import httpx
 from sqlalchemy import select
@@ -53,6 +55,50 @@ def fomo_configured() -> bool:
   if settings.fomo_bearer_token:
     return settings.fomo_enabled
   return bool(settings.fomo_enabled and settings.tradingview_webhook_secret)
+
+
+def decode_bearer_expiry(bearer: str) -> dict[str, object] | None:
+  """Decode Privy/JWT exp claim without verifying signature (expiry hint only)."""
+  token = (bearer or "").strip()
+  if token.count(".") < 2:
+    return None
+  payload_b64 = token.split(".")[1]
+  padding = "=" * (-len(payload_b64) % 4)
+  try:
+    payload = json.loads(base64.urlsafe_b64decode(payload_b64 + padding))
+  except (json.JSONDecodeError, ValueError, TypeError):
+    return None
+  exp = payload.get("exp")
+  if not isinstance(exp, (int, float)):
+    return None
+  expires_at = datetime.fromtimestamp(exp, tz=timezone.utc)
+  minutes_remaining = int((expires_at - datetime.now(timezone.utc)).total_seconds() // 60)
+  return {
+    "expires_at": expires_at.isoformat(),
+    "minutes_remaining": minutes_remaining,
+    "expired": minutes_remaining <= 0,
+  }
+
+
+async def get_fomo_bearer_status(session: AsyncSession) -> dict[str, object]:
+  """Whether server-side fomo polling is configured and when the bearer expires."""
+  from app.engines.platform_settings import get_fomo_bearer_token
+
+  bearer = await get_fomo_bearer_token(session)
+  if not bearer:
+    return {
+      "configured": False,
+      "polling_active": False,
+    }
+  expiry = decode_bearer_expiry(bearer)
+  expired = bool(expiry and expiry.get("expired"))
+  status: dict[str, object] = {
+    "configured": True,
+    "polling_active": not expired,
+  }
+  if expiry:
+    status.update(expiry)
+  return status
 
 
 def normalize_fomo_symbol(symbol: str) -> str:

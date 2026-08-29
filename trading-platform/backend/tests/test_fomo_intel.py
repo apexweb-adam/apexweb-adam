@@ -142,3 +142,32 @@ def test_trade_row_to_payload_maps_fomo_trade():
   assert payload["chain"] == "solana"
   assert payload["url"] == "fomo:trade:trade-123"
   assert payload["relevance"] >= 0.9
+
+
+def test_decode_bearer_expiry():
+  from app.intelligence.fomo_tracker import decode_bearer_expiry
+
+  # exp=2000000000 → 2033-05-18
+  token = (
+    "eyJhbGciOiJFUzI1NiJ9."
+    "eyJleHAiOjIwMDAwMDAwMDB9."
+    "sig"
+  )
+  expiry = decode_bearer_expiry(token)
+  assert expiry is not None
+  assert expiry["expired"] is False
+  assert expiry["minutes_remaining"] > 0
+  assert "expires_at" in expiry
+
+
+def test_get_fomo_bearer_status_not_configured():
+  from app.intelligence.fomo_tracker import get_fomo_bearer_status
+
+  session = AsyncMock()
+  with patch(
+    "app.engines.platform_settings.get_fomo_bearer_token",
+    AsyncMock(return_value=None),
+  ):
+    status = asyncio.run(get_fomo_bearer_status(session))
+  assert status["configured"] is False
+  assert status["polling_active"] is False

@@ -7,7 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.intelligence.fomo_tracker import fomo_configured
+from app.intelligence.fomo_tracker import fomo_configured, get_fomo_bearer_status
 from app.intelligence.wallet_tracker import wallet_tracker_configured
 from app.models.entities import IntelligenceItem
 
@@ -92,20 +92,30 @@ async def build_intel_sources(session: AsyncSession) -> list[dict[str, Any]]:
     "newsapi": bool(settings.newsapi_key),
   }
 
-  return [
-    {
+  fomo_bearer = await get_fomo_bearer_status(session)
+
+  rows: list[dict[str, Any]] = []
+  for source in INTEL_SOURCE_ORDER:
+    status = _source_status(
+      source,
+      source_counts=source_counts,
+      source_latest=source_latest,
+      configured=configured,
+    )
+    if source == "fomo" and fomo_bearer.get("configured") and not fomo_bearer.get("polling_active"):
+      status = "degraded"
+    row: dict[str, Any] = {
       "source": source,
-      "status": _source_status(
-        source,
-        source_counts=source_counts,
-        source_latest=source_latest,
-        configured=configured,
-      ),
+      "status": status,
       "items_collected": source_counts.get(source, 0),
       "last_fetched": source_latest.get(source).isoformat() if source in source_latest else None,
     }
-    for source in INTEL_SOURCE_ORDER
-  ]
+    if source == "fomo" and fomo_bearer.get("configured"):
+      row["bearer_expires_at"] = fomo_bearer.get("expires_at")
+      row["bearer_minutes_remaining"] = fomo_bearer.get("minutes_remaining")
+      row["bearer_polling_active"] = fomo_bearer.get("polling_active")
+    rows.append(row)
+  return rows
 
 
 def serialize_strategy_config(config) -> dict[str, Any]:
