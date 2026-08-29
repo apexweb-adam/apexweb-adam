@@ -311,6 +311,33 @@ def test_stocks_trade_count_graduation_nudge():
     total_trades=15,
   ) == 0.32
 
+  from app.engines.gate_entry_guard import (
+    STOCKS_TRADE_COUNT_MIN_SENTIMENT,
+    stocks_trade_count_min_sentiment,
+  )
+
+  eased_sentiment = stocks_trade_count_min_sentiment(
+    0.12,
+    bot_type="stocks_futures",
+    shadow_mode=True,
+    symbol="NVDA",
+    proven_winners=frozenset({"NVDA"}),
+    bot_win_rate=0.57,
+    total_trades=15,
+    composite=0.36,
+  )
+  assert eased_sentiment == STOCKS_TRADE_COUNT_MIN_SENTIMENT
+  assert stocks_trade_count_min_sentiment(
+    0.12,
+    bot_type="stocks_futures",
+    shadow_mode=True,
+    symbol="SPY",
+    proven_winners=frozenset({"NVDA"}),
+    bot_win_rate=0.57,
+    total_trades=15,
+    composite=0.36,
+  ) == 0.12
+
   recovery = dict(
     bot_type="stocks_futures",
     shadow_mode=True,

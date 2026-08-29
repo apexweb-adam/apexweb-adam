@@ -53,6 +53,7 @@ from app.engines.gate_entry_guard import (
   stocks_monday_recovery_ready,
   stocks_trade_count_entry_min_signal,
   stocks_trade_count_graduation_nudge,
+  stocks_trade_count_min_sentiment,
   stocks_proven_winner_sentiment_gate_ok,
   stocks_negative_pf_blocks_entry,
   stocks_session_info,
@@ -297,6 +298,16 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
       bot_win_rate=per_bot_stats.get("win_rate"),
       total_trades=int(per_bot_stats.get("total_trades") or 0),
     )
+    symbol_min_sentiment = stocks_trade_count_min_sentiment(
+      min_sentiment,
+      bot_type=bot_type,
+      shadow_mode=shadow_mode,
+      symbol=symbol,
+      proven_winners=proven_winners,
+      bot_win_rate=per_bot_stats.get("win_rate"),
+      total_trades=int(per_bot_stats.get("total_trades") or 0),
+      composite=composite,
+    )
 
     volume_required = signal.volume_confirmed
     if (
@@ -501,7 +512,7 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
       shadow_mode=shadow_mode,
       sentiment=sentiment,
       integration_boost=integration_boost,
-      min_sentiment=min_sentiment,
+      min_sentiment=symbol_min_sentiment,
       composite=composite,
       entry_min_signal=entry_min_signal,
       signal_direction=signal.direction,
@@ -509,7 +520,7 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
       symbol=symbol,
       proven_winners=proven_winners,
     ):
-      blockers.append(f"sentiment<{min_sentiment:.2f}")
+      blockers.append(f"sentiment<{symbol_min_sentiment:.2f}")
     if (
       gate_tightening.active
       and bot_type == "stocks_futures"
