@@ -482,3 +482,25 @@ async def build_crm_content_study_highlights(
     "insights_applied": applied_total,
     "recent": recent,
   }
+
+
+async def analyze_losing_trade_for_symbol(
+  session: AsyncSession,
+  bot_type: str,
+  symbol: str,
+) -> TradeAnalysis | None:
+  """Run post-mortem on the most recent losing sell for a symbol (migration/trim paths)."""
+  result = await session.execute(
+    select(Trade)
+    .where(
+      Trade.bot_type == bot_type,
+      Trade.symbol == symbol,
+      Trade.action == "sell",
+    )
+    .order_by(Trade.executed_at.desc())
+    .limit(1)
+  )
+  trade = result.scalar_one_or_none()
+  if trade and trade.is_winner is False:
+    return await LearningEngine(session).analyze_losing_trade(trade)
+  return None

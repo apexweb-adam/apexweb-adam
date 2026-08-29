@@ -426,6 +426,7 @@ export type PlatformStatus = {
     daily_reviews: number;
     insights_applied: number;
     insights_total: number;
+    insights_pending?: number;
   };
   deploy?: PlatformDeployStatus;
 };

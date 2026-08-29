@@ -30,12 +30,22 @@ async def intelligence_job() -> None:
 async def content_study_job() -> None:
   applied = 0
   intel_applied = 0
+  pending_applied = 0
+  dismissed = 0
   async with SessionLocal() as session:
     engine = ContentStudyEngine(session)
     applied = await engine.study_and_apply()
     intel_applied = await engine.study_from_intelligence()
-    print(f"[ContentStudy] Applied {applied} knowledge items, {intel_applied} from intelligence")
-  if applied or intel_applied:
+    learner = LearningEngine(session)
+    dismissed = await learner.dismiss_noise_insights(
+      max_confidence=LEARNING_NOISE_DISMISS_MAX_CONFIDENCE,
+    )
+    pending_applied = await learner.apply_pending_insights(min_confidence=0.55)
+    print(
+      f"[ContentStudy] Applied {applied} knowledge items, {intel_applied} from intelligence, "
+      f"{pending_applied} pending insights, dismissed {dismissed} noise"
+    )
+  if applied or intel_applied or pending_applied or dismissed:
     from app.ws_manager import push_live_update
 
     await push_live_update()
