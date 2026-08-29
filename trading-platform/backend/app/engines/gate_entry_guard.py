@@ -1884,8 +1884,17 @@ def prioritize_stocks_monday_scan(
   chronic_losers: frozenset[str],
   proven_winners: frozenset[str],
   session_info: dict[str, Any],
+  trade_count_nudge: bool = False,
 ) -> list[str]:
   """Scan chronic stock recovery symbols first ahead of Monday US open / open hour."""
+  if trade_count_nudge and proven_winners:
+    winners = sorted(s for s in symbols if s in proven_winners)
+    if not stocks_monday_scan_priority_active(session_info):
+      rest = [s for s in symbols if s not in proven_winners]
+      return winners + rest
+    recovery = [s for s in symbols if s in chronic_losers and s not in proven_winners]
+    rest = [s for s in symbols if s not in winners and s not in recovery]
+    return winners + recovery + rest
   if not stocks_monday_scan_priority_active(session_info):
     if proven_winners:
       winners = [s for s in symbols if s in proven_winners]

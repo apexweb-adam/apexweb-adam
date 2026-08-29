@@ -56,10 +56,24 @@ def test_stocks_prep_refreshes_recovery_symbols_within_prep_window():
           return_value=["NVDA", "AAPL"],
         ) as mock_refresh:
           with patch("app.ws_manager.push_live_update", new_callable=AsyncMock):
-            with _mock_scheduler_session():
-              import asyncio
+            with patch(
+              "app.engines.platform_settings.is_bot_paused",
+              new_callable=AsyncMock,
+              return_value=True,
+            ):
+              with patch(
+                "app.engines.profitability_gate.ProfitabilityGate.evaluate_per_bot",
+                new_callable=AsyncMock,
+                return_value={"stocks_futures": {"win_rate": 0.5, "total_trades": 18}},
+              ):
+                with patch(
+                  "app.engines.gate_entry_guard.stocks_trade_count_graduation_nudge",
+                  return_value=False,
+                ):
+                  with _mock_scheduler_session():
+                    import asyncio
 
-              asyncio.run(stocks_pre_session_prep_job())
+                    asyncio.run(stocks_pre_session_prep_job())
             mock_refresh.assert_called_once()
             symbols = mock_refresh.call_args[0][1]
             assert "NVDA" in symbols

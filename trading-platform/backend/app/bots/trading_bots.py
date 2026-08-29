@@ -53,6 +53,7 @@ from app.engines.gate_entry_guard import (
   shadow_requires_macd,
   stocks_proven_winner_sentiment_gate_ok,
   stocks_negative_pf_blocks_entry,
+  stocks_trade_count_graduation_nudge,
   whale_memecoin_aligned,
   stocks_in_us_session,
   stocks_session_close_wind_down,
@@ -212,11 +213,18 @@ class BaseBot(ABC):
               session_info=commodities_session_info(),
             )
           elif self.bot_type == "stocks_futures":
+            stocks_trade_count_nudge = stocks_trade_count_graduation_nudge(
+              self.bot_type,
+              shadow_mode,
+              per_bot_stats.get("win_rate"),
+              int(per_bot_stats.get("total_trades") or 0),
+            )
             symbols = prioritize_stocks_monday_scan(
               symbols,
               chronic_losers=chronic_losers,
               proven_winners=proven_winners,
               session_info=stocks_session_info(),
+              trade_count_nudge=stocks_trade_count_nudge,
             )
           elif proven_winners:
             symbols = _prioritize_symbols(symbols, proven_winners)

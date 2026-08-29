@@ -31,8 +31,8 @@ jobs:
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
       VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID || 'team_K7OUE7uroVXeVUf42cUAQvAl' }}
       VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID || 'prj_HGbG5vHgfutHi31QfXDqSsTnTAGv' }}
-      EXPECTED_BUNDLE_REVISION: "2026-08-29-r34"
-      ACCEPTABLE_BUNDLE_REVISIONS: "2026-08-29-r34,2026-08-29-r33,2026-08-29-r32,2026-08-29-r31"
+      EXPECTED_BUNDLE_REVISION: "2026-08-29-r36"
+      ACCEPTABLE_BUNDLE_REVISIONS: "2026-08-29-r36,2026-08-29-r35,2026-08-29-r34,2026-08-29-r33,2026-08-29-r32,2026-08-29-r31"
     steps:
       - name: Skip if production already current
         id: freshness
