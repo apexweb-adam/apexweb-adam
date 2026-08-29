@@ -366,6 +366,8 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
       integration_boost=integration_boost,
       signal_direction=signal.direction,
       macd_signal=signal.macd_signal,
+      proven_winners=proven_winners,
+      bot_win_rate=per_bot_stats.get("win_rate"),
     ):
       blockers.append("gate_skip")
     if chronic_loser_blocks_shadow_entry(
@@ -375,6 +377,11 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
       graduation_nudge=graduation_nudge,
       shadow_mode=shadow_mode,
       intel_override=intel_override,
+      proven_winners=proven_winners,
+      bot_win_rate=per_bot_stats.get("win_rate"),
+      composite=composite,
+      signal_direction=signal.direction,
+      macd_signal=signal.macd_signal,
     ):
       blockers.append("chronic_loser")
     if (
