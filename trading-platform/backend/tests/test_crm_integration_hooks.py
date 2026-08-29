@@ -26,7 +26,18 @@ def test_build_crm_integration_hooks_reports_tv_and_polymarket():
         "app.engines.crm_summary.fomo_configured",
         return_value=True,
       ):
-        result = asyncio.run(build_crm_integration_hooks(session))
+        with patch(
+          "app.engines.crm_summary.get_fomo_bearer_status",
+          AsyncMock(
+            return_value={
+              "configured": True,
+              "polling_active": True,
+              "expires_at": "2026-08-29T10:00:00+00:00",
+              "minutes_remaining": 45,
+            }
+          ),
+        ):
+          result = asyncio.run(build_crm_integration_hooks(session))
 
   assert result["tradingview"]["configured"] is True
   assert result["tradingview"]["items"] == 12

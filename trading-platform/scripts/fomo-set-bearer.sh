@@ -28,5 +28,24 @@ curl -fsS -X POST "$BACKEND/api/admin/set-fomo-bearer" \
   -d "{\"secret\":\"$SECRET\",\"bearer_token\":\"$BEARER\"}" | python3 -m json.tool
 
 echo ""
+python3 << 'PY' "$BEARER"
+import base64, json, sys
+from datetime import datetime, timezone
+token = sys.argv[1]
+parts = token.split(".")
+if len(parts) >= 2:
+    payload_b64 = parts[1] + "=" * (-len(parts[1]) % 4)
+    try:
+        payload = json.loads(base64.urlsafe_b64decode(payload_b64))
+        exp = payload.get("exp")
+        if exp:
+            expires = datetime.fromtimestamp(exp, tz=timezone.utc)
+            mins = int((expires - datetime.now(timezone.utc)).total_seconds() // 60)
+            print(f"Bearer expires: {expires.isoformat()} ({mins} min remaining)")
+    except Exception:
+        pass
+PY
+
+echo ""
 echo "Trigger immediate poll:"
 echo "  curl -X POST $BACKEND/api/admin/poll-fomo-trades -H 'Content-Type: application/json' -d '{\"secret\":\"<secret>\"}'"

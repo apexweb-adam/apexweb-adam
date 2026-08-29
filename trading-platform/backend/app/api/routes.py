@@ -490,6 +490,9 @@ async def get_platform_status(db: AsyncSession = Depends(get_db)) -> dict[str, A
 
   gate_payload = await build_gate_ws_payload(db)
   gate_tightening_data = gate_payload["gate_entry_tightening"]
+  from app.intelligence.fomo_tracker import get_fomo_bearer_status
+
+  fomo_bearer = await get_fomo_bearer_status(db)
   tv_items = next((s["items_collected"] for s in sources if s["source"] == "tradingview"), 0)
   base_next_steps = (
     []
@@ -589,6 +592,15 @@ async def get_platform_status(db: AsyncSession = Depends(get_db)) -> dict[str, A
       ),
       "fomo_family": settings.fomo_enabled,
       "fomo_webhook": bool(settings.fomo_enabled and settings.tradingview_webhook_secret),
+      "fomo_bearer_configured": bool(fomo_bearer.get("configured")),
+      "fomo_bearer_polling_active": bool(fomo_bearer.get("polling_active")),
+      "fomo_bearer_expires_at": fomo_bearer.get("expires_at"),
+      "fomo_bearer_minutes_remaining": fomo_bearer.get("minutes_remaining"),
+      "fomo_bearer_refresh_hint": (
+        "./trading-platform/scripts/fomo-set-bearer.sh 'eyJ...'"
+        if fomo_bearer.get("configured") and not fomo_bearer.get("polling_active")
+        else None
+      ),
       "fomo_webhook_url": (
         "https://apex-trading-backend.onrender.com/api/webhooks/fomo"
         if settings.fomo_enabled and settings.tradingview_webhook_secret
@@ -989,10 +1001,15 @@ async def set_fomo_bearer_admin(payload: dict[str, Any], db: AsyncSession = Depe
     return {"status": "error", "message": "bearer_token required (from fomo.family DevTools Authorization header)"}
 
   await set_fomo_bearer_token(db, bearer)
+  from app.intelligence.fomo_tracker import decode_bearer_expiry
+
+  expiry = decode_bearer_expiry(bearer) or {}
   return {
     "status": "ok",
     "fomo_bearer_configured": True,
     "poll_endpoint": "prod-api.fomo.family/trades",
+    "fomo_bearer_expires_at": expiry.get("expires_at"),
+    "fomo_bearer_minutes_remaining": expiry.get("minutes_remaining"),
     "timestamp": datetime.utcnow().isoformat(),
   }
 
@@ -1009,9 +1026,13 @@ async def poll_fomo_trades_admin(payload: dict[str, Any], db: AsyncSession = Dep
 
   ingested = await scan_fomo_trades(db)
   await push_live_update()
+  from app.intelligence.fomo_tracker import get_fomo_bearer_status
+
+  bearer_status = await get_fomo_bearer_status(db)
   return {
     "status": "ok",
     "ingested": ingested,
+    "fomo_bearer": bearer_status,
     "timestamp": datetime.utcnow().isoformat(),
   }
 

@@ -9,7 +9,7 @@ from app.config import settings
 from app.config import BOT_TYPES
 from app.engines.gate_entry_guard import build_gate_ws_payload
 from app.engines.platform_settings import get_paused_bot_types
-from app.intelligence.fomo_tracker import fomo_configured
+from app.intelligence.fomo_tracker import fomo_configured, get_fomo_bearer_status
 from app.intelligence.wallet_tracker import wallet_tracker_configured
 from app.models.entities import IntelligenceItem, Position
 
@@ -40,6 +40,7 @@ async def build_crm_integration_hooks(session: AsyncSession) -> dict[str, Any]:
   tv_configured = bool(settings.tradingview_webhook_secret)
   pm_wallet = bool(settings.polymarket_wallet_address or settings.polymarket_deposit_address)
   pm_api = bool(settings.polymarket_api_key)
+  fomo_bearer = await get_fomo_bearer_status(session)
 
   return {
     "tradingview": {
@@ -63,6 +64,10 @@ async def build_crm_integration_hooks(session: AsyncSession) -> dict[str, Any]:
       "webhook_url": "https://apex-trading-backend.onrender.com/api/webhooks/fomo",
       "userscript_url": "https://apex-trading-backend.onrender.com/api/fomo/userscript",
       "bridge_guide": "trading-platform/scripts/fomo-zapier-setup.md",
+      "bearer_configured": bool(fomo_bearer.get("configured")),
+      "bearer_polling_active": bool(fomo_bearer.get("polling_active")),
+      "bearer_expires_at": fomo_bearer.get("expires_at"),
+      "bearer_minutes_remaining": fomo_bearer.get("minutes_remaining"),
     },
   }
 
