@@ -68,6 +68,43 @@ def select_commodities_excess_trim_targets(
   return sorted(trimmable, key=_commodities_excess_trim_rank)[:need]
 
 
+def _commodities_graduation_excess_trim_rank(pos: Position) -> tuple[int, float]:
+  """During graduation nudge, free slots for recovery futures — trim flat/losers before spot profits."""
+  from app.engines.gate_entry_guard import is_commodities_futures_symbol
+  from app.engines.market_data import CRYPTO_LIVE_PRICE_PROXY
+
+  u = _commodities_position_unrealized(pos)
+  symbol = pos.symbol
+  if u <= -COMMODITIES_EXCESS_TRIM_MAX_LOSS_USD:
+    return (9, u)
+  if symbol in CRYPTO_LIVE_PRICE_PROXY:
+    if u >= 0:
+      return (4, -u)
+    return (3, u)
+  if is_commodities_futures_symbol(symbol) or symbol.endswith("=X"):
+    if abs(u) <= 0.15:
+      return (0, abs(u))
+    if u < 0:
+      return (1, u)
+    return (2, -u)
+  if u < 0:
+    return (2, u)
+  return (3, -u)
+
+
+def select_commodities_graduation_excess_trim_targets(
+  positions: list[Position],
+  cap: int,
+) -> list[Position]:
+  """Pick positions to close when over effective cap during graduation nudge."""
+  if len(positions) <= cap:
+    return []
+  need = len(positions) - cap
+  trimmable = [p for p in positions if _commodities_graduation_excess_trim_rank(p)[0] < 9]
+  ranked = sorted(trimmable, key=_commodities_graduation_excess_trim_rank)
+  return ranked[:need]
+
+
 async def adapt_for_gate_win_rate(session: AsyncSession) -> int:
   """Raise min_signal_score and min_sentiment when gate win rate is below target."""
   from app.engines.gate_entry_guard import get_underperforming_bots
@@ -492,16 +529,46 @@ async def close_excess_commodities_positions(
   max_open: int = 2,
 ) -> int:
   """Close commodities positions over gate cap — prefer profits and small losses over large losers."""
-  from app.engines.gate_entry_guard import get_gate_entry_tightening
+  from app.engines.gate_entry_guard import (
+    commodities_effective_open_cap,
+    get_gate_entry_tightening,
+    in_shadow_graduation_nudge,
+  )
   from app.engines.market_data import fetch_crypto_data, fetch_yfinance_data
   from app.engines.paper_trading import PaperTradingEngine
+  from app.engines.profitability_gate import ProfitabilityGate
 
   gate = await get_gate_entry_tightening(session)
-  cap = gate.max_commodities_open_positions if gate.max_commodities_open_positions is not None else max_open
+  base_cap = (
+    gate.max_commodities_open_positions
+    if gate.max_commodities_open_positions is not None
+    else max_open
+  )
+  comm = (await ProfitabilityGate(session).evaluate_per_bot()).get("commodities") or {}
+  graduation_nudge = (
+    not await is_bot_paused(session, "commodities")
+    and in_shadow_graduation_nudge(
+      "commodities",
+      comm.get("win_rate"),
+      profit_factor=comm.get("profit_factor"),
+      total_pnl=comm.get("total_pnl"),
+    )
+  )
+  cap = commodities_effective_open_cap(
+    base_cap,
+    bot_type="commodities",
+    graduation_nudge=graduation_nudge,
+    shadow_mode=False,
+  )
+  if not isinstance(cap, int):
+    cap = base_cap
 
   engine = PaperTradingEngine(session, "commodities")
   positions = await engine.get_open_positions()
-  excess = select_commodities_excess_trim_targets(positions, cap)
+  if graduation_nudge:
+    excess = select_commodities_graduation_excess_trim_targets(positions, cap)
+  else:
+    excess = select_commodities_excess_trim_targets(positions, cap)
   if not excess:
     return 0
 

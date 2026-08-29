@@ -1,6 +1,9 @@
 """Tests for commodities cap-trim position selection."""
 
-from app.engines.strategy_migration import select_commodities_excess_trim_targets
+from app.engines.strategy_migration import (
+  select_commodities_excess_trim_targets,
+  select_commodities_graduation_excess_trim_targets,
+)
 from app.models.entities import Position
 
 
@@ -62,3 +65,38 @@ def test_trim_closes_multiple_profits_and_flat_first():
   symbols = {p.symbol for p in targets}
   assert len(targets) == 2
   assert symbols == {"CL=F", "HG=F"}
+
+
+def test_graduation_trim_prefers_loser_over_spot_profit():
+  positions = [
+    _pos("XAUUSDT", 0.34),
+    _pos("PAXGUSDT", 0.12),
+    _pos("CL=F", -0.47),
+    _pos("EURUSD=X", 0.0),
+  ]
+  targets = select_commodities_graduation_excess_trim_targets(positions, cap=3)
+  assert len(targets) == 1
+  assert targets[0].symbol == "EURUSD=X"
+
+
+def test_graduation_trim_at_effective_cap_no_excess():
+  positions = [
+    _pos("XAUUSDT", 0.34),
+    _pos("PAXGUSDT", 0.12),
+    _pos("CL=F", -0.47),
+    _pos("EURUSD=X", 0.0),
+  ]
+  assert select_commodities_graduation_excess_trim_targets(positions, cap=4) == []
+
+
+def test_graduation_trim_closes_loser_when_flat_already_at_cap():
+  positions = [
+    _pos("XAUUSDT", 0.34),
+    _pos("PAXGUSDT", 0.12),
+    _pos("CL=F", -0.47),
+    _pos("NG=F", 0.0),
+    _pos("EURUSD=X", 0.0),
+  ]
+  targets = select_commodities_graduation_excess_trim_targets(positions, cap=4)
+  assert len(targets) == 1
+  assert targets[0].symbol in {"EURUSD=X", "NG=F", "CL=F"}
