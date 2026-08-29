@@ -584,6 +584,91 @@ export default function Dashboard() {
                             )}
                           </div>
                         )}
+                        {(platformStatus.integrations?.axiom_webhook ||
+                          platformStatus.integrations?.axiom_trade) && (
+                          <div className="rounded-lg border border-apex-border bg-apex-dark px-3 py-2 text-xs text-gray-400">
+                            <p className="text-apex-gold font-medium mb-1">
+                              axiom.trade{" "}
+                              {platformStatus.integrations.axiom_multi_wallet_ready
+                                ? `multi-wallet (${platformStatus.integrations.axiom_tracked_wallets ?? 8}+)`
+                                : platformStatus.integrations.axiom_webhook
+                                  ? "webhook ready"
+                                  : "enabled"}
+                            </p>
+                            {platformStatus.integrations.axiom_webhook_url && (
+                              <p className="font-mono text-[10px] text-gray-500 break-all">
+                                {platformStatus.integrations.axiom_webhook_url}
+                              </p>
+                            )}
+                            {platformStatus.integrations.axiom_userscript_url && (
+                              <p className="mt-1 text-[10px]">
+                                <a
+                                  href={platformStatus.integrations.axiom_userscript_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-apex-gold hover:underline break-all"
+                                >
+                                  Install axiom userscript (24/7 memecoin + wallet bridge)
+                                </a>
+                              </p>
+                            )}
+                            {platformStatus.integrations.axiom_session_configured && (
+                              <p
+                                className={cn(
+                                  "mt-1 text-[10px]",
+                                  platformStatus.integrations.axiom_session_polling_active
+                                    ? "text-green-400"
+                                    : "text-amber-400"
+                                )}
+                              >
+                                Session poll:{" "}
+                                {platformStatus.integrations.axiom_session_polling_active
+                                  ? "active"
+                                  : "expired — keep axiom.trade open in Tampermonkey"}
+                              </p>
+                            )}
+                            {platformStatus.integrations.axiom_setup && (
+                              <p className="mt-1 text-[10px] text-gray-500">
+                                {platformStatus.integrations.axiom_setup}
+                              </p>
+                            )}
+                            {platformStatus.integrations.axiom_example_payload && (
+                              <pre className="mt-2 p-2 rounded bg-black/40 text-[10px] text-gray-400 overflow-x-auto">
+                                {JSON.stringify(
+                                  platformStatus.integrations.axiom_example_payload,
+                                  null,
+                                  2
+                                )}
+                              </pre>
+                            )}
+                          </div>
+                        )}
+                        {(platformStatus.integrations?.phantom_webhook ||
+                          platformStatus.integrations?.phantom_wallet) && (
+                          <div className="rounded-lg border border-apex-border bg-apex-dark px-3 py-2 text-xs text-gray-400">
+                            <p className="text-apex-gold font-medium mb-1">
+                              Phantom wallet{" "}
+                              {platformStatus.integrations.phantom_webhook ? "webhook ready" : "enabled"}
+                            </p>
+                            {platformStatus.integrations.phantom_webhook_url && (
+                              <p className="font-mono text-[10px] text-gray-500 break-all">
+                                {platformStatus.integrations.phantom_webhook_url}
+                              </p>
+                            )}
+                            <p className="mt-1 text-[10px] text-gray-500">
+                              Forward portfolio snapshots / swaps to Apex (Phantom MCP is docs-only in IDE)
+                            </p>
+                            {platformStatus.integrations.phantom_example_payload && (
+                              <pre className="mt-2 p-2 rounded bg-black/40 text-[10px] text-gray-400 overflow-x-auto">
+                                {JSON.stringify(
+                                  platformStatus.integrations.phantom_example_payload,
+                                  null,
+                                  2
+                                )}
+                              </pre>
+                            )}
+                          </div>
+                        )}
                         {(platformStatus.deploy.next_steps?.length ?? 0) > 0 && (
                           <ul className="space-y-2 text-xs text-gray-400 list-disc list-inside">
                             {platformStatus.deploy.next_steps.map((step) => (

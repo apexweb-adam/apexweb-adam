@@ -295,6 +295,8 @@ async def crm_landing():
   pm = integrations.get("polymarket") or {}
   wt = integrations.get("wallet_tracker") or {}
   fomo = integrations.get("fomo") or {}
+  axiom = integrations.get("axiom") or {}
+  phantom = integrations.get("phantom") or {}
   tv_status = "configured" if tv.get("configured") else "not configured"
   pm_status = "wallet + API" if pm.get("wallet_configured") and pm.get("api_configured") else (
     "wallet only" if pm.get("wallet_configured") else "API only" if pm.get("api_configured") else "not configured"
@@ -309,6 +311,17 @@ async def crm_landing():
     fomo_status = "webhook ready"
   else:
     fomo_status = "off"
+  if axiom.get("multi_wallet_ready"):
+    axiom_status = f"multi-wallet ({axiom.get('tracked_wallets', 8)}+)"
+  elif axiom.get("configured"):
+    axiom_status = "webhook ready"
+  else:
+    axiom_status = "off"
+  if axiom.get("session_polling_active"):
+    axiom_status += " · session poll active"
+  elif axiom.get("session_configured"):
+    axiom_status += " · session expired"
+  phantom_status = "webhook ready" if phantom.get("configured") else "off"
   fomo_bearer_note = ""
   if fomo.get("bearer_configured"):
     expires = fomo.get("bearer_expires_at") or "unknown"
@@ -320,7 +333,9 @@ async def crm_landing():
     f"TradingView {tv_status} ({tv.get('items', 0)} alerts) · "
     f"Polymarket {pm_status} ({pm.get('intel_items', 0)} markets) · "
     f"Wallet tracker {'on' if wt.get('configured') else 'off'} · "
-    f"fomo.family {fomo_status}"
+    f"fomo.family {fomo_status} · "
+    f"axiom.trade {axiom_status} · "
+    f"Phantom {phantom_status}"
   )
   pm_profile = pm.get("profile_url") or ""
   pm_profile_link = (
@@ -438,16 +453,19 @@ async def crm_landing():
   {f"""<div class="card learning">
     <h2>External content study</h2>
     <p class="muted" style="margin-top:0;">{content_summary}</p>
-    {content_rows if content_rows else "<p class='muted'>No recent insights — next study cycle within 2 hours.</p>"}
+    {content_rows if content_rows else "<p class='muted'>No recent insights — next study cycle within 1 hour.</p>"}
   </div>""" if content_study else ""}
   <div class="card integrations">
-    <h2>TradingView, Polymarket &amp; fomo hooks</h2>
+    <h2>TradingView, Polymarket, fomo, axiom &amp; Phantom hooks</h2>
     <p class="muted" style="margin-top:0;">{integrations_summary}</p>
     <p class="muted" style="margin-top:0;">TV webhook: <code>{tv.get('webhook_url', '')}</code></p>
     <p class="muted" style="margin-top:0;">Wallet webhook: <code>{wt.get('webhook_url', '')}</code></p>
     <p class="muted" style="margin-top:0;">fomo webhook: <code>{fomo.get('webhook_url', '')}</code></p>
     <p class="muted" style="margin-top:0;">fomo userscript (Tampermonkey): <a href="{fomo.get('userscript_url', '')}">{fomo.get('userscript_url', '')}</a></p>
     {fomo_bearer_note}
+    <p class="muted" style="margin-top:0;">axiom webhook: <code>{axiom.get('webhook_url', '')}</code></p>
+    <p class="muted" style="margin-top:0;">axiom userscript: <a href="{axiom.get('userscript_url', '')}">{axiom.get('userscript_url', '')}</a> · min {axiom.get('min_wallets_required', 8)} wallets</p>
+    <p class="muted" style="margin-top:0;">Phantom webhook: <code>{phantom.get('webhook_url', '')}</code> — {phantom.get('note', 'forward portfolio via webhook')}</p>
     {pm_profile_link}
   </div>
   <p><a href="{url}">Open live dashboard →</a> <span class="muted">(redirecting in {redirect_seconds}s)</span></p>
