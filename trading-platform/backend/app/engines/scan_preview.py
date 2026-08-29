@@ -43,6 +43,7 @@ from app.engines.gate_entry_guard import (
   symbol_cooldown_remaining_seconds,
   shadow_entry_min_signal,
   shadow_graduation_min_composite,
+  shadow_graduation_loss_exposure_blocks_entry,
   shadow_intel_composite_override,
   shadow_requires_macd,
   stocks_gate_entry_sentiment_ok,
@@ -159,8 +160,14 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
     shadow_mode=shadow_mode,
     loss_streak=loss_streak,
   )
-  open_count = len(await engine.get_open_positions())
-  held_symbols = {p.symbol for p in await engine.get_open_positions()}
+  open_positions = await engine.get_open_positions()
+  open_count = len(open_positions)
+  held_symbols = {p.symbol for p in open_positions}
+  loss_exposure_block = shadow_graduation_loss_exposure_blocks_entry(
+    open_positions,
+    graduation_nudge=graduation_nudge,
+    shadow_mode=shadow_mode,
+  )
   from app.engines.gate_entry_guard import shadow_max_open_for_bot
 
   shadow_cap = shadow_max_open_for_bot(
@@ -431,6 +438,8 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
       shadow_open_cap=shadow_cap,
     ):
       blockers.append("open_cap")
+    if loss_exposure_block:
+      blockers.append("loss_exposure")
     if not shadow_mode and bot_type in gate_tightening.blocked_new_entries:
       blockers.append("entries_blocked")
     if not entry_direction_ok:

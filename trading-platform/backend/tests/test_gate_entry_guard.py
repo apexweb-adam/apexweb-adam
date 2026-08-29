@@ -345,6 +345,26 @@ def test_bot_win_rate_for_graduation_nudge_active_commodities():
   )
 
 
+def test_shadow_graduation_loss_exposure_blocks_entry():
+  from types import SimpleNamespace
+
+  from app.engines.gate_entry_guard import shadow_graduation_loss_exposure_blocks_entry
+
+  losers = [
+    SimpleNamespace(unrealized_pnl=-3.5),
+    SimpleNamespace(unrealized_pnl=-3.2),
+  ]
+  assert shadow_graduation_loss_exposure_blocks_entry(
+    losers, graduation_nudge=True, shadow_mode=True
+  ) is True
+  assert shadow_graduation_loss_exposure_blocks_entry(
+    losers, graduation_nudge=True, shadow_mode=False
+  ) is False
+  assert shadow_graduation_loss_exposure_blocks_entry(
+    [SimpleNamespace(unrealized_pnl=-1.0)], graduation_nudge=True, shadow_mode=True
+  ) is False
+
+
 def test_shadow_graduation_loss_wind_down():
   from app.engines.gate_entry_guard import shadow_graduation_loss_wind_down
 
