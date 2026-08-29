@@ -995,6 +995,8 @@ class BaseBot(ABC):
           total_pnl=per_bot_stats.get("total_pnl"),
           signal_direction=signal.direction,
           macd_signal=signal.macd_signal,
+          open_count=open_count,
+          shadow_open_cap=shadow_open_cap,
         )
         entry_min_signal = stocks_trade_count_entry_min_signal(
           entry_min_signal,
@@ -1058,6 +1060,8 @@ class BaseBot(ABC):
           total_trades=int(per_bot_stats.get("total_trades") or 0),
           profit_factor=per_bot_stats.get("profit_factor"),
           total_pnl=per_bot_stats.get("total_pnl"),
+          open_count=open_count,
+          shadow_open_cap=shadow_open_cap,
         ):
           continue
 
@@ -1076,6 +1080,8 @@ class BaseBot(ABC):
           total_trades=int(per_bot_stats.get("total_trades") or 0),
           profit_factor=per_bot_stats.get("profit_factor"),
           total_pnl=per_bot_stats.get("total_pnl"),
+          open_count=open_count,
+          shadow_open_cap=shadow_open_cap,
         ):
           continue
 
