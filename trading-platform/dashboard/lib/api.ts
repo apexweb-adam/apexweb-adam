@@ -225,6 +225,24 @@ export type ScanPreview = {
   symbols: ScanPreviewSymbol[];
 };
 
+export type MondayRecoverySummary = {
+  recovery_candidates: string[];
+  all: Array<{
+    bot_type: string;
+    symbol: string;
+    composite?: number;
+    blockers?: string[];
+  }>;
+  bots: Record<
+    string,
+    {
+      recovery_candidates: string[];
+      session?: ScanPreview["session"];
+      symbols: ScanPreviewSymbol[];
+    }
+  >;
+};
+
 export type ProfitabilityStatus = {
   live_trading_ready: boolean;
   paper_trading_only: boolean;

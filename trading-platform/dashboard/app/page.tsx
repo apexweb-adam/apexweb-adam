@@ -40,6 +40,7 @@ import type {
   DailyReview,
   LearningInsight,
   ScanPreview,
+  MondayRecoverySummary,
   StrategyConfig,
   ProfitabilityStatus,
   VerificationSnapshot,
@@ -311,6 +312,7 @@ export default function Dashboard() {
         {tab === "overview" && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-6">
+              <MondayRecoveryBanner />
               <Card title="Bot Status">
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
                   {bots.map((bot) => (
@@ -1289,6 +1291,50 @@ function BotCard({
         <span>{bot.trades_today} trades today</span>
         <span>Strategy v{bot.strategy_version}</span>
       </div>
+    </div>
+  );
+}
+
+function MondayRecoveryBanner() {
+  const [summary, setSummary] = useState<MondayRecoverySummary | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchAPI<MondayRecoverySummary>("/gate/monday-recovery")
+      .then((data) => {
+        if (!cancelled) setSummary(data);
+      })
+      .catch(() => {
+        if (!cancelled) setSummary(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (!summary?.all?.length) return null;
+
+  return (
+    <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-4">
+      <p className="text-sm font-medium text-emerald-400 mb-2">Monday recovery watchlist</p>
+      <ul className="space-y-1.5">
+        {summary.all.map((row) => (
+          <li
+            key={`${row.bot_type}-${row.symbol}`}
+            className="flex items-center justify-between gap-3 text-xs"
+          >
+            <span className="text-gray-200 font-medium">
+              {botLabel(row.bot_type)} · {row.symbol}
+            </span>
+            <span className="text-gray-500 text-right">
+              composite {(row.composite ?? 0).toFixed(3)}
+              {(row.blockers?.length ?? 0) > 0 && (
+                <span className="text-gray-600"> · {row.blockers!.slice(0, 2).join(", ")}</span>
+              )}
+            </span>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

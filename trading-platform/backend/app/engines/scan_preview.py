@@ -572,3 +572,41 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
     "recovery_candidates": recovery_candidates,
     "symbols": previews,
   }
+
+
+MONDAY_RECOVERY_BOT_TYPES = ("commodities", "stocks_futures")
+
+
+async def build_monday_recovery_summary(session: AsyncSession) -> dict[str, Any]:
+  """Aggregate recovery-ready symbols across commodities and stocks for CRM overview."""
+  bots: dict[str, Any] = {}
+  all_rows: list[dict[str, Any]] = []
+
+  for bot_type in MONDAY_RECOVERY_BOT_TYPES:
+    preview = await build_scan_preview(session, bot_type)
+    if preview.get("error"):
+      continue
+    candidates = preview.get("recovery_candidates") or []
+    if not candidates:
+      continue
+    rows = [row for row in preview.get("symbols", []) if row.get("recovery_ready")]
+    bots[bot_type] = {
+      "recovery_candidates": candidates,
+      "session": preview.get("session"),
+      "symbols": rows,
+    }
+    for row in rows:
+      all_rows.append(
+        {
+          "bot_type": bot_type,
+          "symbol": row["symbol"],
+          "composite": row.get("composite"),
+          "blockers": row.get("blockers") or [],
+        }
+      )
+
+  return {
+    "bots": bots,
+    "all": all_rows,
+    "recovery_candidates": [row["symbol"] for row in all_rows],
+  }
