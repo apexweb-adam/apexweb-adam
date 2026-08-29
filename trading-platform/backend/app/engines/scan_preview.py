@@ -160,6 +160,7 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
     loss_streak=loss_streak,
   )
   open_count = len(await engine.get_open_positions())
+  held_symbols = {p.symbol for p in await engine.get_open_positions()}
   from app.engines.gate_entry_guard import shadow_max_open_for_bot
 
   shadow_cap = shadow_max_open_for_bot(
@@ -323,6 +324,8 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
     )
 
     blockers: list[str] = []
+    if symbol in held_symbols:
+      blockers.append("already_held")
     if stocks_negative_pf_blocks_entry(
       bot_type=bot_type,
       symbol=symbol,
