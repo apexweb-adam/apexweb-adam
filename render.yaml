@@ -48,7 +48,7 @@ services:
       - key: GITHUB_TOKEN
         sync: false
       - key: PLATFORM_REVISION
-        value: "2026-08-29-r215"
+        value: "2026-08-29-r216"
       - key: DISABLE_AUTO_REDEPLOY
         value: "true"
       - key: ALLOW_STALE_API_REDEPLOY

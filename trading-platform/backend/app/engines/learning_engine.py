@@ -38,6 +38,19 @@ class LearningEngine:
       adjustments.append("Tighten stop-loss or reduce position size in volatile conditions")
       lessons.append("Use smaller positions during high-volatility periods")
 
+    reason_lower = (trade.reason or "").lower()
+    fomo_driven = "fomo" in reason_lower or await self._had_fomo_intel(trade.symbol, trade.executed_at)
+    if fomo_driven:
+      root_causes.append("Entry aligned with fomo.family leaderboard copy-trade signal")
+      if trade.signal_score < 0.55:
+        root_causes.append("Weak local technical confirmation despite fomo social signal")
+        adjustments.append("Require stronger technical score when mirroring fomo leaderboard trades")
+        lessons.append("Treat fomo trader buys as intel input — wait for local TA confirmation")
+      elif trade.sentiment_score < 0.45:
+        root_causes.append("fomo signal present but aggregate sentiment was weak")
+        adjustments.append("Require higher sentiment floor for fomo-driven crypto entries")
+        lessons.append("Cross-check fomo copy signals with news/social sentiment before entry")
+
     if not root_causes:
       root_causes.append("Market moved against position - normal variance")
       lessons.append("Review if entry timing could be improved with additional confirmation")
@@ -209,17 +222,47 @@ class LearningEngine:
       await self.session.commit()
     return dismissed
 
-  async def _get_market_context(self, symbol: str, at_time: datetime) -> str:
+  async def _had_fomo_intel(self, symbol: str, at_time: datetime | None) -> bool:
+    """True when recent fomo.family intel mentioned this symbol near trade time."""
+    from datetime import timedelta
+
+    base = at_time or datetime.utcnow()
+    cutoff = base - timedelta(hours=6)
+    needle = symbol.replace("USDT", "").replace("=F", "").upper()
     result = await self.session.execute(
       select(IntelligenceItem)
-      .where(IntelligenceItem.symbols_mentioned.contains(symbol.replace("USDT", "").replace("=F", "")))
+      .where(
+        IntelligenceItem.source == "fomo",
+        IntelligenceItem.fetched_at >= cutoff,
+      )
       .order_by(IntelligenceItem.fetched_at.desc())
-      .limit(5)
+      .limit(20)
+    )
+    for item in result.scalars().all():
+      mentioned = (item.symbols_mentioned or "").upper()
+      if needle in mentioned or symbol.upper() in mentioned:
+        return True
+    return False
+
+  async def _get_market_context(self, symbol: str, at_time: datetime) -> str:
+    needle = symbol.replace("USDT", "").replace("=F", "").upper()
+    result = await self.session.execute(
+      select(IntelligenceItem)
+      .where(IntelligenceItem.symbols_mentioned.contains(needle))
+      .order_by(IntelligenceItem.fetched_at.desc())
+      .limit(8)
     )
     items = list(result.scalars().all())
     if not items:
       return "No recent intelligence data for this symbol"
-    return " | ".join(f"[{i.source}] {i.title}" for i in items)
+    fomo_first = sorted(items, key=lambda i: (0 if i.source == "fomo" else 1, -i.fetched_at.timestamp()))
+    parts: list[str] = []
+    for item in fomo_first[:5]:
+      tag = item.source
+      if item.source == "fomo" and item.title:
+        tag = f"fomo:{item.title[:48]}"
+      parts.append(f"[{tag}] {item.title}")
+    return " | ".join(parts)
 
   async def _apply_adjustments(self, bot_type: str, adjustments: list[str]) -> None:
     if not adjustments:

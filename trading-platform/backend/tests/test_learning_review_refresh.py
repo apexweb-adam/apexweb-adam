@@ -25,6 +25,7 @@ def test_analyze_losing_trade_refreshes_daily_review():
 
   learner = LearningEngine(session)
   learner._get_market_context = AsyncMock(return_value="context")
+  learner._had_fomo_intel = AsyncMock(return_value=False)
   learner._apply_adjustments = AsyncMock()
   learner.run_daily_review = AsyncMock(return_value=MagicMock())
 
