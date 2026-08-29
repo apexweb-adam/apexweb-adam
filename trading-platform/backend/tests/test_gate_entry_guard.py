@@ -327,6 +327,58 @@ def test_commodities_high_composite_recovery_bypasses_chronic():
   ) is False
 
 
+def test_commodities_monday_recovery_ready():
+  from app.engines.gate_entry_guard import commodities_monday_recovery_ready
+
+  base = dict(
+    bot_type="commodities",
+    shadow_mode=False,
+    symbol="SI=F",
+    composite=0.50,
+  )
+  assert commodities_monday_recovery_ready(**base, blockers=["weekend_futures_closed"]) is True
+  assert commodities_monday_recovery_ready(
+    **base, blockers=["weekend_futures_closed", "signal_sell"]
+  ) is True
+  assert commodities_monday_recovery_ready(
+    **base, blockers=["weekend_futures_closed", "chronic_loser"]
+  ) is False
+  assert commodities_monday_recovery_ready(
+    **{**base, "shadow_mode": True}, blockers=["weekend_futures_closed"]
+  ) is False
+  assert commodities_monday_recovery_ready(
+    **{**base, "composite": 0.45}, blockers=["weekend_futures_closed"]
+  ) is False
+  assert commodities_monday_recovery_ready(**base, blockers=[]) is False
+
+
+def test_stocks_monday_recovery_ready():
+  from app.engines.gate_entry_guard import stocks_monday_recovery_ready
+
+  base = dict(
+    bot_type="stocks_futures",
+    shadow_mode=True,
+    symbol="NVDA",
+    proven_winners=frozenset({"NVDA", "AAPL"}),
+    bot_win_rate=0.57,
+    composite=0.40,
+  )
+  assert stocks_monday_recovery_ready(**base, blockers=["signal_sell"]) is True
+  assert stocks_monday_recovery_ready(
+    **base, blockers=["macd", "volume", "sentiment_gate"]
+  ) is True
+  assert stocks_monday_recovery_ready(
+    **base, blockers=["composite<0.38", "signal_sell"]
+  ) is True
+  assert stocks_monday_recovery_ready(
+    **base, blockers=["signal_sell", "chronic_loser"]
+  ) is False
+  assert stocks_monday_recovery_ready(
+    **{**base, "composite": 0.30}, blockers=["signal_sell"]
+  ) is False
+  assert stocks_monday_recovery_ready(**base, blockers=[]) is False
+
+
 def test_stocks_proven_winner_sentiment_gate_ok():
   from app.engines.gate_entry_guard import stocks_proven_winner_sentiment_gate_ok
 
