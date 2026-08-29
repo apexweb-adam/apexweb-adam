@@ -49,8 +49,8 @@ from app.engines.gate_entry_guard import (
   CRYPTO_MOMENTUM_RETREAT_CAP_PRESSURE_LOSER_USD,
   CRYPTO_MOMENTUM_RETREAT_CAP_FULL_MIN_HOLD_SECONDS,
   CRYPTO_MOMENTUM_RETREAT_LOSS_WIND_DOWN_USD,
+  CRYPTO_MOMENTUM_RETREAT_WEAK_SIGNAL_WIND_DOWN_MAX_UPNL,
   COMMODITIES_ACTIVE_GATE_LOSS_WIND_DOWN_USD,
-  COMMODITIES_GRADUATION_OPEN_COMPOSITE_FLOOR,
   COMMODITIES_GRADUATION_PF_PROFIT_LOCK_USD,
   COMMODITIES_HIGH_COMPOSITE_RECOVERY_FLOOR,
   commodities_recovery_composite_floor,
@@ -983,6 +983,11 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
     ),
     "crypto_momentum_retreat_cap_full_min_hold_seconds": (
       CRYPTO_MOMENTUM_RETREAT_CAP_FULL_MIN_HOLD_SECONDS if crypto_momentum_retreat else None
+    ),
+    "crypto_momentum_retreat_weak_signal_wind_down_max_upnl": (
+      CRYPTO_MOMENTUM_RETREAT_WEAK_SIGNAL_WIND_DOWN_MAX_UPNL
+      if crypto_momentum_retreat
+      else None
     ),
     "commodities_gate_loss_wind_down_usd": (
       COMMODITIES_ACTIVE_GATE_LOSS_WIND_DOWN_USD

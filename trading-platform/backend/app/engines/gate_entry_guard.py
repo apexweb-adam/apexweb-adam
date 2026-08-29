@@ -122,6 +122,7 @@ CRYPTO_MOMENTUM_RETREAT_PROFIT_LOCK_USD = 1.25
 CRYPTO_MOMENTUM_RETREAT_LOSS_WIND_DOWN_USD = 1.5
 CRYPTO_MOMENTUM_RETREAT_CAP_PRESSURE_LOSER_USD = 0.35
 CRYPTO_MOMENTUM_RETREAT_CAP_FULL_MIN_HOLD_SECONDS = 300
+CRYPTO_MOMENTUM_RETREAT_WEAK_SIGNAL_WIND_DOWN_MAX_UPNL = 0.20
 CRYPTO_MOMENTUM_RETREAT_LOSS_EXPOSURE_AGGREGATE_USD = 5.0
 CRYPTO_MOMENTUM_RETREAT_MAX_OPEN = 2
 CRYPTO_PRE_GRADUATION_CAP_PRESSURE_LOSER_USD = 1.5
@@ -1643,6 +1644,53 @@ def shadow_cap_pressure_loser_wind_down(
     total_pnl,
   )
   return unrealized <= -threshold
+
+
+def crypto_momentum_retreat_weak_signal_wind_down(
+  *,
+  graduation_nudge: bool,
+  bot_type: str,
+  shadow_mode: bool,
+  composite: float,
+  unrealized: float,
+  held_seconds: float,
+  min_hold_seconds: int,
+  open_count: int,
+  shadow_open_cap: int | None,
+  bot_win_rate: float | None = None,
+  profit_factor: float | None = None,
+  total_pnl: float | None = None,
+) -> bool:
+  """Rotate flat/small-gain positions at full cap when composite faded below retreat floor."""
+  if not crypto_momentum_retreat_active(
+    bot_type,
+    shadow_mode,
+    graduation_nudge,
+    bot_win_rate=bot_win_rate,
+    profit_factor=profit_factor,
+    total_pnl=total_pnl,
+  ):
+    return False
+  if not shadow_mode or bot_type != "crypto":
+    return False
+  if shadow_open_cap is None or open_count < shadow_open_cap:
+    return False
+  if composite >= CRYPTO_MOMENTUM_RETREAT_ALIGNED_COMPOSITE_FLOOR:
+    return False
+  effective_min_hold = crypto_retreat_cap_full_min_hold(
+    min_hold_seconds,
+    bot_type=bot_type,
+    shadow_mode=shadow_mode,
+    graduation_nudge=graduation_nudge,
+    open_count=open_count,
+    shadow_open_cap=shadow_open_cap,
+    bot_win_rate=bot_win_rate,
+    profit_factor=profit_factor,
+    total_pnl=total_pnl,
+  )
+  if held_seconds < effective_min_hold:
+    return False
+  return unrealized <= CRYPTO_MOMENTUM_RETREAT_WEAK_SIGNAL_WIND_DOWN_MAX_UPNL
 
 
 def crypto_momentum_retreat_loss_exposure_bypass(

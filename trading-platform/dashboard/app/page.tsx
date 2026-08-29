@@ -1842,6 +1842,12 @@ function BotScanPreview({ botType }: { botType: string }) {
                 · loss wind-down ${preview.crypto_momentum_retreat_loss_wind_down_usd}
               </span>
             )}
+            {preview.crypto_momentum_retreat_weak_signal_wind_down_max_upnl != null && (
+              <span title="Exit flat positions at cap when composite fades below retreat floor">
+                {" "}
+                · weak-signal rotate ≤${preview.crypto_momentum_retreat_weak_signal_wind_down_max_upnl}
+              </span>
+            )}
           </span>
         )}
         {preview.open_ready_candidates && preview.open_ready_candidates.length > 0 && (

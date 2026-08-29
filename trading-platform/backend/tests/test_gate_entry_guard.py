@@ -2465,6 +2465,47 @@ def test_crypto_cap_pressure_profit_lock_eases_min_hold():
   assert CRYPTO_CAP_PRESSURE_PROFIT_LOCK_MIN_HOLD_SECONDS == 300
 
 
+def test_crypto_momentum_retreat_weak_signal_wind_down():
+  from app.engines.gate_entry_guard import (
+    CRYPTO_MOMENTUM_RETREAT_ALIGNED_COMPOSITE_FLOOR,
+    CRYPTO_MOMENTUM_RETREAT_WEAK_SIGNAL_WIND_DOWN_MAX_UPNL,
+    crypto_momentum_retreat_weak_signal_wind_down,
+  )
+
+  base = dict(
+    graduation_nudge=True,
+    bot_type="crypto",
+    shadow_mode=True,
+    held_seconds=400,
+    min_hold_seconds=900,
+    open_count=2,
+    shadow_open_cap=2,
+    bot_win_rate=0.42,
+    profit_factor=0.97,
+    total_pnl=-5.61,
+  )
+  assert crypto_momentum_retreat_weak_signal_wind_down(
+    **base,
+    composite=CRYPTO_MOMENTUM_RETREAT_ALIGNED_COMPOSITE_FLOOR - 0.05,
+    unrealized=0.10,
+  ) is True
+  assert crypto_momentum_retreat_weak_signal_wind_down(
+    **base,
+    composite=CRYPTO_MOMENTUM_RETREAT_ALIGNED_COMPOSITE_FLOOR - 0.05,
+    unrealized=CRYPTO_MOMENTUM_RETREAT_WEAK_SIGNAL_WIND_DOWN_MAX_UPNL + 0.05,
+  ) is False
+  assert crypto_momentum_retreat_weak_signal_wind_down(
+    **base,
+    composite=CRYPTO_MOMENTUM_RETREAT_ALIGNED_COMPOSITE_FLOOR + 0.05,
+    unrealized=0.0,
+  ) is False
+  assert crypto_momentum_retreat_weak_signal_wind_down(
+    **{**base, "open_count": 1},
+    composite=0.30,
+    unrealized=0.0,
+  ) is False
+
+
 def test_crypto_momentum_retreat_loss_wind_down_threshold():
   from app.engines.gate_entry_guard import (
     CRYPTO_MOMENTUM_RETREAT_LOSS_WIND_DOWN_USD,
