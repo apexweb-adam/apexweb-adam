@@ -53,6 +53,7 @@ from app.engines.gate_entry_guard import (
   stocks_in_us_session,
   stocks_session_close_wind_down,
   stocks_session_info,
+  commodities_weekend_stale_signal_exit_blocked,
   GATE_INDEX_ETF_SYMBOLS,
   HardGateSkipSets,
 )
@@ -553,6 +554,13 @@ class BaseBot(ABC):
               continue
 
           if allow_signal_exit and (signal.direction == "sell" or integration_boost < -0.1):
+            unrealized = (price - position.entry_price) * position.quantity
+            if commodities_weekend_stale_signal_exit_blocked(
+              symbol=symbol,
+              unrealized=unrealized,
+              signal_direction=signal.direction,
+            ):
+              continue
             reason = f"Sell signal: {signal.reason}"
             if integration_reason:
               reason += f" | Integrations: {integration_reason}"
