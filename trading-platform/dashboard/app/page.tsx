@@ -1759,7 +1759,19 @@ function BotScanPreview({ botType }: { botType: string }) {
         {preview.stocks_gate_fast_scan_active && (
           <span className="text-sky-400/90" title="15s scan interval during trade-count prep">
             {" "}
-            · fast scan 15s
+            · fast scan {preview.stocks_open_imminent_scan ? "5s" : "15s"}
+          </span>
+        )}
+        {preview.stocks_open_imminent_scan && (
+          <span className="text-lime-400/90" title="5s scan interval before US cash open">
+            {" "}
+            · open imminent
+          </span>
+        )}
+        {preview.stocks_trade_count_profit_lock_usd != null && (
+          <span className="text-lime-400/90" title="Bank wins early while PF below 1.0">
+            {" "}
+            · PF profit lock ${preview.stocks_trade_count_profit_lock_usd}
           </span>
         )}
         {preview.commodities_gate_fast_scan_active && (

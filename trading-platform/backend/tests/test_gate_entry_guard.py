@@ -1094,6 +1094,45 @@ def test_build_session_prep_status_reopen_imminent():
   assert status["stocks_futures"].get("gate_reopen_imminent") is False
 
 
+def test_stocks_open_imminent_scan_active():
+  from app.engines.gate_entry_guard import (
+    STOCKS_OPEN_IMMINENT_SCAN_INTERVAL,
+    stocks_effective_scan_interval,
+    stocks_open_imminent_scan_active,
+  )
+
+  session_far = {"in_session": False, "minutes_until_open": 120, "minutes_since_open": 0}
+  session_imminent = {"in_session": False, "minutes_until_open": 20, "minutes_since_open": 0}
+  session_open = {"in_session": True, "minutes_until_open": 0, "minutes_since_open": 10}
+
+  assert stocks_open_imminent_scan_active(session_far, trade_count_nudge=True) is False
+  assert stocks_open_imminent_scan_active(session_imminent, trade_count_nudge=True) is True
+  assert stocks_open_imminent_scan_active(session_open, trade_count_nudge=True) is True
+  assert stocks_open_imminent_scan_active(session_imminent, trade_count_nudge=False) is False
+  assert stocks_effective_scan_interval(
+    gate_active_interval=15,
+    default_interval=30,
+    session_info=session_imminent,
+    trade_count_nudge=True,
+    gate_tightening_active=True,
+    fast_scan=True,
+    in_session=False,
+  ) == STOCKS_OPEN_IMMINENT_SCAN_INTERVAL
+
+
+def test_build_session_prep_status_stocks_open_imminent():
+  from app.engines.gate_entry_guard import build_session_prep_status
+
+  status = build_session_prep_status(
+    stocks_session={"in_session": False, "minutes_until_open": 25, "mode": "outside_session"},
+    commodities_session={"in_session": False, "minutes_until_open": 2400, "mode": "weekend_closed"},
+    stocks_trade_count_nudge=True,
+    commodities_graduation_nudge=True,
+  )
+  assert status["stocks_futures"]["gate_reopen_imminent"] is True
+  assert status["commodities"].get("gate_reopen_imminent") is False
+
+
 def test_prioritize_stocks_monday_scan_trade_count_nudge():
   from app.engines.gate_entry_guard import prioritize_stocks_monday_scan
 

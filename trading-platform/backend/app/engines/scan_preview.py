@@ -89,8 +89,10 @@ from app.engines.gate_entry_guard import (
   stocks_trade_count_graduation_nudge,
   stocks_trade_count_min_sentiment,
   stocks_gate_fast_scan_active,
+  stocks_open_imminent_scan_active,
   stocks_trade_count_volume_required,
   stocks_proven_winner_sentiment_gate_ok,
+  STOCKS_TRADE_COUNT_PROFIT_LOCK_USD,
   stocks_negative_pf_blocks_entry,
   stocks_session_info,
   whale_memecoin_aligned,
@@ -199,6 +201,14 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
   stocks_fast_scan_active = stocks_gate_fast_scan_active(
     stocks_session_info() if bot_type == "stocks_futures" else None,
     trade_count_nudge=stocks_trade_count_nudge,
+  )
+  stocks_open_imminent = (
+    stocks_open_imminent_scan_active(
+      stocks_session_info(),
+      trade_count_nudge=stocks_trade_count_nudge,
+    )
+    if bot_type == "stocks_futures" and stocks_trade_count_nudge
+    else False
   )
   commodities_fast_scan_active = commodities_gate_fast_scan_active(
     commodities_session_info() if bot_type == "commodities" else None,
@@ -922,6 +932,7 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
     "graduation_nudge": graduation_nudge,
     "stocks_trade_count_nudge": stocks_trade_count_nudge,
     "stocks_gate_fast_scan_active": stocks_fast_scan_active,
+    "stocks_open_imminent_scan": stocks_open_imminent,
     "commodities_gate_fast_scan_active": commodities_fast_scan_active,
     "commodities_reopen_imminent_scan": commodities_reopen_imminent,
     "crypto_strong_momentum_nudge": crypto_strong_momentum,
@@ -996,6 +1007,17 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
     "commodities_high_composite_recovery_floor": (
       COMMODITIES_HIGH_COMPOSITE_RECOVERY_FLOOR
       if bot_type == "commodities" and not shadow_mode
+      else None
+    ),
+    "stocks_trade_count_profit_lock_usd": (
+      STOCKS_TRADE_COUNT_PROFIT_LOCK_USD
+      if (
+        bot_type == "stocks_futures"
+        and shadow_mode
+        and stocks_trade_count_nudge
+        and (per_bot_stats.get("win_rate") or 0) >= 0.55
+        and (per_bot_stats.get("profit_factor") or 0) < 1.0
+      )
       else None
     ),
     "crypto_shadow_raw_floor_active": crypto_shadow_raw_floor,

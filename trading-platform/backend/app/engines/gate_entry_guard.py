@@ -3492,6 +3492,8 @@ def stocks_session_info() -> dict[str, Any]:
 STOCKS_MONDAY_SCAN_OPEN_HOUR_MINUTES = 60
 STOCKS_MONDAY_SCAN_PREP_MINUTES = 90
 STOCKS_TRADE_COUNT_PREP_MINUTES = 4320  # 72h — weekend TV refresh before Monday open
+STOCKS_OPEN_IMMINENT_SCAN_MINUTES = 30
+STOCKS_OPEN_IMMINENT_SCAN_INTERVAL = 5
 
 
 def build_session_prep_status(
@@ -3548,6 +3550,10 @@ def build_session_prep_status(
       stocks_trade_count_nudge,
       "trade-count nudge",
       gate_fast_scan_active=stocks_gate_fast_scan_active(
+        stocks_session,
+        trade_count_nudge=stocks_trade_count_nudge,
+      ),
+      gate_reopen_imminent=stocks_open_imminent_scan_active(
         stocks_session,
         trade_count_nudge=stocks_trade_count_nudge,
       ),
@@ -3834,6 +3840,48 @@ def stocks_gate_fast_scan_active(
     minutes_until is not None
     and minutes_until <= STOCKS_TRADE_COUNT_PREP_MINUTES
   )
+
+
+def stocks_open_imminent_scan_active(
+  session_info: dict[str, Any] | None = None,
+  *,
+  trade_count_nudge: bool = False,
+) -> bool:
+  """Ultra-fast scan window in the last 30 minutes before US cash open."""
+  if not trade_count_nudge:
+    return False
+  session = session_info or stocks_session_info()
+  if session.get("in_session"):
+    since = session.get("minutes_since_open")
+    return since is not None and since <= STOCKS_OPEN_IMMINENT_SCAN_MINUTES
+  minutes_until = session.get("minutes_until_open")
+  return (
+    minutes_until is not None
+    and minutes_until <= STOCKS_OPEN_IMMINENT_SCAN_MINUTES
+  )
+
+
+def stocks_effective_scan_interval(
+  *,
+  gate_active_interval: int,
+  default_interval: int,
+  session_info: dict[str, Any] | None = None,
+  trade_count_nudge: bool = False,
+  gate_tightening_active: bool = False,
+  fast_scan: bool = False,
+  in_session: bool = False,
+) -> int:
+  """Resolve stocks scan interval — 5s imminent open, 15s prep, else default."""
+  if not fast_scan and not in_session and not gate_tightening_active:
+    return default_interval
+  if stocks_open_imminent_scan_active(
+    session_info,
+    trade_count_nudge=trade_count_nudge,
+  ):
+    return STOCKS_OPEN_IMMINENT_SCAN_INTERVAL
+  if fast_scan or in_session or gate_tightening_active:
+    return gate_active_interval
+  return default_interval
 
 
 def stocks_monday_gate_skip_bypass(
