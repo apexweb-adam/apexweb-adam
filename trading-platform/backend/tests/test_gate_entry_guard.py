@@ -338,6 +338,37 @@ def test_stocks_trade_count_graduation_nudge():
     composite=0.36,
   ) == 0.12
 
+  from app.engines.gate_entry_guard import stocks_trade_count_volume_required
+
+  assert stocks_trade_count_volume_required(
+    False,
+    bot_type="stocks_futures",
+    shadow_mode=True,
+    symbol="NVDA",
+    proven_winners=frozenset({"NVDA"}),
+    bot_win_rate=0.57,
+    total_trades=15,
+    composite=0.36,
+    entry_min_signal=0.34,
+    macd_signal="bullish",
+    integration_boost=0.0,
+    integration_reason="",
+  ) is True
+  assert stocks_trade_count_volume_required(
+    False,
+    bot_type="stocks_futures",
+    shadow_mode=True,
+    symbol="NVDA",
+    proven_winners=frozenset({"NVDA"}),
+    bot_win_rate=0.57,
+    total_trades=15,
+    composite=0.33,
+    entry_min_signal=0.34,
+    macd_signal="bullish",
+    integration_boost=0.0,
+    integration_reason="",
+  ) is False
+
   recovery = dict(
     bot_type="stocks_futures",
     shadow_mode=True,
