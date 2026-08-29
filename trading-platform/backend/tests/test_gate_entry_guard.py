@@ -808,6 +808,7 @@ def test_stocks_monday_gate_skip_bypass():
   from unittest.mock import patch
 
   from app.engines.gate_entry_guard import (
+    STOCKS_TRADE_COUNT_PREP_MINUTES,
     STOCKS_TRADE_COUNT_RECOVERY_MIN_COMPOSITE,
     chronic_loser_blocks_shadow_entry,
     hard_skip_blocks_shadow_entry,
@@ -837,6 +838,17 @@ def test_stocks_monday_gate_skip_bypass():
     assert stocks_monday_gate_skip_bypass(
       **{**base, "total_trades": 10}
     ) is False
+
+  prep_session = {
+    "in_session": False,
+    "minutes_until_open": STOCKS_TRADE_COUNT_PREP_MINUTES - 60,
+    "minutes_since_open": 0,
+  }
+  with patch(
+    "app.engines.gate_entry_guard.stocks_session_info",
+    return_value=prep_session,
+  ):
+    assert stocks_monday_gate_skip_bypass(**base) is True
     assert hard_skip_blocks_shadow_entry(
       "AAPL",
       bot_type="stocks_futures",
@@ -1164,6 +1176,53 @@ def test_prioritize_stocks_monday_scan_trade_count_nudge():
   assert ordered[:3] == ["AAPL", "NVDA", "TSLA"]
   assert ordered[3] == "MSFT"
   assert "NVDA" in ordered
+
+
+def test_prioritize_stocks_monday_scan_open_imminent_proven_first():
+  from app.engines.gate_entry_guard import prioritize_stocks_monday_scan
+
+  symbols = ["MSFT", "NVDA", "AAPL"]
+  session = {"in_session": False, "minutes_until_open": 20, "minutes_since_open": 0}
+  ordered = prioritize_stocks_monday_scan(
+    symbols,
+    chronic_losers=frozenset({"MSFT"}),
+    proven_winners=frozenset({"AAPL", "NVDA"}),
+    session_info=session,
+    trade_count_nudge=True,
+  )
+  assert ordered[0] == "AAPL"
+  assert ordered.index("NVDA") < ordered.index("MSFT")
+
+
+def test_stocks_trade_count_prep_active():
+  from unittest.mock import patch
+
+  from app.engines.gate_entry_guard import (
+    STOCKS_TRADE_COUNT_PREP_MINUTES,
+    stocks_trade_count_prep_active,
+  )
+
+  prep_session = {
+    "in_session": False,
+    "minutes_until_open": STOCKS_TRADE_COUNT_PREP_MINUTES - 30,
+    "minutes_since_open": 0,
+  }
+  far_session = {
+    "in_session": False,
+    "minutes_until_open": STOCKS_TRADE_COUNT_PREP_MINUTES + 60,
+    "minutes_since_open": 0,
+  }
+  with patch(
+    "app.engines.gate_entry_guard.stocks_session_info",
+    return_value=prep_session,
+  ):
+    assert stocks_trade_count_prep_active(True) is True
+    assert stocks_trade_count_prep_active(False) is False
+  with patch(
+    "app.engines.gate_entry_guard.stocks_session_info",
+    return_value=far_session,
+  ):
+    assert stocks_trade_count_prep_active(True) is False
 
 
 def test_stocks_proven_winner_sentiment_gate_ok():

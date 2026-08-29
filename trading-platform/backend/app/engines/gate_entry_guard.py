@@ -3650,8 +3650,14 @@ def stocks_pre_session_prep_window_minutes(trade_count_nudge: bool) -> int:
   return STOCKS_MONDAY_SCAN_PREP_MINUTES
 
 
-def stocks_monday_scan_priority_active(session_info: dict[str, Any]) -> bool:
+def stocks_monday_scan_priority_active(
+  session_info: dict[str, Any],
+  *,
+  trade_count_nudge: bool = False,
+) -> bool:
   """Prioritize chronic recovery symbols pre-US open and during the first hour."""
+  if trade_count_nudge and stocks_trade_count_prep_active(trade_count_nudge):
+    return True
   if session_info.get("in_session"):
     since = session_info.get("minutes_since_open")
     return since is not None and since <= STOCKS_MONDAY_SCAN_OPEN_HOUR_MINUTES
@@ -3662,6 +3668,20 @@ def stocks_monday_scan_priority_active(session_info: dict[str, Any]) -> bool:
   )
 
 
+def stocks_trade_count_prep_active(trade_count_nudge: bool = False) -> bool:
+  """Whether stocks trade-count graduation prep easings apply (72h pre-open + first hour)."""
+  if not trade_count_nudge:
+    return False
+  session = stocks_session_info()
+  if session.get("in_session"):
+    since = session.get("minutes_since_open")
+    return since is not None and since <= STOCKS_MONDAY_SCAN_OPEN_HOUR_MINUTES
+  minutes_until = session.get("minutes_until_open")
+  if minutes_until is None:
+    return False
+  return minutes_until <= STOCKS_TRADE_COUNT_PREP_MINUTES
+
+
 def prioritize_stocks_monday_scan(
   symbols: list[str],
   *,
@@ -3670,16 +3690,40 @@ def prioritize_stocks_monday_scan(
   session_info: dict[str, Any],
   trade_count_nudge: bool = False,
 ) -> list[str]:
-  """Scan chronic stock recovery symbols first ahead of Monday US open / open hour."""
+  """Scan chronic stock recovery symbols first ahead of Monday US open / open hour.
+
+  During the imminent open window, proven winners (e.g. AAPL) scan before chronic
+  recovery so open-ready symbols enter as soon as US cash opens.
+  """
+  if (
+    trade_count_nudge
+    and stocks_open_imminent_scan_active(
+      session_info,
+      trade_count_nudge=trade_count_nudge,
+    )
+    and proven_winners
+  ):
+    winners = sorted(s for s in symbols if s in proven_winners)
+    rest = [s for s in symbols if s not in winners]
+    recovery = [s for s in rest if s in chronic_losers]
+    tail = [s for s in rest if s not in recovery]
+    return winners + recovery + tail
+
   if trade_count_nudge and proven_winners:
     winners = sorted(s for s in symbols if s in proven_winners)
-    if not stocks_monday_scan_priority_active(session_info):
+    if not stocks_monday_scan_priority_active(
+      session_info,
+      trade_count_nudge=trade_count_nudge,
+    ):
       rest = [s for s in symbols if s not in proven_winners]
       return winners + rest
     recovery = [s for s in symbols if s in chronic_losers and s not in proven_winners]
     rest = [s for s in symbols if s not in winners and s not in recovery]
     return winners + recovery + rest
-  if not stocks_monday_scan_priority_active(session_info):
+  if not stocks_monday_scan_priority_active(
+    session_info,
+    trade_count_nudge=trade_count_nudge,
+  ):
     if proven_winners:
       winners = [s for s in symbols if s in proven_winners]
       rest = [s for s in symbols if s not in proven_winners]
@@ -3900,7 +3944,7 @@ def stocks_gate_fast_scan_active(
   session = session_info or stocks_session_info()
   if session.get("in_session"):
     return True
-  if stocks_monday_scan_priority_active(session):
+  if stocks_monday_scan_priority_active(session, trade_count_nudge=trade_count_nudge):
     return True
   minutes_until = session.get("minutes_until_open")
   return (
@@ -3972,7 +4016,10 @@ def stocks_monday_gate_skip_bypass(
     return False
   if symbol not in proven_winners:
     return False
-  if not stocks_monday_scan_priority_active(stocks_session_info()):
+  if not stocks_monday_scan_priority_active(
+    stocks_session_info(),
+    trade_count_nudge=True,
+  ):
     return False
   if signal_direction != "buy" or macd_signal != "bullish":
     return False
