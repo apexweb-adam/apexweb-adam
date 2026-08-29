@@ -9,6 +9,7 @@ from app.config import settings
 from app.config import BOT_TYPES
 from app.engines.gate_entry_guard import build_gate_ws_payload
 from app.engines.platform_settings import get_paused_bot_types
+from app.intelligence.fomo_tracker import fomo_configured
 from app.intelligence.wallet_tracker import wallet_tracker_configured
 from app.models.entities import IntelligenceItem, Position
 
@@ -56,6 +57,12 @@ async def build_crm_integration_hooks(session: AsyncSession) -> dict[str, Any]:
     "wallet_tracker": {
       "configured": wallet_tracker_configured() or tv_configured,
       "webhook_url": "https://apex-trading-backend.onrender.com/api/webhooks/wallet",
+    },
+    "fomo": {
+      "configured": fomo_configured(),
+      "webhook_url": "https://apex-trading-backend.onrender.com/api/webhooks/fomo",
+      "userscript_url": "https://apex-trading-backend.onrender.com/api/fomo/userscript",
+      "bridge_guide": "trading-platform/scripts/fomo-zapier-setup.md",
     },
   }
 

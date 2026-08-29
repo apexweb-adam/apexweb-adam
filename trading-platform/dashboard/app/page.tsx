@@ -519,6 +519,18 @@ export default function Dashboard() {
                                 {platformStatus.integrations.fomo_webhook_url}
                               </p>
                             )}
+                            {platformStatus.integrations.fomo_userscript_url && (
+                              <p className="mt-1 text-[10px]">
+                                <a
+                                  href={platformStatus.integrations.fomo_userscript_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-apex-gold hover:underline break-all"
+                                >
+                                  Install userscript (Tampermonkey)
+                                </a>
+                              </p>
+                            )}
                             {platformStatus.integrations.fomo_setup && (
                               <p className="mt-1 text-[10px] text-gray-500">
                                 {platformStatus.integrations.fomo_setup}

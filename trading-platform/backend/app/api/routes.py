@@ -594,6 +594,11 @@ async def get_platform_status(db: AsyncSession = Depends(get_db)) -> dict[str, A
         if settings.fomo_enabled and settings.tradingview_webhook_secret
         else None
       ),
+      "fomo_userscript_url": (
+        "https://apex-trading-backend.onrender.com/api/fomo/userscript"
+        if settings.fomo_enabled
+        else None
+      ),
       "fomo_setup": (
         "3 bridges: (1) Tampermonkey script scripts/fomo-family-bridge.user.js on fomo.family, "
         "(2) Zapier email/push → webhook — see scripts/fomo-zapier-setup.md, "
@@ -1041,6 +1046,27 @@ async def wallet_webhook(payload: dict[str, Any], db: AsyncSession = Depends(get
   result = await ingest_wallet_webhook(db, payload)
   await push_live_update()
   return result
+
+
+@router.get("/fomo/userscript")
+async def fomo_userscript() -> HTMLResponse:
+  """Serve Tampermonkey userscript for fomo.family → Apex webhook bridge."""
+  from pathlib import Path
+
+  script_path = (
+    Path(__file__).resolve().parents[3] / "scripts" / "fomo-family-bridge.user.js"
+  )
+  if not script_path.is_file():
+    return HTMLResponse(
+      content="fomo bridge userscript not found on server",
+      status_code=404,
+    )
+  body = script_path.read_text(encoding="utf-8")
+  return HTMLResponse(
+    content=body,
+    media_type="application/javascript; charset=utf-8",
+    headers={"Content-Disposition": 'inline; filename="apex-fomo-bridge.user.js"'},
+  )
 
 
 @router.post("/webhooks/fomo")

@@ -404,6 +404,7 @@ export type PlatformStatus = {
     fomo_family?: boolean;
     fomo_webhook?: boolean;
     fomo_webhook_url?: string | null;
+    fomo_userscript_url?: string | null;
     fomo_setup?: string | null;
     fomo_example_payload?: Record<string, unknown> | null;
     fomo_bridge_scripts?: {

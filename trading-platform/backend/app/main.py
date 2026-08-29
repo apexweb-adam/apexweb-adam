@@ -294,14 +294,17 @@ async def crm_landing():
   tv = integrations.get("tradingview") or {}
   pm = integrations.get("polymarket") or {}
   wt = integrations.get("wallet_tracker") or {}
+  fomo = integrations.get("fomo") or {}
   tv_status = "configured" if tv.get("configured") else "not configured"
   pm_status = "wallet + API" if pm.get("wallet_configured") and pm.get("api_configured") else (
     "wallet only" if pm.get("wallet_configured") else "API only" if pm.get("api_configured") else "not configured"
   )
+  fomo_status = "webhook ready" if fomo.get("configured") else "off"
   integrations_summary = (
     f"TradingView {tv_status} ({tv.get('items', 0)} alerts) · "
     f"Polymarket {pm_status} ({pm.get('intel_items', 0)} markets) · "
-    f"Wallet tracker {'on' if wt.get('configured') else 'off'}"
+    f"Wallet tracker {'on' if wt.get('configured') else 'off'} · "
+    f"fomo.family {fomo_status}"
   )
   pm_profile = pm.get("profile_url") or ""
   pm_profile_link = (
@@ -422,10 +425,12 @@ async def crm_landing():
     {content_rows if content_rows else "<p class='muted'>No recent insights — next study cycle within 2 hours.</p>"}
   </div>""" if content_study else ""}
   <div class="card integrations">
-    <h2>TradingView &amp; Polymarket hooks</h2>
+    <h2>TradingView, Polymarket &amp; fomo hooks</h2>
     <p class="muted" style="margin-top:0;">{integrations_summary}</p>
     <p class="muted" style="margin-top:0;">TV webhook: <code>{tv.get('webhook_url', '')}</code></p>
     <p class="muted" style="margin-top:0;">Wallet webhook: <code>{wt.get('webhook_url', '')}</code></p>
+    <p class="muted" style="margin-top:0;">fomo webhook: <code>{fomo.get('webhook_url', '')}</code></p>
+    <p class="muted" style="margin-top:0;">fomo userscript (Tampermonkey): <a href="{fomo.get('userscript_url', '')}">{fomo.get('userscript_url', '')}</a></p>
     {pm_profile_link}
   </div>
   <p><a href="{url}">Open live dashboard →</a> <span class="muted">(redirecting in {redirect_seconds}s)</span></p>
