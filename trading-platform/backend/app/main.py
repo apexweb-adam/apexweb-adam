@@ -99,13 +99,14 @@ async def crm_landing():
       build_crm_learning_highlights,
     )
     from app.engines.intel_source_status import build_intel_sources
-    from app.engines.crm_summary import build_crm_live_snapshot
+    from app.engines.crm_summary import build_crm_integration_hooks, build_crm_live_snapshot
 
     monday_recovery = await build_monday_recovery_summary(session)
     learning = await build_crm_learning_highlights(session)
     content_study = await build_crm_content_study_highlights(session)
     intel_sources = await build_intel_sources(session)
     live_snapshot = await build_crm_live_snapshot(session)
+    integrations = await build_crm_integration_hooks(session)
 
   day = gate.get("verification_day", 0)
   trades = gate.get("total_trades", 0)
@@ -239,6 +240,25 @@ async def crm_landing():
     f"MACD bullish required: {'yes' if tightening.get('require_macd_bullish') else 'no'}"
   )
 
+  tv = integrations.get("tradingview") or {}
+  pm = integrations.get("polymarket") or {}
+  wt = integrations.get("wallet_tracker") or {}
+  tv_status = "configured" if tv.get("configured") else "not configured"
+  pm_status = "wallet + API" if pm.get("wallet_configured") and pm.get("api_configured") else (
+    "wallet only" if pm.get("wallet_configured") else "API only" if pm.get("api_configured") else "not configured"
+  )
+  integrations_summary = (
+    f"TradingView {tv_status} ({tv.get('items', 0)} alerts) · "
+    f"Polymarket {pm_status} ({pm.get('intel_items', 0)} markets) · "
+    f"Wallet tracker {'on' if wt.get('configured') else 'off'}"
+  )
+  pm_profile = pm.get("profile_url") or ""
+  pm_profile_link = (
+    f"<p class='muted' style='margin-top:0;'><a href='{pm_profile}'>Polymarket profile</a></p>"
+    if pm_profile
+    else ""
+  )
+
   if stale and url == deploy.get("verified_dashboard_url"):
     bundle_label = deploy.get("verified_bundle_revision") or EXPECTED_DASHBOARD_BUNDLE
     deploy_note = (
@@ -296,6 +316,10 @@ async def crm_landing():
     .live h2 {{ color: #c4b5fd; font-size: 1rem; margin: 0 0 0.5rem; }}
     .pnl-pos {{ color: #4ade80; }}
     .pnl-neg {{ color: #f87171; }}
+    .integrations {{ border-color: #713f12; background: #1c1407; }}
+    .integrations h2 {{ color: #fbbf24; font-size: 1rem; margin: 0 0 0.5rem; }}
+    .tag-ok {{ color: #4ade80; }}
+    .tag-off {{ color: #888; }}
 </head>
 <body>
   <h1>Apex Trading CRM</h1>
@@ -344,6 +368,13 @@ async def crm_landing():
     <p class="muted" style="margin-top:0;">{content_summary}</p>
     {content_rows if content_rows else "<p class='muted'>No recent insights — next study cycle within 2 hours.</p>"}
   </div>""" if content_study else ""}
+  <div class="card integrations">
+    <h2>TradingView &amp; Polymarket hooks</h2>
+    <p class="muted" style="margin-top:0;">{integrations_summary}</p>
+    <p class="muted" style="margin-top:0;">TV webhook: <code>{tv.get('webhook_url', '')}</code></p>
+    <p class="muted" style="margin-top:0;">Wallet webhook: <code>{wt.get('webhook_url', '')}</code></p>
+    {pm_profile_link}
+  </div>
   <p><a href="{url}">Open live dashboard →</a> <span class="muted">(redirecting in {redirect_seconds}s)</span></p>
   <p class="muted">{deploy_note}</p>
   {backend_note}

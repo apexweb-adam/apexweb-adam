@@ -2,13 +2,62 @@
 
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.config import BOT_TYPES
 from app.engines.gate_entry_guard import build_gate_ws_payload
 from app.engines.platform_settings import get_paused_bot_types
-from app.models.entities import Position
+from app.intelligence.wallet_tracker import wallet_tracker_configured
+from app.models.entities import IntelligenceItem, Position
+
+
+async def build_crm_integration_hooks(session: AsyncSession) -> dict[str, Any]:
+  """TradingView and Polymarket hook status for /crm."""
+  tv_count = int(
+    await session.scalar(
+      select(func.count(IntelligenceItem.id)).where(IntelligenceItem.source == "tradingview")
+    )
+    or 0
+  )
+  pm_account_count = int(
+    await session.scalar(
+      select(func.count(IntelligenceItem.id)).where(
+        IntelligenceItem.source == "polymarket_account"
+      )
+    )
+    or 0
+  )
+  pm_intel_count = int(
+    await session.scalar(
+      select(func.count(IntelligenceItem.id)).where(IntelligenceItem.source == "polymarket")
+    )
+    or 0
+  )
+
+  tv_configured = bool(settings.tradingview_webhook_secret)
+  pm_wallet = bool(settings.polymarket_wallet_address or settings.polymarket_deposit_address)
+  pm_api = bool(settings.polymarket_api_key)
+
+  return {
+    "tradingview": {
+      "configured": tv_configured,
+      "webhook_url": "https://apex-trading-backend.onrender.com/api/webhooks/tradingview",
+      "items": tv_count,
+    },
+    "polymarket": {
+      "api_configured": pm_api,
+      "wallet_configured": pm_wallet,
+      "profile_url": settings.polymarket_profile_url or None,
+      "intel_items": pm_intel_count,
+      "account_items": pm_account_count,
+    },
+    "wallet_tracker": {
+      "configured": wallet_tracker_configured() or tv_configured,
+      "webhook_url": "https://apex-trading-backend.onrender.com/api/webhooks/wallet",
+    },
+  }
 
 
 async def build_crm_live_snapshot(session: AsyncSession) -> dict[str, Any]:

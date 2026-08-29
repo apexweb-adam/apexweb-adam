@@ -110,7 +110,16 @@ def test_crm_landing_includes_content_study_section():
                       "proven_winner_symbols": {},
                     },
                   ):
-                    response = client.get("/crm")
+                    with patch(
+                      "app.engines.crm_summary.build_crm_integration_hooks",
+                      new_callable=AsyncMock,
+                      return_value={
+                        "tradingview": {"configured": True, "webhook_url": "https://example.com/tv", "items": 0},
+                        "polymarket": {"api_configured": True, "wallet_configured": True, "profile_url": None, "intel_items": 0, "account_items": 0},
+                        "wallet_tracker": {"configured": True, "webhook_url": "https://example.com/wallet"},
+                      },
+                    ):
+                      response = client.get("/crm")
 
   assert response.status_code == 200
   body = response.text
@@ -190,7 +199,16 @@ def test_crm_landing_includes_live_positions():
                     new_callable=AsyncMock,
                     return_value=live_snapshot,
                   ):
-                    response = client.get("/crm")
+                    with patch(
+                      "app.engines.crm_summary.build_crm_integration_hooks",
+                      new_callable=AsyncMock,
+                      return_value={
+                        "tradingview": {"configured": True, "webhook_url": "https://example.com/tv", "items": 0},
+                        "polymarket": {"api_configured": True, "wallet_configured": True, "profile_url": None, "intel_items": 0, "account_items": 0},
+                        "wallet_tracker": {"configured": True, "webhook_url": "https://example.com/wallet"},
+                      },
+                    ):
+                      response = client.get("/crm")
 
   assert response.status_code == 200
   body = response.text
