@@ -66,6 +66,7 @@ from app.engines.gate_entry_guard import (
   symbol_cooldown_remaining_seconds,
   commodities_monday_recovery_ready,
   commodities_monday_open_ready,
+  commodities_monday_futures_gate_skip_bypass,
   commodities_session_info,
   commodities_gate_fast_scan_active,
   commodities_weekend_futures_entry_blocked,
@@ -744,6 +745,16 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
         total_trades=int(per_bot_stats.get("total_trades") or 0),
         signal_direction="buy",
         macd_signal="bullish",
+        composite=composite,
+      )
+    if bot_type == "commodities":
+      monday_gate_skip_ready = commodities_monday_futures_gate_skip_bypass(
+        bot_type=bot_type,
+        shadow_mode=shadow_mode,
+        symbol=symbol,
+        graduation_nudge=graduation_nudge,
+        signal_direction=signal.direction,
+        macd_signal=signal.macd_signal,
         composite=composite,
       )
     if bot_type == "crypto":
