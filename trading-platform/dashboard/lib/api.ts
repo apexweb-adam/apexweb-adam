@@ -236,6 +236,7 @@ export type ScanPreview = {
   open_count?: number;
   shadow_open_cap?: number | null;
   held_symbols?: string[];
+  open_ready_candidates?: string[];
   recovery_candidates?: string[];
   session?: {
     in_session: boolean;

@@ -1776,6 +1776,12 @@ function BotScanPreview({ botType }: { botType: string }) {
             · profit lock $1.25
           </span>
         )}
+        {preview.open_ready_candidates && preview.open_ready_candidates.length > 0 && (
+          <span className="text-lime-400/90">
+            {" "}
+            · CME open ready: {preview.open_ready_candidates.join(", ")}
+          </span>
+        )}
         {preview.recovery_candidates && preview.recovery_candidates.length > 0 && (
           <span className="text-emerald-400/90">
             {" "}

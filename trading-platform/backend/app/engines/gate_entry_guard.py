@@ -2753,6 +2753,18 @@ def commodities_session_info() -> dict[str, Any]:
 COMMODITIES_MONDAY_SCAN_OPEN_HOUR_MINUTES = 60
 COMMODITIES_MONDAY_SCAN_PREP_MINUTES = 90
 COMMODITIES_GRADUATION_PREP_MINUTES = 4320  # 72h — weekend TV refresh before CME reopen
+# NG first — typical Sunday CME reopen leader; then energy/metals breadth.
+COMMODITIES_MONDAY_FUTURES_SCAN_ORDER = ("NG=F", "CL=F", "GC=F", "SI=F", "HG=F")
+
+
+def _apply_commodities_monday_futures_order(symbols: list[str]) -> list[str]:
+  """Put CME futures ahead of spot proxies when Monday scan priority is active."""
+  futures_first = [s for s in COMMODITIES_MONDAY_FUTURES_SCAN_ORDER if s in symbols]
+  futures_rest = [
+    s for s in symbols if is_commodities_futures_symbol(s) and s not in futures_first
+  ]
+  non_futures = [s for s in symbols if not is_commodities_futures_symbol(s)]
+  return futures_first + futures_rest + non_futures
 
 
 def commodities_pre_session_prep_window_minutes(graduation_nudge: bool) -> int:
@@ -2801,7 +2813,7 @@ def prioritize_commodities_monday_scan(
 
   winners = [s for s in symbols if s in proven_winners and s not in recovery]
   rest = [s for s in symbols if s not in recovery and s not in winners]
-  return recovery + winners + rest
+  return recovery + winners + _apply_commodities_monday_futures_order(rest)
 
 
 def stocks_session_info() -> dict[str, Any]:
@@ -3185,6 +3197,33 @@ COMMODITIES_MONDAY_RECOVERY_SOFT_BLOCKERS = frozenset({
   "volume",
   "sentiment_gate",
 })
+
+COMMODITIES_MONDAY_OPEN_READY_BLOCKERS = frozenset({"weekend_futures_closed"})
+
+
+def commodities_monday_open_ready(
+  *,
+  bot_type: str,
+  shadow_mode: bool,
+  symbol: str,
+  composite: float,
+  signal_direction: str,
+  macd_signal: str,
+  blockers: list[str],
+) -> bool:
+  """Bullish high-composite futures that will enter as soon as CME reopens."""
+  if not commodities_high_composite_recovery_entry_ok(
+    bot_type=bot_type,
+    shadow_mode=shadow_mode,
+    symbol=symbol,
+    composite=composite,
+    signal_direction=signal_direction,
+    macd_signal=macd_signal,
+  ):
+    return False
+  if not blockers:
+    return False
+  return set(blockers).issubset(COMMODITIES_MONDAY_OPEN_READY_BLOCKERS)
 
 
 def commodities_monday_recovery_ready(

@@ -50,6 +50,7 @@ from app.engines.gate_entry_guard import (
   open_position_cap_blocks_entry,
   symbol_cooldown_remaining_seconds,
   commodities_monday_recovery_ready,
+  commodities_monday_open_ready,
   commodities_session_info,
   commodities_weekend_futures_entry_blocked,
   commodities_weekend_forex_entry_blocked,
@@ -690,6 +691,15 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
             total_trades=int(per_bot_stats.get("total_trades") or 0),
           )
         ),
+        "monday_open_ready": commodities_monday_open_ready(
+          bot_type=bot_type,
+          shadow_mode=shadow_mode,
+          symbol=symbol,
+          composite=composite,
+          signal_direction=signal.direction,
+          macd_signal=signal.macd_signal,
+          blockers=blockers,
+        ),
         "monday_gate_skip_ready": monday_gate_skip_ready,
         "integration_boost": round(integration_boost, 3),
         "intel_override": intel_override,
@@ -699,6 +709,7 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
 
   previews.sort(key=lambda row: row.get("composite", 0), reverse=True)
   recovery_candidates = [row["symbol"] for row in previews if row.get("recovery_ready")]
+  open_ready_candidates = [row["symbol"] for row in previews if row.get("monday_open_ready")]
   session = (
     commodities_session_info()
     if bot_type == "commodities"
@@ -768,6 +779,7 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
     "held_symbols": sorted(held_symbols),
     "session": session,
     "recovery_candidates": recovery_candidates,
+    "open_ready_candidates": open_ready_candidates,
     "symbols": previews,
   }
 
@@ -802,6 +814,7 @@ async def build_monday_recovery_summary(session: AsyncSession) -> dict[str, Any]
     if candidates:
       rows = [row for row in preview.get("symbols", []) if row.get("recovery_ready")]
       bot_entry["symbols"] = rows
+      bot_entry["open_ready_candidates"] = preview.get("open_ready_candidates") or []
       bots[bot_type] = bot_entry
       for row in rows:
         all_rows.append(
@@ -815,12 +828,20 @@ async def build_monday_recovery_summary(session: AsyncSession) -> dict[str, Any]
     elif bot_type == "stocks_futures" and stocks_trade_count_nudge:
       bots[bot_type] = bot_entry
     elif bot_type == "commodities" and commodities_graduation_nudge:
+      bot_entry["open_ready_candidates"] = preview.get("open_ready_candidates") or []
       bots[bot_type] = bot_entry
 
   return {
     "bots": bots,
     "all": all_rows,
     "recovery_candidates": [row["symbol"] for row in all_rows],
+    "open_ready_candidates": [
+      symbol
+      for bot_type in MONDAY_RECOVERY_BOT_TYPES
+      for symbol in (
+        (bots.get(bot_type) or {}).get("open_ready_candidates") or []
+      )
+    ],
     "stocks_trade_count_nudge": stocks_trade_count_nudge,
     "commodities_graduation_nudge": commodities_graduation_nudge,
   }
