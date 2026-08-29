@@ -278,6 +278,73 @@ def test_stocks_proven_winner_recovery_bypasses_large_loss_skip():
   ) is False
 
 
+def test_commodities_high_composite_recovery_bypasses_chronic():
+  from app.engines.gate_entry_guard import (
+    chronic_loser_blocks_shadow_entry,
+    commodities_high_composite_recovery_entry_ok,
+    hard_skip_blocks_shadow_entry,
+  )
+
+  recovery = dict(
+    bot_type="commodities",
+    shadow_mode=False,
+    symbol="SI=F",
+    composite=0.52,
+    signal_direction="buy",
+    macd_signal="bullish",
+  )
+  assert commodities_high_composite_recovery_entry_ok(**recovery) is True
+  assert commodities_high_composite_recovery_entry_ok(
+    **{**recovery, "symbol": "XAUUSDT"}
+  ) is False
+  assert chronic_loser_blocks_shadow_entry(
+    "SI=F",
+    frozenset({"SI=F"}),
+    bot_type="commodities",
+    graduation_nudge=True,
+    shadow_mode=False,
+    intel_override=False,
+    composite=0.52,
+    signal_direction="buy",
+    macd_signal="bullish",
+  ) is False
+  assert hard_skip_blocks_shadow_entry(
+    "SI=F",
+    bot_type="commodities",
+    recent_skip=frozenset({"SI=F"}),
+    large_skip=frozenset(),
+    review_skip=frozenset(),
+    graduation_nudge=True,
+    shadow_mode=False,
+    intel_override=False,
+    composite=0.52,
+    integration_boost=0.0,
+    signal_direction="buy",
+    macd_signal="bullish",
+  ) is False
+
+
+def test_stocks_proven_winner_sentiment_gate_ok():
+  from app.engines.gate_entry_guard import stocks_proven_winner_sentiment_gate_ok
+
+  base = dict(
+    bot_type="stocks_futures",
+    shadow_mode=True,
+    symbol="AAPL",
+    proven_winners=frozenset({"AAPL", "NVDA"}),
+    bot_win_rate=0.571,
+    composite=0.39,
+    signal_direction="buy",
+    macd_signal="bullish",
+    sentiment=-0.05,
+    integration_boost=0.0,
+  )
+  assert stocks_proven_winner_sentiment_gate_ok(**base) is True
+  assert stocks_proven_winner_sentiment_gate_ok(
+    **{**base, "composite": 0.30}
+  ) is False
+
+
 def test_graduation_nudge_easing_active_for_active_commodities():
   from app.engines.gate_entry_guard import (
     graduation_nudge_easing_active,

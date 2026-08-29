@@ -48,7 +48,7 @@ from app.engines.gate_entry_guard import (
   shadow_graduation_loss_exposure_blocks_entry,
   shadow_intel_composite_override,
   shadow_requires_macd,
-  stocks_gate_entry_sentiment_ok,
+  stocks_proven_winner_sentiment_gate_ok,
   stocks_negative_pf_blocks_entry,
   whale_memecoin_aligned,
 )
@@ -490,7 +490,18 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
     if (
       gate_tightening.active
       and bot_type == "stocks_futures"
-      and not stocks_gate_entry_sentiment_ok(sentiment, integration_boost)
+      and not stocks_proven_winner_sentiment_gate_ok(
+        bot_type=bot_type,
+        shadow_mode=shadow_mode,
+        symbol=symbol,
+        proven_winners=proven_winners,
+        bot_win_rate=per_bot_stats.get("win_rate"),
+        composite=composite,
+        signal_direction=signal.direction,
+        macd_signal=signal.macd_signal,
+        sentiment=sentiment,
+        integration_boost=integration_boost,
+      )
     ):
       blockers.append("sentiment_gate")
     if not early_verification_raw_signal_ok(

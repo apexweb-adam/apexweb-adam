@@ -311,6 +311,7 @@ EARLY_VERIFICATION_MACD_INTEGRATION_BYPASS = 0.05
 STOCKS_NEGATIVE_PF_MIN_COMPOSITE = 0.42
 STOCKS_NEGATIVE_PF_HIGH_WR_MIN_COMPOSITE = 0.38
 STOCKS_PROVEN_RECOVERY_MIN_COMPOSITE = 0.38
+COMMODITIES_HIGH_COMPOSITE_RECOVERY_FLOOR = 0.50
 COMMODITIES_FUTURES_WEEKEND_FLAT_EXIT_BAND_USD = 1.0
 STOCKS_SESSION_CLOSE_WIND_DOWN_MINUTES = 30
 STOCKS_SESSION_CLOSE_FORCE_MINUTES = 15
@@ -561,6 +562,15 @@ def chronic_loser_blocks_shadow_entry(
     symbol=symbol,
     proven_winners=proven_winners or frozenset(),
     bot_win_rate=bot_win_rate,
+    composite=composite or 0.0,
+    signal_direction=signal_direction or "buy",
+    macd_signal=macd_signal or "bullish",
+  ):
+    return False
+  if commodities_high_composite_recovery_entry_ok(
+    bot_type=bot_type,
+    shadow_mode=shadow_mode,
+    symbol=symbol,
     composite=composite or 0.0,
     signal_direction=signal_direction or "buy",
     macd_signal=macd_signal or "bullish",
@@ -1323,15 +1333,25 @@ def hard_skip_blocks_shadow_entry(
   bot_win_rate: float | None = None,
 ) -> bool:
   """Hard gate-skip during graduation nudge — review blocks ease on strong active-gate composites."""
-  recovery_ok = stocks_proven_winner_recovery_entry_ok(
-    bot_type=bot_type,
-    shadow_mode=shadow_mode,
-    symbol=symbol,
-    proven_winners=proven_winners or frozenset(),
-    bot_win_rate=bot_win_rate,
-    composite=composite,
-    signal_direction=signal_direction,
-    macd_signal=macd_signal,
+  recovery_ok = (
+    stocks_proven_winner_recovery_entry_ok(
+      bot_type=bot_type,
+      shadow_mode=shadow_mode,
+      symbol=symbol,
+      proven_winners=proven_winners or frozenset(),
+      bot_win_rate=bot_win_rate,
+      composite=composite,
+      signal_direction=signal_direction,
+      macd_signal=macd_signal,
+    )
+    or commodities_high_composite_recovery_entry_ok(
+      bot_type=bot_type,
+      shadow_mode=shadow_mode,
+      symbol=symbol,
+      composite=composite,
+      signal_direction=signal_direction,
+      macd_signal=macd_signal,
+    )
   )
   if symbol in review_skip:
     if (
@@ -1790,6 +1810,55 @@ def stocks_proven_winner_recovery_entry_ok(
   if signal_direction != "buy" or macd_signal != "bullish":
     return False
   return composite >= STOCKS_PROVEN_RECOVERY_MIN_COMPOSITE
+
+
+def commodities_high_composite_recovery_entry_ok(
+  *,
+  bot_type: str,
+  shadow_mode: bool,
+  symbol: str,
+  composite: float,
+  signal_direction: str,
+  macd_signal: str,
+) -> bool:
+  """Active-gate commodities can re-enter chronic futures with strong aligned composites."""
+  from app.engines.market_data import CRYPTO_LIVE_PRICE_PROXY
+
+  if shadow_mode or bot_type != "commodities":
+    return False
+  if symbol in CRYPTO_LIVE_PRICE_PROXY:
+    return False
+  if signal_direction != "buy" or macd_signal != "bullish":
+    return False
+  return composite >= COMMODITIES_HIGH_COMPOSITE_RECOVERY_FLOOR
+
+
+def stocks_proven_winner_sentiment_gate_ok(
+  *,
+  bot_type: str,
+  shadow_mode: bool,
+  symbol: str,
+  proven_winners: frozenset[str],
+  bot_win_rate: float | None,
+  composite: float,
+  signal_direction: str,
+  macd_signal: str,
+  sentiment: float,
+  integration_boost: float,
+) -> bool:
+  """Allow proven-winner recovery entries despite weak sentiment during gate tightening."""
+  if stocks_gate_entry_sentiment_ok(sentiment, integration_boost):
+    return True
+  return stocks_proven_winner_recovery_entry_ok(
+    bot_type=bot_type,
+    shadow_mode=shadow_mode,
+    symbol=symbol,
+    proven_winners=proven_winners,
+    bot_win_rate=bot_win_rate,
+    composite=composite,
+    signal_direction=signal_direction,
+    macd_signal=macd_signal,
+  )
 
 
 async def build_gate_ws_payload(session: AsyncSession) -> dict[str, Any]:
