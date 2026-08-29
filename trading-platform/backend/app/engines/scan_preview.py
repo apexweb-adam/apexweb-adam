@@ -606,6 +606,8 @@ async def build_monday_recovery_summary(session: AsyncSession) -> dict[str, Any]
       "recovery_candidates": candidates,
       "session": preview.get("session"),
       "symbols": rows,
+      "stocks_trade_count_nudge": preview.get("stocks_trade_count_nudge"),
+      "graduation_nudge": preview.get("graduation_nudge"),
     }
     for row in rows:
       all_rows.append(
@@ -621,4 +623,7 @@ async def build_monday_recovery_summary(session: AsyncSession) -> dict[str, Any]
     "bots": bots,
     "all": all_rows,
     "recovery_candidates": [row["symbol"] for row in all_rows],
+    "stocks_trade_count_nudge": bool(
+      bots.get("stocks_futures", {}).get("stocks_trade_count_nudge")
+    ),
   }

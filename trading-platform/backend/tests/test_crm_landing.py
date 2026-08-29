@@ -11,6 +11,7 @@ def test_crm_landing_includes_monday_recovery_when_candidates():
   client = TestClient(app)
   recovery = {
     "recovery_candidates": ["SI=F", "NVDA"],
+    "stocks_trade_count_nudge": True,
     "all": [
       {
         "bot_type": "commodities",
@@ -25,7 +26,12 @@ def test_crm_landing_includes_monday_recovery_when_candidates():
         "blockers": ["gate_skip"],
       },
     ],
-    "bots": {},
+    "bots": {
+      "stocks_futures": {
+        "recovery_candidates": ["NVDA"],
+        "stocks_trade_count_nudge": True,
+      }
+    },
   }
 
   with patch("app.main.recommended_dashboard_url", new_callable=AsyncMock, return_value="https://example.com"):
@@ -48,7 +54,16 @@ def test_crm_landing_includes_monday_recovery_when_candidates():
               "paused_bots": ["crypto"],
             }
           )
-          MockGate.return_value.evaluate_per_bot = AsyncMock(return_value={})
+          MockGate.return_value.evaluate_per_bot = AsyncMock(
+            return_value={
+              "stocks_futures": {
+                "paused": True,
+                "total_trades": 15,
+                "win_rate": 0.57,
+                "graduation_blockers": ["5 more trades", "profit factor ≥ 1.3", "positive PnL"],
+              }
+            }
+          )
           with patch(
             "app.engines.scan_preview.build_monday_recovery_summary",
             new_callable=AsyncMock,
@@ -102,3 +117,5 @@ def test_crm_landing_includes_monday_recovery_when_candidates():
   assert "SI=F" in body
   assert "NVDA" in body
   assert "weekend_futures_closed" in body
+  assert "trade-count nudge" in body
+  assert "composite floor 0.34" in body

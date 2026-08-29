@@ -118,11 +118,14 @@ async def crm_landing():
   paused = gate.get("paused_bots") or []
 
   bot_rows = ""
+  stocks_trade_count_nudge = bool(monday_recovery.get("stocks_trade_count_nudge"))
   for bot_type, stats in per_bot.items():
     status = "shadow" if stats.get("paused") else "active"
     if stats.get("graduation_ready"):
       status = "ready"
     blockers = ", ".join(stats.get("graduation_blockers") or []) or "—"
+    if bot_type == "stocks_futures" and stocks_trade_count_nudge:
+      blockers = f"{blockers} · trade-count nudge active"
     wr_pct = (stats.get("win_rate") or 0) * 100
     bot_rows += (
       f"<tr><td>{bot_type}</td><td>{status}</td>"
@@ -132,6 +135,16 @@ async def crm_landing():
 
   recovery_rows = ""
   recovery_candidates = monday_recovery.get("recovery_candidates") or []
+  recovery_nudge_note = ""
+  if stocks_trade_count_nudge:
+    stocks_bot = (monday_recovery.get("bots") or {}).get("stocks_futures") or {}
+    stock_candidates = stocks_bot.get("recovery_candidates") or []
+    candidate_label = ", ".join(stock_candidates) if stock_candidates else "proven winners"
+    recovery_nudge_note = (
+      f"<p class='muted' style='margin-top:0;color:#fbbf24;'>"
+      f"Stocks shadow trade-count nudge: graduation WR met — easing proven-winner entries "
+      f"for {candidate_label} (composite floor 0.34).</p>"
+    )
   for row in monday_recovery.get("all") or []:
     bot_type = row.get("bot_type", "")
     symbol = row.get("symbol", "")
@@ -353,6 +366,7 @@ async def crm_landing():
   {f"""<div class="card recovery">
     <h2>Monday recovery watchlist</h2>
     <p class="muted" style="margin-top:0;">Recovery-ready symbols across commodities and stocks shadow bots.</p>
+    {recovery_nudge_note}
     <table>
       <thead><tr><th>Bot</th><th>Symbol</th><th>Composite</th><th>Blockers</th></tr></thead>
       <tbody>{recovery_rows}</tbody>

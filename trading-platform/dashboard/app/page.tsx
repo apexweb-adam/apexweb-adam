@@ -1364,6 +1364,9 @@ function BotScanPreview({ botType }: { botType: string }) {
         {preview.graduation_nudge && (
           <span className="text-amber-500/90"> · graduation nudge</span>
         )}
+        {preview.stocks_trade_count_nudge && (
+          <span className="text-amber-400/90"> · trade-count nudge</span>
+        )}
         {preview.recovery_candidates && preview.recovery_candidates.length > 0 && (
           <span className="text-emerald-400/90">
             {" "}
