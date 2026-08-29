@@ -29,12 +29,23 @@ def test_commodities_effective_scan_interval_fast_during_cme_prep():
       "app.engines.gate_entry_guard.commodities_gate_fast_scan_active",
       return_value=True,
     ), patch(
+      "app.engines.gate_entry_guard.in_shadow_graduation_nudge",
+      return_value=True,
+    ), patch(
+      "app.engines.gate_entry_guard.bot_win_rate_for_graduation_nudge",
+      return_value=0.5,
+    ), patch(
+      "app.engines.profitability_gate.ProfitabilityGate",
+    ) as mock_gate, patch(
       "app.bots.trading_bots.SessionLocal",
     ) as mock_session_local, patch(
       "app.bots.trading_bots.get_gate_entry_tightening",
       new_callable=AsyncMock,
       return_value=tightening,
     ):
+      mock_gate.return_value.evaluate_per_bot = AsyncMock(
+        return_value={"commodities": {"win_rate": 0.5, "profit_factor": 1.2, "total_pnl": 20.0}}
+      )
       mock_session = AsyncMock()
       mock_cm = AsyncMock()
       mock_cm.__aenter__.return_value = mock_session
@@ -130,3 +141,53 @@ def test_commodities_effective_scan_interval_default_outside_prep():
       return await bot._effective_scan_interval()
 
   assert asyncio.run(run()) == 30
+
+
+def test_commodities_effective_scan_interval_imminent_reopen():
+  import asyncio
+
+  bot = CommoditiesBot()
+  session_info = {"in_session": False, "minutes_until_open": 15, "minutes_since_open": 0}
+  tightening = GateEntryTightening(
+    active=True,
+    win_rate=0.5,
+    min_sentiment=0.0,
+    require_macd_bullish=False,
+    min_composite_boost=0.0,
+    blocked_new_entries=frozenset(),
+    max_commodities_open_positions=3,
+  )
+
+  async def run() -> int:
+    with patch(
+      "app.engines.gate_entry_guard.commodities_session_info",
+      return_value=session_info,
+    ), patch(
+      "app.engines.gate_entry_guard.commodities_gate_fast_scan_active",
+      return_value=True,
+    ), patch(
+      "app.engines.gate_entry_guard.in_shadow_graduation_nudge",
+      return_value=True,
+    ), patch(
+      "app.engines.gate_entry_guard.bot_win_rate_for_graduation_nudge",
+      return_value=0.5,
+    ), patch(
+      "app.engines.profitability_gate.ProfitabilityGate",
+    ) as mock_gate, patch(
+      "app.bots.trading_bots.SessionLocal",
+    ) as mock_session_local, patch(
+      "app.bots.trading_bots.get_gate_entry_tightening",
+      new_callable=AsyncMock,
+      return_value=tightening,
+    ):
+      mock_gate.return_value.evaluate_per_bot = AsyncMock(
+        return_value={"commodities": {"win_rate": 0.5, "profit_factor": 1.2, "total_pnl": 20.0}}
+      )
+      mock_session = AsyncMock()
+      mock_cm = AsyncMock()
+      mock_cm.__aenter__.return_value = mock_session
+      mock_cm.__aexit__.return_value = None
+      mock_session_local.return_value = mock_cm
+      return await bot._effective_scan_interval()
+
+  assert asyncio.run(run()) == 5

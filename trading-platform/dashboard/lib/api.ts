@@ -226,6 +226,9 @@ export type ScanPreview = {
   stocks_trade_count_nudge?: boolean;
   stocks_gate_fast_scan_active?: boolean;
   commodities_gate_fast_scan_active?: boolean;
+  commodities_reopen_imminent_scan?: boolean;
+  commodities_graduation_pf_profit_lock_usd?: number;
+  crypto_chronic_loser_aligned_composite_floor?: number;
   crypto_strong_momentum_nudge?: boolean;
   crypto_pre_graduation_nudge?: boolean;
   crypto_cap_pressure_active?: boolean;
@@ -265,6 +268,7 @@ export type SessionPrepEntry = {
   nudge_label: string | null;
   session_mode: string | null;
   gate_fast_scan_active?: boolean;
+  gate_reopen_imminent?: boolean;
 };
 
 export type SessionPrepStatus = {

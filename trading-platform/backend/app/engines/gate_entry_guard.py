@@ -3352,6 +3352,8 @@ def commodities_session_info() -> dict[str, Any]:
 COMMODITIES_MONDAY_SCAN_OPEN_HOUR_MINUTES = 60
 COMMODITIES_MONDAY_SCAN_PREP_MINUTES = 90
 COMMODITIES_GRADUATION_PREP_MINUTES = 4320  # 72h — weekend TV refresh before CME reopen
+COMMODITIES_REOPEN_IMMINENT_SCAN_MINUTES = 30
+COMMODITIES_REOPEN_IMMINENT_SCAN_INTERVAL = 5
 # NG first — typical Sunday CME reopen leader; then energy/metals breadth.
 COMMODITIES_MONDAY_FUTURES_SCAN_ORDER = ("NG=F", "CL=F", "GC=F", "SI=F", "HG=F")
 
@@ -3515,6 +3517,7 @@ def build_session_prep_status(
     nudge_label: str,
     *,
     gate_fast_scan_active: bool,
+    gate_reopen_imminent: bool = False,
   ) -> dict[str, Any]:
     minutes_until = session_info.get("minutes_until_open")
     in_session = bool(session_info.get("in_session"))
@@ -3534,6 +3537,7 @@ def build_session_prep_status(
       "nudge_label": nudge_label if nudge else None,
       "session_mode": session_info.get("mode"),
       "gate_fast_scan_active": gate_fast_scan_active,
+      "gate_reopen_imminent": gate_reopen_imminent,
     }
 
   return {
@@ -3555,6 +3559,10 @@ def build_session_prep_status(
       commodities_graduation_nudge,
       "graduation nudge",
       gate_fast_scan_active=commodities_gate_fast_scan_active(
+        commodities_session,
+        graduation_nudge=commodities_graduation_nudge,
+      ),
+      gate_reopen_imminent=commodities_reopen_imminent_scan_active(
         commodities_session,
         graduation_nudge=commodities_graduation_nudge,
       ),
@@ -3765,6 +3773,47 @@ def commodities_gate_fast_scan_active(
   if commodities_monday_scan_priority_active(session, graduation_nudge=graduation_nudge):
     return True
   return commodities_graduation_prep_active(graduation_nudge)
+
+
+def commodities_reopen_imminent_scan_active(
+  session_info: dict[str, Any] | None = None,
+  *,
+  graduation_nudge: bool = False,
+) -> bool:
+  """Ultra-fast scan window in the last 30 minutes before CME Sunday reopen."""
+  if not graduation_nudge:
+    return False
+  session = session_info or commodities_session_info()
+  if session.get("in_session"):
+    since = session.get("minutes_since_open")
+    return since is not None and since <= COMMODITIES_REOPEN_IMMINENT_SCAN_MINUTES
+  minutes_until = session.get("minutes_until_open")
+  return (
+    minutes_until is not None
+    and minutes_until <= COMMODITIES_REOPEN_IMMINENT_SCAN_MINUTES
+  )
+
+
+def commodities_effective_scan_interval(
+  *,
+  gate_active_interval: int,
+  default_interval: int,
+  session_info: dict[str, Any] | None = None,
+  graduation_nudge: bool = False,
+  gate_tightening_active: bool = False,
+  fast_scan: bool = False,
+) -> int:
+  """Resolve commodities scan interval — 5s imminent reopen, 15s prep, else default."""
+  if not fast_scan and not gate_tightening_active:
+    return default_interval
+  if commodities_reopen_imminent_scan_active(
+    session_info,
+    graduation_nudge=graduation_nudge,
+  ):
+    return COMMODITIES_REOPEN_IMMINENT_SCAN_INTERVAL
+  if fast_scan or gate_tightening_active:
+    return gate_active_interval
+  return default_interval
 
 
 def stocks_gate_fast_scan_active(
