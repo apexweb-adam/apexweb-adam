@@ -1001,6 +1001,7 @@ export default function Dashboard() {
                   { source: "tiktok", status: "active", items_collected: 0, last_fetched: null },
                   { source: "dexscreener", status: "active", items_collected: 0, last_fetched: null },
                   { source: "hyperliquid", status: "active", items_collected: 0, last_fetched: null },
+                  { source: "fomo", status: "degraded", items_collected: 0, last_fetched: null },
                   { source: "polymarket", status: "active", items_collected: 0, last_fetched: null },
                   { source: "polymarket_account", status: "active", items_collected: 0, last_fetched: null },
                   { source: "wallet_tracker", status: "active", items_collected: 0, last_fetched: null },
@@ -1017,6 +1018,24 @@ export default function Dashboard() {
                       <p className="text-xs text-gray-500">
                         {src.items_collected} items collected
                         {src.last_fetched ? ` · last ${formatTime(src.last_fetched)}` : ""}
+                        {src.source === "fomo" && src.bearer_polling_active === false && (
+                          <span className="text-apex-gold">
+                            {" "}
+                            · bearer expired
+                            {src.bearer_minutes_remaining != null
+                              ? ` (${src.bearer_minutes_remaining} min)`
+                              : ""}
+                          </span>
+                        )}
+                        {src.source === "fomo" && src.bearer_polling_active && (
+                          <span className="text-apex-green">
+                            {" "}
+                            · poll active
+                            {src.bearer_minutes_remaining != null
+                              ? ` (${src.bearer_minutes_remaining} min left)`
+                              : ""}
+                          </span>
+                        )}
                       </p>
                     </div>
                     <span

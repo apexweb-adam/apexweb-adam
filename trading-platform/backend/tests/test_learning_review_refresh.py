@@ -10,6 +10,9 @@ def test_analyze_losing_trade_refreshes_daily_review():
   session = AsyncMock()
   session.commit = AsyncMock()
   session.add = MagicMock()
+  session.execute = AsyncMock(
+    return_value=MagicMock(scalar_one_or_none=MagicMock(return_value=None))
+  )
 
   trade = MagicMock()
   trade.id = 1

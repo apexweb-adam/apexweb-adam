@@ -48,6 +48,13 @@ class LearningEngine:
     self.session = session
 
   async def analyze_losing_trade(self, trade: Trade) -> TradeAnalysis:
+    existing = await self.session.execute(
+      select(TradeAnalysis).where(TradeAnalysis.trade_id == trade.id).limit(1)
+    )
+    prior = existing.scalar_one_or_none()
+    if prior:
+      return prior
+
     intel_context = await self._get_market_context(trade.symbol, trade.executed_at)
     sentiment = trade.sentiment_score
 
@@ -82,6 +89,28 @@ class LearningEngine:
         root_causes.append("fomo signal present but aggregate sentiment was weak")
         adjustments.append("Require higher sentiment floor for fomo-driven crypto entries")
         lessons.append("Cross-check fomo copy signals with news/social sentiment before entry")
+
+    if trade.bot_type == "stocks_futures":
+      if "macd" in reason_lower and "bearish" in reason_lower:
+        root_causes.append("Entered against bearish MACD confirmation")
+        adjustments.append("Require bullish MACD for stocks_futures entries during gate")
+        lessons.append("Wait for MACD bullish crossover before stock entries")
+      if any(k in reason_lower for k in ("session close", "wind-down", "afterhours", "outside rth")):
+        root_causes.append("Loss during session close or after-hours wind-down")
+        adjustments.append("Avoid new entries near session close; tighten wind-down exit rules")
+        lessons.append("Respect regular trading hours for stocks day-trading")
+
+    if trade.bot_type == "commodities":
+      if "weekend" in reason_lower:
+        root_causes.append("Commodities position held or exited over weekend session gap")
+        adjustments.append("Flat commodities futures before weekend close when possible")
+        lessons.append("Weekend gaps on CME metals/energy can gap through stops")
+      if any(k in reason_lower for k in ("excess", "cap ", "trim", "close excess")):
+        root_causes.append("Forced cap trim — position exceeded gate open-count limit")
+        lessons.append("Review position sizing before hitting commodities cap")
+      if "macd" in reason_lower and trade.signal_score < 0.5:
+        root_causes.append("Weak MACD/technical setup on commodities entry")
+        adjustments.append("Raise min_signal_score for commodities during verification")
 
     if not root_causes:
       root_causes.append("Market moved against position - normal variance")
