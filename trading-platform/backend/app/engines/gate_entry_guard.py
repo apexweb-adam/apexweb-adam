@@ -79,6 +79,7 @@ SHADOW_GRADUATION_LOSS_EXPOSURE_AGGREGATE_USD = 6.0
 SHADOW_GRADUATION_LOSS_EXPOSURE_SINGLE_POSITION_USD = 2.5
 GRADUATION_NUDGE_PROFIT_LOCK_USD = 3.0
 COMMODITIES_PROVEN_WINNER_PROFIT_LOCK_USD = 2.0
+COMMODITIES_GRADUATION_PF_PROFIT_LOCK_USD = 2.0
 COMMODITIES_ACTIVE_GATE_LOSS_WIND_DOWN_USD = 2.0
 PROFITABLE_SHADOW_PROFIT_LOCK_USD = 3.5
 SHADOW_GRADUATION_LOSS_COOLDOWN_MULTIPLIER = 2
@@ -1810,6 +1811,14 @@ def shadow_graduation_profit_lock(
     and symbol in proven_winners
   ):
     threshold = min(threshold, COMMODITIES_PROVEN_WINNER_PROFIT_LOCK_USD)
+  if (
+    not shadow_mode
+    and bot_type == "commodities"
+    and graduation_nudge
+    and profit_factor is not None
+    and profit_factor < 1.3
+  ):
+    threshold = min(threshold, COMMODITIES_GRADUATION_PF_PROFIT_LOCK_USD)
   if (
     not shadow_mode
     and bot_type == "commodities"

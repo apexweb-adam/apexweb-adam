@@ -1767,9 +1767,32 @@ def test_commodities_proven_winner_profit_lock_eases_threshold():
   assert shadow_graduation_profit_lock(unrealized=2.5, **base) is True
   assert shadow_graduation_profit_lock(unrealized=1.5, **base) is False
   assert shadow_graduation_profit_lock(
-    unrealized=2.5,
+    unrealized=2.1,
     **{**base, "symbol": "NG=F", "proven_winners": frozenset({"CL=F"})},
+  ) is True
+  assert shadow_graduation_profit_lock(
+    unrealized=2.1,
+    **{**base, "symbol": "NG=F", "proven_winners": frozenset({"CL=F"}), "profit_factor": 1.35},
   ) is False
+
+
+def test_commodities_graduation_pf_profit_lock_eases_threshold():
+  from app.engines.gate_entry_guard import shadow_graduation_profit_lock
+
+  base = dict(
+    graduation_nudge=True,
+    shadow_mode=False,
+    bot_type="commodities",
+    held_seconds=600,
+    min_hold_seconds=600,
+    bot_win_rate=0.5,
+    profit_factor=1.2,
+    total_pnl=20.0,
+    symbol="NG=F",
+    proven_winners=frozenset({"CL=F"}),
+  )
+  assert shadow_graduation_profit_lock(unrealized=2.05, **base) is True
+  assert shadow_graduation_profit_lock(unrealized=1.95, **base) is False
 
 
 def test_stocks_trade_count_profit_lock_eases_threshold():
