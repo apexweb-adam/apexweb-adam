@@ -325,7 +325,8 @@ async def crm_landing():
   if phantom.get("portfolio_poll"):
     wallets = phantom.get("tracked_wallets") or 8
     default_tag = " (default whales)" if phantom.get("using_default_wallets") else ""
-    phantom_status = f"Helius poll active · {wallets} wallets{default_tag}"
+    mode = phantom.get("portfolio_poll_mode") or "rpc"
+    phantom_status = f"{mode} poll active · {wallets} wallets{default_tag}"
   elif phantom.get("configured"):
     phantom_status = "webhook ready — Helius poll waiting on HELIUS_API_KEY"
   fomo_bearer_note = ""

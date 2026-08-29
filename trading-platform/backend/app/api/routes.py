@@ -495,6 +495,7 @@ async def get_platform_status(db: AsyncSession = Depends(get_db)) -> dict[str, A
   from app.intelligence.phantom_tracker import (
     phantom_poll_wallet_addresses,
     phantom_portfolio_poll_active,
+    phantom_portfolio_poll_mode,
   )
 
   fomo_bearer = await get_fomo_bearer_status(db)
@@ -698,6 +699,7 @@ async def get_platform_status(db: AsyncSession = Depends(get_db)) -> dict[str, A
         else None
       ),
       "phantom_portfolio_poll": phantom_portfolio_poll_active(),
+      "phantom_portfolio_poll_mode": phantom_portfolio_poll_mode(),
       "phantom_tracked_wallets": len(phantom_poll_wallet_addresses()),
       "phantom_setup": (
         "Helius portfolio poll uses PHANTOM_WALLET_ADDRESSES or default 8 Solana whales when unset. "

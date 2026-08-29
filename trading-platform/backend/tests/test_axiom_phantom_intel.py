@@ -132,7 +132,8 @@ def test_phantom_poll_wallet_addresses_defaults():
     mock_settings.wallet_tracker_use_defaults = True
     mock_settings.phantom_enabled = True
     mock_settings.phantom_portfolio_poll_enabled = True
-    mock_settings.helius_api_key = "test-key"
+    mock_settings.helius_api_key = ""
+    mock_settings.wallet_tracker_use_blockscout_fallback = True
     addresses = phantom_poll_wallet_addresses()
     assert len(addresses) >= 8
     assert phantom_portfolio_poll_active() is True
@@ -170,12 +171,13 @@ def test_scan_phantom_portfolios_ingests_holdings():
   mock_client.__aexit__ = AsyncMock(return_value=None)
 
   with patch("app.intelligence.phantom_tracker.settings") as mock_settings, patch(
-    "app.intelligence.phantom_tracker.parse_phantom_wallet_addresses",
+    "app.intelligence.phantom_tracker.phantom_poll_wallet_addresses",
     return_value=["wallet1234567890123456789012345678901234"],
   ), patch("httpx.AsyncClient", return_value=mock_client):
     mock_settings.phantom_enabled = True
     mock_settings.phantom_portfolio_poll_enabled = True
     mock_settings.helius_api_key = "test-key"
+    mock_settings.wallet_tracker_use_blockscout_fallback = True
     mock_settings.phantom_min_holding_usd = 250
     count = asyncio.run(scan_phantom_portfolios(session))
 
