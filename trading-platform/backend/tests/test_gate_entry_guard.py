@@ -1970,6 +1970,7 @@ def test_crypto_momentum_retreat_entry_min_signal_floor():
 
 def test_crypto_momentum_retreat_raw_signal_ok():
   from app.engines.gate_entry_guard import (
+    CRYPTO_MOMENTUM_RETREAT_ALIGNED_RAW_SIGNAL,
     CRYPTO_MOMENTUM_RETREAT_MIN_RAW_SIGNAL,
     crypto_momentum_retreat_raw_signal_ok,
   )
@@ -1985,6 +1986,21 @@ def test_crypto_momentum_retreat_raw_signal_ok():
   assert crypto_momentum_retreat_raw_signal_ok(0.40, **retreat) is False
   assert crypto_momentum_retreat_raw_signal_ok(0.42, **retreat) is True
   assert crypto_momentum_retreat_raw_signal_ok(0.24, **retreat) is False
+  aligned = {
+    **retreat,
+    "bot_win_rate": 0.468,
+    "profit_factor": 1.07,
+    "total_pnl": 9.85,
+    "composite": 0.55,
+    "signal_direction": "buy",
+    "macd_signal": "bullish",
+  }
+  assert crypto_momentum_retreat_raw_signal_ok(
+    CRYPTO_MOMENTUM_RETREAT_ALIGNED_RAW_SIGNAL + 0.02, **aligned
+  ) is True
+  assert crypto_momentum_retreat_raw_signal_ok(
+    CRYPTO_MOMENTUM_RETREAT_ALIGNED_RAW_SIGNAL - 0.01, **aligned
+  ) is False
   ease = {**retreat, "bot_win_rate": 0.473, "profit_factor": 1.11, "total_pnl": 15.4}
   assert crypto_momentum_retreat_raw_signal_ok(0.40, **ease) is False
   assert crypto_momentum_retreat_raw_signal_ok(0.42, **ease) is True
