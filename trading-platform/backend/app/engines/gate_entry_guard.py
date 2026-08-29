@@ -813,6 +813,7 @@ RECENT_LARGE_LOSS_USD_BY_BOT = {
   "stocks_futures": 15.0,
 }
 RECENT_LARGE_LOSS_HOURS = 24
+FEED_ARTIFACT_LOSS_MAX_USD = 15.0
 EARLY_VERIFICATION_WIND_DOWN_COOLDOWN_MULTIPLIER = 3
 SHADOW_LARGE_LOSS_BYPASS_COMPOSITE = 0.55
 SHADOW_LARGE_LOSS_BYPASS_COMPOSITE_BY_BOT = {
@@ -824,18 +825,39 @@ PROVEN_WINNER_MIN_TRADES = 2
 PROVEN_WINNER_MIN_WIN_RATE = 0.50
 
 
+def is_feed_artifact_loss(
+  bot_type: str,
+  symbol: str,
+  pnl: float | None,
+  reason: str | None,
+) -> bool:
+  """Exclude proxy feed-correction wind-downs from gate-skip loser tallies."""
+  from app.engines.market_data import CRYPTO_LIVE_PRICE_PROXY
+
+  if bot_type != "commodities" or symbol not in CRYPTO_LIVE_PRICE_PROXY:
+    return False
+  if pnl is None or abs(float(pnl)) > FEED_ARTIFACT_LOSS_MAX_USD:
+    return False
+  if not reason:
+    return False
+  lowered = reason.lower()
+  return "wind-down" in lowered or "proxy" in lowered or "feed-correction" in lowered
+
+
 async def _symbol_trade_stats(session: AsyncSession, bot_type: str) -> dict[str, dict[str, int]]:
   from app.models.entities import Trade
 
   result = await session.execute(
-    select(Trade.symbol, Trade.is_winner).where(
+    select(Trade.symbol, Trade.is_winner, Trade.pnl, Trade.reason).where(
       Trade.bot_type == bot_type,
       Trade.action == "sell",
     )
   )
   stats: dict[str, dict[str, int]] = {}
-  for symbol, is_winner in result.all():
+  for symbol, is_winner, pnl, reason in result.all():
     if not symbol:
+      continue
+    if is_winner is False and is_feed_artifact_loss(bot_type, symbol, pnl, reason):
       continue
     bucket = stats.setdefault(symbol, {"wins": 0, "losses": 0})
     if is_winner is True:
@@ -899,15 +921,17 @@ async def get_recent_loser_symbols(
 
   cutoff = datetime.utcnow() - timedelta(days=days)
   result = await session.execute(
-    select(Trade.symbol, Trade.is_winner).where(
+    select(Trade.symbol, Trade.is_winner, Trade.pnl, Trade.reason).where(
       Trade.bot_type == bot_type,
       Trade.action == "sell",
       Trade.executed_at >= cutoff,
     )
   )
   stats: dict[str, dict[str, int]] = {}
-  for symbol, is_winner in result.all():
+  for symbol, is_winner, pnl, reason in result.all():
     if not symbol:
+      continue
+    if is_winner is False and is_feed_artifact_loss(bot_type, symbol, pnl, reason):
       continue
     bucket = stats.setdefault(symbol, {"wins": 0, "losses": 0})
     if is_winner is True:
@@ -941,15 +965,17 @@ async def get_large_recent_loss_symbols(
     loss_floor = RECENT_LARGE_LOSS_USD_BY_BOT.get(bot_type, RECENT_LARGE_LOSS_USD)
   cutoff = datetime.utcnow() - timedelta(hours=hours)
   result = await session.execute(
-    select(Trade.symbol, Trade.pnl, Trade.is_winner, Trade.executed_at).where(
+    select(Trade.symbol, Trade.pnl, Trade.is_winner, Trade.executed_at, Trade.reason).where(
       Trade.bot_type == bot_type,
       Trade.action == "sell",
       Trade.executed_at >= cutoff,
     ).order_by(Trade.executed_at.asc())
   )
   sells_by_symbol: dict[str, list[tuple[float | None, bool | None]]] = {}
-  for symbol, pnl, is_winner, _executed_at in result.all():
+  for symbol, pnl, is_winner, _executed_at, reason in result.all():
     if not symbol:
+      continue
+    if is_winner is False and is_feed_artifact_loss(bot_type, symbol, pnl, reason):
       continue
     sells_by_symbol.setdefault(symbol, []).append((pnl, is_winner))
 

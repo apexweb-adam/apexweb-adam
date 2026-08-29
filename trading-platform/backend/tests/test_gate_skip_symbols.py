@@ -11,13 +11,35 @@ from app.engines.gate_entry_guard import (
   get_gate_skip_symbols,
   get_large_recent_loss_symbols,
   get_recent_loser_symbols,
+  is_feed_artifact_loss,
   is_symbol_in_trade_cooldown,
   get_review_blocked_symbols,
 )
 
 
-def _trade_row(symbol: str, is_winner: bool | None):
-  return (symbol, is_winner)
+def test_is_feed_artifact_loss_commodities_xau_wind_down():
+  assert is_feed_artifact_loss(
+    "commodities",
+    "XAUUSDT",
+    -9.44,
+    "Gate graduation wind-down (uPnL $-9.44) | MACD bullish",
+  ) is True
+  assert is_feed_artifact_loss(
+    "commodities",
+    "XAUUSDT",
+    -20.0,
+    "Gate graduation wind-down (uPnL $-20.00)",
+  ) is False
+  assert is_feed_artifact_loss(
+    "crypto",
+    "BTCUSDT",
+    -5.0,
+    "Shadow graduation wind-down",
+  ) is False
+
+
+def _trade_row(symbol: str, is_winner: bool | None, pnl: float | None = None, reason: str | None = None):
+  return (symbol, is_winner, pnl, reason)
 
 
 def test_symbol_cooldown_remaining_seconds_after_loss():
@@ -96,7 +118,7 @@ def test_large_recent_loss_symbols_stocks_lower_threshold():
   session = AsyncMock()
   now = datetime.utcnow()
   rows = [
-    ("AAPL", -21.31, False, now - timedelta(minutes=30)),
+    ("AAPL", -21.31, False, now - timedelta(minutes=30), "stop loss"),
   ]
   session.execute = AsyncMock(return_value=MagicMock(all=lambda: rows))
 
@@ -148,8 +170,8 @@ def test_symbol_cooldown_graduation_nudge_doubles_crypto_loss():
 def test_large_recent_loss_symbols_blocks_until_win():
   session = AsyncMock()
   rows = [
-    ("NVDA", -71.82, False, datetime.utcnow()),
-    ("AAPL", 0.26, True, datetime.utcnow()),
+    ("NVDA", -71.82, False, datetime.utcnow(), "stop loss"),
+    ("AAPL", 0.26, True, datetime.utcnow(), "take profit"),
   ]
   session.execute = AsyncMock(return_value=MagicMock(all=lambda: rows))
 
@@ -162,8 +184,8 @@ def test_large_recent_loss_symbols_micro_win_does_not_clear_block():
   session = AsyncMock()
   now = datetime.utcnow()
   rows = [
-    ("NVDA", -71.82, False, now - timedelta(minutes=12)),
-    ("NVDA", 0.21, True, now - timedelta(minutes=8)),
+    ("NVDA", -71.82, False, now - timedelta(minutes=12), "stop loss"),
+    ("NVDA", 0.21, True, now - timedelta(minutes=8), "take profit"),
   ]
   session.execute = AsyncMock(return_value=MagicMock(all=lambda: rows))
 
@@ -175,8 +197,8 @@ def test_large_recent_loss_symbols_meaningful_recovery_clears_block():
   session = AsyncMock()
   now = datetime.utcnow()
   rows = [
-    ("NVDA", -40.0, False, now - timedelta(hours=2)),
-    ("NVDA", 12.0, True, now - timedelta(hours=1)),
+    ("NVDA", -40.0, False, now - timedelta(hours=2), "stop loss"),
+    ("NVDA", 12.0, True, now - timedelta(hours=1), "take profit"),
   ]
   session.execute = AsyncMock(return_value=MagicMock(all=lambda: rows))
 
@@ -413,6 +435,18 @@ def test_gate_tightening_min_signal_boost_exempts_active_commodities_nudge():
     graduation_nudge=True,
     shadow_mode=True,
   ) == pytest.approx(0.352)
+
+
+def test_recent_loser_symbols_ignores_feed_artifact_xau_loss():
+  session = AsyncMock()
+  cutoff_losses = [
+    _trade_row("XAUUSDT", False, -9.44, "Gate graduation wind-down (uPnL $-9.44)"),
+    _trade_row("XAUUSDT", False, -8.0, "Gate graduation wind-down (uPnL $-8.00)"),
+  ]
+  session.execute = AsyncMock(return_value=MagicMock(all=lambda: cutoff_losses))
+
+  blocked = asyncio.run(get_recent_loser_symbols(session, "commodities"))
+  assert "XAUUSDT" not in blocked
 
 
 def test_recent_loser_symbols_blocks_zero_win_streak():
