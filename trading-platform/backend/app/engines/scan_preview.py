@@ -37,6 +37,7 @@ from app.engines.gate_entry_guard import (
   crypto_momentum_retreat_entry_min_signal,
   crypto_momentum_retreat_active,
   crypto_momentum_retreat_raw_signal_ok,
+  crypto_shadow_raw_signal_floor_active,
   CRYPTO_MOMENTUM_RETREAT_MIN_RAW_SIGNAL,
   crypto_graduation_entry_ease_active,
   crypto_strong_momentum_nudge,
@@ -644,7 +645,7 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
       profit_factor=per_bot_stats.get("profit_factor"),
       total_pnl=per_bot_stats.get("total_pnl"),
     ):
-      blockers.append(f"retreat_raw<{CRYPTO_MOMENTUM_RETREAT_MIN_RAW_SIGNAL:.2f}")
+      blockers.append(f"shadow_raw<{CRYPTO_MOMENTUM_RETREAT_MIN_RAW_SIGNAL:.2f}")
 
     monday_gate_skip_ready = False
     if bot_type == "stocks_futures":
@@ -738,6 +739,14 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
     per_bot_stats.get("profit_factor"),
     per_bot_stats.get("total_pnl"),
   )
+  crypto_shadow_raw_floor = crypto_shadow_raw_signal_floor_active(
+    bot_type,
+    shadow_mode,
+    graduation_nudge,
+    bot_wr,
+    per_bot_stats.get("profit_factor"),
+    per_bot_stats.get("total_pnl"),
+  )
   effective_min_signal = min_signal
   if crypto_momentum_retreat:
     effective_min_signal = max(
@@ -768,8 +777,9 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
       shadow_cap if crypto_momentum_retreat else None
     ),
     "crypto_momentum_retreat_min_raw_signal": (
-      CRYPTO_MOMENTUM_RETREAT_MIN_RAW_SIGNAL if crypto_momentum_retreat else None
+      CRYPTO_MOMENTUM_RETREAT_MIN_RAW_SIGNAL if crypto_shadow_raw_floor else None
     ),
+    "crypto_shadow_raw_floor_active": crypto_shadow_raw_floor,
     "early_verification_boost": early_verification_boost,
     "shadow_bot_wr": bot_wr if bot_wr is not None else shadow_bot_wr,
     "proven_winners": sorted(proven_winners),

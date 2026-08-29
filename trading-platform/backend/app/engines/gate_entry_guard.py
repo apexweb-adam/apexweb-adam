@@ -952,17 +952,61 @@ def crypto_momentum_retreat_raw_signal_ok(
   profit_factor: float | None = None,
   total_pnl: float | None = None,
 ) -> bool:
-  """Block TV-inflated composite entries when raw technical score is weak during retreat."""
-  if not crypto_momentum_retreat_active(
+  """Block TV-inflated composite entries when raw technical score is weak.
+
+  Applies during momentum retreat and during entry-ease tier until pre-graduation WR.
+  """
+  if not (graduation_nudge and shadow_mode and bot_type == "crypto"):
+    return True
+  if bot_win_rate is not None and bot_win_rate >= CRYPTO_PRE_GRADUATION_MIN_WR:
+    return True
+  retreat = crypto_momentum_retreat_active(
     bot_type,
     shadow_mode,
     graduation_nudge,
     bot_win_rate,
     profit_factor,
     total_pnl,
-  ):
+  )
+  ease = crypto_graduation_entry_ease_active(
+    bot_type,
+    shadow_mode,
+    bot_win_rate,
+    profit_factor,
+    total_pnl,
+  )
+  if not retreat and not ease:
     return True
   return signal_score >= CRYPTO_MOMENTUM_RETREAT_MIN_RAW_SIGNAL
+
+
+def crypto_shadow_raw_signal_floor_active(
+  bot_type: str,
+  shadow_mode: bool,
+  graduation_nudge: bool,
+  bot_win_rate: float | None = None,
+  profit_factor: float | None = None,
+  total_pnl: float | None = None,
+) -> bool:
+  """Whether shadow crypto enforces the minimum raw technical signal floor."""
+  if not (graduation_nudge and shadow_mode and bot_type == "crypto"):
+    return False
+  if bot_win_rate is not None and bot_win_rate >= CRYPTO_PRE_GRADUATION_MIN_WR:
+    return False
+  return crypto_momentum_retreat_active(
+    bot_type,
+    shadow_mode,
+    graduation_nudge,
+    bot_win_rate,
+    profit_factor,
+    total_pnl,
+  ) or crypto_graduation_entry_ease_active(
+    bot_type,
+    shadow_mode,
+    bot_win_rate,
+    profit_factor,
+    total_pnl,
+  )
 
 
 def graduation_nudge_sentiment_ok(

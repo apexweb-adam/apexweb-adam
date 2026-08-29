@@ -1749,9 +1749,28 @@ def test_crypto_momentum_retreat_raw_signal_ok():
   assert crypto_momentum_retreat_raw_signal_ok(0.40, **retreat) is False
   assert crypto_momentum_retreat_raw_signal_ok(0.42, **retreat) is True
   assert crypto_momentum_retreat_raw_signal_ok(0.24, **retreat) is False
+  ease = {**retreat, "bot_win_rate": 0.473, "profit_factor": 1.11, "total_pnl": 15.4}
+  assert crypto_momentum_retreat_raw_signal_ok(0.40, **ease) is False
+  assert crypto_momentum_retreat_raw_signal_ok(0.42, **ease) is True
   strong = {**retreat, "bot_win_rate": 0.50, "profit_factor": 1.25, "total_pnl": 31.0}
   assert crypto_momentum_retreat_raw_signal_ok(0.24, **strong) is True
   assert CRYPTO_MOMENTUM_RETREAT_MIN_RAW_SIGNAL == pytest.approx(0.42)
+
+
+def test_crypto_shadow_raw_signal_floor_active():
+  from app.engines.gate_entry_guard import crypto_shadow_raw_signal_floor_active
+
+  ease = dict(
+    bot_type="crypto",
+    shadow_mode=True,
+    graduation_nudge=True,
+    bot_win_rate=0.473,
+    profit_factor=1.11,
+    total_pnl=15.4,
+  )
+  assert crypto_shadow_raw_signal_floor_active(**ease) is True
+  graduated = {**ease, "bot_win_rate": 0.50}
+  assert crypto_shadow_raw_signal_floor_active(**graduated) is False
 
 
 def test_shadow_max_open_reduced_during_crypto_momentum_retreat():
