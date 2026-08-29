@@ -593,40 +593,48 @@ async def build_monday_recovery_summary(session: AsyncSession) -> dict[str, Any]
   """Aggregate recovery-ready symbols across commodities and stocks for CRM overview."""
   bots: dict[str, Any] = {}
   all_rows: list[dict[str, Any]] = []
+  stocks_trade_count_nudge = False
+  commodities_graduation_nudge = False
 
   for bot_type in MONDAY_RECOVERY_BOT_TYPES:
     preview = await build_scan_preview(session, bot_type)
     if preview.get("error"):
       continue
+    if bot_type == "stocks_futures":
+      stocks_trade_count_nudge = bool(preview.get("stocks_trade_count_nudge"))
+    if bot_type == "commodities":
+      commodities_graduation_nudge = bool(preview.get("graduation_nudge"))
+
     candidates = preview.get("recovery_candidates") or []
-    if not candidates:
-      continue
-    rows = [row for row in preview.get("symbols", []) if row.get("recovery_ready")]
-    bots[bot_type] = {
+    bot_entry: dict[str, Any] = {
       "recovery_candidates": candidates,
       "session": preview.get("session"),
-      "symbols": rows,
+      "symbols": [],
       "stocks_trade_count_nudge": preview.get("stocks_trade_count_nudge"),
       "graduation_nudge": preview.get("graduation_nudge"),
     }
-    for row in rows:
-      all_rows.append(
-        {
-          "bot_type": bot_type,
-          "symbol": row["symbol"],
-          "composite": row.get("composite"),
-          "blockers": row.get("blockers") or [],
-        }
-      )
+    if candidates:
+      rows = [row for row in preview.get("symbols", []) if row.get("recovery_ready")]
+      bot_entry["symbols"] = rows
+      bots[bot_type] = bot_entry
+      for row in rows:
+        all_rows.append(
+          {
+            "bot_type": bot_type,
+            "symbol": row["symbol"],
+            "composite": row.get("composite"),
+            "blockers": row.get("blockers") or [],
+          }
+        )
+    elif bot_type == "stocks_futures" and stocks_trade_count_nudge:
+      bots[bot_type] = bot_entry
+    elif bot_type == "commodities" and commodities_graduation_nudge:
+      bots[bot_type] = bot_entry
 
   return {
     "bots": bots,
     "all": all_rows,
     "recovery_candidates": [row["symbol"] for row in all_rows],
-    "stocks_trade_count_nudge": bool(
-      bots.get("stocks_futures", {}).get("stocks_trade_count_nudge")
-    ),
-    "commodities_graduation_nudge": bool(
-      bots.get("commodities", {}).get("graduation_nudge")
-    ),
+    "stocks_trade_count_nudge": stocks_trade_count_nudge,
+    "commodities_graduation_nudge": commodities_graduation_nudge,
   }

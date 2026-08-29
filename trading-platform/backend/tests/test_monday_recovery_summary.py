@@ -58,6 +58,41 @@ def test_build_monday_recovery_summary_aggregates_bots():
   assert result["bots"]["commodities"]["recovery_candidates"] == ["SI=F"]
 
 
+def test_build_monday_recovery_summary_nudge_without_recovery_candidates():
+  async def _run():
+    session = AsyncMock()
+
+    async def fake_preview(_session, bot_type):
+      if bot_type == "commodities":
+        return {
+          "recovery_candidates": [],
+          "graduation_nudge": False,
+          "symbols": [],
+        }
+      if bot_type == "stocks_futures":
+        return {
+          "recovery_candidates": [],
+          "stocks_trade_count_nudge": True,
+          "graduation_nudge": False,
+          "session": {"mode": "outside_session"},
+          "symbols": [],
+        }
+      return {"error": "unknown"}
+
+    with patch(
+      "app.engines.scan_preview.build_scan_preview",
+      side_effect=fake_preview,
+    ):
+      return await build_monday_recovery_summary(session)
+
+  import asyncio
+
+  result = asyncio.run(_run())
+  assert result["recovery_candidates"] == []
+  assert result["stocks_trade_count_nudge"] is True
+  assert "stocks_futures" in result["bots"]
+
+
 def test_build_monday_recovery_summary_empty_when_no_candidates():
   async def _run():
     session = AsyncMock()
