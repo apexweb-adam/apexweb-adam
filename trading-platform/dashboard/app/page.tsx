@@ -1296,7 +1296,8 @@ function BotCard({
 }
 
 function MondayRecoveryBanner({ summary }: { summary: MondayRecoverySummary | null }) {
-  if (!summary?.all?.length) return null;
+  const hasNudge = summary?.stocks_trade_count_nudge || summary?.commodities_graduation_nudge;
+  if (!summary?.all?.length && !hasNudge) return null;
 
   return (
     <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-4">
@@ -1311,24 +1312,30 @@ function MondayRecoveryBanner({ summary }: { summary: MondayRecoverySummary | nu
           Commodities graduation nudge active — recovery futures prioritized for CME reopen.
         </p>
       )}
-      <ul className="space-y-1.5">
-        {summary.all.map((row) => (
-          <li
-            key={`${row.bot_type}-${row.symbol}`}
-            className="flex items-center justify-between gap-3 text-xs"
-          >
-            <span className="text-gray-200 font-medium">
-              {botLabel(row.bot_type)} · {row.symbol}
-            </span>
-            <span className="text-gray-500 text-right">
-              composite {(row.composite ?? 0).toFixed(3)}
-              {(row.blockers?.length ?? 0) > 0 && (
-                <span className="text-gray-600"> · {row.blockers!.slice(0, 2).join(", ")}</span>
-              )}
-            </span>
-          </li>
-        ))}
-      </ul>
+      {summary.all?.length ? (
+        <ul className="space-y-1.5">
+          {summary.all.map((row) => (
+            <li
+              key={`${row.bot_type}-${row.symbol}`}
+              className="flex items-center justify-between gap-3 text-xs"
+            >
+              <span className="text-gray-200 font-medium">
+                {botLabel(row.bot_type)} · {row.symbol}
+              </span>
+              <span className="text-gray-500 text-right">
+                composite {(row.composite ?? 0).toFixed(3)}
+                {(row.blockers?.length ?? 0) > 0 && (
+                  <span className="text-gray-600"> · {row.blockers!.slice(0, 2).join(", ")}</span>
+                )}
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-[11px] text-gray-500">
+          No recovery-ready symbols right now — nudges still active.
+        </p>
+      )}
     </div>
   );
 }
