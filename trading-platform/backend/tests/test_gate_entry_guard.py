@@ -667,6 +667,7 @@ def test_stocks_monday_open_ready():
 
 def test_crypto_momentum_retreat_gate_skip_bypass():
   from app.engines.gate_entry_guard import (
+    CRYPTO_MOMENTUM_RETREAT_ALIGNED_COMPOSITE_FLOOR,
     CRYPTO_MOMENTUM_RETREAT_MIN_SIGNAL,
     crypto_momentum_retreat_gate_skip_bypass,
     hard_skip_blocks_shadow_entry,
@@ -686,6 +687,18 @@ def test_crypto_momentum_retreat_gate_skip_bypass():
   assert crypto_momentum_retreat_gate_skip_bypass(**retreat) is True
   assert crypto_momentum_retreat_gate_skip_bypass(
     **{**retreat, "composite": CRYPTO_MOMENTUM_RETREAT_MIN_SIGNAL - 0.01}
+  ) is True
+  assert crypto_momentum_retreat_gate_skip_bypass(
+    **{
+      **retreat,
+      "composite": CRYPTO_MOMENTUM_RETREAT_ALIGNED_COMPOSITE_FLOOR + 0.005,
+    }
+  ) is True
+  assert crypto_momentum_retreat_gate_skip_bypass(
+    **{
+      **retreat,
+      "composite": CRYPTO_MOMENTUM_RETREAT_ALIGNED_COMPOSITE_FLOOR - 0.01,
+    }
   ) is False
   assert crypto_momentum_retreat_gate_skip_bypass(
     **{**retreat, "signal_direction": "sell"}
@@ -2016,8 +2029,14 @@ def test_crypto_momentum_retreat_entry_min_signal_floor():
     profit_factor=1.07,
     total_pnl=10.8,
   )
-  assert crypto_momentum_retreat_entry_min_signal(0.34, **retreat) == pytest.approx(0.48)
+  assert crypto_momentum_retreat_entry_min_signal(0.34, **retreat) == pytest.approx(0.43)
   assert crypto_momentum_retreat_entry_min_signal(0.52, **retreat) == pytest.approx(0.52)
+  assert crypto_momentum_retreat_entry_min_signal(
+    0.34,
+    **retreat,
+    signal_direction="sell",
+    macd_signal="bearish",
+  ) == pytest.approx(0.48)
   strong = {**retreat, "bot_win_rate": 0.50, "profit_factor": 1.25, "total_pnl": 31.0}
   assert crypto_momentum_retreat_entry_min_signal(0.34, **strong) == pytest.approx(0.34)
 
@@ -2297,6 +2316,10 @@ def test_graduation_nudge_sentiment_ok_crypto_momentum_retreat_bypass():
   assert graduation_nudge_sentiment_ok(
     "crypto",
     **{**retreat, "composite": 0.45},
+  ) is True
+  assert graduation_nudge_sentiment_ok(
+    "crypto",
+    **{**retreat, "composite": 0.42},
   ) is False
   assert graduation_nudge_sentiment_ok(
     "crypto",
