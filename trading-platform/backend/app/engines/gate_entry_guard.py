@@ -3400,7 +3400,7 @@ def commodities_session_info() -> dict[str, Any]:
 COMMODITIES_MONDAY_SCAN_OPEN_HOUR_MINUTES = 60
 COMMODITIES_MONDAY_SCAN_PREP_MINUTES = 90
 COMMODITIES_GRADUATION_PREP_MINUTES = 4320  # 72h — weekend TV refresh before CME reopen
-COMMODITIES_REOPEN_IMMINENT_SCAN_MINUTES = 30
+COMMODITIES_REOPEN_IMMINENT_SCAN_MINUTES = 60
 COMMODITIES_REOPEN_IMMINENT_SCAN_INTERVAL = 5
 # NG first — typical Sunday CME reopen leader; then energy/metals breadth.
 COMMODITIES_MONDAY_FUTURES_SCAN_ORDER = ("NG=F", "CL=F", "GC=F", "SI=F", "HG=F")
@@ -3451,12 +3451,13 @@ def prioritize_commodities_monday_scan(
 ) -> list[str]:
   """Scan chronic CME futures first ahead of Monday reopen / open hour.
 
-  During the imminent reopen window, futures leaders (NG=F first) scan before
-  chronic-loser recovery so open-ready symbols enter as soon as CME reopens.
+  During graduation prep and the imminent reopen window, futures leaders (NG=F
+  first) scan before chronic-loser recovery so open-ready symbols enter as soon
+  as CME reopens.
   """
-  if (
-    graduation_nudge
-    and commodities_reopen_imminent_scan_active(
+  if graduation_nudge and (
+    commodities_graduation_prep_active(graduation_nudge)
+    or commodities_reopen_imminent_scan_active(
       session_info,
       graduation_nudge=graduation_nudge,
     )

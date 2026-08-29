@@ -1028,9 +1028,9 @@ def test_prioritize_commodities_monday_scan_graduation_nudge():
     session_info=session,
     graduation_nudge=True,
   )
-  assert ordered[0] == "SI=F"
+  assert ordered[0] == "NG=F"
   assert ordered[1] == "CL=F"
-  assert "SI=F" in ordered
+  assert ordered.index("SI=F") > ordered.index("NG=F")
 
 
 def test_prioritize_commodities_monday_scan_reopen_imminent_futures_first():
@@ -1038,6 +1038,22 @@ def test_prioritize_commodities_monday_scan_reopen_imminent_futures_first():
 
   symbols = ["CL=F", "SI=F", "NG=F", "HG=F", "XAUUSDT"]
   session = {"in_session": False, "minutes_until_open": 20, "minutes_since_open": 0}
+  ordered = prioritize_commodities_monday_scan(
+    symbols,
+    chronic_losers=frozenset({"SI=F"}),
+    proven_winners=frozenset({"CL=F"}),
+    session_info=session,
+    graduation_nudge=True,
+  )
+  assert ordered[0] == "NG=F"
+  assert ordered.index("CL=F") < ordered.index("SI=F")
+
+
+def test_prioritize_commodities_monday_scan_graduation_prep_futures_first():
+  from app.engines.gate_entry_guard import prioritize_commodities_monday_scan
+
+  symbols = ["CL=F", "SI=F", "NG=F", "HG=F", "XAUUSDT"]
+  session = {"in_session": False, "minutes_until_open": 2400, "minutes_since_open": 0}
   ordered = prioritize_commodities_monday_scan(
     symbols,
     chronic_losers=frozenset({"SI=F"}),
@@ -1104,9 +1120,11 @@ def test_commodities_reopen_imminent_scan_active():
 
   session_far = {"in_session": False, "minutes_until_open": 120, "minutes_since_open": 0}
   session_imminent = {"in_session": False, "minutes_until_open": 20, "minutes_since_open": 0}
+  session_prep = {"in_session": False, "minutes_until_open": 45, "minutes_since_open": 0}
   session_open = {"in_session": True, "minutes_until_open": 0, "minutes_since_open": 10}
 
   assert commodities_reopen_imminent_scan_active(session_far, graduation_nudge=True) is False
+  assert commodities_reopen_imminent_scan_active(session_prep, graduation_nudge=True) is True
   assert commodities_reopen_imminent_scan_active(session_imminent, graduation_nudge=True) is True
   assert commodities_reopen_imminent_scan_active(session_open, graduation_nudge=True) is True
   assert commodities_reopen_imminent_scan_active(session_imminent, graduation_nudge=False) is False
