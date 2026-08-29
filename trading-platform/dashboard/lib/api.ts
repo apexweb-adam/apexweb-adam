@@ -406,6 +406,12 @@ export type PlatformStatus = {
     fomo_webhook_url?: string | null;
     fomo_setup?: string | null;
     fomo_example_payload?: Record<string, unknown> | null;
+    fomo_bridge_scripts?: {
+      userscript?: string;
+      zapier_guide?: string;
+      manual_curl?: string;
+      test_webhook?: string;
+    };
     reddit_oauth?: boolean;
     twitter_x?: boolean;
   };

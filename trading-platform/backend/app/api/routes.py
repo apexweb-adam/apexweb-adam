@@ -595,11 +595,18 @@ async def get_platform_status(db: AsyncSession = Depends(get_db)) -> dict[str, A
         else None
       ),
       "fomo_setup": (
-        "Forward fomo.family trader alerts to the fomo webhook (browser bridge or Zapier). "
-        "Top leaderboard traders get highest relevance in the crypto bot."
+        "3 bridges: (1) Tampermonkey script scripts/fomo-family-bridge.user.js on fomo.family, "
+        "(2) Zapier email/push → webhook — see scripts/fomo-zapier-setup.md, "
+        "(3) curl scripts/fomo-send-alert.sh while tuning traders."
         if settings.fomo_enabled and settings.tradingview_webhook_secret
         else None
       ),
+      "fomo_bridge_scripts": {
+        "userscript": "trading-platform/scripts/fomo-family-bridge.user.js",
+        "zapier_guide": "trading-platform/scripts/fomo-zapier-setup.md",
+        "manual_curl": "trading-platform/scripts/fomo-send-alert.sh",
+        "test_webhook": "trading-platform/scripts/fomo-test-webhook.sh",
+      },
       "fomo_example_payload": (
         {
           "secret": "<TRADINGVIEW_WEBHOOK_SECRET>",

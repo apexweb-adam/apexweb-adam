@@ -524,6 +524,22 @@ export default function Dashboard() {
                                 {platformStatus.integrations.fomo_setup}
                               </p>
                             )}
+                            {platformStatus.integrations.fomo_bridge_scripts && (
+                              <ul className="mt-2 text-[10px] text-gray-500 list-disc list-inside space-y-1">
+                                <li>
+                                  Userscript:{" "}
+                                  <code>{platformStatus.integrations.fomo_bridge_scripts.userscript}</code>
+                                </li>
+                                <li>
+                                  Zapier:{" "}
+                                  <code>{platformStatus.integrations.fomo_bridge_scripts.zapier_guide}</code>
+                                </li>
+                                <li>
+                                  Manual curl:{" "}
+                                  <code>{platformStatus.integrations.fomo_bridge_scripts.manual_curl}</code>
+                                </li>
+                              </ul>
+                            )}
                             {platformStatus.integrations.fomo_example_payload && (
                               <pre className="mt-2 p-2 rounded bg-black/40 text-[10px] text-gray-400 overflow-x-auto">
                                 {JSON.stringify(
