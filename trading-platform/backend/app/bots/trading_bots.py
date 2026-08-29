@@ -1445,8 +1445,10 @@ class StocksFuturesBot(BaseBot):
 
   async def _effective_scan_interval(self) -> int:
     """Scan more often during US session, verification gate, or trade-count prep."""
+    from app.config import settings
     from app.engines.gate_entry_guard import (
       bot_win_rate_for_graduation_nudge,
+      stocks_effective_scan_interval,
       stocks_gate_fast_scan_active,
       stocks_session_info,
       stocks_trade_count_graduation_nudge,
@@ -1454,42 +1456,13 @@ class StocksFuturesBot(BaseBot):
     from app.engines.profitability_gate import ProfitabilityGate
 
     session_info = stocks_session_info()
-    fast_scan = self._in_us_session()
-    if not fast_scan:
-      async with SessionLocal() as session:
-        gate = await ProfitabilityGate(session).evaluate()
-        per_bot = (await ProfitabilityGate(session).evaluate_per_bot()).get(
-          "stocks_futures"
-        ) or {}
-        shadow_mode = bool(gate.get("shadow_mode"))
-        bot_wr = bot_win_rate_for_graduation_nudge(
-          "stocks_futures",
-          shadow_mode=shadow_mode,
-          shadow_bot_wr=per_bot.get("win_rate"),
-          per_bot_stats=per_bot,
-        )
-        trade_count_nudge = stocks_trade_count_graduation_nudge(
-          "stocks_futures",
-          shadow_mode,
-          bot_wr,
-          int(per_bot.get("total_trades") or 0),
-        )
-      fast_scan = stocks_gate_fast_scan_active(
-        session_info,
-        trade_count_nudge=trade_count_nudge,
-      )
-    if not fast_scan:
-      return self.scan_interval
-    async with SessionLocal() as session:
-      from app.config import settings
+    in_session = self._in_us_session()
+    trade_count_nudge = False
+    gate_tightening_active = False
+    use_gate_interval = in_session
 
+    async with SessionLocal() as session:
       gate = await ProfitabilityGate(session).evaluate()
-      active_trades = int(gate.get("total_trades") or 0)
-      if settings.paper_trading_only and active_trades < ProfitabilityGate.MIN_TRADES:
-        return self.gate_active_scan_interval
-      tightening = await get_gate_entry_tightening(session)
-      if tightening.active:
-        return self.gate_active_scan_interval
       per_bot = (await ProfitabilityGate(session).evaluate_per_bot()).get(
         "stocks_futures"
       ) or {}
@@ -1500,14 +1473,35 @@ class StocksFuturesBot(BaseBot):
         shadow_bot_wr=per_bot.get("win_rate"),
         per_bot_stats=per_bot,
       )
-      if stocks_trade_count_graduation_nudge(
+      trade_count_nudge = stocks_trade_count_graduation_nudge(
         "stocks_futures",
         shadow_mode,
         bot_wr,
         int(per_bot.get("total_trades") or 0),
-      ):
-        return self.gate_active_scan_interval
-    return self.scan_interval
+      )
+      active_trades = int(gate.get("total_trades") or 0)
+      tightening = await get_gate_entry_tightening(session)
+      gate_tightening_active = tightening.active
+      use_gate_interval = use_gate_interval or (
+        settings.paper_trading_only and active_trades < ProfitabilityGate.MIN_TRADES
+      ) or gate_tightening_active or trade_count_nudge
+
+    prep_fast_scan = stocks_gate_fast_scan_active(
+      session_info,
+      trade_count_nudge=trade_count_nudge,
+    )
+    if not use_gate_interval and not prep_fast_scan:
+      return self.scan_interval
+
+    return stocks_effective_scan_interval(
+      gate_active_interval=self.gate_active_scan_interval,
+      default_interval=self.scan_interval,
+      session_info=session_info,
+      trade_count_nudge=trade_count_nudge,
+      gate_tightening_active=gate_tightening_active,
+      fast_scan=use_gate_interval or prep_fast_scan,
+      in_session=in_session,
+    )
 
   async def run_loop(self) -> None:
     self.running = True

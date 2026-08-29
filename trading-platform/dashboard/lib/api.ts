@@ -225,6 +225,8 @@ export type ScanPreview = {
   graduation_nudge: boolean;
   stocks_trade_count_nudge?: boolean;
   stocks_gate_fast_scan_active?: boolean;
+  stocks_open_imminent_scan?: boolean;
+  stocks_trade_count_profit_lock_usd?: number;
   commodities_gate_fast_scan_active?: boolean;
   commodities_reopen_imminent_scan?: boolean;
   commodities_graduation_pf_profit_lock_usd?: number;
