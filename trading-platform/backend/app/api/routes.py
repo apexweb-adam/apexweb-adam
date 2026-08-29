@@ -612,7 +612,7 @@ async def get_platform_status(db: AsyncSession = Depends(get_db)) -> dict[str, A
         else None
       ),
       "fomo_setup": (
-        "3 bridges: (1) Tampermonkey script scripts/fomo-family-bridge.user.js on fomo.family, "
+        "3 bridges: (1) Tampermonkey on fomo.family — forwards trades + auto-syncs bearer for server polling, "
         "(2) Zapier email/push → webhook — see scripts/fomo-zapier-setup.md, "
         "(3) curl scripts/fomo-send-alert.sh while tuning traders."
         if settings.fomo_enabled and settings.tradingview_webhook_secret

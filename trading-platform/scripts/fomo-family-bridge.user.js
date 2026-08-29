@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Apex fomo.family → Apex Trading Bridge
 // @namespace    https://apex-trading-backend.onrender.com
-// @version      1.0.0
+// @version      1.1.0
 // @description  Forward fomo.family feed/trade API events to Apex crypto intel webhook
 // @match        https://fomo.family/*
 // @match        https://*.fomo.family/*
@@ -19,6 +19,8 @@
   const STORAGE_KEY = "apex_fomo_bridge_v1";
   const DEFAULT_WEBHOOK =
     "https://apex-trading-backend.onrender.com/api/webhooks/fomo";
+  const BEARER_SYNC_URL =
+    "https://apex-trading-backend.onrender.com/api/admin/set-fomo-bearer";
   const API_HOST = "prod-api.fomo.family";
   const SEEN_MAX = 500;
 
@@ -44,6 +46,8 @@
     errors: 0,
     lastSentAt: null,
     pollTimer: null,
+    bearerSyncedAt: null,
+    lastSyncedBearer: "",
   };
 
   function loadConfig() {
@@ -259,7 +263,44 @@
         "";
     }
     if (auth.startsWith("Bearer ") && auth.length > 20) {
-      state.bearer = auth.slice(7);
+      const token = auth.slice(7);
+      if (token !== state.bearer) {
+        state.bearer = token;
+        syncBearerToServer();
+      }
+    }
+  }
+
+  async function syncBearerToServer(options = {}) {
+    if (!state.secret || !state.bearer) return;
+    const minGapMs = 5 * 60 * 1000;
+    if (
+      !options.refresh &&
+      state.bearer === state.lastSyncedBearer &&
+      state.bearerSyncedAt &&
+      Date.now() - Date.parse(state.bearerSyncedAt) < minGapMs
+    ) {
+      return;
+    }
+    try {
+      const res = await nativeFetch(BEARER_SYNC_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          secret: state.secret,
+          bearer_token: state.bearer,
+        }),
+        credentials: "omit",
+      });
+      const json = await res.json().catch(() => ({}));
+      if (res.ok && json.status === "ok") {
+        state.lastSyncedBearer = state.bearer;
+        state.bearerSyncedAt = new Date().toISOString();
+        log("bearer synced", json.fomo_bearer_minutes_remaining, "min left");
+        updateHud();
+      }
+    } catch (err) {
+      log("bearer sync error", err);
     }
   }
 
@@ -308,7 +349,11 @@
   XHR.setRequestHeader = function (name, value) {
     this._apexHeaders[name] = value;
     if (/authorization/i.test(name) && String(value).startsWith("Bearer ")) {
-      state.bearer = String(value).slice(7);
+      const token = String(value).slice(7);
+      if (token !== state.bearer) {
+        state.bearer = token;
+        syncBearerToServer();
+      }
     }
     return setRequestHeader.call(this, name, value);
   };
@@ -364,6 +409,7 @@
       <div style="font-weight:600;color:#f5c542;margin-bottom:4px;">Apex fomo bridge</div>
       <div>sent: ${state.sent} | errors: ${state.errors}</div>
       <div>secret: ${state.secret ? "set" : "missing"} | bearer: ${state.bearer ? "captured" : "waiting"}</div>
+      <div>server sync: ${state.bearerSyncedAt ? state.bearerSyncedAt.slice(11, 19) + " UTC" : "—"}</div>
       <div>last: ${state.lastSentAt || "—"}</div>
     `;
   }
@@ -408,4 +454,5 @@
 
   restartPoll();
   setTimeout(pollTrades, 4000);
+  setInterval(syncBearerToServer, 10 * 60 * 1000);
 })();
