@@ -113,6 +113,7 @@ CRYPTO_GRADUATION_ENTRY_EASE_MIN_WR = 0.47
 CRYPTO_GRADUATION_ENTRY_EASE_MIN_PF = 1.10
 CRYPTO_MOMENTUM_RETREAT_MIN_SIGNAL = 0.48
 CRYPTO_MOMENTUM_RETREAT_ALIGNED_COMPOSITE_FLOOR = 0.43
+CRYPTO_MOMENTUM_RETREAT_CAP_ROOM_ALIGNED_COMPOSITE_FLOOR = 0.40
 CRYPTO_MOMENTUM_RETREAT_MIN_RAW_SIGNAL = 0.42
 CRYPTO_MOMENTUM_RETREAT_ALIGNED_RAW_SIGNAL = 0.32
 CRYPTO_MOMENTUM_RETREAT_CAP_ROOM_ALIGNED_RAW_SIGNAL = 0.30
@@ -333,6 +334,8 @@ def crypto_momentum_retreat_raw_signal_floor(
     signal_direction=signal_direction,
     macd_signal=macd_signal,
     composite=composite,
+    open_count=open_count,
+    shadow_open_cap=shadow_open_cap,
   ):
     if (
       open_count is not None
@@ -1051,9 +1054,18 @@ def crypto_graduation_entry_min_signal(
 def crypto_momentum_retreat_composite_floor(
   signal_direction: str = "buy",
   macd_signal: str = "bullish",
+  *,
+  open_count: int | None = None,
+  shadow_open_cap: int | None = None,
 ) -> float:
   """Per-setup composite floor during crypto momentum retreat."""
   if signal_direction == "buy" and macd_signal == "bullish":
+    if (
+      open_count is not None
+      and shadow_open_cap is not None
+      and open_count < shadow_open_cap
+    ):
+      return CRYPTO_MOMENTUM_RETREAT_CAP_ROOM_ALIGNED_COMPOSITE_FLOOR
     return CRYPTO_MOMENTUM_RETREAT_ALIGNED_COMPOSITE_FLOOR
   return CRYPTO_MOMENTUM_RETREAT_MIN_SIGNAL
 
@@ -1069,6 +1081,8 @@ def crypto_momentum_retreat_entry_min_signal(
   total_pnl: float | None = None,
   signal_direction: str = "buy",
   macd_signal: str = "bullish",
+  open_count: int | None = None,
+  shadow_open_cap: int | None = None,
 ) -> float:
   """Raise composite floor during crypto momentum retreat — block marginal cap rotations."""
   if not (graduation_nudge and shadow_mode and bot_type == "crypto"):
@@ -1084,6 +1098,8 @@ def crypto_momentum_retreat_entry_min_signal(
   retreat_floor = crypto_momentum_retreat_composite_floor(
     signal_direction,
     macd_signal,
+    open_count=open_count,
+    shadow_open_cap=shadow_open_cap,
   )
   return max(entry_min_signal, retreat_floor)
 
@@ -1139,6 +1155,8 @@ def crypto_momentum_retreat_raw_signal_ok(
     signal_direction=signal_direction,
     macd_signal=macd_signal,
     composite=composite,
+    open_count=open_count,
+    shadow_open_cap=shadow_open_cap,
   ):
     floor = crypto_momentum_retreat_raw_signal_floor(
       bot_type=bot_type,
@@ -1168,6 +1186,8 @@ def crypto_momentum_retreat_gate_skip_bypass(
   signal_direction: str,
   macd_signal: str,
   composite: float,
+  open_count: int | None = None,
+  shadow_open_cap: int | None = None,
 ) -> bool:
   """Crypto shadow momentum retreat bypasses recent gate_skip on aligned setups."""
   if not crypto_momentum_retreat_active(
@@ -1184,6 +1204,8 @@ def crypto_momentum_retreat_gate_skip_bypass(
   return composite >= crypto_momentum_retreat_composite_floor(
     signal_direction,
     macd_signal,
+    open_count=open_count,
+    shadow_open_cap=shadow_open_cap,
   )
 
 
@@ -1213,6 +1235,8 @@ def crypto_momentum_retreat_cooldown_bypass(
     signal_direction=signal_direction,
     macd_signal=macd_signal,
     composite=composite,
+    open_count=open_count,
+    shadow_open_cap=shadow_open_cap,
   ):
     return False
   if last_exit_reason and "cap-pressure" in last_exit_reason:
@@ -1345,6 +1369,8 @@ def chronic_loser_blocks_shadow_entry(
   total_trades: int = 0,
   profit_factor: float | None = None,
   total_pnl: float | None = None,
+  open_count: int | None = None,
+  shadow_open_cap: int | None = None,
 ) -> bool:
   """Chronic losers are skippable during graduation nudge when intel override applies."""
   if symbol not in chronic_symbols:
@@ -1413,6 +1439,8 @@ def chronic_loser_blocks_shadow_entry(
     signal_direction=signal_direction or "buy",
     macd_signal=macd_signal or "bullish",
     composite=composite or 0.0,
+    open_count=open_count,
+    shadow_open_cap=shadow_open_cap,
   ):
     return False
   if (
@@ -2698,6 +2726,8 @@ def hard_skip_blocks_shadow_entry(
   total_trades: int = 0,
   profit_factor: float | None = None,
   total_pnl: float | None = None,
+  open_count: int | None = None,
+  shadow_open_cap: int | None = None,
 ) -> bool:
   """Hard gate-skip during graduation nudge — review blocks ease on strong active-gate composites."""
   recovery_ok = (
@@ -2815,6 +2845,8 @@ def hard_skip_blocks_shadow_entry(
       signal_direction=signal_direction,
       macd_signal=macd_signal,
       composite=composite,
+      open_count=open_count,
+      shadow_open_cap=shadow_open_cap,
     ):
       return False
     if graduation_nudge_easing_active(
@@ -2873,6 +2905,8 @@ def hard_skip_blocks_shadow_entry(
       signal_direction=signal_direction,
       macd_signal=macd_signal,
       composite=composite,
+      open_count=open_count,
+      shadow_open_cap=shadow_open_cap,
     ):
       return False
     if graduation_nudge_easing_active(

@@ -45,6 +45,7 @@ from app.engines.gate_entry_guard import (
   CRYPTO_MOMENTUM_RETREAT_ALIGNED_RAW_SIGNAL,
   CRYPTO_MOMENTUM_RETREAT_CAP_ROOM_ALIGNED_RAW_SIGNAL,
   CRYPTO_MOMENTUM_RETREAT_ALIGNED_COMPOSITE_FLOOR,
+  CRYPTO_MOMENTUM_RETREAT_CAP_ROOM_ALIGNED_COMPOSITE_FLOOR,
   CRYPTO_MOMENTUM_RETREAT_CAP_PRESSURE_LOSER_USD,
   CRYPTO_MOMENTUM_RETREAT_CAP_FULL_MIN_HOLD_SECONDS,
   CRYPTO_MOMENTUM_RETREAT_LOSS_WIND_DOWN_USD,
@@ -373,6 +374,8 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
       total_pnl=per_bot_stats.get("total_pnl"),
       signal_direction=signal.direction,
       macd_signal=signal.macd_signal,
+      open_count=open_count,
+      shadow_open_cap=shadow_cap,
     )
     entry_min_signal = stocks_trade_count_entry_min_signal(
       entry_min_signal,
@@ -553,6 +556,8 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
       total_trades=int(per_bot_stats.get("total_trades") or 0),
       profit_factor=per_bot_stats.get("profit_factor"),
       total_pnl=per_bot_stats.get("total_pnl"),
+      open_count=open_count,
+      shadow_open_cap=shadow_cap,
     ):
       blockers.append("gate_skip")
     if chronic_loser_blocks_shadow_entry(
@@ -570,6 +575,8 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
       total_trades=int(per_bot_stats.get("total_trades") or 0),
       profit_factor=per_bot_stats.get("profit_factor"),
       total_pnl=per_bot_stats.get("total_pnl"),
+      open_count=open_count,
+      shadow_open_cap=shadow_cap,
     ):
       blockers.append("chronic_loser")
     if (
@@ -745,6 +752,8 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
         signal_direction=signal.direction,
         macd_signal=signal.macd_signal,
         composite=composite,
+        open_count=open_count,
+        shadow_open_cap=shadow_cap,
       )
       crypto_retreat_cooldown_ready = crypto_momentum_retreat_cooldown_bypass(
         bot_type=bot_type,
@@ -895,6 +904,11 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
     ),
     "crypto_momentum_retreat_aligned_composite_floor": (
       CRYPTO_MOMENTUM_RETREAT_ALIGNED_COMPOSITE_FLOOR
+      if crypto_momentum_retreat
+      else None
+    ),
+    "crypto_momentum_retreat_cap_room_aligned_composite_floor": (
+      CRYPTO_MOMENTUM_RETREAT_CAP_ROOM_ALIGNED_COMPOSITE_FLOOR
       if crypto_momentum_retreat
       else None
     ),

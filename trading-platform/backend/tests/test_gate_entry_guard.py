@@ -751,6 +751,22 @@ def test_crypto_momentum_retreat_gate_skip_bypass():
   assert crypto_momentum_retreat_gate_skip_bypass(
     **{
       **retreat,
+      "composite": 0.41,
+      "open_count": 0,
+      "shadow_open_cap": 2,
+    }
+  ) is True
+  assert crypto_momentum_retreat_gate_skip_bypass(
+    **{
+      **retreat,
+      "composite": 0.39,
+      "open_count": 0,
+      "shadow_open_cap": 2,
+    }
+  ) is False
+  assert crypto_momentum_retreat_gate_skip_bypass(
+    **{
+      **retreat,
       "composite": CRYPTO_MOMENTUM_RETREAT_ALIGNED_COMPOSITE_FLOOR - 0.01,
     }
   ) is False
@@ -2127,6 +2143,9 @@ def test_crypto_momentum_retreat_entry_min_signal_floor():
     total_pnl=10.8,
   )
   assert crypto_momentum_retreat_entry_min_signal(0.34, **retreat) == pytest.approx(0.43)
+  assert crypto_momentum_retreat_entry_min_signal(
+    0.34, **retreat, open_count=0, shadow_open_cap=2
+  ) == pytest.approx(0.40)
   assert crypto_momentum_retreat_entry_min_signal(0.52, **retreat) == pytest.approx(0.52)
   assert crypto_momentum_retreat_entry_min_signal(
     0.34,
