@@ -21,6 +21,8 @@ import {
   type VerificationSnapshot,
   type PerBotGateStatus,
   type MondayRecoverySummary,
+  type SessionPrepStatus,
+  type SessionPrepEntry,
 } from "./api";
 
 type LiveData = {
@@ -40,6 +42,7 @@ type LiveData = {
   gateEntryTightening: GateEntryTightening | null;
   botSessions: BotSessions | null;
   mondayRecovery: MondayRecoverySummary | null;
+  sessionPrep: SessionPrepStatus | null;
   connected: boolean;
   lastUpdate: string | null;
   lastTrade: Record<string, unknown> | null;
@@ -62,6 +65,7 @@ export function useLiveData(): LiveData {
   const [gateEntryTightening, setGateEntryTightening] = useState<GateEntryTightening | null>(null);
   const [botSessions, setBotSessions] = useState<BotSessions | null>(null);
   const [mondayRecovery, setMondayRecovery] = useState<MondayRecoverySummary | null>(null);
+  const [sessionPrep, setSessionPrep] = useState<SessionPrepStatus | null>(null);
   const [connected, setConnected] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<string | null>(null);
   const [lastTrade, setLastTrade] = useState<Record<string, unknown> | null>(null);
@@ -72,13 +76,14 @@ export function useLiveData(): LiveData {
 
   const refreshFromApi = useCallback(async () => {
     try {
-      const [status, portfolios, bots, positions, trades, recovery] = await Promise.all([
+      const [status, portfolios, bots, positions, trades, recovery, prep] = await Promise.all([
         fetchAPI<{ stats: Stats; timestamp: string }>("/status"),
         fetchAPI<Portfolio[]>("/portfolios"),
         fetchAPI<Bot[]>("/bots"),
         fetchAPI<Position[]>("/positions"),
         fetchAPI<Trade[]>("/trades?limit=50"),
         fetchAPI<MondayRecoverySummary>("/gate/monday-recovery").catch(() => null),
+        fetchAPI<SessionPrepStatus>("/gate/prep-status").catch(() => null),
       ]);
       if (status.stats) setStats(status.stats);
       setPortfolios(portfolios);
@@ -86,6 +91,7 @@ export function useLiveData(): LiveData {
       setPositions(positions);
       setTrades(trades);
       if (recovery) setMondayRecovery(recovery);
+      if (prep) setSessionPrep(prep);
       if (status.timestamp) setLastUpdate(status.timestamp);
     } catch {
       // keep last good snapshot
@@ -127,6 +133,7 @@ export function useLiveData(): LiveData {
     }
     if (data.bot_sessions) setBotSessions(data.bot_sessions as BotSessions);
     if (data.monday_recovery) setMondayRecovery(data.monday_recovery as MondayRecoverySummary);
+    if (data.session_prep) setSessionPrep(data.session_prep as SessionPrepStatus);
     if (data.timestamp) setLastUpdate(String(data.timestamp));
   }, []);
 
@@ -197,6 +204,7 @@ export function useLiveData(): LiveData {
     gateEntryTightening,
     botSessions,
     mondayRecovery,
+    sessionPrep,
     connected,
     lastUpdate,
     lastTrade,

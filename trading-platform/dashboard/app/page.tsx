@@ -41,6 +41,8 @@ import type {
   LearningInsight,
   ScanPreview,
   MondayRecoverySummary,
+  SessionPrepStatus,
+  SessionPrepEntry,
   StrategyConfig,
   ProfitabilityStatus,
   VerificationSnapshot,
@@ -59,7 +61,7 @@ import { IntelRoutingPanel } from "@/components/IntelRoutingPanel";
 type Tab = "overview" | "trades" | "positions" | "intelligence" | "learning" | "strategy";
 
 export default function Dashboard() {
-  const { stats, portfolios, bots, positions: livePositions, trades: liveTrades, recentIntel, analyses: liveAnalyses, reviews: liveReviews, insights: liveInsights, strategies: liveStrategies, intelSources: liveIntelSources, verificationHistory: liveVerificationHistory, connected, lastUpdate, lastTrade, profitabilityGate: liveProfitability, gateEntryTightening, botSessions, mondayRecovery } = useLiveData();
+  const { stats, portfolios, bots, positions: livePositions, trades: liveTrades, recentIntel, analyses: liveAnalyses, reviews: liveReviews, insights: liveInsights, strategies: liveStrategies, intelSources: liveIntelSources, verificationHistory: liveVerificationHistory, connected, lastUpdate, lastTrade, profitabilityGate: liveProfitability, gateEntryTightening, botSessions, mondayRecovery, sessionPrep } = useLiveData();
   const { data: tradesRest } = useAPI<Trade[]>("/trades?limit=50", 30000);
   const { data: gateTradesRest } = useAPI<Trade[]>("/trades?limit=200", 30000);
   const { data: positionsRest } = useAPI<Position[]>("/positions", 30000);
@@ -71,17 +73,17 @@ export default function Dashboard() {
   const { data: insightsRest } = useAPI<LearningInsight[]>("/insights?limit=20", 30000);
   const { data: strategiesRest } = useAPI<StrategyConfig[]>("/strategies", 30000);
   const { data: intelSourcesRest } = useAPI<IntelligenceSource[]>("/intelligence/sources", 30000);
-  const analyses = connected && liveAnalyses.length > 0 ? liveAnalyses : (analysesRest ?? []);
-  const reviews = connected && liveReviews.length > 0 ? liveReviews : (reviewsRest ?? []);
-  const insights = connected && liveInsights.length > 0 ? liveInsights : (insightsRest ?? []);
-  const strategies = connected && liveStrategies.length > 0 ? liveStrategies : (strategiesRest ?? []);
-  const intelSources = connected && liveIntelSources.length > 0 ? liveIntelSources : (intelSourcesRest ?? []);
+  const analyses = liveAnalyses.length > 0 ? liveAnalyses : (analysesRest ?? []);
+  const reviews = liveReviews.length > 0 ? liveReviews : (reviewsRest ?? []);
+  const insights = liveInsights.length > 0 ? liveInsights : (insightsRest ?? []);
+  const strategies = liveStrategies.length > 0 ? liveStrategies : (strategiesRest ?? []);
+  const intelSources = liveIntelSources.length > 0 ? liveIntelSources : (intelSourcesRest ?? []);
   const { data: verificationHistoryRest } = useAPI<VerificationSnapshot[]>(
     "/verification/history?limit=30",
     60000
   );
   const verificationHistory =
-    connected && liveVerificationHistory.length > 0
+    liveVerificationHistory.length > 0
       ? liveVerificationHistory
       : (verificationHistoryRest ?? []);
   const { data: profitability } = useAPI<ProfitabilityStatus>("/profitability", 15000);
@@ -313,12 +315,14 @@ export default function Dashboard() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-6">
               <MondayRecoveryBanner summary={mondayRecovery} />
+              <SessionPrepBanner sessionPrep={sessionPrep} />
               <Card title="Bot Status">
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
                   {bots.map((bot) => (
                     <BotCard
                       key={bot.bot_type}
                       bot={bot}
+                      sessionPrep={sessionPrep?.[bot.bot_type as keyof SessionPrepStatus]}
                       session={
                         botSessions?.[bot.bot_type] ??
                         platformStatus?.bot_sessions?.[bot.bot_type]
@@ -1185,6 +1189,9 @@ export default function Dashboard() {
                               : ""}
                           </span>
                         )}
+                        {src.source === "reddit" && src.oauth_configured === false && (
+                          <span className="text-apex-gold"> · RSS fallback (OAuth not set)</span>
+                        )}
                       </p>
                     </div>
                     <span
@@ -1216,7 +1223,7 @@ export default function Dashboard() {
             {(platformStatus?.learning?.insights_pending ?? 0) > 0 && (
               <div className="lg:col-span-2 p-3 rounded-lg bg-apex-gold/10 border border-apex-gold/30 text-xs text-apex-gold">
                 {platformStatus!.learning!.insights_pending} content-study insight(s) pending
-                application — auto-applies every 2h when confidence ≥ 55%.
+                application — auto-applies every 1h when confidence ≥ 55%.
               </div>
             )}
             <Card title="Loss Trade Analysis">
@@ -1402,6 +1409,7 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
 function BotCard({
   bot,
   session,
+  sessionPrep,
   gate,
 }: {
   bot: {
@@ -1413,6 +1421,7 @@ function BotCard({
     pnl_today: number;
     strategy_version: number;
   };
+  sessionPrep?: SessionPrepEntry;
   session?: {
     in_session: boolean;
     mode:
@@ -1445,12 +1454,15 @@ function BotCard({
         : session && bot.bot_type === "commodities" && !session.in_session && session.minutes_until_open
           ? `CME reopens in ${Math.floor(session.minutes_until_open / 60)}h ${session.minutes_until_open % 60}m`
           : null;
-  const preSessionPrep =
-    session &&
-    bot.bot_type === "stocks_futures" &&
-    !session.in_session &&
-    session.minutes_until_open != null &&
-    session.minutes_until_open <= 90
+  const preSessionPrep = sessionPrep?.prep_active
+    ? sessionPrep.extended_weekend_prep
+      ? `Weekend TV prep · ${sessionPrep.nudge_label ?? "nudge"}`
+      : "TV prep active"
+    : session &&
+        bot.bot_type === "stocks_futures" &&
+        !session.in_session &&
+        session.minutes_until_open != null &&
+        session.minutes_until_open <= 90
       ? "TV prep active"
       : session &&
           bot.bot_type === "commodities" &&
@@ -1546,6 +1558,42 @@ function BotCard({
         <span>{bot.trades_today} trades today</span>
         <span>Strategy v{bot.strategy_version}</span>
       </div>
+    </div>
+  );
+}
+
+function SessionPrepBanner({ sessionPrep }: { sessionPrep: SessionPrepStatus | null }) {
+  if (!sessionPrep) return null;
+
+  const rows = (["stocks_futures", "commodities"] as const)
+    .map((key) => sessionPrep[key])
+    .filter((entry) => entry?.prep_active);
+
+  if (rows.length === 0) return null;
+
+  return (
+    <div className="rounded-lg border border-apex-gold/30 bg-apex-gold/5 p-4">
+      <p className="text-sm font-medium text-apex-gold mb-2">Session prep active</p>
+      <ul className="space-y-1.5">
+        {rows.map((entry) => {
+          const mins = entry.minutes_until_open;
+          const openLabel =
+            mins != null ? `${Math.floor(mins / 60)}h ${mins % 60}m until open` : "open soon";
+          return (
+            <li key={entry.bot_type} className="text-xs text-gray-300">
+              <span className="font-medium text-white">{botLabel(entry.bot_type)}</span>
+              {" · "}
+              {entry.extended_weekend_prep ? "weekend TV prep" : "TV prep"}
+              {entry.nudge_label ? ` · ${entry.nudge_label}` : ""}
+              {" · "}
+              <span className="text-gray-500">{openLabel}</span>
+              {entry.session_mode ? (
+                <span className="text-gray-600"> · {entry.session_mode}</span>
+              ) : null}
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }

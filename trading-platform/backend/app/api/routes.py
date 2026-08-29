@@ -748,7 +748,7 @@ async def get_platform_status(db: AsyncSession = Depends(get_db)) -> dict[str, A
           settings.polymarket_wallet_address or settings.polymarket_deposit_address
         ),
         "polymarket_api": bool(settings.polymarket_api_key),
-        "reddit": True,
+        "reddit": bool(settings.reddit_client_id and settings.reddit_client_secret),
         "wallet_tracker": wallet_tracker_configured(),
       },
       "render_blueprint": "https://render.com/deploy?repo=https://github.com/apexweb-adam/apexweb-adam",

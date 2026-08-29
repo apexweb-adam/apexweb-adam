@@ -67,6 +67,8 @@ def _source_status(
       if age <= timedelta(hours=12):
         return "active"
     return "degraded"
+  if source == "reddit" and has_items and not configured.get("reddit_oauth"):
+    return "degraded"
   if is_configured or has_items:
     return "active"
   return "pending"
@@ -82,9 +84,11 @@ async def build_intel_sources(session: AsyncSession) -> list[dict[str, Any]]:
     if source not in source_latest or (fetched_at and fetched_at > source_latest[source]):
       source_latest[source] = fetched_at
 
+  reddit_oauth = bool(settings.reddit_client_id and settings.reddit_client_secret)
   configured = {
     "news": True,
-    "reddit": bool(settings.reddit_client_id and settings.reddit_client_secret) or True,
+    "reddit": reddit_oauth or source_counts.get("reddit", 0) > 0,
+    "reddit_oauth": reddit_oauth,
     "youtube": True,
     "polymarket": True,
     "polymarket_account": bool(
@@ -137,6 +141,8 @@ async def build_intel_sources(session: AsyncSession) -> list[dict[str, Any]]:
       "items_collected": source_counts.get(source, 0),
       "last_fetched": source_latest.get(source).isoformat() if source in source_latest else None,
     }
+    if source == "reddit":
+      row["oauth_configured"] = reddit_oauth
     if source == "fomo" and fomo_bearer.get("configured"):
       row["bearer_expires_at"] = fomo_bearer.get("expires_at")
       row["bearer_minutes_remaining"] = fomo_bearer.get("minutes_remaining")
