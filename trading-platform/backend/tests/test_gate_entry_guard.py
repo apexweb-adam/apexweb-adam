@@ -1179,6 +1179,43 @@ def test_chronic_loser_blocks_shadow_entry_intel_bypass():
   ) == 1.0
 
 
+def test_crypto_momentum_retreat_chronic_loser_requires_aligned_floor():
+  from app.engines.gate_entry_guard import (
+    CRYPTO_MOMENTUM_RETREAT_ALIGNED_COMPOSITE_FLOOR,
+    CRYPTO_MOMENTUM_RETREAT_CAP_ROOM_ALIGNED_COMPOSITE_FLOOR,
+    chronic_loser_blocks_shadow_entry,
+  )
+
+  retreat = dict(
+    bot_type="crypto",
+    graduation_nudge=True,
+    shadow_mode=True,
+    intel_override=False,
+    bot_win_rate=0.42,
+    profit_factor=0.97,
+    total_pnl=-5.61,
+    signal_direction="buy",
+    macd_signal="bullish",
+    open_count=1,
+    shadow_open_cap=2,
+  )
+  cap_room_composite = (
+    CRYPTO_MOMENTUM_RETREAT_CAP_ROOM_ALIGNED_COMPOSITE_FLOOR + 0.01
+  )
+  assert chronic_loser_blocks_shadow_entry(
+    "SHIBUSDT",
+    frozenset({"SHIBUSDT"}),
+    composite=cap_room_composite,
+    **retreat,
+  ) is True
+  assert chronic_loser_blocks_shadow_entry(
+    "SHIBUSDT",
+    frozenset({"SHIBUSDT"}),
+    composite=CRYPTO_MOMENTUM_RETREAT_ALIGNED_COMPOSITE_FLOOR + 0.01,
+    **retreat,
+  ) is False
+
+
 def test_shadow_graduation_min_hold_seconds():
   from app.engines.gate_entry_guard import shadow_graduation_min_hold_seconds
 

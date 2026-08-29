@@ -1452,7 +1452,9 @@ def chronic_loser_blocks_shadow_entry(
     open_count=open_count,
     shadow_open_cap=shadow_open_cap,
   ):
-    return False
+    # Chronic re-entry during retreat needs aligned floor — not cap-room ease.
+    if (composite or 0.0) >= CRYPTO_MOMENTUM_RETREAT_ALIGNED_COMPOSITE_FLOOR:
+      return False
   if (
     crypto_strong_momentum_nudge(
       bot_type,
