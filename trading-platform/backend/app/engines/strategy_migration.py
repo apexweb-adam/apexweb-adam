@@ -484,3 +484,65 @@ async def close_excess_commodities_positions(
   if closed:
     await session.commit()
   return closed
+
+
+SHADOW_TRIM_BOT_TYPES = ("crypto", "commodities")
+
+
+async def close_excess_shadow_positions(session: AsyncSession) -> int:
+  """Close worst-losing shadow positions when open count exceeds shadow cap."""
+  from app.engines.gate_entry_guard import shadow_max_open_for_bot
+  from app.engines.market_data import fetch_crypto_data, fetch_yfinance_data
+  from app.engines.paper_trading import PaperTradingEngine
+  from app.engines.profitability_gate import ProfitabilityGate
+
+  per_bot = await ProfitabilityGate(session).evaluate_per_bot()
+  closed = 0
+
+  for bot_type in SHADOW_TRIM_BOT_TYPES:
+    if not await is_bot_paused(session, bot_type):
+      continue
+    stats = per_bot.get(bot_type) or {}
+    cap = shadow_max_open_for_bot(
+      bot_type,
+      shadow_mode=True,
+      bot_win_rate=stats.get("win_rate"),
+      profit_factor=stats.get("profit_factor"),
+      total_pnl=stats.get("total_pnl"),
+    )
+    if cap is None:
+      continue
+
+    engine = PaperTradingEngine(session, bot_type)
+    positions = await engine.get_open_positions()
+    if len(positions) <= cap:
+      continue
+
+    def _unrealized(pos: Position) -> float:
+      if pos.unrealized_pnl is not None:
+        return float(pos.unrealized_pnl)
+      if pos.current_price and pos.entry_price:
+        return float((pos.current_price - pos.entry_price) * pos.quantity)
+      return 0.0
+
+    positions.sort(key=_unrealized)
+    for pos in positions[: len(positions) - cap]:
+      if pos.symbol.endswith("USDT"):
+        price, _ = await fetch_crypto_data(pos.symbol, "15m")
+      else:
+        price, _ = await fetch_yfinance_data(pos.symbol)
+      if price <= 0:
+        price = pos.current_price or pos.entry_price
+      if price <= 0:
+        continue
+      result = await engine.sell(
+        pos.symbol,
+        price,
+        f"Close excess shadow position (cap {cap}, uPnL ${_unrealized(pos):.2f})",
+      )
+      if result:
+        closed += 1
+
+  if closed:
+    await session.commit()
+  return closed

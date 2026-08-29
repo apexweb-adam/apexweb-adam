@@ -650,6 +650,7 @@ async def apply_risk_migrations(payload: dict[str, Any], db: AsyncSession = Depe
     fix_breakeven_trade_labels,
     dedupe_polymarket_positions,
     close_excess_commodities_positions,
+    close_excess_shadow_positions,
     close_non_macro_polymarket_positions,
     recalculate_portfolio_win_rates,
     reconcile_portfolio_balances,
@@ -674,6 +675,7 @@ async def apply_risk_migrations(payload: dict[str, Any], db: AsyncSession = Depe
   pm_deduped = await dedupe_polymarket_positions(db)
   pm_sports_closed = await close_non_macro_polymarket_positions(db)
   commodities_trimmed = await close_excess_commodities_positions(db)
+  shadow_trimmed = await close_excess_shadow_positions(db)
   return {
     "status": "ok",
     "gate_paused": gate_paused,
@@ -689,6 +691,7 @@ async def apply_risk_migrations(payload: dict[str, Any], db: AsyncSession = Depe
     "polymarket_duplicates_closed": pm_deduped,
     "polymarket_sports_closed": pm_sports_closed,
     "commodities_excess_closed": commodities_trimmed,
+    "shadow_excess_closed": shadow_trimmed,
     "timestamp": datetime.utcnow().isoformat(),
   }
 
