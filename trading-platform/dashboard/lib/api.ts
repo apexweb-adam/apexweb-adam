@@ -413,6 +413,7 @@ export type PlatformStatus = {
     fomo_bearer_expires_at?: string | null;
     fomo_bearer_minutes_remaining?: number | null;
     fomo_bearer_refresh_hint?: string | null;
+    fomo_webhook_fallback_active?: boolean;
     fomo_setup?: string | null;
     fomo_example_payload?: Record<string, unknown> | null;
     fomo_bridge_scripts?: {
@@ -427,6 +428,7 @@ export type PlatformStatus = {
     axiom_userscript_url?: string | null;
     axiom_session_configured?: boolean;
     axiom_session_polling_active?: boolean;
+    axiom_poll_mode?: string | null;
     axiom_multi_wallet_ready?: boolean;
     axiom_tracked_wallets?: number;
     axiom_min_wallets?: number;
@@ -437,6 +439,7 @@ export type PlatformStatus = {
     phantom_webhook_url?: string | null;
     phantom_userscript_url?: string | null;
     phantom_portfolio_poll?: boolean;
+    phantom_portfolio_poll_mode?: string | null;
     phantom_tracked_wallets?: number;
     phantom_setup?: string | null;
     phantom_example_payload?: Record<string, unknown> | null;
