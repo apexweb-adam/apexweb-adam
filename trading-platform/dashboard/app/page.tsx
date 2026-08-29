@@ -376,6 +376,12 @@ export default function Dashboard() {
                         {platformStatus.learning.daily_reviews} daily reviews ·{" "}
                         {platformStatus.learning.insights_applied}/{platformStatus.learning.insights_total}{" "}
                         insights applied
+                        {(platformStatus.learning.insights_pending ?? 0) > 0 && (
+                          <span className="text-apex-gold">
+                            {" "}
+                            · {platformStatus.learning.insights_pending} pending
+                          </span>
+                        )}
                       </p>
                     </div>
                   )}
@@ -1039,6 +1045,12 @@ export default function Dashboard() {
 
         {tab === "learning" && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {(platformStatus?.learning?.insights_pending ?? 0) > 0 && (
+              <div className="lg:col-span-2 p-3 rounded-lg bg-apex-gold/10 border border-apex-gold/30 text-xs text-apex-gold">
+                {platformStatus!.learning!.insights_pending} content-study insight(s) pending
+                application — auto-applies every 2h when confidence ≥ 55%.
+              </div>
+            )}
             <Card title="Loss Trade Analysis">
               <div className="space-y-3 max-h-[500px] overflow-y-auto">
                 {(analyses ?? []).length === 0 ? (
@@ -1102,6 +1114,11 @@ export default function Dashboard() {
                         {r.losing_trades} losses
                       </p>
                       <p className="text-xs text-gray-300 mt-2">{r.conclusions}</p>
+                      {r.patterns_found && (
+                        <p className="text-xs text-apex-purple mt-1">
+                          <strong>Patterns:</strong> {r.patterns_found}
+                        </p>
+                      )}
                       <p className="text-xs text-apex-gold mt-1">{r.strategy_changes}</p>
                     </div>
                   ))

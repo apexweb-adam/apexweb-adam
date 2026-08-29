@@ -477,6 +477,10 @@ async def close_non_macro_polymarket_positions(session: AsyncSession) -> int:
       "Close non-macro PM position (sports/noise filter)",
     )
     if result:
+      from app.engines.learning_engine import analyze_losing_trade_for_symbol
+
+      if result.get("is_winner") is False:
+        await analyze_losing_trade_for_symbol(session, "polymarket", pos.symbol)
       closed += 1
   if closed:
     await session.commit()
@@ -518,6 +522,10 @@ async def close_excess_commodities_positions(
       f"Close excess commodities position (cap {cap}, uPnL ${u:.2f})",
     )
     if result:
+      from app.engines.learning_engine import analyze_losing_trade_for_symbol
+
+      if result.get("is_winner") is False:
+        await analyze_losing_trade_for_symbol(session, "commodities", pos.symbol)
       closed += 1
   if closed:
     await session.commit()
@@ -579,6 +587,10 @@ async def close_excess_shadow_positions(session: AsyncSession) -> int:
         f"Close excess shadow position (cap {cap}, uPnL ${_unrealized(pos):.2f})",
       )
       if result:
+        from app.engines.learning_engine import analyze_losing_trade_for_symbol
+
+        if result.get("is_winner") is False:
+          await analyze_losing_trade_for_symbol(session, bot_type, pos.symbol)
         closed += 1
 
   if closed:

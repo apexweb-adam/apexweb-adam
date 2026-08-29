@@ -24,7 +24,7 @@ def test_close_excess_shadow_positions_closes_worst_loser():
 
   engine = MagicMock()
   engine.get_open_positions = AsyncMock(return_value=positions)
-  engine.sell = AsyncMock(return_value={"symbol": "LINKUSDT"})
+  engine.sell = AsyncMock(return_value={"symbol": "LINKUSDT", "is_winner": False})
 
   per_bot = {
     "crypto": {
@@ -55,13 +55,18 @@ def test_close_excess_shadow_positions_closes_worst_loser():
             "app.engines.market_data.fetch_crypto_data",
             AsyncMock(return_value=(10.0, None)),
           ):
-            session = MagicMock()
-            session.commit = AsyncMock()
-            closed = asyncio.run(close_excess_shadow_positions(session))
+            with patch(
+              "app.engines.learning_engine.analyze_losing_trade_for_symbol",
+              new_callable=AsyncMock,
+            ) as analyze_loss:
+              session = MagicMock()
+              session.commit = AsyncMock()
+              closed = asyncio.run(close_excess_shadow_positions(session))
 
   assert closed == 1
   engine.sell.assert_awaited_once()
   assert engine.sell.await_args.args[0] == "LINKUSDT"
+  analyze_loss.assert_awaited_once_with(session, "crypto", "LINKUSDT")
 
 
 def test_close_excess_shadow_positions_skips_active_gate_bot():
