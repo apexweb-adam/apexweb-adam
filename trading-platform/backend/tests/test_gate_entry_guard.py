@@ -759,7 +759,15 @@ def test_crypto_momentum_retreat_gate_skip_bypass():
   assert crypto_momentum_retreat_gate_skip_bypass(
     **{
       **retreat,
-      "composite": 0.39,
+      "composite": 0.37,
+      "open_count": 0,
+      "shadow_open_cap": 2,
+    }
+  ) is True
+  assert crypto_momentum_retreat_gate_skip_bypass(
+    **{
+      **retreat,
+      "composite": 0.35,
       "open_count": 0,
       "shadow_open_cap": 2,
     }
@@ -1751,6 +1759,27 @@ def test_commodities_proven_winner_profit_lock_eases_threshold():
   ) is False
 
 
+def test_stocks_trade_count_profit_lock_eases_threshold():
+  from app.engines.gate_entry_guard import shadow_graduation_profit_lock
+
+  base = dict(
+    graduation_nudge=True,
+    shadow_mode=True,
+    bot_type="stocks_futures",
+    held_seconds=600,
+    min_hold_seconds=600,
+    bot_win_rate=0.57,
+    profit_factor=0.62,
+    total_pnl=-52.0,
+    total_trades=15,
+  )
+  assert shadow_graduation_profit_lock(unrealized=2.6, **base) is True
+  assert shadow_graduation_profit_lock(unrealized=2.0, **base) is False
+  assert shadow_graduation_profit_lock(
+    unrealized=2.6, **{**base, "total_trades": 10}
+  ) is False
+
+
 def test_commodities_weekend_spot_profit_lock_eases_threshold():
   from datetime import datetime
   from unittest.mock import patch
@@ -2145,7 +2174,7 @@ def test_crypto_momentum_retreat_entry_min_signal_floor():
   assert crypto_momentum_retreat_entry_min_signal(0.34, **retreat) == pytest.approx(0.43)
   assert crypto_momentum_retreat_entry_min_signal(
     0.34, **retreat, open_count=0, shadow_open_cap=2
-  ) == pytest.approx(0.40)
+  ) == pytest.approx(0.36)
   assert crypto_momentum_retreat_entry_min_signal(0.52, **retreat) == pytest.approx(0.52)
   assert crypto_momentum_retreat_entry_min_signal(
     0.34,
