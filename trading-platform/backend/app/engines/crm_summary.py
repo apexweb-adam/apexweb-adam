@@ -84,6 +84,7 @@ async def build_crm_integration_hooks(session: AsyncSession) -> dict[str, Any]:
       "userscript_url": "https://apex-trading-backend.onrender.com/api/axiom/userscript",
       "session_configured": bool(axiom_session.get("configured")),
       "session_polling_active": bool(axiom_session.get("polling_active")),
+      "poll_mode": axiom_session.get("poll_mode"),
       "multi_wallet_ready": bool(axiom_session.get("multi_wallet_ready")),
       "tracked_wallets": axiom_session.get("tracked_wallets"),
       "min_wallets_required": settings.wallet_tracker_min_wallets,

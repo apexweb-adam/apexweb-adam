@@ -76,21 +76,34 @@ async def get_axiom_session_status(session: AsyncSession) -> dict[str, object]:
   from app.engines.platform_settings import get_axiom_session_token
 
   token = await get_axiom_session_token(session)
+  poll_mode = axiom_poll_mode(token)
   if not token:
     return {
       "configured": False,
-      "polling_active": False,
+      "polling_active": poll_mode != "off",
+      "poll_mode": poll_mode,
       "multi_wallet_ready": axiom_multi_wallet_ready(),
       "tracked_wallets": tracked_solana_wallet_count(),
       "min_wallets_required": settings.wallet_tracker_min_wallets,
     }
   return {
     "configured": True,
-    "polling_active": len(token) >= 20,
+    "polling_active": poll_mode != "off",
+    "poll_mode": poll_mode,
     "multi_wallet_ready": axiom_multi_wallet_ready(),
     "tracked_wallets": len(parse_axiom_wallet_addresses()),
     "min_wallets_required": settings.wallet_tracker_min_wallets,
   }
+
+
+def axiom_poll_mode(session_token: str | None = None) -> str:
+  if not settings.axiom_enabled:
+    return "off"
+  if session_token:
+    return "session"
+  if axiom_multi_wallet_ready() and settings.wallet_tracker_use_defaults:
+    return "mirror"
+  return "off"
 
 
 async def ingest_axiom_webhook(session: AsyncSession, payload: dict) -> dict:
@@ -235,11 +248,68 @@ def feed_row_to_payload(row: dict) -> dict:
   }
 
 
+async def scan_axiom_wallet_mirror(session: AsyncSession) -> int:
+  """Mirror recent Solana whale wallet intel into axiom feed when session poll is unavailable."""
+  if not settings.axiom_enabled or not axiom_multi_wallet_ready():
+    return 0
+
+  from app.engines.platform_settings import get_axiom_session_token
+
+  if await get_axiom_session_token(session):
+    return 0
+
+  cutoff = datetime.utcnow() - timedelta(hours=3)
+  result = await session.execute(
+    select(IntelligenceItem)
+    .where(
+      IntelligenceItem.source == "wallet_tracker",
+      IntelligenceItem.fetched_at >= cutoff,
+      IntelligenceItem.category == "crypto",
+    )
+    .order_by(IntelligenceItem.fetched_at.desc())
+    .limit(25)
+  )
+
+  wallet_count = tracked_solana_wallet_count()
+  ingested = 0
+  for item in result.scalars().all():
+    haystack = f"{item.title} {item.content}".upper()
+    if "SOL WHALE" not in haystack and "SOLANA" not in haystack:
+      continue
+    symbol_raw = (item.symbols_mentioned or "SOL").split(",")[0].replace("USDT", "")
+    action = "buy" if (item.sentiment or 0) > 0.15 else "sell" if (item.sentiment or 0) < -0.1 else "watch"
+    mirror_url = f"axiom:mirror:{item.url}"[:1000]
+    mirror_result = await ingest_axiom_webhook(
+      session,
+      {
+        "event_type": "trade",
+        "symbol": symbol_raw,
+        "action": action,
+        "message": f"Multi-wallet mirror from Solana whale tracker | {item.title[:120]}",
+        "url": mirror_url,
+        "wallets_watching": wallet_count,
+        "relevance": min(0.94, float(item.relevance_score or 0.72) + 0.04),
+        "sentiment": item.sentiment,
+      },
+    )
+    if mirror_result.get("status") == "received":
+      ingested += 1
+  return ingested
+
+
 async def scan_axiom_feed(session: AsyncSession) -> int:
-  """Optional axiom session polling — best-effort when session token is stored."""
+  """Poll axiom session feed when configured; otherwise mirror Solana whale wallet intel."""
   if not settings.axiom_enabled:
     return 0
 
+  ingested = await _scan_axiom_session_feed(session)
+  if ingested == 0:
+    ingested += await scan_axiom_wallet_mirror(session)
+  return ingested
+
+
+async def _scan_axiom_session_feed(session: AsyncSession) -> int:
+  """Best-effort axiom.trade session polling when a token is stored."""
   from app.engines.platform_settings import get_axiom_session_token
 
   token = await get_axiom_session_token(session)
