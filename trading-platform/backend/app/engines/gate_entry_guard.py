@@ -111,6 +111,7 @@ CRYPTO_PRE_GRADUATION_LOSS_WIND_DOWN_USD = 2.0
 CRYPTO_GRADUATION_ENTRY_EASE_MIN_WR = 0.47
 CRYPTO_GRADUATION_ENTRY_EASE_MIN_PF = 1.10
 CRYPTO_MOMENTUM_RETREAT_MIN_SIGNAL = 0.48
+CRYPTO_MOMENTUM_RETREAT_MIN_RAW_SIGNAL = 0.42
 CRYPTO_MOMENTUM_RETREAT_PROFIT_LOCK_USD = 1.25
 CRYPTO_MOMENTUM_RETREAT_MAX_OPEN = 2
 CRYPTO_PRE_GRADUATION_CAP_PRESSURE_LOSER_USD = 1.5
@@ -939,6 +940,29 @@ def crypto_momentum_retreat_entry_min_signal(
   ):
     return entry_min_signal
   return max(entry_min_signal, CRYPTO_MOMENTUM_RETREAT_MIN_SIGNAL)
+
+
+def crypto_momentum_retreat_raw_signal_ok(
+  signal_score: float,
+  *,
+  bot_type: str,
+  graduation_nudge: bool,
+  shadow_mode: bool,
+  bot_win_rate: float | None = None,
+  profit_factor: float | None = None,
+  total_pnl: float | None = None,
+) -> bool:
+  """Block TV-inflated composite entries when raw technical score is weak during retreat."""
+  if not crypto_momentum_retreat_active(
+    bot_type,
+    shadow_mode,
+    graduation_nudge,
+    bot_win_rate,
+    profit_factor,
+    total_pnl,
+  ):
+    return True
+  return signal_score >= CRYPTO_MOMENTUM_RETREAT_MIN_RAW_SIGNAL
 
 
 def graduation_nudge_sentiment_ok(
