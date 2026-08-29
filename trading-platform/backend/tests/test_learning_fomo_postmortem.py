@@ -11,6 +11,9 @@ def test_analyze_losing_trade_flags_weak_fomo_confirmation():
   session = AsyncMock()
   session.commit = AsyncMock()
   session.add = MagicMock()
+  session.execute = AsyncMock(
+    return_value=MagicMock(scalar_one_or_none=MagicMock(return_value=None))
+  )
 
   trade = MagicMock()
   trade.id = 42
