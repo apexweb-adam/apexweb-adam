@@ -13,6 +13,7 @@ def test_build_monday_recovery_summary_aggregates_bots():
       if bot_type == "commodities":
         return {
           "recovery_candidates": ["SI=F"],
+          "graduation_nudge": True,
           "session": {"mode": "weekend_closed", "minutes_until_open": 120},
           "symbols": [
             {
@@ -50,6 +51,7 @@ def test_build_monday_recovery_summary_aggregates_bots():
   result = asyncio.run(_run())
   assert result["recovery_candidates"] == ["SI=F", "NVDA"]
   assert result["stocks_trade_count_nudge"] is True
+  assert result["commodities_graduation_nudge"] is True
   assert len(result["all"]) == 2
   assert "commodities" in result["bots"]
   assert "stocks_futures" in result["bots"]

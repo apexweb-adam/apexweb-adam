@@ -1784,8 +1784,18 @@ def prioritize_commodities_monday_scan(
   chronic_losers: frozenset[str],
   proven_winners: frozenset[str],
   session_info: dict[str, Any],
+  graduation_nudge: bool = False,
 ) -> list[str]:
   """Scan chronic CME futures first ahead of Monday reopen / open hour."""
+  recovery = [
+    s for s in symbols
+    if s in chronic_losers and is_commodities_futures_symbol(s)
+  ]
+  if graduation_nudge and recovery:
+    winners = [s for s in symbols if s in proven_winners and s not in recovery]
+    rest = [s for s in symbols if s not in recovery and s not in winners]
+    if not commodities_monday_scan_priority_active(session_info):
+      return recovery + winners + rest
   if not commodities_monday_scan_priority_active(session_info):
     if proven_winners:
       winners = [s for s in symbols if s in proven_winners]
@@ -1793,10 +1803,6 @@ def prioritize_commodities_monday_scan(
       return winners + rest
     return symbols
 
-  recovery = [
-    s for s in symbols
-    if s in chronic_losers and is_commodities_futures_symbol(s)
-  ]
   winners = [s for s in symbols if s in proven_winners and s not in recovery]
   rest = [s for s in symbols if s not in recovery and s not in winners]
   return recovery + winners + rest
