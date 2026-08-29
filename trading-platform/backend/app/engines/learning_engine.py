@@ -1,6 +1,7 @@
 from datetime import datetime
+from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.entities import DailyReview, IntelligenceItem, LearningInsight, StrategyConfig, Trade, TradeAnalysis
@@ -351,3 +352,91 @@ class LearningEngine:
       if changed:
         config.version += 1
         config.updated_at = datetime.utcnow()
+
+
+async def build_crm_learning_highlights(session: AsyncSession) -> dict[str, Any]:
+  """Summarize today's learning loop for the /crm landing page."""
+  today = datetime.utcnow().strftime("%Y-%m-%d")
+  reviews_result = await session.execute(
+    select(DailyReview)
+    .where(DailyReview.review_date == today)
+    .order_by(DailyReview.bot_type)
+  )
+  reviews = list(reviews_result.scalars().all())
+  analysis_count = int(
+    await session.scalar(select(func.count(TradeAnalysis.id))) or 0
+  )
+  pending_insights = int(
+    await session.scalar(
+      select(func.count(LearningInsight.id)).where(LearningInsight.applied.is_(False))
+    )
+    or 0
+  )
+
+  active_reviews: list[dict[str, Any]] = []
+  for review in reviews:
+    if review.total_trades <= 0 and not (review.patterns_found or "").strip():
+      continue
+    active_reviews.append(
+      {
+        "bot_type": review.bot_type,
+        "total_trades": review.total_trades,
+        "losing_trades": review.losing_trades,
+        "win_rate": review.win_rate,
+        "net_pnl": review.net_pnl,
+        "patterns_found": review.patterns_found or "",
+        "strategy_changes": review.strategy_changes or "",
+        "conclusions": review.conclusions or "",
+      }
+    )
+
+  return {
+    "review_date": today,
+    "trade_analyses": analysis_count,
+    "pending_insights": pending_insights,
+    "reviews": active_reviews,
+  }
+
+
+async def build_crm_learning_highlights(session: AsyncSession) -> dict[str, Any]:
+  """Summarize today's learning loop for the /crm landing page."""
+  today = datetime.utcnow().strftime("%Y-%m-%d")
+  reviews_result = await session.execute(
+    select(DailyReview)
+    .where(DailyReview.review_date == today)
+    .order_by(DailyReview.bot_type)
+  )
+  reviews = list(reviews_result.scalars().all())
+  analysis_count = int(
+    await session.scalar(select(func.count(TradeAnalysis.id))) or 0
+  )
+  pending_insights = int(
+    await session.scalar(
+      select(func.count(LearningInsight.id)).where(LearningInsight.applied.is_(False))
+    )
+    or 0
+  )
+
+  active_reviews: list[dict[str, Any]] = []
+  for review in reviews:
+    if review.total_trades <= 0 and not (review.patterns_found or "").strip():
+      continue
+    active_reviews.append(
+      {
+        "bot_type": review.bot_type,
+        "total_trades": review.total_trades,
+        "losing_trades": review.losing_trades,
+        "win_rate": review.win_rate,
+        "net_pnl": review.net_pnl,
+        "patterns_found": review.patterns_found or "",
+        "strategy_changes": review.strategy_changes or "",
+        "conclusions": review.conclusions or "",
+      }
+    )
+
+  return {
+    "review_date": today,
+    "trade_analyses": analysis_count,
+    "pending_insights": pending_insights,
+    "reviews": active_reviews,
+  }
