@@ -74,7 +74,18 @@ def test_crm_landing_includes_monday_recovery_when_candidates():
                   new_callable=AsyncMock,
                   return_value=[{"source": "news", "status": "active"}],
                 ):
-                  response = client.get("/crm")
+                  with patch(
+                    "app.engines.crm_summary.build_crm_live_snapshot",
+                    new_callable=AsyncMock,
+                    return_value={
+                      "active_bots": ["commodities"],
+                      "positions": [],
+                      "gate_tightening": {},
+                      "chronic_loser_symbols": {},
+                      "proven_winner_symbols": {},
+                    },
+                  ):
+                    response = client.get("/crm")
 
   assert response.status_code == 200
   body = response.text
