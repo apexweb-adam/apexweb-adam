@@ -312,7 +312,7 @@ async def crm_landing():
   else:
     fomo_status = "off"
   if axiom.get("multi_wallet_ready"):
-    axiom_status = f"multi-wallet ({axiom.get('tracked_wallets', 8)}+)"
+    axiom_status = f"multi-wallet ({axiom.get('tracked_wallets') or 8}+)"
   elif axiom.get("configured"):
     axiom_status = "webhook ready"
   else:

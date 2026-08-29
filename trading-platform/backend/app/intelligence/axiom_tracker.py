@@ -49,10 +49,11 @@ def parse_axiom_wallet_addresses() -> list[str]:
   return unique
 
 
+from app.intelligence.solana_wallet_tracker import tracked_solana_addresses, tracked_solana_wallet_count
+
+
 def axiom_multi_wallet_ready() -> bool:
   """True when at least wallet_tracker_min_wallets Solana wallets are tracked."""
-  from app.intelligence.solana_wallet_tracker import tracked_solana_addresses
-
   return len(tracked_solana_addresses()) >= settings.wallet_tracker_min_wallets
 
 
@@ -76,7 +77,13 @@ async def get_axiom_session_status(session: AsyncSession) -> dict[str, object]:
 
   token = await get_axiom_session_token(session)
   if not token:
-    return {"configured": False, "polling_active": False, "multi_wallet_ready": axiom_multi_wallet_ready()}
+    return {
+      "configured": False,
+      "polling_active": False,
+      "multi_wallet_ready": axiom_multi_wallet_ready(),
+      "tracked_wallets": tracked_solana_wallet_count(),
+      "min_wallets_required": settings.wallet_tracker_min_wallets,
+    }
   return {
     "configured": True,
     "polling_active": len(token) >= 20,
