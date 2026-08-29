@@ -58,6 +58,67 @@ def test_shadow_max_open_for_bot_none_when_not_shadow():
   assert shadow_max_open_for_bot("crypto", shadow_mode=False) is None
 
 
+def test_shadow_max_open_for_bot_raises_cap_during_crypto_strong_momentum():
+  cap = shadow_max_open_for_bot(
+    "crypto",
+    shadow_mode=True,
+    bot_win_rate=0.487,
+    profit_factor=1.19,
+    total_pnl=23.64,
+  )
+  assert cap == 4
+
+
+def test_crypto_strong_momentum_chronic_bypass():
+  from app.engines.gate_entry_guard import (
+    CRYPTO_STRONG_MOMENTUM_CHRONIC_COMPOSITE,
+    chronic_loser_blocks_shadow_entry,
+    shadow_graduation_loss_wind_down,
+  )
+
+  stats = dict(
+    bot_type="crypto",
+    shadow_mode=True,
+    bot_win_rate=0.487,
+    profit_factor=1.19,
+    total_pnl=23.64,
+  )
+  assert chronic_loser_blocks_shadow_entry(
+    "SOLUSDT",
+    frozenset({"SOLUSDT"}),
+    graduation_nudge=True,
+    intel_override=False,
+    composite=CRYPTO_STRONG_MOMENTUM_CHRONIC_COMPOSITE + 0.03,
+    signal_direction="buy",
+    macd_signal="bullish",
+    **stats,
+  ) is False
+  assert chronic_loser_blocks_shadow_entry(
+    "SOLUSDT",
+    frozenset({"SOLUSDT"}),
+    graduation_nudge=True,
+    intel_override=False,
+    composite=CRYPTO_STRONG_MOMENTUM_CHRONIC_COMPOSITE - 0.05,
+    signal_direction="buy",
+    macd_signal="bullish",
+    **stats,
+  ) is True
+  assert shadow_graduation_loss_wind_down(
+    graduation_nudge=True,
+    unrealized=-2.6,
+    held_seconds=900,
+    min_hold_seconds=900,
+    **stats,
+  ) is True
+  assert shadow_graduation_loss_wind_down(
+    graduation_nudge=True,
+    unrealized=-2.0,
+    held_seconds=900,
+    min_hold_seconds=900,
+    **stats,
+  ) is False
+
+
 def test_sync_gate_recovery_rotation_pauses_stocks_and_activates_crypto():
   gate_result = {
     "total_trades": 15,
