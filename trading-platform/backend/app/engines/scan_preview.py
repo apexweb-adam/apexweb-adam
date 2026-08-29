@@ -41,6 +41,7 @@ from app.engines.gate_entry_guard import (
   is_symbol_in_trade_cooldown,
   open_position_cap_blocks_entry,
   symbol_cooldown_remaining_seconds,
+  commodities_monday_recovery_ready,
   commodities_session_info,
   commodities_weekend_futures_entry_blocked,
   gate_cap_pressure_proxy_entry_blocked,
@@ -49,6 +50,7 @@ from app.engines.gate_entry_guard import (
   shadow_graduation_loss_exposure_blocks_entry,
   shadow_intel_composite_override,
   shadow_requires_macd,
+  stocks_monday_recovery_ready,
   stocks_proven_winner_sentiment_gate_ok,
   stocks_negative_pf_blocks_entry,
   stocks_session_info,
@@ -525,6 +527,24 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
         "volume_ok": volume_required,
         "would_enter": not blockers,
         "blockers": blockers,
+        "recovery_ready": (
+          commodities_monday_recovery_ready(
+            bot_type=bot_type,
+            shadow_mode=shadow_mode,
+            symbol=symbol,
+            composite=composite,
+            blockers=blockers,
+          )
+          or stocks_monday_recovery_ready(
+            bot_type=bot_type,
+            shadow_mode=shadow_mode,
+            symbol=symbol,
+            proven_winners=proven_winners,
+            bot_win_rate=per_bot_stats.get("win_rate"),
+            composite=composite,
+            blockers=blockers,
+          )
+        ),
         "integration_boost": round(integration_boost, 3),
         "intel_override": intel_override,
         "cooldown_seconds": cooldown_remaining or None,
@@ -532,6 +552,7 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
     )
 
   previews.sort(key=lambda row: row.get("composite", 0), reverse=True)
+  recovery_candidates = [row["symbol"] for row in previews if row.get("recovery_ready")]
   session = (
     commodities_session_info()
     if bot_type == "commodities"
@@ -548,5 +569,6 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
     "proven_winners": sorted(proven_winners),
     "min_signal": round(min_signal, 3),
     "session": session,
+    "recovery_candidates": recovery_candidates,
     "symbols": previews,
   }

@@ -1900,6 +1900,74 @@ def stocks_proven_winner_sentiment_gate_ok(
   )
 
 
+COMMODITIES_MONDAY_RECOVERY_SOFT_BLOCKERS = frozenset({
+  "weekend_futures_closed",
+  "signal_sell",
+})
+
+
+def commodities_monday_recovery_ready(
+  *,
+  bot_type: str,
+  shadow_mode: bool,
+  symbol: str,
+  composite: float,
+  blockers: list[str],
+) -> bool:
+  """High-composite commodities futures blocked only by weekend or sell signal."""
+  if not commodities_high_composite_recovery_entry_ok(
+    bot_type=bot_type,
+    shadow_mode=shadow_mode,
+    symbol=symbol,
+    composite=composite,
+    signal_direction="buy",
+    macd_signal="bullish",
+  ):
+    return False
+  if not blockers:
+    return False
+  return set(blockers).issubset(COMMODITIES_MONDAY_RECOVERY_SOFT_BLOCKERS)
+
+
+STOCKS_MONDAY_RECOVERY_SOFT_BLOCKERS = frozenset({
+  "signal_sell",
+  "macd",
+  "volume",
+  "sentiment_gate",
+})
+
+
+def stocks_monday_recovery_ready(
+  *,
+  bot_type: str,
+  shadow_mode: bool,
+  symbol: str,
+  proven_winners: frozenset[str],
+  bot_win_rate: float | None,
+  composite: float,
+  blockers: list[str],
+) -> bool:
+  """Proven stock shadow winner blocked only by session/signal gates that flip on aligned setups."""
+  if not stocks_proven_winner_recovery_entry_ok(
+    bot_type=bot_type,
+    shadow_mode=shadow_mode,
+    symbol=symbol,
+    proven_winners=proven_winners,
+    bot_win_rate=bot_win_rate,
+    composite=composite,
+    signal_direction="buy",
+    macd_signal="bullish",
+  ):
+    return False
+  if not blockers:
+    return False
+  remaining = {
+    b for b in blockers
+    if not b.startswith("composite<") and not b.startswith("sentiment<")
+  }
+  return remaining.issubset(STOCKS_MONDAY_RECOVERY_SOFT_BLOCKERS)
+
+
 async def build_gate_ws_payload(session: AsyncSession) -> dict[str, Any]:
   """Gate tightening + profitability summary for WebSocket and status APIs."""
   gate_tightening = await get_gate_entry_tightening(session)

@@ -202,6 +202,7 @@ export type ScanPreviewSymbol = {
   volume_ok?: boolean;
   would_enter?: boolean;
   blockers?: string[];
+  recovery_ready?: boolean;
   integration_boost?: number;
   skip?: string;
 };
@@ -214,6 +215,13 @@ export type ScanPreview = {
   shadow_bot_wr: number | null;
   proven_winners: string[];
   min_signal: number;
+  recovery_candidates?: string[];
+  session?: {
+    in_session: boolean;
+    mode: string;
+    minutes_until_open?: number;
+    minutes_until_close?: number | null;
+  } | null;
   symbols: ScanPreviewSymbol[];
 };
 

@@ -1280,7 +1280,10 @@ function BotCard({
           )}
         </p>
       )}
-      {gate?.graduation?.paused && <BotScanPreview botType={bot.bot_type} />}
+      {(gate?.graduation?.paused ||
+        (bot.bot_type === "commodities" && session && !session.in_session)) && (
+        <BotScanPreview botType={bot.bot_type} />
+      )}
       <div className="flex justify-between text-[10px] text-gray-500">
         <span>{bot.trades_today} trades today</span>
         <span>Strategy v{bot.strategy_version}</span>
@@ -1312,10 +1315,14 @@ function BotScanPreview({ botType }: { botType: string }) {
     return <p className="text-[10px] text-gray-600 mb-2">Scan preview loading…</p>;
   }
 
-  const candidates = preview.symbols
-    .filter((row) => !row.skip)
+  const rows = preview.symbols.filter((row) => !row.skip);
+  const recoveryRows = rows.filter((row) => row.recovery_ready);
+  const fillerCount = recoveryRows.length > 0 ? 1 : 2;
+  const topRows = rows
+    .filter((row) => !row.recovery_ready)
     .sort((a, b) => (b.composite ?? 0) - (a.composite ?? 0))
-    .slice(0, 2);
+    .slice(0, fillerCount);
+  const candidates = [...recoveryRows, ...topRows].slice(0, 3);
 
   if (candidates.length === 0) return null;
 
@@ -1326,13 +1333,36 @@ function BotScanPreview({ botType }: { botType: string }) {
         {preview.graduation_nudge && (
           <span className="text-amber-500/90"> · graduation nudge</span>
         )}
+        {preview.recovery_candidates && preview.recovery_candidates.length > 0 && (
+          <span className="text-emerald-400/90">
+            {" "}
+            · recovery: {preview.recovery_candidates.join(", ")}
+          </span>
+        )}
       </p>
       <ul className="space-y-1">
         {candidates.map((row) => (
           <li key={row.symbol} className="flex items-center justify-between gap-2 text-[10px]">
-            <span className="text-gray-300 font-medium">{row.symbol}</span>
-            <span className={row.would_enter ? "text-apex-green" : "text-gray-500"}>
-              {row.would_enter ? "would enter" : (row.blockers ?? []).slice(0, 2).join(", ")}
+            <span className="text-gray-300 font-medium">
+              {row.symbol}
+              {row.recovery_ready && (
+                <span className="ml-1 text-emerald-400/80">↗</span>
+              )}
+            </span>
+            <span
+              className={
+                row.recovery_ready
+                  ? "text-emerald-400"
+                  : row.would_enter
+                    ? "text-apex-green"
+                    : "text-gray-500"
+              }
+            >
+              {row.recovery_ready
+                ? "recovery ready"
+                : row.would_enter
+                  ? "would enter"
+                  : (row.blockers ?? []).slice(0, 2).join(", ")}
             </span>
           </li>
         ))}
