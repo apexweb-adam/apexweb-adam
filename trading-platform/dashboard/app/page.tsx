@@ -1607,7 +1607,7 @@ function SessionPrepBanner({ sessionPrep }: { sessionPrep: SessionPrepStatus | n
 
   const rows = (["stocks_futures", "commodities"] as const)
     .map((key) => sessionPrep[key])
-    .filter((entry) => entry?.prep_active);
+    .filter((entry) => entry?.prep_active || entry?.gate_fast_scan_active);
 
   if (rows.length === 0) return null;
 
@@ -1619,14 +1619,31 @@ function SessionPrepBanner({ sessionPrep }: { sessionPrep: SessionPrepStatus | n
           const mins = entry.minutes_until_open;
           const openLabel =
             mins != null ? `${Math.floor(mins / 60)}h ${mins % 60}m until open` : "open soon";
+          const inSession = Boolean(entry.in_session);
           return (
             <li key={entry.bot_type} className="text-xs text-gray-300">
               <span className="font-medium text-white">{botLabel(entry.bot_type)}</span>
               {" · "}
-              {entry.extended_weekend_prep ? "weekend TV prep" : "TV prep"}
+              {entry.prep_active
+                ? entry.extended_weekend_prep
+                  ? "weekend TV prep"
+                  : "TV prep"
+                : inSession
+                  ? "in session"
+                  : "gate scan"}
               {entry.nudge_label ? ` · ${entry.nudge_label}` : ""}
-              {" · "}
-              <span className="text-gray-500">{openLabel}</span>
+              {entry.gate_fast_scan_active ? (
+                <span className="text-sky-400/90" title="15s scan interval during prep">
+                  {" "}
+                  · fast scan 15s
+                </span>
+              ) : null}
+              {!inSession && entry.prep_active ? (
+                <>
+                  {" · "}
+                  <span className="text-gray-500">{openLabel}</span>
+                </>
+              ) : null}
               {entry.session_mode ? (
                 <span className="text-gray-600"> · {entry.session_mode}</span>
               ) : null}

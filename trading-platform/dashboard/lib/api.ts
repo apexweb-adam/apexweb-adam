@@ -259,10 +259,12 @@ export type SessionPrepEntry = {
   prep_active: boolean;
   prep_window_minutes: number;
   minutes_until_open: number | null;
+  in_session?: boolean;
   extended_weekend_prep: boolean;
   nudge_active: boolean;
   nudge_label: string | null;
   session_mode: string | null;
+  gate_fast_scan_active?: boolean;
 };
 
 export type SessionPrepStatus = {

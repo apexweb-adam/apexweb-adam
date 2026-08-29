@@ -1042,8 +1042,10 @@ def test_build_session_prep_status_extended_weekend():
   )
   assert status["stocks_futures"]["prep_active"] is True
   assert status["stocks_futures"]["extended_weekend_prep"] is True
+  assert status["stocks_futures"]["gate_fast_scan_active"] is True
   assert status["commodities"]["prep_active"] is True
   assert status["commodities"]["extended_weekend_prep"] is True
+  assert status["commodities"]["gate_fast_scan_active"] is True
 
 
 def test_prioritize_stocks_monday_scan_trade_count_nudge():
