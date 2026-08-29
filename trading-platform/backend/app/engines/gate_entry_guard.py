@@ -3484,6 +3484,8 @@ def build_session_prep_status(
     prep_window: int,
     nudge: bool,
     nudge_label: str,
+    *,
+    gate_fast_scan_active: bool,
   ) -> dict[str, Any]:
     minutes_until = session_info.get("minutes_until_open")
     in_session = bool(session_info.get("in_session"))
@@ -3497,10 +3499,12 @@ def build_session_prep_status(
       "prep_active": prep_active,
       "prep_window_minutes": prep_window,
       "minutes_until_open": minutes_until,
+      "in_session": in_session,
       "extended_weekend_prep": nudge and prep_window > 90,
       "nudge_active": nudge,
       "nudge_label": nudge_label if nudge else None,
       "session_mode": session_info.get("mode"),
+      "gate_fast_scan_active": gate_fast_scan_active,
     }
 
   return {
@@ -3510,6 +3514,10 @@ def build_session_prep_status(
       stocks_window,
       stocks_trade_count_nudge,
       "trade-count nudge",
+      gate_fast_scan_active=stocks_gate_fast_scan_active(
+        stocks_session,
+        trade_count_nudge=stocks_trade_count_nudge,
+      ),
     ),
     "commodities": _prep_entry(
       "commodities",
@@ -3517,6 +3525,10 @@ def build_session_prep_status(
       commodities_window,
       commodities_graduation_nudge,
       "graduation nudge",
+      gate_fast_scan_active=commodities_gate_fast_scan_active(
+        commodities_session,
+        graduation_nudge=commodities_graduation_nudge,
+      ),
     ),
   }
 
