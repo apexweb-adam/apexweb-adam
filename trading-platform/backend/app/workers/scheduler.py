@@ -149,6 +149,10 @@ async def risk_migration_job() -> None:
     gate_paused = await sync_gate_bot_pauses(session)
     gate_rotation = await sync_gate_recovery_rotation(session)
     gate_graduated = await try_graduate_paused_bots(session)
+    learner = LearningEngine(session)
+    dismissed = await learner.dismiss_noise_insights(
+      max_confidence=LEARNING_NOISE_DISMISS_MAX_CONFIDENCE,
+    )
     clamped = await clamp_verification_strategy_params(session)
     adapted = await adapt_for_gate_win_rate(session)
     migrated = await migrate_symbol_columns(session)
@@ -157,9 +161,10 @@ async def risk_migration_job() -> None:
     commodities_trimmed = await close_excess_commodities_positions(session)
     shadow_trimmed = await close_excess_shadow_positions(session)
     synced = await sync_bot_strategy_versions(session)
-    if gate_paused or gate_rotation or gate_graduated or clamped or adapted or updated or trimmed or commodities_trimmed or shadow_trimmed or synced:
+    if gate_paused or gate_rotation or gate_graduated or dismissed or clamped or adapted or updated or trimmed or commodities_trimmed or shadow_trimmed or synced:
       print(
-        f"[RiskMigration] gate_paused={gate_paused} gate_rotation={gate_rotation} gate_graduated={gate_graduated} clamped={clamped} gate_adapted={adapted} "
+        f"[RiskMigration] gate_paused={gate_paused} gate_rotation={gate_rotation} gate_graduated={gate_graduated} "
+        f"noise_dismissed={dismissed} clamped={clamped} gate_adapted={adapted} "
         f"strategy_updated={updated} trimmed={trimmed} commodities_trimmed={commodities_trimmed} "
         f"shadow_trimmed={shadow_trimmed} synced={synced} at {datetime.utcnow().isoformat()}"
       )
