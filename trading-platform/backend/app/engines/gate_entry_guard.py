@@ -110,6 +110,7 @@ CRYPTO_PRE_GRADUATION_MIN_PF = 1.20
 CRYPTO_PRE_GRADUATION_LOSS_WIND_DOWN_USD = 2.0
 CRYPTO_GRADUATION_ENTRY_EASE_MIN_WR = 0.47
 CRYPTO_GRADUATION_ENTRY_EASE_MIN_PF = 1.10
+CRYPTO_MOMENTUM_RETREAT_MIN_SIGNAL = 0.48
 CRYPTO_PRE_GRADUATION_CAP_PRESSURE_LOSER_USD = 1.5
 CRYPTO_STRONG_MOMENTUM_CAP_PRESSURE_LOSER_USD = 1.0
 CRYPTO_CAP_PRESSURE_MODERATE_LOSER_USD = 2.0
@@ -875,6 +876,30 @@ def crypto_graduation_entry_min_signal(
       entry_min_signal - CRYPTO_GRADUATION_BULLISH_SIGNAL_EASE,
     )
   return entry_min_signal
+
+
+def crypto_momentum_retreat_entry_min_signal(
+  entry_min_signal: float,
+  *,
+  bot_type: str,
+  graduation_nudge: bool,
+  shadow_mode: bool,
+  bot_win_rate: float | None = None,
+  profit_factor: float | None = None,
+  total_pnl: float | None = None,
+) -> float:
+  """Raise composite floor during crypto momentum retreat — block marginal cap rotations."""
+  if not (graduation_nudge and shadow_mode and bot_type == "crypto"):
+    return entry_min_signal
+  if crypto_graduation_entry_ease_active(
+    bot_type,
+    shadow_mode,
+    bot_win_rate,
+    profit_factor,
+    total_pnl,
+  ):
+    return entry_min_signal
+  return max(entry_min_signal, CRYPTO_MOMENTUM_RETREAT_MIN_SIGNAL)
 
 
 def graduation_nudge_sentiment_ok(

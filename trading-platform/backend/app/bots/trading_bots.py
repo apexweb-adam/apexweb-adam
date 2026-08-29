@@ -32,6 +32,7 @@ from app.engines.gate_entry_guard import (
   stocks_monday_gate_skip_bypass,
   commodities_session_info,
   crypto_graduation_entry_min_signal,
+  crypto_momentum_retreat_entry_min_signal,
   graduation_nudge_min_sentiment,
   graduation_nudge_sentiment_ok,
   in_shadow_graduation_nudge,
@@ -927,6 +928,15 @@ class BaseBot(ABC):
           shadow_mode=shadow_mode,
           signal_direction=signal.direction,
           macd_signal=signal.macd_signal,
+          bot_win_rate=per_bot_stats.get("win_rate"),
+          profit_factor=per_bot_stats.get("profit_factor"),
+          total_pnl=per_bot_stats.get("total_pnl"),
+        )
+        entry_min_signal = crypto_momentum_retreat_entry_min_signal(
+          entry_min_signal,
+          bot_type=self.bot_type,
+          graduation_nudge=graduation_nudge,
+          shadow_mode=shadow_mode,
           bot_win_rate=per_bot_stats.get("win_rate"),
           profit_factor=per_bot_stats.get("profit_factor"),
           total_pnl=per_bot_stats.get("total_pnl"),
