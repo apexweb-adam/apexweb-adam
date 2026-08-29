@@ -29,9 +29,11 @@ def test_shadow_graduation_nudge_eases_commodities():
   assert in_shadow_graduation_nudge("commodities", 0.40) is False
   assert in_shadow_graduation_nudge("crypto", 0.46) is True
   assert in_shadow_graduation_nudge("crypto", 0.44) is True
-  assert in_shadow_graduation_nudge("crypto", 0.42) is False
+  assert in_shadow_graduation_nudge("crypto", 0.42) is True
+  assert in_shadow_graduation_nudge("crypto", 0.41) is False
   assert in_shadow_graduation_nudge("crypto", 0.42, profit_factor=1.1, total_pnl=5.0) is True
   assert in_shadow_graduation_nudge("crypto", 0.41, profit_factor=1.1, total_pnl=5.0) is False
+  assert in_shadow_graduation_nudge("crypto", 0.42, profit_factor=0.98, total_pnl=5.0) is True
   assert in_shadow_graduation_nudge("commodities", 0.44, profit_factor=1.19, total_pnl=19.0) is True
   assert in_shadow_graduation_nudge("commodities", 0.42, profit_factor=1.19, total_pnl=19.0) is True
   assert in_shadow_graduation_nudge("commodities", 0.41, profit_factor=1.19, total_pnl=19.0) is False
@@ -409,6 +411,17 @@ def test_shadow_graduation_loss_wind_down_profitable_nudge_threshold():
     bot_win_rate=0.45,
     profit_factor=1.11,
     total_pnl=10.0,
+  ) is False
+  assert shadow_graduation_loss_wind_down(
+    graduation_nudge=True,
+    shadow_mode=True,
+    bot_type="crypto",
+    unrealized=-5.5,
+    held_seconds=900,
+    min_hold_seconds=900,
+    bot_win_rate=0.45,
+    profit_factor=1.11,
+    total_pnl=10.0,
   ) is True
 
 
@@ -419,22 +432,22 @@ def test_shadow_graduation_profit_lock():
     graduation_nudge=True,
     shadow_mode=True,
     bot_type="crypto",
-    unrealized=7.0,
+    unrealized=5.0,
     held_seconds=900,
     min_hold_seconds=900,
     bot_win_rate=0.45,
-    profit_factor=1.11,
+    profit_factor=0.98,
     total_pnl=10.0,
   ) is True
   assert shadow_graduation_profit_lock(
     graduation_nudge=True,
     shadow_mode=True,
     bot_type="crypto",
-    unrealized=4.0,
+    unrealized=3.0,
     held_seconds=900,
     min_hold_seconds=900,
     bot_win_rate=0.45,
-    profit_factor=1.11,
+    profit_factor=0.98,
     total_pnl=10.0,
   ) is False
   assert shadow_graduation_profit_lock(
