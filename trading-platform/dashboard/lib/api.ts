@@ -242,6 +242,22 @@ export type ScanPreview = {
   symbols: ScanPreviewSymbol[];
 };
 
+export type SessionPrepEntry = {
+  bot_type: string;
+  prep_active: boolean;
+  prep_window_minutes: number;
+  minutes_until_open: number | null;
+  extended_weekend_prep: boolean;
+  nudge_active: boolean;
+  nudge_label: string | null;
+  session_mode: string | null;
+};
+
+export type SessionPrepStatus = {
+  stocks_futures: SessionPrepEntry;
+  commodities: SessionPrepEntry;
+};
+
 export type MondayRecoverySummary = {
   recovery_candidates: string[];
   stocks_trade_count_nudge?: boolean;
@@ -324,6 +340,7 @@ export type IntelligenceSource = {
   bearer_expires_at?: string | null;
   bearer_minutes_remaining?: number | null;
   bearer_polling_active?: boolean | null;
+  oauth_configured?: boolean | null;
 };
 
 export type IntelRouting = {
