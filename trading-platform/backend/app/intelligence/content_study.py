@@ -135,6 +135,69 @@ def _is_trading_relevant_intel(title: str, content: str, source: str) -> bool:
   return True
 
 
+LIVE_INTEL_SOURCES = ("fomo", "dexscreener", "hyperliquid", "wallet_tracker")
+
+
+def _extract_live_intel_impact(source: str, title: str, content: str, symbols: str, sentiment: float, relevance: float) -> tuple[str, float] | None:
+  """Map live scanner intel into bot-targeted strategy impacts."""
+  text = f"{title} {content}".lower()
+  sym = symbols or "markets"
+
+  if source == "fomo":
+    if sentiment > 0.15:
+      return (
+        f"fomo.family leaderboard buy on {sym} — crypto bot: require local TA confirmation before mirroring copy trades; increase sentiment weight",
+        min(0.85, relevance * 0.85 + abs(sentiment) * 0.25),
+      )
+    if sentiment < -0.15:
+      return (
+        f"fomo.family sell signal on {sym} — crypto bot: tighten stop-loss and avoid chasing leaderboard exits",
+        min(0.8, relevance * 0.8 + abs(sentiment) * 0.2),
+      )
+    return None
+
+  if source == "dexscreener":
+    if "boost" in text or sentiment > 0.2:
+      return (
+        f"DexScreener trending {sym} — crypto bot: require volume + liquidity confirmation; tighten stop-loss on memecoin entries",
+        min(0.84, relevance * 0.9),
+      )
+    if sentiment < -0.2:
+      return (
+        f"DexScreener weakness on {sym} — crypto bot: reduce long exposure and tighten stops",
+        min(0.78, relevance * 0.85),
+      )
+    return None
+
+  if source == "hyperliquid":
+    if "funding" in text and sentiment < 0:
+      return (
+        f"Hyperliquid negative funding on {sym} — crypto bot: use funding as contrarian long filter; favor momentum on HL perps",
+        min(0.82, relevance * 0.88),
+      )
+    if sentiment > 0.15:
+      return (
+        f"Hyperliquid perp momentum on {sym} — crypto bot: weight HL intel for entries; let winners run with wider take-profit",
+        min(0.8, relevance * 0.85 + abs(sentiment) * 0.15),
+      )
+    return None
+
+  if source == "wallet_tracker":
+    if sentiment > 0.2 or "buy" in text or "accumul" in text:
+      return (
+        f"Whale wallet accumulation on {sym} — crypto bot: follow wallet intel with volume confirmation; increase sentiment weight",
+        min(0.83, relevance * 0.9 + abs(sentiment) * 0.1),
+      )
+    if sentiment < -0.2 or "sell" in text or "dump" in text:
+      return (
+        f"Whale wallet distribution on {sym} — crypto bot: tighten stops and reduce position size on whale exits",
+        min(0.8, relevance * 0.85),
+      )
+    return None
+
+  return None
+
+
 class ContentStudyEngine:
   """Studies trading content from YouTube, podcasts, Reddit, and applies insights to strategy."""
 
@@ -164,6 +227,7 @@ class ContentStudyEngine:
     from app.models.entities import IntelligenceItem
 
     applied = 0
+    applied += await self._study_live_intel_sources()
 
     youtube_result = await self.session.execute(
       select(IntelligenceItem)
@@ -267,5 +331,55 @@ class ContentStudyEngine:
           item.applied = True
           applied += 1
 
+    await self.session.commit()
+    return applied
+
+  async def _study_live_intel_sources(self) -> int:
+    """Turn fomo/dexscreener/hyperliquid/wallet intel into crypto-targeted insights."""
+    from sqlalchemy import select
+
+    from app.models.entities import IntelligenceItem
+
+    applied = 0
+    result = await self.session.execute(
+      select(IntelligenceItem)
+      .where(
+        IntelligenceItem.applied.is_(False),
+        IntelligenceItem.source.in_(LIVE_INTEL_SOURCES),
+        IntelligenceItem.relevance_score > 0.45,
+      )
+      .order_by(IntelligenceItem.fetched_at.desc())
+      .limit(25)
+    )
+    for item in result.scalars().all():
+      if not _is_trading_relevant_intel(item.title, item.content or "", item.source):
+        item.applied = True
+        continue
+      extracted = _extract_live_intel_impact(
+        item.source,
+        item.title,
+        item.content or "",
+        item.symbols_mentioned or "",
+        float(item.sentiment or 0),
+        float(item.relevance_score or 0),
+      )
+      if not extracted:
+        item.applied = True
+        continue
+      impact, confidence = extracted
+      if confidence < 0.55:
+        item.applied = True
+        continue
+      insight = await self.learner.apply_external_insight(
+        source_type=item.source,
+        title=item.title,
+        url=item.url or f"{item.source}:{item.id}",
+        takeaways=(item.content or "")[:500],
+        impact=impact,
+        confidence=confidence,
+      )
+      item.applied = True
+      if insight.applied:
+        applied += 1
     await self.session.commit()
     return applied
