@@ -1859,7 +1859,7 @@ function BotScanPreview({ botType }: { botType: string }) {
                 </span>
               )}
               {row.monday_gate_skip_ready && (
-                <span className="ml-1 text-sky-400/80" title="Monday gate-skip bypass eligible">
+                <span className="ml-1 text-sky-400/80" title="Gate-skip bypass eligible pre-open">
                   M
                 </span>
               )}

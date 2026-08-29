@@ -543,7 +543,10 @@ def commodities_effective_open_cap(
   if commodities_futures_weekend_closed():
     return cap + COMMODITIES_WEEKEND_GRADUATION_CAP_BONUS
   session = commodities_session_info()
-  if session.get("in_session") and commodities_monday_scan_priority_active(session):
+  if session.get("in_session") and commodities_monday_scan_priority_active(
+    session,
+    graduation_nudge=graduation_nudge,
+  ):
     return cap + COMMODITIES_WEEKEND_GRADUATION_CAP_BONUS
   return cap
 
@@ -2095,7 +2098,10 @@ def commodities_monday_cap_pressure_flat_wind_down(
   if not isinstance(cap, int):
     return False
   session = commodities_session_info()
-  monday_priority = commodities_monday_scan_priority_active(session)
+  monday_priority = commodities_monday_scan_priority_active(
+    session,
+    graduation_nudge=graduation_nudge,
+  )
   weekend_reserve = (
     commodities_futures_weekend_closed()
     and open_count >= max(1, cap - 1)
@@ -3356,8 +3362,14 @@ def commodities_pre_session_prep_window_minutes(graduation_nudge: bool) -> int:
   return COMMODITIES_MONDAY_SCAN_PREP_MINUTES
 
 
-def commodities_monday_scan_priority_active(session_info: dict[str, Any]) -> bool:
+def commodities_monday_scan_priority_active(
+  session_info: dict[str, Any],
+  *,
+  graduation_nudge: bool = False,
+) -> bool:
   """Prioritize chronic futures recovery symbols pre-open and during the first hour."""
+  if graduation_nudge and commodities_graduation_prep_active(graduation_nudge):
+    return True
   if session_info.get("in_session"):
     since = session_info.get("minutes_since_open")
     return since is not None and since <= COMMODITIES_MONDAY_SCAN_OPEN_HOUR_MINUTES
@@ -3384,9 +3396,15 @@ def prioritize_commodities_monday_scan(
   if graduation_nudge and recovery:
     winners = [s for s in symbols if s in proven_winners and s not in recovery]
     rest = [s for s in symbols if s not in recovery and s not in winners]
-    if not commodities_monday_scan_priority_active(session_info):
+    if not commodities_monday_scan_priority_active(
+      session_info,
+      graduation_nudge=graduation_nudge,
+    ):
       return recovery + winners + rest
-  if not commodities_monday_scan_priority_active(session_info):
+  if not commodities_monday_scan_priority_active(
+    session_info,
+    graduation_nudge=graduation_nudge,
+  ):
     if proven_winners:
       winners = [s for s in symbols if s in proven_winners]
       rest = [s for s in symbols if s not in proven_winners]
@@ -3693,7 +3711,10 @@ def commodities_monday_futures_gate_skip_bypass(
     return False
   if not is_commodities_futures_symbol(symbol):
     return False
-  if not commodities_monday_scan_priority_active(commodities_session_info()):
+  if not commodities_monday_scan_priority_active(
+    commodities_session_info(),
+    graduation_nudge=graduation_nudge,
+  ):
     return False
   if signal_direction != "buy" or macd_signal != "bullish":
     return False
@@ -3730,7 +3751,7 @@ def commodities_gate_fast_scan_active(
   session = session_info or commodities_session_info()
   if session.get("in_session"):
     return True
-  if commodities_monday_scan_priority_active(session):
+  if commodities_monday_scan_priority_active(session, graduation_nudge=graduation_nudge):
     return True
   return commodities_graduation_prep_active(graduation_nudge)
 

@@ -971,6 +971,14 @@ def test_prioritize_commodities_monday_scan_pre_session():
   assert ordered[1] == "CL=F"
 
 
+def test_commodities_monday_scan_priority_graduation_prep_window():
+  from app.engines.gate_entry_guard import commodities_monday_scan_priority_active
+
+  session = {"in_session": False, "minutes_until_open": 200, "minutes_since_open": 0}
+  assert commodities_monday_scan_priority_active(session) is False
+  assert commodities_monday_scan_priority_active(session, graduation_nudge=True) is True
+
+
 def test_prioritize_commodities_monday_scan_outside_prep_window():
   from app.engines.gate_entry_guard import prioritize_commodities_monday_scan
 
