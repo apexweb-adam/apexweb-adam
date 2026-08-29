@@ -349,7 +349,7 @@ def test_shadow_graduation_loss_wind_down():
     graduation_nudge=True,
     shadow_mode=True,
     bot_type="crypto",
-    unrealized=-1.5,
+    unrealized=-4.0,
     held_seconds=900,
     min_hold_seconds=900,
   ) is True
@@ -357,7 +357,7 @@ def test_shadow_graduation_loss_wind_down():
     graduation_nudge=True,
     shadow_mode=True,
     bot_type="crypto",
-    unrealized=-0.5,
+    unrealized=-1.5,
     held_seconds=900,
     min_hold_seconds=900,
   ) is False
@@ -449,6 +449,28 @@ def test_shadow_graduation_profit_lock():
     bot_win_rate=0.45,
     profit_factor=0.98,
     total_pnl=10.0,
+  ) is False
+  assert shadow_graduation_profit_lock(
+    graduation_nudge=True,
+    shadow_mode=True,
+    bot_type="crypto",
+    unrealized=3.0,
+    held_seconds=900,
+    min_hold_seconds=900,
+    bot_win_rate=0.423,
+    profit_factor=0.98,
+    total_pnl=-1.89,
+  ) is True
+  assert shadow_graduation_profit_lock(
+    graduation_nudge=True,
+    shadow_mode=True,
+    bot_type="crypto",
+    unrealized=2.5,
+    held_seconds=900,
+    min_hold_seconds=900,
+    bot_win_rate=0.423,
+    profit_factor=0.98,
+    total_pnl=-1.89,
   ) is False
   assert shadow_graduation_profit_lock(
     graduation_nudge=False,
