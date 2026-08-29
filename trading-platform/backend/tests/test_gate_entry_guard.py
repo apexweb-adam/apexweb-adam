@@ -2220,11 +2220,11 @@ def test_crypto_momentum_retreat_raw_signal_ok():
     CRYPTO_MOMENTUM_RETREAT_ALIGNED_RAW_SIGNAL - 0.01, **aligned
   ) is False
   assert crypto_momentum_retreat_raw_signal_ok(
-    0.31,
+    0.29,
     **{**aligned, "open_count": 0, "shadow_open_cap": 2},
   ) is True
   assert crypto_momentum_retreat_raw_signal_ok(
-    0.29,
+    0.27,
     **{**aligned, "open_count": 0, "shadow_open_cap": 2},
   ) is False
   ease = {**retreat, "bot_win_rate": 0.473, "profit_factor": 1.11, "total_pnl": 15.4}
