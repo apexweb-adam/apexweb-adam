@@ -226,6 +226,58 @@ def test_stocks_negative_pf_blocks_entry():
   ) is False
 
 
+def test_stocks_proven_winner_recovery_bypasses_large_loss_skip():
+  from app.engines.gate_entry_guard import (
+    chronic_loser_blocks_shadow_entry,
+    hard_skip_blocks_shadow_entry,
+    stocks_proven_winner_recovery_entry_ok,
+  )
+
+  recovery = dict(
+    bot_type="stocks_futures",
+    shadow_mode=True,
+    symbol="NVDA",
+    proven_winners=frozenset({"NVDA", "AAPL"}),
+    bot_win_rate=0.571,
+    composite=0.39,
+    signal_direction="buy",
+    macd_signal="bullish",
+  )
+  assert stocks_proven_winner_recovery_entry_ok(**recovery) is True
+  assert stocks_proven_winner_recovery_entry_ok(
+    **{**recovery, "signal_direction": "sell"}
+  ) is False
+  assert hard_skip_blocks_shadow_entry(
+    "NVDA",
+    bot_type="stocks_futures",
+    recent_skip=frozenset(),
+    large_skip=frozenset({"NVDA"}),
+    review_skip=frozenset(),
+    graduation_nudge=False,
+    shadow_mode=True,
+    intel_override=False,
+    composite=0.39,
+    integration_boost=0.0,
+    signal_direction="buy",
+    macd_signal="bullish",
+    proven_winners=frozenset({"NVDA"}),
+    bot_win_rate=0.571,
+  ) is False
+  assert chronic_loser_blocks_shadow_entry(
+    "NVDA",
+    frozenset({"NVDA"}),
+    bot_type="stocks_futures",
+    graduation_nudge=False,
+    shadow_mode=True,
+    intel_override=False,
+    proven_winners=frozenset({"NVDA"}),
+    bot_win_rate=0.571,
+    composite=0.39,
+    signal_direction="buy",
+    macd_signal="bullish",
+  ) is False
+
+
 def test_graduation_nudge_easing_active_for_active_commodities():
   from app.engines.gate_entry_guard import (
     graduation_nudge_easing_active,

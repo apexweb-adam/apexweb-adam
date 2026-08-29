@@ -310,6 +310,7 @@ EARLY_VERIFICATION_LOSS_WIND_DOWN_SECONDS = 7200
 EARLY_VERIFICATION_MACD_INTEGRATION_BYPASS = 0.05
 STOCKS_NEGATIVE_PF_MIN_COMPOSITE = 0.42
 STOCKS_NEGATIVE_PF_HIGH_WR_MIN_COMPOSITE = 0.38
+STOCKS_PROVEN_RECOVERY_MIN_COMPOSITE = 0.38
 STOCKS_SESSION_CLOSE_WIND_DOWN_MINUTES = 30
 STOCKS_SESSION_CLOSE_FORCE_MINUTES = 15
 DEFAULT_ENTRY_MIN_SIGNAL_FLOOR = 0.08
@@ -544,9 +545,25 @@ def chronic_loser_blocks_shadow_entry(
   graduation_nudge: bool,
   shadow_mode: bool,
   intel_override: bool,
+  proven_winners: frozenset[str] | None = None,
+  bot_win_rate: float | None = None,
+  composite: float | None = None,
+  signal_direction: str | None = None,
+  macd_signal: str | None = None,
 ) -> bool:
   """Chronic losers are skippable during graduation nudge when intel override applies."""
   if symbol not in chronic_symbols:
+    return False
+  if stocks_proven_winner_recovery_entry_ok(
+    bot_type=bot_type,
+    shadow_mode=shadow_mode,
+    symbol=symbol,
+    proven_winners=proven_winners or frozenset(),
+    bot_win_rate=bot_win_rate,
+    composite=composite or 0.0,
+    signal_direction=signal_direction or "buy",
+    macd_signal=macd_signal or "bullish",
+  ):
     return False
   if graduation_nudge_easing_active(
     bot_type,
@@ -1279,8 +1296,20 @@ def hard_skip_blocks_shadow_entry(
   integration_boost: float,
   signal_direction: str = "buy",
   macd_signal: str = "bullish",
+  proven_winners: frozenset[str] | None = None,
+  bot_win_rate: float | None = None,
 ) -> bool:
   """Hard gate-skip during graduation nudge — review blocks ease on strong active-gate composites."""
+  recovery_ok = stocks_proven_winner_recovery_entry_ok(
+    bot_type=bot_type,
+    shadow_mode=shadow_mode,
+    symbol=symbol,
+    proven_winners=proven_winners or frozenset(),
+    bot_win_rate=bot_win_rate,
+    composite=composite,
+    signal_direction=signal_direction,
+    macd_signal=macd_signal,
+  )
   if symbol in review_skip:
     if (
       not shadow_mode
@@ -1318,6 +1347,8 @@ def hard_skip_blocks_shadow_entry(
     bot_type, SHADOW_LARGE_LOSS_BYPASS_COMPOSITE
   )
   if symbol in large_skip:
+    if recovery_ok:
+      return False
     if graduation_nudge_easing_active(
       bot_type,
       graduation_nudge=graduation_nudge,
@@ -1330,6 +1361,8 @@ def hard_skip_blocks_shadow_entry(
         return False
     return True
   if symbol in recent_skip:
+    if recovery_ok:
+      return False
     if graduation_nudge_easing_active(
       bot_type,
       graduation_nudge=graduation_nudge,
@@ -1679,6 +1712,31 @@ def stocks_negative_pf_blocks_entry(
   if symbol in proven_winners and composite >= min_composite:
     return False
   return True
+
+
+def stocks_proven_winner_recovery_entry_ok(
+  *,
+  bot_type: str,
+  shadow_mode: bool,
+  symbol: str,
+  proven_winners: frozenset[str],
+  bot_win_rate: float | None,
+  composite: float,
+  signal_direction: str,
+  macd_signal: str,
+) -> bool:
+  """High-WR stocks shadow can re-enter proven winners with aligned bullish signals."""
+  from app.engines.profitability_gate import ProfitabilityGate
+
+  if not (shadow_mode and bot_type == "stocks_futures"):
+    return False
+  if symbol not in proven_winners:
+    return False
+  if bot_win_rate is None or bot_win_rate < ProfitabilityGate.GRADUATION_MIN_WIN_RATE:
+    return False
+  if signal_direction != "buy" or macd_signal != "bullish":
+    return False
+  return composite >= STOCKS_PROVEN_RECOVERY_MIN_COMPOSITE
 
 
 async def build_gate_ws_payload(session: AsyncSession) -> dict[str, Any]:
