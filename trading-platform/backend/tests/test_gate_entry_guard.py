@@ -165,6 +165,7 @@ def test_whale_memecoin_aligned():
   assert whale_memecoin_aligned("hyperliquid:+0.20; wallet tracker:+0.40", 0.11) is True
   assert whale_memecoin_aligned("wallet tracker:+0.45", 0.12) is False
   assert whale_memecoin_aligned("dexscreener:+0.35", 0.12) is False
+  assert whale_memecoin_aligned("fomo:+0.22; dexscreener:+0.35", 0.12) is True
 
 
 def test_shadow_intel_composite_override_whale_aligned_crypto():

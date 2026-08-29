@@ -401,6 +401,11 @@ export type PlatformStatus = {
     wallet_tracker_webhook?: boolean;
     wallet_tracker_webhook_url?: string | null;
     wallet_tracker_example_payload?: Record<string, unknown> | null;
+    fomo_family?: boolean;
+    fomo_webhook?: boolean;
+    fomo_webhook_url?: string | null;
+    fomo_setup?: string | null;
+    fomo_example_payload?: Record<string, unknown> | null;
     reddit_oauth?: boolean;
     twitter_x?: boolean;
   };

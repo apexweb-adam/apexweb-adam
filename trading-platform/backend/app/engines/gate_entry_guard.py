@@ -438,13 +438,18 @@ def gate_position_scale(composite: float, entry_min_signal: float, *, early_boos
 
 
 def whale_memecoin_aligned(integration_reason: str, integration_boost: float) -> bool:
-  """True when whale tracker aligns with DexScreener or Hyperliquid on the same symbol."""
+  """True when whale/fomo social intel aligns with DexScreener or Hyperliquid on the same symbol."""
   reason = integration_reason.lower()
   if integration_boost < 0.10:
     return False
-  has_whale = "wallet" in reason
-  has_meme_intel = "dexscreener" in reason or "hyperliquid" in reason or "memecoin_confluence" in reason
-  return has_whale and has_meme_intel
+  has_social = "wallet" in reason or "fomo" in reason
+  has_meme_intel = (
+    "dexscreener" in reason
+    or "hyperliquid" in reason
+    or "memecoin_confluence" in reason
+    or "fomo_leader_confluence" in reason.replace(" ", "_")
+  )
+  return has_social and has_meme_intel
 
 
 def shadow_intel_composite_override(
