@@ -41,6 +41,7 @@ from app.engines.gate_entry_guard import (
   shadow_graduation_loss_wind_down,
   shadow_graduation_loss_exposure_blocks_entry,
   shadow_graduation_profit_lock,
+  gate_cap_pressure_proxy_entry_blocked,
   gate_cap_pressure_proxy_wind_down,
   EARLY_VERIFICATION_LOSS_WIND_DOWN_SECONDS,
   EARLY_VERIFICATION_LOSS_WIND_DOWN_USD,
@@ -835,6 +836,16 @@ class BaseBot(ABC):
         )
 
         if commodities_weekend_futures_entry_blocked(symbol):
+          continue
+
+        if gate_cap_pressure_proxy_entry_blocked(
+          bot_type=self.bot_type,
+          shadow_mode=shadow_mode,
+          graduation_nudge=graduation_nudge,
+          symbol=symbol,
+          open_count=open_count,
+          gate_tightening=gate_tightening,
+        ):
           continue
 
         if (

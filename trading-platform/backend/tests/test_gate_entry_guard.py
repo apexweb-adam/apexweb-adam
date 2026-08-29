@@ -1069,3 +1069,29 @@ def test_gate_cap_pressure_proxy_wind_down_at_cap():
     open_count=3,
     gate_tightening=tightening,
   ) is False
+
+
+def test_gate_cap_pressure_proxy_entry_blocked_at_cap():
+  from app.engines.gate_entry_guard import gate_cap_pressure_proxy_entry_blocked
+
+  tightening = GateEntryTightening(
+    active=False,
+    win_rate=0.444,
+    min_sentiment=0.0,
+    require_macd_bullish=False,
+    min_composite_boost=0.0,
+    max_commodities_open_positions=3,
+  )
+  base = dict(
+    bot_type="commodities",
+    shadow_mode=False,
+    graduation_nudge=True,
+    symbol="XAUUSDT",
+    open_count=3,
+    gate_tightening=tightening,
+  )
+  assert gate_cap_pressure_proxy_entry_blocked(**base) is True
+  below_cap = {**base, "open_count": 2}
+  assert gate_cap_pressure_proxy_entry_blocked(**below_cap) is False
+  assert gate_cap_pressure_proxy_entry_blocked(**{**base, "symbol": "CL=F"}) is False
+  assert gate_cap_pressure_proxy_entry_blocked(**{**base, "shadow_mode": True}) is False
