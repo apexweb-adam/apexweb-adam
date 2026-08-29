@@ -567,6 +567,7 @@ async def get_platform_status(db: AsyncSession = Depends(get_db)) -> dict[str, A
       "risk_migration": "every 15 min",
       "redeploy_check": "every 1 hour",
       "stocks_pre_session_prep": "13:00 UTC Mon-Fri + every 15 min within 90 min of open",
+      "commodities_pre_session_prep": "22:30 UTC Sun + every 15 min within 90 min of CME open",
       "daily_review": "22:00 UTC",
       "verification_snapshot": "23:00 UTC",
     },
@@ -692,6 +693,25 @@ async def apply_risk_migrations(payload: dict[str, Any], db: AsyncSession = Depe
     "polymarket_sports_closed": pm_sports_closed,
     "commodities_excess_closed": commodities_trimmed,
     "shadow_excess_closed": shadow_trimmed,
+    "timestamp": datetime.utcnow().isoformat(),
+  }
+
+
+@router.post("/admin/run-commodities-prep")
+async def run_commodities_prep_admin(payload: dict[str, Any]) -> dict[str, Any]:
+  """Refresh TradingView signals for commodities futures within 90 min of CME open."""
+  from app.engines.gate_entry_guard import commodities_session_info
+  from app.workers.scheduler import commodities_pre_session_prep_job
+
+  secret = payload.get("secret", "")
+  if not settings.tradingview_webhook_secret or secret != settings.tradingview_webhook_secret:
+    return {"status": "unauthorized"}
+
+  session_info = commodities_session_info()
+  await commodities_pre_session_prep_job()
+  return {
+    "status": "ok",
+    "session": session_info,
     "timestamp": datetime.utcnow().isoformat(),
   }
 
