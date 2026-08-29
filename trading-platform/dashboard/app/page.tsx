@@ -655,9 +655,32 @@ export default function Dashboard() {
                                 {platformStatus.integrations.phantom_webhook_url}
                               </p>
                             )}
-                            <p className="mt-1 text-[10px] text-gray-500">
-                              Forward portfolio snapshots / swaps to Apex (Phantom MCP is docs-only in IDE)
-                            </p>
+                            {platformStatus.integrations.phantom_userscript_url && (
+                              <p className="mt-1 text-[10px]">
+                                <a
+                                  href={platformStatus.integrations.phantom_userscript_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-apex-gold hover:underline break-all"
+                                >
+                                  Install Phantom userscript (portfolio forwarding)
+                                </a>
+                              </p>
+                            )}
+                            {platformStatus.integrations.phantom_portfolio_poll ? (
+                              <p className="mt-1 text-[10px] text-green-400">
+                                Server-side Helius portfolio poll active
+                              </p>
+                            ) : (
+                              <p className="mt-1 text-[10px] text-amber-400">
+                                Set PHANTOM_WALLET_ADDRESSES + HELIUS_API_KEY for 24/7 server poll
+                              </p>
+                            )}
+                            {platformStatus.integrations.phantom_setup && (
+                              <p className="mt-1 text-[10px] text-gray-500">
+                                {platformStatus.integrations.phantom_setup}
+                              </p>
+                            )}
                             {platformStatus.integrations.phantom_example_payload && (
                               <pre className="mt-2 p-2 rounded bg-black/40 text-[10px] text-gray-400 overflow-x-auto">
                                 {JSON.stringify(

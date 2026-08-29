@@ -107,12 +107,14 @@ class ExtendedIntelligenceScanner(IntelligenceScanner):
     from app.intelligence.memecoin_scanner import scan_memecoin_intel
     from app.intelligence.fomo_tracker import scan_fomo_trades
     from app.intelligence.axiom_tracker import scan_axiom_feed
+    from app.intelligence.phantom_tracker import scan_phantom_portfolios
 
     count += await scan_wallet_tracker(self.session)
     count += await scan_solana_wallets(self.session)
     count += await scan_memecoin_intel(self.session)
     count += await scan_fomo_trades(self.session)
     count += await scan_axiom_feed(self.session)
+    count += await scan_phantom_portfolios(self.session)
     await self.session.commit()
     return count
 

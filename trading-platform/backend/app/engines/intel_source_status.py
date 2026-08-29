@@ -93,7 +93,8 @@ async def build_intel_sources(session: AsyncSession) -> list[dict[str, Any]]:
     "hyperliquid": settings.hyperliquid_enabled,
     "fomo": fomo_configured(),
     "axiom": axiom_configured(),
-    "phantom": phantom_configured(),
+    "phantom": phantom_configured()
+    or bool(settings.phantom_wallet_addresses and settings.helius_api_key),
     "tradingview": bool(settings.tradingview_webhook_secret),
     "x": bool(settings.twitter_bearer_token) or bool(settings.newsapi_key),
     "newsapi": bool(settings.newsapi_key),
