@@ -954,6 +954,30 @@ def test_shadow_graduation_loss_wind_down_profitable_nudge_threshold():
   ) is False
 
 
+def test_shadow_cap_pressure_loser_wind_down():
+  from app.engines.gate_entry_guard import shadow_cap_pressure_loser_wind_down
+
+  base = dict(
+    bot_type="crypto",
+    shadow_mode=True,
+    held_seconds=900,
+    min_hold_seconds=900,
+    open_count=3,
+    shadow_open_cap=3,
+    bot_win_rate=0.424,
+    profit_factor=0.98,
+    total_pnl=-2.66,
+  )
+  assert shadow_cap_pressure_loser_wind_down(unrealized=-0.40, **base) is True
+  assert shadow_cap_pressure_loser_wind_down(unrealized=-0.20, **base) is False
+  assert shadow_cap_pressure_loser_wind_down(
+    unrealized=-0.40, **{**base, "open_count": 2}
+  ) is False
+  assert shadow_cap_pressure_loser_wind_down(
+    unrealized=-0.40, **{**base, "shadow_mode": False}
+  ) is False
+
+
 def test_active_gate_uses_tighter_exit_thresholds():
   from app.engines.gate_entry_guard import (
     shadow_graduation_loss_wind_down,

@@ -43,6 +43,7 @@ from app.engines.gate_entry_guard import (
   shadow_graduation_min_hold_seconds,
   shadow_graduation_min_composite,
   shadow_graduation_loss_wind_down,
+  shadow_cap_pressure_loser_wind_down,
   shadow_graduation_loss_exposure_blocks_entry,
   shadow_graduation_profit_lock,
   gate_cap_pressure_proxy_entry_blocked,
@@ -414,6 +415,32 @@ class BaseBot(ABC):
             label = "Shadow" if shadow_mode else "Gate"
             reason = (
               f"{label} graduation wind-down (uPnL ${unrealized:.2f}) | {signal.reason}"
+            )
+            result = await engine.sell(symbol, price, reason)
+            if result:
+              actions.append(result)
+              if result.get("is_winner") is False:
+                await self._analyze_loss(session, symbol)
+                self._register_symbol_cooldown(symbol, after_loss=True)
+              else:
+                self._register_symbol_cooldown(symbol, after_loss=False)
+            continue
+
+          if shadow_cap_pressure_loser_wind_down(
+            bot_type=self.bot_type,
+            shadow_mode=shadow_mode,
+            unrealized=(price - position.entry_price) * position.quantity,
+            held_seconds=held_seconds,
+            min_hold_seconds=min_hold,
+            open_count=open_count,
+            shadow_open_cap=shadow_open_cap,
+            bot_win_rate=bot_wr,
+            profit_factor=per_bot_stats.get("profit_factor"),
+            total_pnl=per_bot_stats.get("total_pnl"),
+          ):
+            unrealized = (price - position.entry_price) * position.quantity
+            reason = (
+              f"Shadow cap-pressure loser wind-down (uPnL ${unrealized:.2f}) | {signal.reason}"
             )
             result = await engine.sell(symbol, price, reason)
             if result:

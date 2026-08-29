@@ -98,6 +98,7 @@ CRYPTO_SHADOW_BULLISH_SENTIMENT_COMPOSITE_FLOOR = 0.26
 CRYPTO_NEAR_GRADUATION_PNL_FLOOR_USD = 10.0
 CRYPTO_NEAR_GRADUATION_WR_FLOOR = 0.405
 CRYPTO_NEAR_GRADUATION_PROFIT_LOCK_USD = 1.5
+CRYPTO_NEAR_GRADUATION_CAP_PRESSURE_LOSER_USD = 0.35
 
 
 def crypto_near_graduation_nudge(
@@ -888,6 +889,35 @@ def shadow_graduation_loss_wind_down(
   else:
     threshold = GRADUATION_NUDGE_LOSS_WIND_DOWN_USD
   return unrealized <= -threshold
+
+
+def shadow_cap_pressure_loser_wind_down(
+  *,
+  bot_type: str,
+  shadow_mode: bool,
+  unrealized: float,
+  held_seconds: float,
+  min_hold_seconds: int,
+  open_count: int,
+  shadow_open_cap: int | None,
+  bot_win_rate: float | None = None,
+  profit_factor: float | None = None,
+  total_pnl: float | None = None,
+) -> bool:
+  """Free shadow cap slots by exiting small losers when near graduation and at open cap."""
+  if not shadow_mode or shadow_open_cap is None or open_count < shadow_open_cap:
+    return False
+  if not crypto_near_graduation_nudge(
+    bot_type,
+    shadow_mode,
+    bot_win_rate,
+    profit_factor,
+    total_pnl,
+  ):
+    return False
+  if held_seconds < min_hold_seconds:
+    return False
+  return unrealized <= -CRYPTO_NEAR_GRADUATION_CAP_PRESSURE_LOSER_USD
 
 
 def shadow_graduation_loss_exposure_blocks_entry(
