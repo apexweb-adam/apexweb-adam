@@ -545,7 +545,9 @@ def shadow_graduation_min_hold_seconds(
   default_seconds: int,
 ) -> int:
   """Longer min hold during graduation nudge to avoid intel-override churn."""
-  if graduation_nudge and shadow_mode:
+  if graduation_nudge_easing_active(
+    bot_type, graduation_nudge=graduation_nudge, shadow_mode=shadow_mode
+  ):
     return SHADOW_GRADUATION_MIN_HOLD_BY_BOT.get(bot_type, default_seconds)
   return default_seconds
 
@@ -585,8 +587,10 @@ def shadow_graduation_loss_wind_down(
   profit_factor: float | None = None,
   total_pnl: float | None = None,
 ) -> bool:
-  """Exit losing shadow positions during graduation nudge after min hold to cut churn."""
-  if not (graduation_nudge and shadow_mode and bot_type in ("crypto", "commodities")):
+  """Exit losing positions during graduation nudge after min hold to cut churn."""
+  if not graduation_nudge_easing_active(
+    bot_type, graduation_nudge=graduation_nudge, shadow_mode=shadow_mode
+  ):
     return False
   if held_seconds < min_hold_seconds:
     return False
@@ -614,8 +618,10 @@ def shadow_graduation_profit_lock(
   profit_factor: float | None = None,
   total_pnl: float | None = None,
 ) -> bool:
-  """Bank shadow winners during graduation nudge instead of round-tripping gains."""
-  if not (graduation_nudge and shadow_mode and bot_type in ("crypto", "commodities")):
+  """Bank winners during graduation nudge instead of round-tripping gains."""
+  if not graduation_nudge_easing_active(
+    bot_type, graduation_nudge=graduation_nudge, shadow_mode=shadow_mode
+  ):
     return False
   if held_seconds < min_hold_seconds:
     return False

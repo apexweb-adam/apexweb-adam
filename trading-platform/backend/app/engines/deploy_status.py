@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import time
 from datetime import datetime
 from typing import Any
 
@@ -10,6 +11,10 @@ import httpx
 
 GITHUB_REPO = os.environ.get("GITHUB_REPO", "apexweb-adam/apexweb-adam")
 GITHUB_API = f"https://api.github.com/repos/{GITHUB_REPO}/commits/main"
+
+_deploy_status_cache: dict[str, Any] | None = None
+_deploy_status_cached_at: float = 0.0
+DEPLOY_STATUS_CACHE_TTL_SECONDS = 60
 
 
 def github_headers() -> dict[str, str]:
@@ -25,7 +30,7 @@ PRODUCTION_DASHBOARD_URL = "https://apex-trading-dashboard-flame.vercel.app"
 DEFAULT_VERIFIED_DASHBOARD_URL = "https://apex-trading-dashboard-flame.vercel.app"
 DEFAULT_VERIFIED_DEPLOYMENT_ID = "dpl_9cVRxRBgcHVStS2A35ZmPFbwrZTS"
 EXPECTED_DASHBOARD_BUNDLE = "2026-08-28-r29"
-EXPECTED_PLATFORM_REVISION = "2026-08-28-r146"
+EXPECTED_PLATFORM_REVISION = "2026-08-28-r147"
 GIT_MAIN_ALIAS = "apex-trading-dashboard-git-main"
 ACCEPTABLE_DASHBOARD_BUNDLES = frozenset({
   "2026-08-27-r9", "2026-08-27-r10", "2026-08-27-r11", "2026-08-27-r12",
@@ -546,6 +551,18 @@ async def fetch_vercel_dashboard_bundle() -> dict[str, Any]:
 
 
 async def build_deploy_status() -> dict[str, Any]:
+  global _deploy_status_cache, _deploy_status_cached_at
+  now = time.monotonic()
+  if _deploy_status_cache is not None and (now - _deploy_status_cached_at) < DEPLOY_STATUS_CACHE_TTL_SECONDS:
+    return _deploy_status_cache
+
+  result = await _build_deploy_status_uncached()
+  _deploy_status_cache = result
+  _deploy_status_cached_at = now
+  return result
+
+
+async def _build_deploy_status_uncached() -> dict[str, Any]:
   deployed = deployed_git_commit()
   latest = await fetch_latest_main_commit()
   latest_sha = (latest or {}).get("sha")

@@ -333,24 +333,21 @@ class BaseBot(ABC):
             )
           allow_signal_exit = held_seconds >= min_hold
 
-          if (
-            shadow_mode
-            and self.bot_type in ("crypto", "commodities")
-            and shadow_graduation_loss_wind_down(
-              graduation_nudge=graduation_nudge,
-              shadow_mode=shadow_mode,
-              bot_type=self.bot_type,
-              unrealized=(price - position.entry_price) * position.quantity,
-              held_seconds=held_seconds,
-              min_hold_seconds=min_hold,
-              bot_win_rate=bot_wr,
-              profit_factor=per_bot_stats.get("profit_factor"),
-              total_pnl=per_bot_stats.get("total_pnl"),
-            )
+          if shadow_graduation_loss_wind_down(
+            graduation_nudge=graduation_nudge,
+            shadow_mode=shadow_mode,
+            bot_type=self.bot_type,
+            unrealized=(price - position.entry_price) * position.quantity,
+            held_seconds=held_seconds,
+            min_hold_seconds=min_hold,
+            bot_win_rate=bot_wr,
+            profit_factor=per_bot_stats.get("profit_factor"),
+            total_pnl=per_bot_stats.get("total_pnl"),
           ):
             unrealized = (price - position.entry_price) * position.quantity
+            label = "Shadow" if shadow_mode else "Gate"
             reason = (
-              f"Shadow graduation wind-down (uPnL ${unrealized:.2f}) | {signal.reason}"
+              f"{label} graduation wind-down (uPnL ${unrealized:.2f}) | {signal.reason}"
             )
             result = await engine.sell(symbol, price, reason)
             if result:
@@ -362,24 +359,21 @@ class BaseBot(ABC):
                 self._register_symbol_cooldown(symbol, after_loss=False)
             continue
 
-          if (
-            shadow_mode
-            and self.bot_type in ("crypto", "commodities")
-            and shadow_graduation_profit_lock(
-              graduation_nudge=graduation_nudge,
-              shadow_mode=shadow_mode,
-              bot_type=self.bot_type,
-              unrealized=(price - position.entry_price) * position.quantity,
-              held_seconds=held_seconds,
-              min_hold_seconds=min_hold,
-              bot_win_rate=bot_wr,
-              profit_factor=per_bot_stats.get("profit_factor"),
-              total_pnl=per_bot_stats.get("total_pnl"),
-            )
+          if shadow_graduation_profit_lock(
+            graduation_nudge=graduation_nudge,
+            shadow_mode=shadow_mode,
+            bot_type=self.bot_type,
+            unrealized=(price - position.entry_price) * position.quantity,
+            held_seconds=held_seconds,
+            min_hold_seconds=min_hold,
+            bot_win_rate=bot_wr,
+            profit_factor=per_bot_stats.get("profit_factor"),
+            total_pnl=per_bot_stats.get("total_pnl"),
           ):
             unrealized = (price - position.entry_price) * position.quantity
+            label = "Shadow" if shadow_mode else "Gate"
             reason = (
-              f"Shadow graduation profit lock (uPnL ${unrealized:.2f}) | {signal.reason}"
+              f"{label} graduation profit lock (uPnL ${unrealized:.2f}) | {signal.reason}"
             )
             result = await engine.sell(symbol, price, reason)
             if result:

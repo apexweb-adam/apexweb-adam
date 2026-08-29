@@ -305,6 +305,9 @@ def test_shadow_graduation_min_hold_seconds():
   assert shadow_graduation_min_hold_seconds(
     "commodities", graduation_nudge=True, shadow_mode=True, default_seconds=180
   ) == 600
+  assert shadow_graduation_min_hold_seconds(
+    "commodities", graduation_nudge=True, shadow_mode=False, default_seconds=180
+  ) == 600
 
 
 def test_shadow_graduation_min_composite():
@@ -472,6 +475,17 @@ def test_shadow_graduation_profit_lock():
     profit_factor=0.98,
     total_pnl=-1.89,
   ) is False
+  assert shadow_graduation_profit_lock(
+    graduation_nudge=True,
+    shadow_mode=False,
+    bot_type="commodities",
+    unrealized=4.5,
+    held_seconds=600,
+    min_hold_seconds=600,
+    bot_win_rate=0.444,
+    profit_factor=1.19,
+    total_pnl=19.13,
+  ) is True
   assert shadow_graduation_profit_lock(
     graduation_nudge=False,
     shadow_mode=True,
