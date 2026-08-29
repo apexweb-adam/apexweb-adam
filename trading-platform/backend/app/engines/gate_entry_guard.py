@@ -311,6 +311,7 @@ EARLY_VERIFICATION_MACD_INTEGRATION_BYPASS = 0.05
 STOCKS_NEGATIVE_PF_MIN_COMPOSITE = 0.42
 STOCKS_NEGATIVE_PF_HIGH_WR_MIN_COMPOSITE = 0.38
 STOCKS_PROVEN_RECOVERY_MIN_COMPOSITE = 0.38
+COMMODITIES_FUTURES_WEEKEND_FLAT_EXIT_BAND_USD = 1.0
 STOCKS_SESSION_CLOSE_WIND_DOWN_MINUTES = 30
 STOCKS_SESSION_CLOSE_FORCE_MINUTES = 15
 DEFAULT_ENTRY_MIN_SIGNAL_FLOOR = 0.08
@@ -1621,6 +1622,31 @@ def stocks_in_us_session() -> bool:
     return False
   minutes = now.hour * 60 + now.minute
   return 13 * 60 + 30 <= minutes <= 21 * 60 + 30
+
+
+def is_commodities_futures_symbol(symbol: str) -> bool:
+  return symbol.endswith("=F")
+
+
+def commodities_futures_weekend_closed() -> bool:
+  """CME metals/energy futures have no meaningful weekend session (Sat–Sun UTC)."""
+  return datetime.utcnow().weekday() >= 5
+
+
+def commodities_weekend_stale_signal_exit_blocked(
+  *,
+  symbol: str,
+  unrealized: float,
+  signal_direction: str,
+) -> bool:
+  """Hold flat futures over the weekend — stale MACD crosses should not force exits."""
+  if not is_commodities_futures_symbol(symbol):
+    return False
+  if not commodities_futures_weekend_closed():
+    return False
+  if signal_direction != "sell":
+    return False
+  return abs(unrealized) < COMMODITIES_FUTURES_WEEKEND_FLAT_EXIT_BAND_USD
 
 
 def stocks_session_info() -> dict[str, Any]:
