@@ -27,6 +27,19 @@ def _sells_since(sells: list[Trade], since: datetime | None) -> list[Trade]:
   ]
 
 
+def _exclude_feed_artifact_sells(sells: list[Trade]) -> list[Trade]:
+  """Drop proxy feed-correction wind-downs from verification metrics."""
+  from app.engines.gate_entry_guard import is_feed_artifact_loss
+
+  return [
+    t for t in sells
+    if not (
+      t.is_winner is False
+      and is_feed_artifact_loss(t.bot_type, t.symbol, t.pnl, t.reason)
+    )
+  ]
+
+
 class ProfitabilityGate:
   """Tracks whether paper trading performance meets thresholds for live trading."""
 
@@ -71,7 +84,7 @@ class ProfitabilityGate:
     paused_set = set(paused_bots)
     verification_start = await get_verification_started_at(self.session)
 
-    period_sells = _sells_since(sells, verification_start)
+    period_sells = _exclude_feed_artifact_sells(_sells_since(sells, verification_start))
     active_sells = [t for t in period_sells if t.bot_type not in paused_set]
     active_portfolios = [p for p in portfolios if p.bot_type not in paused_set]
     active_metrics = self._trade_metrics(active_sells, active_portfolios)
@@ -193,7 +206,7 @@ class ProfitabilityGate:
     paused_bots = await get_paused_bot_types(self.session)
     paused_set = set(paused_bots)
     verification_start = await get_verification_started_at(self.session)
-    period_sells = _sells_since(sells, verification_start)
+    period_sells = _exclude_feed_artifact_sells(_sells_since(sells, verification_start))
 
     by_bot: dict[str, list[Trade]] = {bot: [] for bot in BOT_TYPES}
     for trade in period_sells:
