@@ -1009,7 +1009,7 @@ def commodities_monday_cap_pressure_flat_wind_down(
   open_count: int,
   gate_tightening: GateEntryTightening,
 ) -> bool:
-  """Ahead of CME reopen, flatten idle forex holds at cap for recovery futures."""
+  """Flatten idle forex holds near cap ahead of CME reopen / during weekend prep."""
   if shadow_mode or bot_type != "commodities" or not graduation_nudge:
     return False
   if is_commodities_futures_symbol(symbol):
@@ -1018,15 +1018,23 @@ def commodities_monday_cap_pressure_flat_wind_down(
 
   if symbol in CRYPTO_LIVE_PRICE_PROXY:
     return False
-  if not commodities_monday_scan_priority_active(commodities_session_info()):
-    return False
   cap = commodities_effective_open_cap(
     gate_tightening.max_commodities_open_positions,
     bot_type=bot_type,
     graduation_nudge=graduation_nudge,
     shadow_mode=shadow_mode,
   )
-  if not isinstance(cap, int) or open_count < cap:
+  if not isinstance(cap, int):
+    return False
+  session = commodities_session_info()
+  monday_priority = commodities_monday_scan_priority_active(session)
+  weekend_reserve = (
+    commodities_futures_weekend_closed()
+    and open_count >= max(1, cap - 1)
+  )
+  if not monday_priority and not weekend_reserve:
+    return False
+  if open_count < cap and not weekend_reserve:
     return False
   if held_seconds < min_hold_seconds:
     return False
