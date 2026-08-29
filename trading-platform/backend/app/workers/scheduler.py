@@ -138,6 +138,39 @@ async def stocks_pre_session_prep_job() -> None:
     await push_live_update()
 
 
+HELD_TV_REFRESH_MAX_AGE_HOURS = 6
+
+
+async def held_positions_tv_refresh_job() -> None:
+  """Refresh stale TradingView boosts for symbols in open active-gate positions."""
+  from app.engines.integration_signals import refresh_tradingview_signals
+  from app.engines.paper_trading import PaperTradingEngine
+  from app.engines.platform_settings import get_paused_bot_types
+
+  async with SessionLocal() as session:
+    paused = set(await get_paused_bot_types(session))
+    active_bots = [bot_type for bot_type in BOT_TYPES if bot_type not in paused]
+    symbols: set[str] = set()
+    for bot_type in active_bots:
+      engine = PaperTradingEngine(session, bot_type)
+      for position in await engine.get_open_positions():
+        if position.symbol:
+          symbols.add(position.symbol)
+    if not symbols:
+      return
+    refreshed = await refresh_tradingview_signals(
+      session,
+      sorted(symbols),
+      reason_prefix="Held-position TV refresh",
+      max_age_hours=HELD_TV_REFRESH_MAX_AGE_HOURS,
+    )
+  if refreshed:
+    print(f"[HeldTVRefresh] Refreshed TradingView signals for {', '.join(refreshed)}")
+    from app.ws_manager import push_live_update
+
+    await push_live_update()
+
+
 COMMODITIES_PREP_SYMBOLS = ("CL=F", "SI=F", "NG=F", "GC=F", "HG=F")
 
 
@@ -413,6 +446,12 @@ async def setup_scheduler() -> None:
     minute=30,
     day_of_week="sun",
     id="commodities_pre_session_prep",
+  )
+  scheduler.add_job(
+    held_positions_tv_refresh_job,
+    "interval",
+    minutes=30,
+    id="held_positions_tv_refresh",
   )
   scheduler.add_job(daily_review_job, "cron", hour=22, minute=0, id="daily_review")
   scheduler.add_job(verification_snapshot_job, "cron", hour=23, minute=0, id="verification_snapshot")
