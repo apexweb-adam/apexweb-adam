@@ -117,6 +117,7 @@ class BaseBot(ABC):
     self.signal_engine = SignalEngine()
     self.running = False
     self._symbol_cooldown_until: dict[str, datetime] = {}
+    self._last_exit_reason: dict[str, str] = {}
 
   def _cooldown_seconds(self, *, after_loss: bool) -> int | None:
     if self.bot_type == "crypto":
@@ -139,9 +140,17 @@ class BaseBot(ABC):
       )
     return None
 
-  def _register_symbol_cooldown(self, symbol: str, *, after_loss: bool) -> None:
+  def _register_symbol_cooldown(
+    self,
+    symbol: str,
+    *,
+    after_loss: bool,
+    reason: str | None = None,
+  ) -> None:
     if not symbol:
       return
+    if reason:
+      self._last_exit_reason[symbol] = reason
     seconds = self._cooldown_seconds(after_loss=after_loss)
     if seconds is None:
       return
@@ -435,9 +444,9 @@ class BaseBot(ABC):
               actions.append(result)
               if result.get("is_winner") is False:
                 await self._analyze_loss(session, symbol)
-                self._register_symbol_cooldown(symbol, after_loss=True)
+                self._register_symbol_cooldown(symbol, after_loss=True, reason=reason)
               else:
-                self._register_symbol_cooldown(symbol, after_loss=False)
+                self._register_symbol_cooldown(symbol, after_loss=False, reason=reason)
             continue
 
           if shadow_cap_pressure_loser_wind_down(
@@ -472,9 +481,9 @@ class BaseBot(ABC):
               actions.append(result)
               if result.get("is_winner") is False:
                 await self._analyze_loss(session, symbol)
-                self._register_symbol_cooldown(symbol, after_loss=True)
+                self._register_symbol_cooldown(symbol, after_loss=True, reason=reason)
               else:
-                self._register_symbol_cooldown(symbol, after_loss=False)
+                self._register_symbol_cooldown(symbol, after_loss=False, reason=reason)
             continue
 
           if shadow_graduation_profit_lock(
@@ -502,9 +511,9 @@ class BaseBot(ABC):
               actions.append(result)
               if result.get("is_winner") is False:
                 await self._analyze_loss(session, symbol)
-                self._register_symbol_cooldown(symbol, after_loss=True)
+                self._register_symbol_cooldown(symbol, after_loss=True, reason=reason)
               else:
-                self._register_symbol_cooldown(symbol, after_loss=False)
+                self._register_symbol_cooldown(symbol, after_loss=False, reason=reason)
             continue
 
           if commodities_gold_proxy_duplicate_wind_down(
@@ -525,9 +534,9 @@ class BaseBot(ABC):
               actions.append(result)
               if result.get("is_winner") is False:
                 await self._analyze_loss(session, symbol)
-                self._register_symbol_cooldown(symbol, after_loss=True)
+                self._register_symbol_cooldown(symbol, after_loss=True, reason=reason)
               else:
-                self._register_symbol_cooldown(symbol, after_loss=False)
+                self._register_symbol_cooldown(symbol, after_loss=False, reason=reason)
             continue
 
           if await commodities_weekend_spot_post_lock_wind_down(
@@ -550,9 +559,9 @@ class BaseBot(ABC):
               actions.append(result)
               if result.get("is_winner") is False:
                 await self._analyze_loss(session, symbol)
-                self._register_symbol_cooldown(symbol, after_loss=True)
+                self._register_symbol_cooldown(symbol, after_loss=True, reason=reason)
               else:
-                self._register_symbol_cooldown(symbol, after_loss=False)
+                self._register_symbol_cooldown(symbol, after_loss=False, reason=reason)
             continue
 
           if gate_cap_pressure_proxy_wind_down(
@@ -576,9 +585,9 @@ class BaseBot(ABC):
               actions.append(result)
               if result.get("is_winner") is False:
                 await self._analyze_loss(session, symbol)
-                self._register_symbol_cooldown(symbol, after_loss=True)
+                self._register_symbol_cooldown(symbol, after_loss=True, reason=reason)
               else:
-                self._register_symbol_cooldown(symbol, after_loss=False)
+                self._register_symbol_cooldown(symbol, after_loss=False, reason=reason)
             continue
 
           if commodities_cap_pressure_loser_wind_down(
@@ -601,9 +610,9 @@ class BaseBot(ABC):
               actions.append(result)
               if result.get("is_winner") is False:
                 await self._analyze_loss(session, symbol)
-                self._register_symbol_cooldown(symbol, after_loss=True)
+                self._register_symbol_cooldown(symbol, after_loss=True, reason=reason)
               else:
-                self._register_symbol_cooldown(symbol, after_loss=False)
+                self._register_symbol_cooldown(symbol, after_loss=False, reason=reason)
             continue
 
           if commodities_monday_cap_pressure_flat_wind_down(
@@ -626,9 +635,9 @@ class BaseBot(ABC):
               actions.append(result)
               if result.get("is_winner") is False:
                 await self._analyze_loss(session, symbol)
-                self._register_symbol_cooldown(symbol, after_loss=True)
+                self._register_symbol_cooldown(symbol, after_loss=True, reason=reason)
               else:
-                self._register_symbol_cooldown(symbol, after_loss=False)
+                self._register_symbol_cooldown(symbol, after_loss=False, reason=reason)
             continue
 
           if self.bot_type == "stocks_futures":
@@ -648,9 +657,9 @@ class BaseBot(ABC):
                 actions.append(result)
                 if result.get("is_winner") is False:
                   await self._analyze_loss(session, symbol)
-                  self._register_symbol_cooldown(symbol, after_loss=True)
+                  self._register_symbol_cooldown(symbol, after_loss=True, reason=reason)
                 else:
-                  self._register_symbol_cooldown(symbol, after_loss=False)
+                  self._register_symbol_cooldown(symbol, after_loss=False, reason=reason)
               continue
 
           if (
@@ -670,9 +679,9 @@ class BaseBot(ABC):
                 actions.append(result)
                 if result.get("is_winner") is False:
                   await self._analyze_loss(session, symbol)
-                  self._register_symbol_cooldown(symbol, after_loss=True)
+                  self._register_symbol_cooldown(symbol, after_loss=True, reason=reason)
                 else:
-                  self._register_symbol_cooldown(symbol, after_loss=False)
+                  self._register_symbol_cooldown(symbol, after_loss=False, reason=reason)
               continue
 
           if (
@@ -696,9 +705,9 @@ class BaseBot(ABC):
                 actions.append(result)
                 if result.get("is_winner") is False:
                   await self._analyze_loss(session, symbol)
-                  self._register_symbol_cooldown(symbol, after_loss=True)
+                  self._register_symbol_cooldown(symbol, after_loss=True, reason=reason)
                 else:
-                  self._register_symbol_cooldown(symbol, after_loss=False)
+                  self._register_symbol_cooldown(symbol, after_loss=False, reason=reason)
               continue
 
           # Wind down legacy stock positions opened before proven-winners-only gate.
@@ -723,9 +732,9 @@ class BaseBot(ABC):
                 actions.append(result)
                 if result.get("is_winner") is False:
                   await self._analyze_loss(session, symbol)
-                  self._register_symbol_cooldown(symbol, after_loss=True)
+                  self._register_symbol_cooldown(symbol, after_loss=True, reason=reason)
                 else:
-                  self._register_symbol_cooldown(symbol, after_loss=False)
+                  self._register_symbol_cooldown(symbol, after_loss=False, reason=reason)
               continue
 
           # Wind down legacy positions on bots blocked from gate — but not shadow graduation recovery.
@@ -752,9 +761,9 @@ class BaseBot(ABC):
                 actions.append(result)
                 if result.get("is_winner") is False:
                   await self._analyze_loss(session, symbol)
-                  self._register_symbol_cooldown(symbol, after_loss=True)
+                  self._register_symbol_cooldown(symbol, after_loss=True, reason=reason)
                 else:
-                  self._register_symbol_cooldown(symbol, after_loss=False)
+                  self._register_symbol_cooldown(symbol, after_loss=False, reason=reason)
               continue
 
           if allow_signal_exit and (signal.direction == "sell" or integration_boost < -0.1):
@@ -773,9 +782,9 @@ class BaseBot(ABC):
               actions.append(result)
               if result.get("is_winner") is False:
                 await self._analyze_loss(session, symbol)
-                self._register_symbol_cooldown(symbol, after_loss=True)
+                self._register_symbol_cooldown(symbol, after_loss=True, reason=reason)
               else:
-                self._register_symbol_cooldown(symbol, after_loss=False)
+                self._register_symbol_cooldown(symbol, after_loss=False, reason=reason)
           continue
 
         if not allow_new_entries:
@@ -813,6 +822,7 @@ class BaseBot(ABC):
           composite=composite,
           open_count=open_count,
           shadow_open_cap=shadow_open_cap,
+          last_exit_reason=self._last_exit_reason.get(symbol),
         )
         if (
           not weekend_spot_cooldown_waived
@@ -1279,7 +1289,7 @@ class BaseBot(ABC):
       for action in stop_actions:
         if action.get("is_winner") is False:
           await self._analyze_loss(session, action.get("symbol", ""))
-          self._register_symbol_cooldown(action.get("symbol", ""), after_loss=True)
+          self._register_symbol_cooldown(action.get("symbol", ""), after_loss=True, reason=action.get("reason"))
 
     await self._record_scan_result(
       len(symbols),

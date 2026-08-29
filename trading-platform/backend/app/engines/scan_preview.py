@@ -82,6 +82,7 @@ from app.engines.gate_entry_guard import (
   stocks_trade_count_entry_min_signal,
   stocks_trade_count_graduation_nudge,
   stocks_trade_count_min_sentiment,
+  stocks_gate_fast_scan_active,
   stocks_trade_count_volume_required,
   stocks_proven_winner_sentiment_gate_ok,
   stocks_negative_pf_blocks_entry,
@@ -189,6 +190,10 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
     per_bot_stats.get("win_rate"),
     int(per_bot_stats.get("total_trades") or 0),
   )
+  stocks_fast_scan_active = stocks_gate_fast_scan_active(
+    session,
+    trade_count_nudge=stocks_trade_count_nudge,
+  )
   crypto_strong_momentum = crypto_strong_momentum_nudge(
     bot_type,
     shadow_mode,
@@ -274,6 +279,20 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
 
   symbols = await bot.get_symbols()
   previews: list[dict[str, Any]] = []
+
+  last_exit_reasons: dict[str, str] = {}
+  if bot_type == "crypto" and shadow_mode:
+    from app.models.entities import Trade
+    from sqlalchemy import select
+
+    sell_rows = await session.execute(
+      select(Trade.symbol, Trade.reason)
+      .where(Trade.bot_type == bot_type, Trade.action == "sell")
+      .order_by(Trade.executed_at.desc())
+    )
+    for sym, exit_reason in sell_rows:
+      if sym and sym not in last_exit_reasons:
+        last_exit_reasons[sym] = exit_reason or ""
 
   for symbol in symbols:
     price, df = await bot.fetch_price_data(symbol)
@@ -734,6 +753,7 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
         composite=composite,
         open_count=open_count,
         shadow_open_cap=shadow_cap,
+        last_exit_reason=last_exit_reasons.get(symbol),
       )
 
     previews.append(
@@ -860,6 +880,7 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
     "shadow_mode": shadow_mode,
     "graduation_nudge": graduation_nudge,
     "stocks_trade_count_nudge": stocks_trade_count_nudge,
+    "stocks_gate_fast_scan_active": stocks_fast_scan_active,
     "crypto_strong_momentum_nudge": crypto_strong_momentum,
     "crypto_pre_graduation_nudge": crypto_pre_graduation,
     "crypto_cap_pressure_active": crypto_cap_pressure,
