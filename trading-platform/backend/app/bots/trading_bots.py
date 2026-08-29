@@ -5,6 +5,7 @@ from typing import Any
 
 import pandas as pd
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.database import SessionLocal
@@ -131,9 +132,16 @@ class BaseBot(ABC):
     score, _ = await self.get_sentiment_detail(symbol)
     return score
 
-  async def get_sentiment_detail(self, symbol: str) -> tuple[float, str]:
-    async with SessionLocal() as session:
+  async def get_sentiment_detail(
+    self,
+    symbol: str,
+    *,
+    session: AsyncSession | None = None,
+  ) -> tuple[float, str]:
+    if session is not None:
       return await compute_bot_sentiment(session, self.bot_type, symbol)
+    async with SessionLocal() as owned:
+      return await compute_bot_sentiment(owned, self.bot_type, symbol)
 
   async def scan_and_trade(self, *, allow_new_entries: bool = True) -> list[dict]:
     actions: list[dict] = []
@@ -304,7 +312,7 @@ class BaseBot(ABC):
         prices[symbol] = price
 
         signal = self.signal_engine.analyze(symbol, df, strategy_params)
-        sentiment, sentiment_sources = await self.get_sentiment_detail(symbol)
+        sentiment, sentiment_sources = await self.get_sentiment_detail(symbol, session=session)
         composite = self.signal_engine.composite_score(signal.score, sentiment, weights)
         integration_boost, integration_reason = await get_integration_boost(session, symbol)
         composite = max(0.0, composite + integration_boost)

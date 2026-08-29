@@ -209,7 +209,7 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
       continue
 
     signal = bot.signal_engine.analyze(symbol, df, strategy_params)
-    sentiment, _ = await bot.get_sentiment_detail(symbol)
+    sentiment, _ = await bot.get_sentiment_detail(symbol, session=session)
     composite = bot.signal_engine.composite_score(signal.score, sentiment, weights)
     integration_boost, integration_reason = await get_integration_boost(session, symbol)
     composite = max(0.0, composite + integration_boost)
