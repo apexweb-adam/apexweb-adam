@@ -229,6 +229,7 @@ export type ScanPreview = {
 export type MondayRecoverySummary = {
   recovery_candidates: string[];
   stocks_trade_count_nudge?: boolean;
+  commodities_graduation_nudge?: boolean;
   all: Array<{
     bot_type: string;
     symbol: string;

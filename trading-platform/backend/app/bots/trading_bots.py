@@ -200,17 +200,25 @@ class BaseBot(ABC):
         review=frozenset(),
       )
       proven_winners: frozenset[str] = frozenset()
+      commodities_graduation_nudge = False
       if entry_guards:
         chronic_losers = await get_chronic_loser_symbols(session, self.bot_type)
         hard_skip_sets = await get_hard_gate_skip_components(session, self.bot_type)
         if self.bot_type in ("stocks_futures", "commodities"):
           proven_winners = await get_proven_winner_symbols(session, self.bot_type)
           if self.bot_type == "commodities":
+            commodities_graduation_nudge = in_shadow_graduation_nudge(
+              self.bot_type,
+              bot_wr,
+              profit_factor=per_bot_stats.get("profit_factor"),
+              total_pnl=per_bot_stats.get("total_pnl"),
+            )
             symbols = prioritize_commodities_monday_scan(
               symbols,
               chronic_losers=chronic_losers,
               proven_winners=proven_winners,
               session_info=commodities_session_info(),
+              graduation_nudge=commodities_graduation_nudge,
             )
           elif self.bot_type == "stocks_futures":
             stocks_trade_count_nudge = stocks_trade_count_graduation_nudge(

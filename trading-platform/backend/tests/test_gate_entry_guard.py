@@ -488,6 +488,22 @@ def test_prioritize_commodities_monday_scan_outside_prep_window():
     session_info=session,
   )
   assert ordered[0] == "CL=F"
+
+
+def test_prioritize_commodities_monday_scan_graduation_nudge():
+  from app.engines.gate_entry_guard import prioritize_commodities_monday_scan
+
+  symbols = ["CL=F", "SI=F", "NG=F", "HG=F"]
+  session = {"in_session": False, "minutes_until_open": 200, "minutes_since_open": 0}
+  ordered = prioritize_commodities_monday_scan(
+    symbols,
+    chronic_losers=frozenset({"SI=F"}),
+    proven_winners=frozenset({"CL=F"}),
+    session_info=session,
+    graduation_nudge=True,
+  )
+  assert ordered[0] == "SI=F"
+  assert ordered[1] == "CL=F"
   assert "SI=F" in ordered
 
 

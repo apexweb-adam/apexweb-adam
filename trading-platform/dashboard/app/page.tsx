@@ -1306,6 +1306,11 @@ function MondayRecoveryBanner({ summary }: { summary: MondayRecoverySummary | nu
           Stocks trade-count nudge active — proven winners scanned first (composite floor 0.34).
         </p>
       )}
+      {summary.commodities_graduation_nudge && (
+        <p className="text-[11px] text-amber-400/90 mb-2">
+          Commodities graduation nudge active — recovery futures prioritized for CME reopen.
+        </p>
+      )}
       <ul className="space-y-1.5">
         {summary.all.map((row) => (
           <li

@@ -200,9 +200,11 @@ async def commodities_pre_session_prep_job() -> None:
     commodities_session_info,
     get_chronic_loser_symbols,
     get_proven_winner_symbols,
+    in_shadow_graduation_nudge,
     is_commodities_futures_symbol,
   )
   from app.engines.integration_signals import refresh_tradingview_signals
+  from app.engines.profitability_gate import ProfitabilityGate
 
   session_info = commodities_session_info()
   if session_info["in_session"]:
@@ -213,10 +215,22 @@ async def commodities_pre_session_prep_job() -> None:
     return
 
   async with SessionLocal() as session:
+    per_bot = (await ProfitabilityGate(session).evaluate_per_bot()).get("commodities") or {}
+    bot_wr = per_bot.get("win_rate")
+    graduation_nudge = in_shadow_graduation_nudge(
+      "commodities",
+      bot_wr,
+      profit_factor=per_bot.get("profit_factor"),
+      total_pnl=per_bot.get("total_pnl"),
+    )
     winners = await get_proven_winner_symbols(session, "commodities")
     chronic = await get_chronic_loser_symbols(session, "commodities")
-    recovery_futures = {s for s in chronic if is_commodities_futures_symbol(s)}
-    symbols = sorted(set(COMMODITIES_PREP_SYMBOLS) | set(winners) | recovery_futures)
+    recovery_futures = sorted(s for s in chronic if is_commodities_futures_symbol(s))
+    base_symbols = sorted(set(COMMODITIES_PREP_SYMBOLS) | set(winners) | set(recovery_futures))
+    if graduation_nudge and recovery_futures:
+      symbols = recovery_futures + [s for s in base_symbols if s not in recovery_futures]
+    else:
+      symbols = base_symbols
     refreshed = await refresh_tradingview_signals(
       session,
       symbols,

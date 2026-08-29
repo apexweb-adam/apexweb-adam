@@ -626,4 +626,7 @@ async def build_monday_recovery_summary(session: AsyncSession) -> dict[str, Any]
     "stocks_trade_count_nudge": bool(
       bots.get("stocks_futures", {}).get("stocks_trade_count_nudge")
     ),
+    "commodities_graduation_nudge": bool(
+      bots.get("commodities", {}).get("graduation_nudge")
+    ),
   }

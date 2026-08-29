@@ -56,10 +56,19 @@ def test_commodities_prep_refreshes_within_prep_window():
           return_value=["CL=F", "SI=F"],
         ) as mock_refresh:
           with patch("app.ws_manager.push_live_update", new_callable=AsyncMock):
-            with _mock_scheduler_session():
-              import asyncio
+            with patch(
+              "app.engines.profitability_gate.ProfitabilityGate.evaluate_per_bot",
+              new_callable=AsyncMock,
+              return_value={"commodities": {"win_rate": 0.44, "profit_factor": 1.2, "total_pnl": 10}},
+            ):
+              with patch(
+                "app.engines.gate_entry_guard.in_shadow_graduation_nudge",
+                return_value=False,
+              ):
+                with _mock_scheduler_session():
+                  import asyncio
 
-              asyncio.run(commodities_pre_session_prep_job())
+                  asyncio.run(commodities_pre_session_prep_job())
             mock_refresh.assert_called_once()
             symbols = mock_refresh.call_args[0][1]
             assert "CL=F" in symbols
@@ -91,10 +100,19 @@ def test_commodities_prep_includes_chronic_recovery_futures():
           return_value=["SI=F"],
         ) as mock_refresh:
           with patch("app.ws_manager.push_live_update", new_callable=AsyncMock):
-            with _mock_scheduler_session():
-              import asyncio
+            with patch(
+              "app.engines.profitability_gate.ProfitabilityGate.evaluate_per_bot",
+              new_callable=AsyncMock,
+              return_value={"commodities": {"win_rate": 0.44, "profit_factor": 1.2, "total_pnl": 10}},
+            ):
+              with patch(
+                "app.engines.gate_entry_guard.in_shadow_graduation_nudge",
+                return_value=False,
+              ):
+                with _mock_scheduler_session():
+                  import asyncio
 
-              asyncio.run(commodities_pre_session_prep_job())
+                  asyncio.run(commodities_pre_session_prep_job())
             symbols = mock_refresh.call_args[0][1]
             assert "SI=F" in symbols
             assert "XAUUSDT" not in symbols
