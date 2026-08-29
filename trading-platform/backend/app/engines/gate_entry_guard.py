@@ -113,7 +113,7 @@ CRYPTO_GRADUATION_ENTRY_EASE_MIN_WR = 0.47
 CRYPTO_GRADUATION_ENTRY_EASE_MIN_PF = 1.10
 CRYPTO_MOMENTUM_RETREAT_MIN_SIGNAL = 0.48
 CRYPTO_MOMENTUM_RETREAT_ALIGNED_COMPOSITE_FLOOR = 0.43
-CRYPTO_MOMENTUM_RETREAT_CAP_ROOM_ALIGNED_COMPOSITE_FLOOR = 0.40
+CRYPTO_MOMENTUM_RETREAT_CAP_ROOM_ALIGNED_COMPOSITE_FLOOR = 0.36
 CRYPTO_MOMENTUM_RETREAT_MIN_RAW_SIGNAL = 0.42
 CRYPTO_MOMENTUM_RETREAT_ALIGNED_RAW_SIGNAL = 0.32
 CRYPTO_MOMENTUM_RETREAT_CAP_ROOM_ALIGNED_RAW_SIGNAL = 0.30
@@ -709,6 +709,7 @@ STOCKS_PROVEN_RECOVERY_MIN_COMPOSITE = 0.38
 STOCKS_TRADE_COUNT_GRADUATION_GAP = 5
 STOCKS_TRADE_COUNT_RECOVERY_MIN_COMPOSITE = 0.34
 STOCKS_TRADE_COUNT_MIN_SENTIMENT = 0.05
+STOCKS_TRADE_COUNT_PROFIT_LOCK_USD = 2.5
 COMMODITIES_HIGH_COMPOSITE_RECOVERY_FLOOR = 0.48
 COMMODITIES_GRADUATION_OPEN_COMPOSITE_FLOOR = 0.42
 COMMODITIES_FUTURES_WEEKEND_FLAT_EXIT_BAND_USD = 1.0
@@ -1722,13 +1723,25 @@ def shadow_graduation_profit_lock(
   bot_win_rate: float | None = None,
   profit_factor: float | None = None,
   total_pnl: float | None = None,
+  total_trades: int | None = None,
   symbol: str | None = None,
   proven_winners: frozenset[str] | None = None,
   open_count: int = 0,
   shadow_open_cap: int | None = None,
 ) -> bool:
   """Bank winners during graduation nudge instead of round-tripping gains."""
-  if not shadow_graduation_exits_active(
+  stocks_trade_count_exit = False
+  if (
+    shadow_mode
+    and bot_type == "stocks_futures"
+    and bot_win_rate is not None
+    and total_trades is not None
+    and stocks_trade_count_graduation_nudge(
+      bot_type, shadow_mode, bot_win_rate, total_trades
+    )
+  ):
+    stocks_trade_count_exit = True
+  if not stocks_trade_count_exit and not shadow_graduation_exits_active(
     bot_type,
     graduation_nudge=graduation_nudge,
     shadow_mode=shadow_mode,
@@ -1814,6 +1827,23 @@ def shadow_graduation_profit_lock(
     total_pnl,
   ):
     threshold = min(threshold, CRYPTO_MOMENTUM_RETREAT_PROFIT_LOCK_USD)
+  if (
+    shadow_mode
+    and bot_type == "stocks_futures"
+    and bot_win_rate is not None
+    and profit_factor is not None
+    and total_trades is not None
+  ):
+    from app.engines.profitability_gate import ProfitabilityGate
+
+    if (
+      bot_win_rate >= ProfitabilityGate.GRADUATION_MIN_WIN_RATE
+      and profit_factor < 1.0
+      and stocks_trade_count_graduation_nudge(
+        bot_type, shadow_mode, bot_win_rate, total_trades
+      )
+    ):
+      threshold = min(threshold, STOCKS_TRADE_COUNT_PROFIT_LOCK_USD)
   return unrealized >= threshold
 
 
