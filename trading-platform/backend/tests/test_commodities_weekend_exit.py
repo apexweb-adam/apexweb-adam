@@ -38,6 +38,21 @@ def test_commodities_weekend_stale_signal_exit_allows_loss():
     ) is False
 
 
+def test_commodities_weekend_futures_entry_blocked():
+  from app.engines.gate_entry_guard import commodities_weekend_futures_entry_blocked
+
+  with patch("app.engines.gate_entry_guard.datetime") as mock_dt:
+    mock_dt.utcnow.return_value = datetime(2026, 8, 29, 4, 0, 0)
+    mock_dt.side_effect = lambda *a, **k: datetime(*a, **k)
+    assert commodities_weekend_futures_entry_blocked("NG=F") is True
+    assert commodities_weekend_futures_entry_blocked("XAUUSDT") is False
+
+  with patch("app.engines.gate_entry_guard.datetime") as mock_dt:
+    mock_dt.utcnow.return_value = datetime(2026, 8, 31, 14, 0, 0)
+    mock_dt.side_effect = lambda *a, **k: datetime(*a, **k)
+    assert commodities_weekend_futures_entry_blocked("NG=F") is False
+
+
 def test_commodities_weekend_stale_signal_exit_not_blocked_weekday():
   with patch("app.engines.gate_entry_guard.datetime") as mock_dt:
     mock_dt.utcnow.return_value = datetime(2026, 8, 31, 14, 0, 0)
