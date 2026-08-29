@@ -36,6 +36,8 @@ X_SEARCH_QUERIES = [
   "bitcoin OR btc OR crypto",
   "solana OR memecoin OR pepe OR bonk OR wif",
   "pump.fun OR sol memecoin OR degen",
+  "axiom.trade OR axiom memecoin OR smart wallet solana",
+  "phantom wallet OR phantom solana swap",
   "hyperliquid OR HL perp OR perps",
   "stock market OR nasdaq OR sp500",
   "trump tariff OR fed rate OR inflation",
@@ -45,6 +47,7 @@ X_SEARCH_QUERIES = [
   "ai OR tech stocks OR nvidia",
   "economy OR recession OR gdp",
   "polymarket OR prediction market",
+  "reddit crypto OR wallstreetbets OR wsb",
 ]
 
 POLITICAL_QUERIES = [
@@ -66,6 +69,9 @@ TIKTOK_GOOGLE_NEWS_QUERIES = [
   "tiktok bitcoin",
   "tiktok stock trading",
   "tiktok memecoin",
+  "tiktok axiom trade solana",
+  "reddit wallstreetbets crypto",
+  "reddit solana memecoin",
 ]
 
 POLYMARKET_KEYWORDS = [
@@ -100,11 +106,13 @@ class ExtendedIntelligenceScanner(IntelligenceScanner):
     from app.intelligence.solana_wallet_tracker import scan_solana_wallets
     from app.intelligence.memecoin_scanner import scan_memecoin_intel
     from app.intelligence.fomo_tracker import scan_fomo_trades
+    from app.intelligence.axiom_tracker import scan_axiom_feed
 
     count += await scan_wallet_tracker(self.session)
     count += await scan_solana_wallets(self.session)
     count += await scan_memecoin_intel(self.session)
     count += await scan_fomo_trades(self.session)
+    count += await scan_axiom_feed(self.session)
     await self.session.commit()
     return count
 

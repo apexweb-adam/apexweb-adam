@@ -7,7 +7,10 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
+from app.intelligence.axiom_tracker import axiom_configured, get_axiom_session_status
 from app.intelligence.fomo_tracker import fomo_configured, get_fomo_bearer_status
+from app.intelligence.phantom_tracker import phantom_configured
+from app.intelligence.solana_wallet_tracker import tracked_solana_wallet_count
 from app.intelligence.wallet_tracker import wallet_tracker_configured
 from app.models.entities import IntelligenceItem
 
@@ -20,6 +23,8 @@ INTEL_SOURCE_ORDER = [
   "dexscreener",
   "hyperliquid",
   "fomo",
+  "axiom",
+  "phantom",
   "polymarket",
   "polymarket_account",
   "wallet_tracker",
@@ -87,12 +92,15 @@ async def build_intel_sources(session: AsyncSession) -> list[dict[str, Any]]:
     "dexscreener": True,
     "hyperliquid": settings.hyperliquid_enabled,
     "fomo": fomo_configured(),
+    "axiom": axiom_configured(),
+    "phantom": phantom_configured(),
     "tradingview": bool(settings.tradingview_webhook_secret),
     "x": bool(settings.twitter_bearer_token) or bool(settings.newsapi_key),
     "newsapi": bool(settings.newsapi_key),
   }
 
   fomo_bearer = await get_fomo_bearer_status(session)
+  axiom_session = await get_axiom_session_status(session)
 
   rows: list[dict[str, Any]] = []
   for source in INTEL_SOURCE_ORDER:
@@ -104,6 +112,10 @@ async def build_intel_sources(session: AsyncSession) -> list[dict[str, Any]]:
     )
     if source == "fomo" and fomo_bearer.get("configured") and not fomo_bearer.get("polling_active"):
       status = "degraded"
+    if source == "axiom" and axiom_session.get("configured") and not axiom_session.get("polling_active"):
+      status = "degraded"
+    if source == "axiom" and not axiom_session.get("multi_wallet_ready"):
+      status = "degraded"
     row: dict[str, Any] = {
       "source": source,
       "status": status,
@@ -114,6 +126,12 @@ async def build_intel_sources(session: AsyncSession) -> list[dict[str, Any]]:
       row["bearer_expires_at"] = fomo_bearer.get("expires_at")
       row["bearer_minutes_remaining"] = fomo_bearer.get("minutes_remaining")
       row["bearer_polling_active"] = fomo_bearer.get("polling_active")
+    if source == "axiom":
+      row["session_configured"] = axiom_session.get("configured")
+      row["session_polling_active"] = axiom_session.get("polling_active")
+      row["multi_wallet_ready"] = axiom_session.get("multi_wallet_ready")
+      row["tracked_wallets"] = axiom_session.get("tracked_wallets", tracked_solana_wallet_count())
+      row["min_wallets_required"] = settings.wallet_tracker_min_wallets
     rows.append(row)
   return rows
 

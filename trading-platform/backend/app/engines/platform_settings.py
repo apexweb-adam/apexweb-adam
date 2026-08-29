@@ -9,6 +9,7 @@ VERIFICATION_STARTED_KEY = "verification_started_at"
 RENDER_DEPLOY_HOOK_KEY = "render_deploy_hook"
 VERCEL_DEPLOY_HOOK_KEY = "vercel_deploy_hook"
 FOMO_BEARER_TOKEN_KEY = "fomo_bearer_token"
+AXIOM_SESSION_TOKEN_KEY = "axiom_session_token"
 BOT_PAUSED_PREFIX = "bot_paused:"
 
 
@@ -76,6 +77,20 @@ async def get_fomo_bearer_token(session: AsyncSession) -> str | None:
 
 async def set_fomo_bearer_token(session: AsyncSession, bearer_token: str) -> None:
   await set_platform_setting(session, FOMO_BEARER_TOKEN_KEY, bearer_token.strip())
+
+
+async def get_axiom_session_token(session: AsyncSession) -> str | None:
+  from app.config import settings
+
+  env_token = (settings.axiom_session_token or "").strip()
+  if env_token:
+    return env_token
+  stored = await get_platform_setting(session, AXIOM_SESSION_TOKEN_KEY)
+  return stored.strip() if stored else None
+
+
+async def set_axiom_session_token(session: AsyncSession, session_token: str) -> None:
+  await set_platform_setting(session, AXIOM_SESSION_TOKEN_KEY, session_token.strip())
 
 
 async def get_verification_started_at(session: AsyncSession) -> datetime | None:

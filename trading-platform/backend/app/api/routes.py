@@ -490,9 +490,11 @@ async def get_platform_status(db: AsyncSession = Depends(get_db)) -> dict[str, A
 
   gate_payload = await build_gate_ws_payload(db)
   gate_tightening_data = gate_payload["gate_entry_tightening"]
+  from app.intelligence.axiom_tracker import get_axiom_session_status
   from app.intelligence.fomo_tracker import get_fomo_bearer_status
 
   fomo_bearer = await get_fomo_bearer_status(db)
+  axiom_session = await get_axiom_session_status(db)
   tv_items = next((s["items_collected"] for s in sources if s["source"] == "tradingview"), 0)
   base_next_steps = (
     []
@@ -640,10 +642,69 @@ async def get_platform_status(db: AsyncSession = Depends(get_db)) -> dict[str, A
         if settings.fomo_enabled and settings.tradingview_webhook_secret
         else None
       ),
+      "axiom_trade": settings.axiom_enabled,
+      "axiom_webhook": bool(settings.axiom_enabled and settings.tradingview_webhook_secret),
+      "axiom_session_configured": bool(axiom_session.get("configured")),
+      "axiom_session_polling_active": bool(axiom_session.get("polling_active")),
+      "axiom_multi_wallet_ready": bool(axiom_session.get("multi_wallet_ready")),
+      "axiom_tracked_wallets": axiom_session.get("tracked_wallets"),
+      "axiom_min_wallets": settings.wallet_tracker_min_wallets,
+      "axiom_webhook_url": (
+        "https://apex-trading-backend.onrender.com/api/webhooks/axiom"
+        if settings.axiom_enabled and settings.tradingview_webhook_secret
+        else None
+      ),
+      "axiom_userscript_url": (
+        "https://apex-trading-backend.onrender.com/api/axiom/userscript"
+        if settings.axiom_enabled
+        else None
+      ),
+      "axiom_setup": (
+        "Keep axiom.trade open in Tampermonkey bridge for 24/7 multi-wallet memecoin intel "
+        f"(minimum {settings.wallet_tracker_min_wallets} Solana wallets tracked by default)."
+        if settings.axiom_enabled and settings.tradingview_webhook_secret
+        else None
+      ),
+      "axiom_example_payload": (
+        {
+          "secret": "<TRADINGVIEW_WEBHOOK_SECRET>",
+          "event_type": "trade",
+          "symbol": "BONK",
+          "action": "buy",
+          "wallet_label": "smart_wallet_1",
+          "wallet_address": "5tzFkiKscXHK5ZXCGbXZxdw7gTjjD1mBwuoFbhUvuAi9",
+          "chain": "solana",
+          "amount_usd": 3200,
+          "wallets_watching": 8,
+          "message": "axiom multi-wallet buy on BONK",
+        }
+        if settings.axiom_enabled and settings.tradingview_webhook_secret
+        else None
+      ),
+      "phantom_wallet": settings.phantom_enabled,
+      "phantom_webhook": bool(settings.phantom_enabled and settings.tradingview_webhook_secret),
+      "phantom_webhook_url": (
+        "https://apex-trading-backend.onrender.com/api/webhooks/phantom"
+        if settings.phantom_enabled and settings.tradingview_webhook_secret
+        else None
+      ),
+      "phantom_example_payload": (
+        {
+          "secret": "<TRADINGVIEW_WEBHOOK_SECRET>",
+          "event_type": "portfolio",
+          "symbol": "SOL",
+          "wallet_address": "<your_phantom_solana_address>",
+          "chain": "solana",
+          "balance_usd": 12500,
+          "message": "Phantom portfolio snapshot forwarded to Apex",
+        }
+        if settings.phantom_enabled and settings.tradingview_webhook_secret
+        else None
+      ),
     },
     "scheduler": {
       "intelligence_scan": "every 5 min",
-      "content_study": "every 2 hours",
+      "content_study": "every 1 hour",
       "risk_migration": "every 15 min",
       "redeploy_check": "every 1 hour",
       "stocks_pre_session_prep": "13:00 UTC Mon-Fri + Sat/Sun 14:00 + every 15 min (72h window when trade-count nudge)",
@@ -1142,6 +1203,156 @@ async def fomo_webhook(payload: dict[str, Any], db: AsyncSession = Depends(get_d
   result = await ingest_fomo_webhook(db, payload)
   await push_live_update()
   return result
+
+
+@router.get("/axiom/userscript")
+async def axiom_userscript() -> Response:
+  """Serve Tampermonkey userscript for axiom.trade → Apex webhook bridge."""
+  from app.fomo_userscript import load_axiom_userscript_bytes
+
+  try:
+    body = load_axiom_userscript_bytes()
+  except FileNotFoundError:
+    return Response(
+      content=b"axiom bridge userscript not found on server",
+      status_code=404,
+      media_type="text/plain",
+    )
+  return Response(content=body, media_type="application/javascript")
+
+
+@router.post("/webhooks/axiom")
+async def axiom_webhook(payload: dict[str, Any], db: AsyncSession = Depends(get_db)):
+  """Ingest axiom.trade multi-wallet trades and alerts into intel pipeline."""
+  from app.config import settings
+  from app.intelligence.axiom_tracker import ingest_axiom_webhook
+  from app.ws_manager import push_live_update
+
+  if not settings.axiom_enabled:
+    return {"status": "disabled"}
+  secret = payload.get("secret", "")
+  if not settings.tradingview_webhook_secret or secret != settings.tradingview_webhook_secret:
+    return {"status": "unauthorized"}
+
+  result = await ingest_axiom_webhook(db, payload)
+  await push_live_update()
+  return result
+
+
+@router.post("/webhooks/phantom")
+async def phantom_webhook(payload: dict[str, Any], db: AsyncSession = Depends(get_db)):
+  """Ingest Phantom wallet portfolio / watchlist events into intel pipeline."""
+  from app.config import settings
+  from app.intelligence.phantom_tracker import ingest_phantom_webhook
+  from app.ws_manager import push_live_update
+
+  if not settings.phantom_enabled:
+    return {"status": "disabled"}
+  secret = payload.get("secret", "")
+  if not settings.tradingview_webhook_secret or secret != settings.tradingview_webhook_secret:
+    return {"status": "unauthorized"}
+
+  result = await ingest_phantom_webhook(db, payload)
+  await push_live_update()
+  return result
+
+
+@router.post("/admin/set-axiom-session")
+async def set_axiom_session_admin(payload: dict[str, Any], db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
+  """Store axiom.trade session token for optional server-side feed polling."""
+  from app.engines.platform_settings import set_axiom_session_token
+
+  secret = payload.get("secret", "")
+  if not settings.tradingview_webhook_secret or secret != settings.tradingview_webhook_secret:
+    return {"status": "unauthorized"}
+
+  session_token = (payload.get("session_token") or payload.get("token") or "").strip()
+  if len(session_token) < 20:
+    return {"status": "error", "message": "session_token required (from axiom.trade DevTools Authorization header)"}
+
+  await set_axiom_session_token(db, session_token)
+  from app.intelligence.axiom_tracker import get_axiom_session_status
+
+  status = await get_axiom_session_status(db)
+  return {
+    "status": "ok",
+    "axiom_session_configured": True,
+    "axiom_session_polling_active": status.get("polling_active"),
+    "multi_wallet_ready": status.get("multi_wallet_ready"),
+    "timestamp": datetime.utcnow().isoformat(),
+  }
+
+
+@router.post("/admin/poll-axiom-feed")
+async def poll_axiom_feed_admin(payload: dict[str, Any], db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
+  """Immediately poll axiom.trade feed (requires session token)."""
+  from app.intelligence.axiom_tracker import get_axiom_session_status, scan_axiom_feed
+  from app.ws_manager import push_live_update
+
+  secret = payload.get("secret", "")
+  if not settings.tradingview_webhook_secret or secret != settings.tradingview_webhook_secret:
+    return {"status": "unauthorized"}
+
+  ingested = await scan_axiom_feed(db)
+  await push_live_update()
+  session_status = await get_axiom_session_status(db)
+  return {
+    "status": "ok",
+    "ingested": ingested,
+    "axiom_session": session_status,
+    "timestamp": datetime.utcnow().isoformat(),
+  }
+
+
+@router.post("/admin/test-axiom-webhook")
+async def test_axiom_webhook(payload: dict[str, Any], db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
+  secret = payload.get("secret", "")
+  if not settings.tradingview_webhook_secret or secret != settings.tradingview_webhook_secret:
+    return {"status": "unauthorized"}
+
+  sample = {
+    "secret": settings.tradingview_webhook_secret,
+    "event_type": "trade",
+    "symbol": payload.get("symbol", "BONK"),
+    "action": payload.get("action", "buy"),
+    "wallet_label": payload.get("wallet_label", "axiom_smart_wallet"),
+    "wallet_address": payload.get("wallet_address", "5tzFkiKscXHK5ZXCGbXZxdw7gTjjD1mBwuoFbhUvuAi9"),
+    "chain": "solana",
+    "amount_usd": payload.get("amount_usd", 4200),
+    "wallets_watching": 8,
+    "message": payload.get("message", "Test axiom multi-wallet buy alert"),
+  }
+  result = await axiom_webhook(sample, db)
+  return {
+    "status": "ok",
+    "webhook_url": "https://apex-trading-backend.onrender.com/api/webhooks/axiom",
+    "sample_payload": {k: v for k, v in sample.items() if k != "secret"},
+    "result": result,
+  }
+
+
+@router.post("/admin/test-phantom-webhook")
+async def test_phantom_webhook(payload: dict[str, Any], db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
+  secret = payload.get("secret", "")
+  if not settings.tradingview_webhook_secret or secret != settings.tradingview_webhook_secret:
+    return {"status": "unauthorized"}
+
+  sample = {
+    "secret": settings.tradingview_webhook_secret,
+    "event_type": "portfolio",
+    "symbol": payload.get("symbol", "SOL"),
+    "wallet_address": payload.get("wallet_address", "test_phantom_wallet"),
+    "chain": "solana",
+    "balance_usd": payload.get("balance_usd", 10000),
+    "message": payload.get("message", "Test Phantom portfolio snapshot"),
+  }
+  result = await phantom_webhook(sample, db)
+  return {
+    "status": "ok",
+    "webhook_url": "https://apex-trading-backend.onrender.com/api/webhooks/phantom",
+    "sample_payload": {k: v for k, v in sample.items() if k != "secret"},
+    "result": result,
+  }
 
 
 @router.post("/admin/test-fomo-webhook")

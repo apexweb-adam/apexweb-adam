@@ -35,18 +35,20 @@ def test_tracked_wallet_addresses_defaults_when_enabled():
 
 
 def test_wallet_tracker_configured():
+  from app.intelligence.solana_wallet_tracker import tracked_solana_wallet_count
   from app.intelligence.wallet_tracker import wallet_tracker_configured
 
   with patch("app.intelligence.wallet_tracker.settings") as mock_settings, patch(
     "app.intelligence.solana_wallet_tracker.tracked_solana_addresses",
-    return_value=[],
+    return_value=["sol"] * 8,
   ):
     mock_settings.wallet_tracker_addresses = ""
     mock_settings.wallet_tracker_use_defaults = True
     mock_settings.helius_api_key = ""
     assert wallet_tracker_configured() is True
+    assert tracked_solana_wallet_count() == 8
     mock_settings.wallet_tracker_use_defaults = False
-    assert wallet_tracker_configured() is False
+    assert wallet_tracker_configured() is True
 
 
 def test_scan_wallet_tracker_blockscout_fallback():

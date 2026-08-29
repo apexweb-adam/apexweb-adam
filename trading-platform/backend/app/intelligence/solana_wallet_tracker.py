@@ -7,7 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.intelligence.memecoin_whales import DEFAULT_SOLANA_WHALE_ADDRESSES
+from app.intelligence.memecoin_whales import DEFAULT_AXIOM_TRACKED_WALLETS, DEFAULT_SOLANA_WHALE_ADDRESSES
 from app.intelligence.scanner import categorize, extract_symbols, relevance_score
 from app.models.entities import IntelligenceItem
 
@@ -15,14 +15,30 @@ from app.models.entities import IntelligenceItem
 def tracked_solana_addresses() -> list[str]:
   custom = [
     a.strip()
-    for a in settings.solana_tracker_addresses.split(",")
+    for a in (
+      settings.solana_tracker_addresses
+      + ","
+      + settings.axiom_wallet_addresses
+      + ","
+      + settings.phantom_wallet_addresses
+    ).split(",")
     if a.strip() and not a.strip().startswith("0x")
   ]
   if custom:
-    return custom
+    seen: set[str] = set()
+    unique: list[str] = []
+    for addr in custom:
+      if addr not in seen:
+        seen.add(addr)
+        unique.append(addr)
+    return unique
   if settings.wallet_tracker_use_defaults:
-    return list(DEFAULT_SOLANA_WHALE_ADDRESSES)
+    return list(DEFAULT_AXIOM_TRACKED_WALLETS or DEFAULT_SOLANA_WHALE_ADDRESSES)
   return []
+
+
+def tracked_solana_wallet_count() -> int:
+  return len(tracked_solana_addresses())
 
 
 async def _scan_solana_helius(session: AsyncSession, addresses: list[str]) -> int:

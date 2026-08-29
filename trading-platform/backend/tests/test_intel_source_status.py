@@ -71,7 +71,22 @@ def test_build_intel_sources_includes_tiktok():
       "app.engines.intel_source_status.wallet_tracker_configured",
       return_value=True,
     ):
-      sources = asyncio.run(build_intel_sources(session))
+      with patch(
+        "app.engines.intel_source_status.get_fomo_bearer_status",
+        AsyncMock(return_value={"configured": False, "polling_active": False}),
+      ):
+        with patch(
+          "app.engines.intel_source_status.get_axiom_session_status",
+          AsyncMock(
+            return_value={
+              "configured": False,
+              "polling_active": False,
+              "multi_wallet_ready": True,
+              "tracked_wallets": 8,
+            }
+          ),
+        ):
+          sources = asyncio.run(build_intel_sources(session))
 
   tiktok = next(s for s in sources if s["source"] == "tiktok")
   assert tiktok["status"] == "active"
