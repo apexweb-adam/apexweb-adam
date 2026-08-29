@@ -1051,6 +1051,7 @@ async def build_monday_recovery_summary(session: AsyncSession) -> dict[str, Any]
   """Aggregate recovery-ready symbols across commodities and stocks for CRM overview."""
   bots: dict[str, Any] = {}
   all_rows: list[dict[str, Any]] = []
+  open_ready_rows: list[dict[str, Any]] = []
   stocks_trade_count_nudge = False
   commodities_graduation_nudge = False
 
@@ -1064,17 +1065,30 @@ async def build_monday_recovery_summary(session: AsyncSession) -> dict[str, Any]
       commodities_graduation_nudge = bool(preview.get("graduation_nudge"))
 
     candidates = preview.get("recovery_candidates") or []
+    open_ready_symbols = [
+      row for row in preview.get("symbols", []) if row.get("monday_open_ready")
+    ]
     bot_entry: dict[str, Any] = {
       "recovery_candidates": candidates,
       "session": preview.get("session"),
       "symbols": [],
+      "open_ready_candidates": preview.get("open_ready_candidates") or [],
+      "open_ready_symbols": open_ready_symbols,
       "stocks_trade_count_nudge": preview.get("stocks_trade_count_nudge"),
       "graduation_nudge": preview.get("graduation_nudge"),
     }
+    for row in open_ready_symbols:
+      open_ready_rows.append(
+        {
+          "bot_type": bot_type,
+          "symbol": row["symbol"],
+          "composite": row.get("composite"),
+          "blockers": row.get("blockers") or [],
+        }
+      )
     if candidates:
       rows = [row for row in preview.get("symbols", []) if row.get("recovery_ready")]
       bot_entry["symbols"] = rows
-      bot_entry["open_ready_candidates"] = preview.get("open_ready_candidates") or []
       bots[bot_type] = bot_entry
       for row in rows:
         all_rows.append(
@@ -1088,20 +1102,14 @@ async def build_monday_recovery_summary(session: AsyncSession) -> dict[str, Any]
     elif bot_type == "stocks_futures" and stocks_trade_count_nudge:
       bots[bot_type] = bot_entry
     elif bot_type == "commodities" and commodities_graduation_nudge:
-      bot_entry["open_ready_candidates"] = preview.get("open_ready_candidates") or []
       bots[bot_type] = bot_entry
 
   return {
     "bots": bots,
     "all": all_rows,
+    "open_ready": open_ready_rows,
     "recovery_candidates": [row["symbol"] for row in all_rows],
-    "open_ready_candidates": [
-      symbol
-      for bot_type in MONDAY_RECOVERY_BOT_TYPES
-      for symbol in (
-        (bots.get(bot_type) or {}).get("open_ready_candidates") or []
-      )
-    ],
+    "open_ready_candidates": [row["symbol"] for row in open_ready_rows],
     "stocks_trade_count_nudge": stocks_trade_count_nudge,
     "commodities_graduation_nudge": commodities_graduation_nudge,
   }
