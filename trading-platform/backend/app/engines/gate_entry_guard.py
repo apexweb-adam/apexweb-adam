@@ -117,6 +117,7 @@ CRYPTO_MOMENTUM_RETREAT_ALIGNED_RAW_SIGNAL = 0.36
 CRYPTO_MOMENTUM_RETREAT_PROFIT_LOCK_USD = 1.25
 CRYPTO_MOMENTUM_RETREAT_LOSS_WIND_DOWN_USD = 1.5
 CRYPTO_MOMENTUM_RETREAT_CAP_PRESSURE_LOSER_USD = 1.0
+CRYPTO_MOMENTUM_RETREAT_LOSS_EXPOSURE_AGGREGATE_USD = 5.0
 CRYPTO_MOMENTUM_RETREAT_MAX_OPEN = 2
 CRYPTO_PRE_GRADUATION_CAP_PRESSURE_LOSER_USD = 1.5
 CRYPTO_STRONG_MOMENTUM_CAP_PRESSURE_LOSER_USD = 1.0
@@ -1454,11 +1455,50 @@ def shadow_cap_pressure_loser_wind_down(
   return unrealized <= -threshold
 
 
+def crypto_momentum_retreat_loss_exposure_bypass(
+  open_positions: list[Any],
+  *,
+  graduation_nudge: bool,
+  shadow_mode: bool,
+  bot_type: str,
+  shadow_open_cap: int | None,
+  bot_win_rate: float | None,
+  profit_factor: float | None,
+  total_pnl: float | None,
+) -> bool:
+  """Allow aligned retreat entries while shadow cap still has room for one loser."""
+  if not crypto_momentum_retreat_active(
+    bot_type,
+    shadow_mode,
+    graduation_nudge,
+    bot_win_rate=bot_win_rate,
+    profit_factor=profit_factor,
+    total_pnl=total_pnl,
+  ):
+    return False
+  if shadow_open_cap is None or len(open_positions) >= shadow_open_cap:
+    return False
+  losers = [
+    p for p in open_positions
+    if float(getattr(p, "unrealized_pnl", 0) or 0)
+    <= -CRYPTO_MOMENTUM_RETREAT_CAP_PRESSURE_LOSER_USD
+  ]
+  if len(losers) >= SHADOW_GRADUATION_LOSS_EXPOSURE_MIN_LOSERS:
+    return False
+  aggregate = sum(float(getattr(p, "unrealized_pnl", 0) or 0) for p in open_positions)
+  return aggregate > -CRYPTO_MOMENTUM_RETREAT_LOSS_EXPOSURE_AGGREGATE_USD
+
+
 def shadow_graduation_loss_exposure_blocks_entry(
   open_positions: list[Any],
   *,
   graduation_nudge: bool,
   shadow_mode: bool,
+  bot_type: str | None = None,
+  shadow_open_cap: int | None = None,
+  bot_win_rate: float | None = None,
+  profit_factor: float | None = None,
+  total_pnl: float | None = None,
 ) -> bool:
   """Block new shadow entries when multiple open positions are already losing."""
   if not (graduation_nudge and shadow_mode):
@@ -1467,15 +1507,30 @@ def shadow_graduation_loss_exposure_blocks_entry(
     p for p in open_positions
     if float(getattr(p, "unrealized_pnl", 0) or 0) <= -SHADOW_GRADUATION_LOSS_EXPOSURE_PER_POSITION_USD
   ]
+  blocked = False
   if any(
     float(getattr(p, "unrealized_pnl", 0) or 0) <= -SHADOW_GRADUATION_LOSS_EXPOSURE_SINGLE_POSITION_USD
     for p in open_positions
   ):
-    return True
-  if len(losers) >= SHADOW_GRADUATION_LOSS_EXPOSURE_MIN_LOSERS:
-    return True
-  aggregate = sum(float(getattr(p, "unrealized_pnl", 0) or 0) for p in open_positions)
-  return aggregate <= -SHADOW_GRADUATION_LOSS_EXPOSURE_AGGREGATE_USD
+    blocked = True
+  elif len(losers) >= SHADOW_GRADUATION_LOSS_EXPOSURE_MIN_LOSERS:
+    blocked = True
+  else:
+    aggregate = sum(float(getattr(p, "unrealized_pnl", 0) or 0) for p in open_positions)
+    blocked = aggregate <= -SHADOW_GRADUATION_LOSS_EXPOSURE_AGGREGATE_USD
+  if blocked and bot_type == "crypto":
+    if crypto_momentum_retreat_loss_exposure_bypass(
+      open_positions,
+      graduation_nudge=graduation_nudge,
+      shadow_mode=shadow_mode,
+      bot_type=bot_type,
+      shadow_open_cap=shadow_open_cap,
+      bot_win_rate=bot_win_rate,
+      profit_factor=profit_factor,
+      total_pnl=total_pnl,
+    ):
+      return False
+  return blocked
 
 
 def shadow_graduation_profit_lock(
@@ -3384,6 +3439,26 @@ def commodities_gate_fast_scan_active(
   if commodities_monday_scan_priority_active(session):
     return True
   return commodities_graduation_prep_active(graduation_nudge)
+
+
+def stocks_gate_fast_scan_active(
+  session_info: dict[str, Any] | None = None,
+  *,
+  trade_count_nudge: bool = False,
+) -> bool:
+  """Whether shadow stocks should scan at gate_active_scan_interval during trade-count prep."""
+  if not trade_count_nudge:
+    return False
+  session = session_info or stocks_session_info()
+  if session.get("in_session"):
+    return True
+  if stocks_monday_scan_priority_active(session):
+    return True
+  minutes_until = session.get("minutes_until_open")
+  return (
+    minutes_until is not None
+    and minutes_until <= STOCKS_TRADE_COUNT_PREP_MINUTES
+  )
 
 
 def stocks_monday_gate_skip_bypass(

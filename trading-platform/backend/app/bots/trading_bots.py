@@ -355,6 +355,11 @@ class BaseBot(ABC):
         open_positions,
         graduation_nudge=graduation_nudge,
         shadow_mode=shadow_mode,
+        bot_type=self.bot_type,
+        shadow_open_cap=shadow_open_cap,
+        bot_win_rate=bot_wr,
+        profit_factor=per_bot_stats.get("profit_factor"),
+        total_pnl=per_bot_stats.get("total_pnl"),
       )
       strategy_params = {
         "rsi_oversold": strategy.rsi_oversold,
@@ -1382,12 +1387,44 @@ class StocksFuturesBot(BaseBot):
     return stocks_in_us_session()
 
   async def _effective_scan_interval(self) -> int:
-    """Scan more often during US session while verification gate is open."""
-    if not self._in_us_session():
+    """Scan more often during US session, verification gate, or trade-count prep."""
+    from app.engines.gate_entry_guard import (
+      bot_win_rate_for_graduation_nudge,
+      stocks_gate_fast_scan_active,
+      stocks_session_info,
+      stocks_trade_count_graduation_nudge,
+    )
+    from app.engines.profitability_gate import ProfitabilityGate
+
+    session_info = stocks_session_info()
+    fast_scan = self._in_us_session()
+    if not fast_scan:
+      async with SessionLocal() as session:
+        gate = await ProfitabilityGate(session).evaluate()
+        per_bot = (await ProfitabilityGate(session).evaluate_per_bot()).get(
+          "stocks_futures"
+        ) or {}
+        shadow_mode = bool(gate.get("shadow_mode"))
+        bot_wr = bot_win_rate_for_graduation_nudge(
+          "stocks_futures",
+          shadow_mode=shadow_mode,
+          shadow_bot_wr=per_bot.get("win_rate"),
+          per_bot_stats=per_bot,
+        )
+        trade_count_nudge = stocks_trade_count_graduation_nudge(
+          "stocks_futures",
+          shadow_mode,
+          bot_wr,
+          int(per_bot.get("total_trades") or 0),
+        )
+      fast_scan = stocks_gate_fast_scan_active(
+        session_info,
+        trade_count_nudge=trade_count_nudge,
+      )
+    if not fast_scan:
       return self.scan_interval
     async with SessionLocal() as session:
       from app.config import settings
-      from app.engines.profitability_gate import ProfitabilityGate
 
       gate = await ProfitabilityGate(session).evaluate()
       active_trades = int(gate.get("total_trades") or 0)
@@ -1395,6 +1432,23 @@ class StocksFuturesBot(BaseBot):
         return self.gate_active_scan_interval
       tightening = await get_gate_entry_tightening(session)
       if tightening.active:
+        return self.gate_active_scan_interval
+      per_bot = (await ProfitabilityGate(session).evaluate_per_bot()).get(
+        "stocks_futures"
+      ) or {}
+      shadow_mode = bool(gate.get("shadow_mode"))
+      bot_wr = bot_win_rate_for_graduation_nudge(
+        "stocks_futures",
+        shadow_mode=shadow_mode,
+        shadow_bot_wr=per_bot.get("win_rate"),
+        per_bot_stats=per_bot,
+      )
+      if stocks_trade_count_graduation_nudge(
+        "stocks_futures",
+        shadow_mode,
+        bot_wr,
+        int(per_bot.get("total_trades") or 0),
+      ):
         return self.gate_active_scan_interval
     return self.scan_interval
 
