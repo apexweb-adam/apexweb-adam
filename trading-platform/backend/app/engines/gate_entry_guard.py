@@ -1148,6 +1148,23 @@ def graduation_nudge_sentiment_ok(
     return True
   if (
     graduation_nudge
+    and shadow_mode
+    and bot_type == "crypto"
+    and crypto_momentum_retreat_gate_skip_bypass(
+      bot_type=bot_type,
+      shadow_mode=shadow_mode,
+      graduation_nudge=graduation_nudge,
+      bot_win_rate=bot_win_rate,
+      profit_factor=profit_factor,
+      total_pnl=total_pnl,
+      signal_direction=signal_direction,
+      macd_signal=macd_signal,
+      composite=composite,
+    )
+  ):
+    return True
+  if (
+    graduation_nudge
     and not shadow_mode
     and bot_type == "commodities"
     and symbol

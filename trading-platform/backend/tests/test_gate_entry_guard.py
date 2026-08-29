@@ -2222,6 +2222,34 @@ def test_graduation_nudge_sentiment_ok_shadow_crypto_composite_bypass():
   ) is True
 
 
+def test_graduation_nudge_sentiment_ok_crypto_momentum_retreat_bypass():
+  from app.engines.gate_entry_guard import graduation_nudge_sentiment_ok
+
+  retreat = dict(
+    graduation_nudge=True,
+    shadow_mode=True,
+    sentiment=-0.5,
+    integration_boost=-0.05,
+    min_sentiment=0.17,
+    composite=0.598,
+    entry_min_signal=0.48,
+    signal_direction="buy",
+    macd_signal="bullish",
+    bot_win_rate=0.468,
+    profit_factor=1.07,
+    total_pnl=9.85,
+  )
+  assert graduation_nudge_sentiment_ok("crypto", **retreat) is True
+  assert graduation_nudge_sentiment_ok(
+    "crypto",
+    **{**retreat, "composite": 0.45},
+  ) is False
+  assert graduation_nudge_sentiment_ok(
+    "crypto",
+    **{**retreat, "signal_direction": "sell"},
+  ) is False
+
+
 def test_open_position_cap_blocks_shadow_not_gate_tightening():
   from app.engines.gate_entry_guard import GateEntryTightening, open_position_cap_blocks_entry
 
