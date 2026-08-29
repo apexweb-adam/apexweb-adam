@@ -1195,8 +1195,6 @@ def test_prioritize_stocks_monday_scan_open_imminent_proven_first():
 
 
 def test_stocks_trade_count_prep_active():
-  from unittest.mock import patch
-
   from app.engines.gate_entry_guard import (
     STOCKS_TRADE_COUNT_PREP_MINUTES,
     stocks_trade_count_prep_active,
@@ -1212,17 +1210,9 @@ def test_stocks_trade_count_prep_active():
     "minutes_until_open": STOCKS_TRADE_COUNT_PREP_MINUTES + 60,
     "minutes_since_open": 0,
   }
-  with patch(
-    "app.engines.gate_entry_guard.stocks_session_info",
-    return_value=prep_session,
-  ):
-    assert stocks_trade_count_prep_active(True) is True
-    assert stocks_trade_count_prep_active(False) is False
-  with patch(
-    "app.engines.gate_entry_guard.stocks_session_info",
-    return_value=far_session,
-  ):
-    assert stocks_trade_count_prep_active(True) is False
+  assert stocks_trade_count_prep_active(True, session_info=prep_session) is True
+  assert stocks_trade_count_prep_active(False, session_info=prep_session) is False
+  assert stocks_trade_count_prep_active(True, session_info=far_session) is False
 
 
 def test_stocks_proven_winner_sentiment_gate_ok():

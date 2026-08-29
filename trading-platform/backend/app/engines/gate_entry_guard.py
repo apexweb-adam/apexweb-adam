@@ -3656,7 +3656,10 @@ def stocks_monday_scan_priority_active(
   trade_count_nudge: bool = False,
 ) -> bool:
   """Prioritize chronic recovery symbols pre-US open and during the first hour."""
-  if trade_count_nudge and stocks_trade_count_prep_active(trade_count_nudge):
+  if trade_count_nudge and stocks_trade_count_prep_active(
+    trade_count_nudge,
+    session_info=session_info,
+  ):
     return True
   if session_info.get("in_session"):
     since = session_info.get("minutes_since_open")
@@ -3668,11 +3671,15 @@ def stocks_monday_scan_priority_active(
   )
 
 
-def stocks_trade_count_prep_active(trade_count_nudge: bool = False) -> bool:
+def stocks_trade_count_prep_active(
+  trade_count_nudge: bool = False,
+  *,
+  session_info: dict[str, Any] | None = None,
+) -> bool:
   """Whether stocks trade-count graduation prep easings apply (72h pre-open + first hour)."""
   if not trade_count_nudge:
     return False
-  session = stocks_session_info()
+  session = session_info or stocks_session_info()
   if session.get("in_session"):
     since = session.get("minutes_since_open")
     return since is not None and since <= STOCKS_MONDAY_SCAN_OPEN_HOUR_MINUTES
