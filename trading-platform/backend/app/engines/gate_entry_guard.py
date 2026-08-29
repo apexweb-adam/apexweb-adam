@@ -108,6 +108,14 @@ CRYPTO_STRONG_MOMENTUM_LOSS_WIND_DOWN_USD = 2.5
 CRYPTO_PRE_GRADUATION_MIN_WR = 0.50
 CRYPTO_PRE_GRADUATION_MIN_PF = 1.20
 CRYPTO_PRE_GRADUATION_LOSS_WIND_DOWN_USD = 2.0
+CRYPTO_PRE_GRADUATION_CAP_PRESSURE_LOSER_USD = 1.5
+CRYPTO_STRONG_MOMENTUM_CAP_PRESSURE_LOSER_USD = 1.0
+CRYPTO_CAP_PRESSURE_MODERATE_LOSER_USD = 2.0
+CRYPTO_CAP_PRESSURE_MODERATE_LOSER_MIN_HOLD_SECONDS = 300
+CRYPTO_CAP_PRESSURE_LARGE_LOSER_USD = 4.0
+CRYPTO_CAP_PRESSURE_LARGE_LOSER_MIN_HOLD_SECONDS = 180
+CRYPTO_CAP_PRESSURE_SEVERE_LOSER_USD = 6.0
+CRYPTO_CAP_PRESSURE_SEVERE_LOSER_MIN_HOLD_SECONDS = 60
 SHADOW_STRONG_MOMENTUM_MAX_OPEN = 4
 
 
@@ -175,6 +183,61 @@ def crypto_pre_graduation_nudge(
     and bot_win_rate >= CRYPTO_PRE_GRADUATION_MIN_WR
     and bot_win_rate < ProfitabilityGate.GRADUATION_MIN_WIN_RATE
   )
+
+
+def crypto_cap_pressure_nudge(
+  bot_type: str,
+  shadow_mode: bool,
+  bot_win_rate: float | None,
+  profit_factor: float | None,
+  total_pnl: float | None,
+) -> bool:
+  """Crypto shadow tiers that should free cap slots when full."""
+  return (
+    crypto_near_graduation_nudge(
+      bot_type, shadow_mode, bot_win_rate, profit_factor, total_pnl
+    )
+    or crypto_strong_momentum_nudge(
+      bot_type, shadow_mode, bot_win_rate, profit_factor, total_pnl
+    )
+    or crypto_pre_graduation_nudge(
+      bot_type, shadow_mode, bot_win_rate, profit_factor, total_pnl
+    )
+  )
+
+
+def crypto_cap_pressure_loser_threshold(
+  bot_type: str,
+  shadow_mode: bool,
+  bot_win_rate: float | None,
+  profit_factor: float | None,
+  total_pnl: float | None,
+) -> float:
+  """Per-tier loser threshold when shadow open cap is full."""
+  if crypto_pre_graduation_nudge(
+    bot_type, shadow_mode, bot_win_rate, profit_factor, total_pnl
+  ):
+    return CRYPTO_PRE_GRADUATION_CAP_PRESSURE_LOSER_USD
+  if crypto_strong_momentum_nudge(
+    bot_type, shadow_mode, bot_win_rate, profit_factor, total_pnl
+  ):
+    return CRYPTO_STRONG_MOMENTUM_CAP_PRESSURE_LOSER_USD
+  return CRYPTO_NEAR_GRADUATION_CAP_PRESSURE_LOSER_USD
+
+
+def crypto_cap_pressure_effective_min_hold(
+  min_hold_seconds: int,
+  unrealized: float,
+) -> int:
+  """Shorten min hold for larger losers when cap is full so slots rotate faster."""
+  effective = min_hold_seconds
+  if unrealized <= -CRYPTO_CAP_PRESSURE_SEVERE_LOSER_USD:
+    return min(effective, CRYPTO_CAP_PRESSURE_SEVERE_LOSER_MIN_HOLD_SECONDS)
+  if unrealized <= -CRYPTO_CAP_PRESSURE_LARGE_LOSER_USD:
+    return min(effective, CRYPTO_CAP_PRESSURE_LARGE_LOSER_MIN_HOLD_SECONDS)
+  if unrealized <= -CRYPTO_CAP_PRESSURE_MODERATE_LOSER_USD:
+    return min(effective, CRYPTO_CAP_PRESSURE_MODERATE_LOSER_MIN_HOLD_SECONDS)
+  return effective
 
 
 def shadow_min_signal_boost(
@@ -1009,10 +1072,10 @@ def shadow_cap_pressure_loser_wind_down(
   profit_factor: float | None = None,
   total_pnl: float | None = None,
 ) -> bool:
-  """Free shadow cap slots by exiting small losers when near graduation and at open cap."""
+  """Free shadow cap slots by exiting losers when graduation nudge tiers fill the cap."""
   if not shadow_mode or shadow_open_cap is None or open_count < shadow_open_cap:
     return False
-  if not crypto_near_graduation_nudge(
+  if not crypto_cap_pressure_nudge(
     bot_type,
     shadow_mode,
     bot_win_rate,
@@ -1020,9 +1083,20 @@ def shadow_cap_pressure_loser_wind_down(
     total_pnl,
   ):
     return False
-  if held_seconds < min_hold_seconds:
+  effective_min_hold = crypto_cap_pressure_effective_min_hold(
+    min_hold_seconds,
+    unrealized,
+  )
+  if held_seconds < effective_min_hold:
     return False
-  return unrealized <= -CRYPTO_NEAR_GRADUATION_CAP_PRESSURE_LOSER_USD
+  threshold = crypto_cap_pressure_loser_threshold(
+    bot_type,
+    shadow_mode,
+    bot_win_rate,
+    profit_factor,
+    total_pnl,
+  )
+  return unrealized <= -threshold
 
 
 def shadow_graduation_loss_exposure_blocks_entry(
