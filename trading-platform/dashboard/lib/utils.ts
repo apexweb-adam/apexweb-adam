@@ -47,6 +47,14 @@ export function formatScanBlockers(blockers: string[], limit = 2): string {
   return blockers.slice(0, limit).map(formatScanBlocker).join(", ");
 }
 
+export function formatSessionCountdown(minutesUntilOpen: number | null | undefined): string | null {
+  if (minutesUntilOpen == null || minutesUntilOpen < 0) return null;
+  const hours = Math.floor(minutesUntilOpen / 60);
+  const mins = minutesUntilOpen % 60;
+  if (hours <= 0) return `${mins}m`;
+  return `${hours}h ${mins}m`;
+}
+
 export function sentimentColor(score: number): string {
   if (score > 0.2) return "text-apex-green";
   if (score < -0.2) return "text-apex-red";

@@ -287,6 +287,7 @@ export type MondayRecoverySummary = {
     symbol: string;
     composite?: number;
     blockers?: string[];
+    minutes_until_open?: number | null;
   }>;
   stocks_trade_count_nudge?: boolean;
   commodities_graduation_nudge?: boolean;

@@ -77,6 +77,8 @@ def test_build_monday_recovery_summary_aggregates_bots():
   assert result["open_ready_candidates"] == ["NG=F", "AAPL"]
   assert len(result["open_ready"]) == 2
   assert result["open_ready"][0]["symbol"] == "NG=F"
+  assert result["open_ready"][0]["minutes_until_open"] == 120
+  assert result["open_ready"][1]["minutes_until_open"] == 3000
 
 
 def test_build_monday_recovery_summary_nudge_without_recovery_candidates():
