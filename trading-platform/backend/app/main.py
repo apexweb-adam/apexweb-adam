@@ -93,6 +93,9 @@ async def crm_landing():
     gate_engine = ProfitabilityGate(session)
     gate = await gate_engine.evaluate()
     per_bot = await gate_engine.evaluate_per_bot()
+    from app.engines.scan_preview import build_monday_recovery_summary
+
+    monday_recovery = await build_monday_recovery_summary(session)
 
   day = gate.get("verification_day", 0)
   trades = gate.get("total_trades", 0)
@@ -115,6 +118,21 @@ async def crm_landing():
       f"<td>{stats.get('total_trades', 0)}</td><td>{wr_pct:.0f}%</td>"
       f"<td>{blockers}</td></tr>"
     )
+
+  recovery_rows = ""
+  recovery_candidates = monday_recovery.get("recovery_candidates") or []
+  for row in monday_recovery.get("all") or []:
+    bot_type = row.get("bot_type", "")
+    symbol = row.get("symbol", "")
+    composite = row.get("composite")
+    composite_label = f"{composite:.3f}" if composite is not None else "—"
+    blockers = ", ".join(row.get("blockers") or []) or "—"
+    recovery_rows += (
+      f"<tr><td>{bot_type}</td><td><strong>{symbol}</strong></td>"
+      f"<td>{composite_label}</td><td>{blockers}</td></tr>"
+    )
+
+  redirect_seconds = 15 if recovery_candidates else 3
 
   if stale and url == deploy.get("verified_dashboard_url"):
     bundle_label = deploy.get("verified_bundle_revision") or EXPECTED_DASHBOARD_BUNDLE
@@ -146,7 +164,7 @@ async def crm_landing():
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta http-equiv="refresh" content="3;url={url}" />
+  <meta http-equiv="refresh" content="{redirect_seconds};url={url}" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Apex Trading CRM</title>
   <style>
@@ -163,8 +181,8 @@ async def crm_landing():
     th, td {{ text-align: left; padding: 0.35rem 0.5rem; border-bottom: 1px solid #2a2a35; }}
     th {{ color: #888; font-weight: 500; }}
     .tag-shadow {{ color: #fbbf24; }}
-    .tag-ready {{ color: #4ade80; }}
-  </style>
+    .recovery {{ border-color: #166534; background: #052e16; }}
+    .recovery h2 {{ color: #4ade80; font-size: 1rem; margin: 0 0 0.5rem; }}
 </head>
 <body>
   <h1>Apex Trading CRM</h1>
@@ -184,10 +202,18 @@ async def crm_landing():
       <tbody>{bot_rows}</tbody>
     </table>
   </div>
-  <p><a href="{url}">Open live dashboard →</a> <span class="muted">(redirecting in 3s)</span></p>
+  {f"""<div class="card recovery">
+    <h2>Monday recovery watchlist</h2>
+    <p class="muted" style="margin-top:0;">Recovery-ready symbols across commodities and stocks shadow bots.</p>
+    <table>
+      <thead><tr><th>Bot</th><th>Symbol</th><th>Composite</th><th>Blockers</th></tr></thead>
+      <tbody>{recovery_rows}</tbody>
+    </table>
+  </div>""" if recovery_rows else ""}
+  <p><a href="{url}">Open live dashboard →</a> <span class="muted">(redirecting in {redirect_seconds}s)</span></p>
   <p class="muted">{deploy_note}</p>
   {backend_note}
   <p class="muted ok">● Platform running — intel 10/10 sources · learning active</p>
 </body>
 </html>"""
-  return HTMLResponse(content=html, status_code=200, headers={"Refresh": f"3; url={url}"})
+  return HTMLResponse(content=html, status_code=200, headers={"Refresh": f"{redirect_seconds}; url={url}"})

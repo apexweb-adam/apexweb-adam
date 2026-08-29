@@ -37,31 +37,17 @@ jobs:
 
       - name: Deploy to Vercel
         id: vercel_deploy
-        working-directory: trading-platform/dashboard
         run: |
           set -euo pipefail
           if [ -n "${VERCEL_TOKEN:-}" ]; then
-            npx vercel@latest deploy --prebuilt \
+            npx vercel@latest deploy --prod \
               --token "$VERCEL_TOKEN" \
               --scope "$VERCEL_ORG_ID" \
               --yes > /tmp/vercel-deploy.log 2>&1
             cat /tmp/vercel-deploy.log
             PREVIEW_URL=$(grep -oE 'https://[^ ]+\.vercel\.app' /tmp/vercel-deploy.log | tail -1)
             echo "preview_url=$PREVIEW_URL" >> "$GITHUB_OUTPUT"
-            echo "Preview deployed: $PREVIEW_URL"
-            DEPLOY_ID=$(curl -fsS \
-              "https://api.vercel.com/v6/deployments?projectId=${VERCEL_PROJECT_ID}&teamId=${VERCEL_ORG_ID}&limit=1" \
-              -H "Authorization: Bearer ${VERCEL_TOKEN}" | python3 -c "import json,sys; d=json.load(sys.stdin); print((d.get('deployments') or [{}])[0].get('uid',''))")
-            if [ -n "$DEPLOY_ID" ]; then
-              HTTP=$(curl -fsS -o /tmp/promote.json -w "%{http_code}" -X POST \
-                "https://api.vercel.com/v10/projects/${VERCEL_PROJECT_ID}/promote/${DEPLOY_ID}?teamId=${VERCEL_ORG_ID}" \
-                -H "Authorization: Bearer ${VERCEL_TOKEN}" \
-                -H "Content-Type: application/json" \
-                -d '{}')
-              echo "Promote to production HTTP $HTTP"
-              cat /tmp/promote.json 2>/dev/null || true
-            fi
-            echo "Deployed and promoted via VERCEL_TOKEN"
+            echo "Deployed to production via VERCEL_TOKEN: $PREVIEW_URL"
           elif [ -n "${VERCEL_DEPLOY_HOOK:-}" ]; then
             curl -fsS -X POST "$VERCEL_DEPLOY_HOOK"
             echo "Triggered VERCEL_DEPLOY_HOOK for production"
@@ -100,7 +86,7 @@ jobs:
               print("Production bundle current:", expected)
               sys.exit(0)
           print("::warning::Production dashboard stale — missing bundleRevision/features.activeGate")
-          print("Promote preview dpl_69sDuoc6owonxneDQdEponBf4uwF or add VERCEL_TOKEN")
-          print("Verified preview: https://apex-trading-dashboard-mz9mzjoaq-apexweb-adams-projects.vercel.app")
+          print("Promote dpl_GQTTm469KGGRkiKfwrULaLieM5VE or add VERCEL_TOKEN")
+          print("Verified preview: https://apex-trading-dashboard-4am3sz5kv-apexweb-adams-projects.vercel.app")
           sys.exit(0)
           PY
