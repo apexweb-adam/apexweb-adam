@@ -124,6 +124,30 @@ def test_phantom_configured_with_addresses():
     assert phantom_configured() is True
 
 
+def test_phantom_poll_wallet_addresses_defaults():
+  from app.intelligence.phantom_tracker import phantom_poll_wallet_addresses, phantom_portfolio_poll_active
+
+  with patch("app.intelligence.phantom_tracker.settings") as mock_settings:
+    mock_settings.phantom_wallet_addresses = ""
+    mock_settings.wallet_tracker_use_defaults = True
+    mock_settings.phantom_enabled = True
+    mock_settings.phantom_portfolio_poll_enabled = True
+    mock_settings.helius_api_key = "test-key"
+    addresses = phantom_poll_wallet_addresses()
+    assert len(addresses) >= 8
+    assert phantom_portfolio_poll_active() is True
+
+
+def test_phantom_poll_wallet_addresses_explicit_override():
+  from app.intelligence.phantom_tracker import phantom_poll_wallet_addresses
+
+  with patch("app.intelligence.phantom_tracker.settings") as mock_settings:
+    mock_settings.phantom_wallet_addresses = "custom_wallet_only"
+    mock_settings.wallet_tracker_use_defaults = True
+    addresses = phantom_poll_wallet_addresses()
+    assert addresses == ["custom_wallet_only"]
+
+
 def test_scan_phantom_portfolios_ingests_holdings():
   from app.intelligence.phantom_tracker import scan_phantom_portfolios
 

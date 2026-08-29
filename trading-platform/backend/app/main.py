@@ -322,6 +322,12 @@ async def crm_landing():
   elif axiom.get("session_configured"):
     axiom_status += " · session expired"
   phantom_status = "webhook ready" if phantom.get("configured") else "off"
+  if phantom.get("portfolio_poll"):
+    wallets = phantom.get("tracked_wallets") or 8
+    default_tag = " (default whales)" if phantom.get("using_default_wallets") else ""
+    phantom_status = f"Helius poll active · {wallets} wallets{default_tag}"
+  elif phantom.get("configured"):
+    phantom_status = "webhook ready — Helius poll waiting on HELIUS_API_KEY"
   fomo_bearer_note = ""
   if fomo.get("bearer_configured"):
     expires = fomo.get("bearer_expires_at") or "unknown"

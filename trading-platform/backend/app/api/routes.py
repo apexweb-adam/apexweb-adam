@@ -492,6 +492,10 @@ async def get_platform_status(db: AsyncSession = Depends(get_db)) -> dict[str, A
   gate_tightening_data = gate_payload["gate_entry_tightening"]
   from app.intelligence.axiom_tracker import get_axiom_session_status
   from app.intelligence.fomo_tracker import get_fomo_bearer_status
+  from app.intelligence.phantom_tracker import (
+    phantom_poll_wallet_addresses,
+    phantom_portfolio_poll_active,
+  )
 
   fomo_bearer = await get_fomo_bearer_status(db)
   axiom_session = await get_axiom_session_status(db)
@@ -693,15 +697,11 @@ async def get_platform_status(db: AsyncSession = Depends(get_db)) -> dict[str, A
         if settings.phantom_enabled
         else None
       ),
-      "phantom_portfolio_poll": bool(
-        settings.phantom_enabled
-        and settings.phantom_portfolio_poll_enabled
-        and bool(settings.phantom_wallet_addresses)
-        and bool(settings.helius_api_key)
-      ),
+      "phantom_portfolio_poll": phantom_portfolio_poll_active(),
+      "phantom_tracked_wallets": len(phantom_poll_wallet_addresses()),
       "phantom_setup": (
-        "Set PHANTOM_WALLET_ADDRESSES + HELIUS_API_KEY for 24/7 server portfolio poll, "
-        "or install Phantom userscript for browser forwarding."
+        "Helius portfolio poll uses PHANTOM_WALLET_ADDRESSES or default 8 Solana whales when unset. "
+        "Install Phantom userscript for browser forwarding."
         if settings.phantom_enabled
         else None
       ),
