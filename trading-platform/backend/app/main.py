@@ -167,8 +167,13 @@ async def crm_landing():
       f"<tr><td>{bot_type}</td><td><strong>{symbol}</strong></td>"
       f"<td>{composite_label}</td><td>{blockers}</td></tr>"
     )
+  recovery_table_body = recovery_rows or (
+    "<tr><td colspan='4' class='muted'>No recovery-ready symbols right now — nudges still active.</td></tr>"
+    if recovery_nudge_note
+    else ""
+  )
 
-  redirect_seconds = 15 if recovery_candidates or live_snapshot.get("positions") else 3
+  redirect_seconds = 15 if recovery_candidates or live_snapshot.get("positions") or recovery_nudge_note else 3
 
   from app.engines.gate_entry_guard import commodities_session_info, stocks_session_info
 
@@ -381,9 +386,9 @@ async def crm_landing():
     {recovery_nudge_note}
     <table>
       <thead><tr><th>Bot</th><th>Symbol</th><th>Composite</th><th>Blockers</th></tr></thead>
-      <tbody>{recovery_rows}</tbody>
+      <tbody>{recovery_table_body}</tbody>
     </table>
-  </div>""" if recovery_rows else ""}
+  </div>""" if recovery_table_body or recovery_nudge_note else ""}
   {f"""<div class="card learning">
     <h2>Today's learning loop</h2>
     <p class="muted" style="margin-top:0;">{learning_summary}</p>
