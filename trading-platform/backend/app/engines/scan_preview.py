@@ -34,6 +34,7 @@ from app.engines.gate_entry_guard import (
   bot_win_rate_for_graduation_nudge,
   commodities_graduation_entry_min_signal,
   crypto_graduation_entry_min_signal,
+  crypto_strong_momentum_nudge,
   graduation_nudge_min_sentiment,
   graduation_nudge_sentiment_ok,
   in_shadow_graduation_nudge,
@@ -164,6 +165,13 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
     shadow_mode,
     per_bot_stats.get("win_rate"),
     int(per_bot_stats.get("total_trades") or 0),
+  )
+  crypto_strong_momentum = crypto_strong_momentum_nudge(
+    bot_type,
+    shadow_mode,
+    bot_wr,
+    per_bot_stats.get("profit_factor"),
+    per_bot_stats.get("total_pnl"),
   )
   min_sentiment = graduation_nudge_min_sentiment(
     bot_type,
@@ -472,6 +480,8 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
       signal_direction=signal.direction,
       macd_signal=signal.macd_signal,
       total_trades=int(per_bot_stats.get("total_trades") or 0),
+      profit_factor=per_bot_stats.get("profit_factor"),
+      total_pnl=per_bot_stats.get("total_pnl"),
     ):
       blockers.append("chronic_loser")
     if (
@@ -656,6 +666,7 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
     "shadow_mode": shadow_mode,
     "graduation_nudge": graduation_nudge,
     "stocks_trade_count_nudge": stocks_trade_count_nudge,
+    "crypto_strong_momentum_nudge": crypto_strong_momentum,
     "early_verification_boost": early_verification_boost,
     "shadow_bot_wr": bot_wr if bot_wr is not None else shadow_bot_wr,
     "proven_winners": sorted(proven_winners),

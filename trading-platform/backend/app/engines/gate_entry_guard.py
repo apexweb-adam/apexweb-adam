@@ -101,6 +101,11 @@ CRYPTO_NEAR_GRADUATION_PROFIT_LOCK_USD = 1.5
 CRYPTO_NEAR_GRADUATION_CAP_PRESSURE_LOSER_USD = 0.35
 CRYPTO_NEAR_GRADUATION_EARLY_PROFIT_LOCK_MULTIPLIER = 2.0
 CRYPTO_NEAR_GRADUATION_EARLY_PROFIT_LOCK_MIN_HOLD_SECONDS = 60
+CRYPTO_STRONG_MOMENTUM_MIN_WR = 0.47
+CRYPTO_STRONG_MOMENTUM_MIN_PF = 1.15
+CRYPTO_STRONG_MOMENTUM_CHRONIC_COMPOSITE = 0.42
+CRYPTO_STRONG_MOMENTUM_LOSS_WIND_DOWN_USD = 2.5
+SHADOW_STRONG_MOMENTUM_MAX_OPEN = 4
 
 
 def crypto_near_graduation_nudge(
@@ -121,6 +126,28 @@ def crypto_near_graduation_nudge(
     profit_factor >= PROFITABLE_SHADOW_MIN_PF
     and total_pnl > -CRYPTO_NEAR_GRADUATION_PNL_FLOOR_USD
     and bot_win_rate >= CRYPTO_NEAR_GRADUATION_WR_FLOOR
+    and bot_win_rate < ProfitabilityGate.GRADUATION_MIN_WIN_RATE
+  )
+
+
+def crypto_strong_momentum_nudge(
+  bot_type: str,
+  shadow_mode: bool,
+  bot_win_rate: float | None,
+  profit_factor: float | None,
+  total_pnl: float | None,
+) -> bool:
+  """Crypto shadow with graduation-tier WR/PF — stack winners and cut losers faster."""
+  from app.engines.profitability_gate import ProfitabilityGate
+
+  if not shadow_mode or bot_type != "crypto":
+    return False
+  if bot_win_rate is None or profit_factor is None or total_pnl is None:
+    return False
+  return (
+    total_pnl > 0
+    and profit_factor >= CRYPTO_STRONG_MOMENTUM_MIN_PF
+    and bot_win_rate >= CRYPTO_STRONG_MOMENTUM_MIN_WR
     and bot_win_rate < ProfitabilityGate.GRADUATION_MIN_WIN_RATE
   )
 
@@ -185,6 +212,14 @@ def shadow_max_open_for_bot(
   base = SHADOW_MAX_OPEN.get(bot_type)
   if base is None:
     return None
+  if crypto_strong_momentum_nudge(
+    bot_type,
+    shadow_mode,
+    bot_win_rate,
+    profit_factor,
+    total_pnl,
+  ):
+    return max(base, SHADOW_STRONG_MOMENTUM_MAX_OPEN)
   if (
     bot_type in ("crypto", "commodities")
     and is_profitable_graduation_nudge(
@@ -745,6 +780,8 @@ def chronic_loser_blocks_shadow_entry(
   signal_direction: str | None = None,
   macd_signal: str | None = None,
   total_trades: int = 0,
+  profit_factor: float | None = None,
+  total_pnl: float | None = None,
 ) -> bool:
   """Chronic losers are skippable during graduation nudge when intel override applies."""
   if symbol not in chronic_symbols:
@@ -800,6 +837,19 @@ def chronic_loser_blocks_shadow_entry(
     signal_direction=signal_direction or "buy",
     macd_signal=macd_signal or "bullish",
     composite=composite or 0.0,
+  ):
+    return False
+  if (
+    crypto_strong_momentum_nudge(
+      bot_type,
+      shadow_mode,
+      bot_win_rate,
+      profit_factor,
+      total_pnl,
+    )
+    and (composite or 0.0) >= CRYPTO_STRONG_MOMENTUM_CHRONIC_COMPOSITE
+    and (signal_direction or "buy") == "buy"
+    and (macd_signal or "bullish") == "bullish"
   ):
     return False
   if graduation_nudge_easing_active(
@@ -890,7 +940,15 @@ def shadow_graduation_loss_wind_down(
     return False
   if held_seconds < min_hold_seconds:
     return False
-  if (
+  if crypto_strong_momentum_nudge(
+    bot_type,
+    shadow_mode,
+    bot_win_rate,
+    profit_factor,
+    total_pnl,
+  ):
+    threshold = CRYPTO_STRONG_MOMENTUM_LOSS_WIND_DOWN_USD
+  elif (
     shadow_mode
     and is_profitable_graduation_nudge(
       bot_type,

@@ -998,6 +998,8 @@ class BaseBot(ABC):
           signal_direction=signal.direction,
           macd_signal=signal.macd_signal,
           total_trades=int(per_bot_stats.get("total_trades") or 0),
+          profit_factor=per_bot_stats.get("profit_factor"),
+          total_pnl=per_bot_stats.get("total_pnl"),
         ):
           continue
 

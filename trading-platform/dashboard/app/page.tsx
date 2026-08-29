@@ -1639,6 +1639,9 @@ function BotScanPreview({ botType }: { botType: string }) {
         {preview.stocks_trade_count_nudge && (
           <span className="text-amber-400/90"> · trade-count nudge (floor 0.34 / sent 0.05)</span>
         )}
+        {preview.crypto_strong_momentum_nudge && (
+          <span className="text-emerald-400/90"> · strong momentum (cap 4 / loss cut $2.50)</span>
+        )}
         {preview.recovery_candidates && preview.recovery_candidates.length > 0 && (
           <span className="text-emerald-400/90">
             {" "}
