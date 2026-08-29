@@ -16,6 +16,7 @@ from app.engines.gate_entry_guard import (
   EARLY_VERIFICATION_MIN_RAW_SIGNAL_SCORE,
   HardGateSkipSets,
   apply_entry_min_signal_ease,
+  apply_gate_tightening_min_signal,
   bot_min_sentiment,
   chronic_loser_blocks_shadow_entry,
   early_verification_active,
@@ -140,6 +141,13 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
   min_sentiment = graduation_nudge_min_sentiment(
     bot_type,
     min_sentiment,
+    graduation_nudge=graduation_nudge,
+    shadow_mode=shadow_mode,
+  )
+  min_signal = apply_gate_tightening_min_signal(
+    min_signal,
+    bot_type,
+    gate_tightening=gate_tightening,
     graduation_nudge=graduation_nudge,
     shadow_mode=shadow_mode,
   )
@@ -329,6 +337,8 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
       intel_override=intel_override,
       composite=composite,
       integration_boost=integration_boost,
+      signal_direction=signal.direction,
+      macd_signal=signal.macd_signal,
     ):
       blockers.append("gate_skip")
     if chronic_loser_blocks_shadow_entry(

@@ -12,6 +12,7 @@ from app.engines.gate_entry_guard import (
   bot_min_sentiment,
   chronic_loser_blocks_shadow_entry,
   apply_entry_min_signal_ease,
+  apply_gate_tightening_min_signal,
   early_verification_index_etf_entry_min_signal,
   early_verification_raw_signal_ok,
   get_chronic_loser_symbols,
@@ -221,9 +222,19 @@ class BaseBot(ABC):
           total_pnl=per_bot_stats.get("total_pnl"),
         )
       if gate_tightening.active and self.bot_type != "stocks_futures":
-        min_signal = min(0.95, min_signal + gate_tightening.min_composite_boost)
-      if loss_streak >= 3:
-        min_signal = min(0.95, min_signal + 0.08)
+        min_signal = apply_gate_tightening_min_signal(
+          min_signal,
+          self.bot_type,
+          gate_tightening=gate_tightening,
+          graduation_nudge=in_shadow_graduation_nudge(
+            self.bot_type,
+            bot_wr,
+            profit_factor=per_bot_stats.get("profit_factor"),
+            total_pnl=per_bot_stats.get("total_pnl"),
+          ),
+          shadow_mode=shadow_mode,
+          loss_streak=loss_streak,
+        )
       min_sentiment = max(
         strategy.min_sentiment_score,
         bot_min_sentiment(self.bot_type, gate_tightening),
@@ -664,6 +675,8 @@ class BaseBot(ABC):
           intel_override=intel_override,
           composite=composite,
           integration_boost=integration_boost,
+          signal_direction=signal.direction,
+          macd_signal=signal.macd_signal,
         ):
           continue
 
