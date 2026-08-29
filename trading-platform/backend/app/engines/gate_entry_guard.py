@@ -112,6 +112,7 @@ CRYPTO_PRE_GRADUATION_LOSS_WIND_DOWN_USD = 2.0
 CRYPTO_GRADUATION_ENTRY_EASE_MIN_WR = 0.47
 CRYPTO_GRADUATION_ENTRY_EASE_MIN_PF = 1.10
 CRYPTO_MOMENTUM_RETREAT_MIN_SIGNAL = 0.48
+CRYPTO_MOMENTUM_RETREAT_ALIGNED_COMPOSITE_FLOOR = 0.43
 CRYPTO_MOMENTUM_RETREAT_MIN_RAW_SIGNAL = 0.42
 CRYPTO_MOMENTUM_RETREAT_ALIGNED_RAW_SIGNAL = 0.36
 CRYPTO_MOMENTUM_RETREAT_PROFIT_LOCK_USD = 1.25
@@ -626,7 +627,7 @@ STOCKS_TRADE_COUNT_GRADUATION_GAP = 5
 STOCKS_TRADE_COUNT_RECOVERY_MIN_COMPOSITE = 0.34
 STOCKS_TRADE_COUNT_MIN_SENTIMENT = 0.05
 COMMODITIES_HIGH_COMPOSITE_RECOVERY_FLOOR = 0.48
-COMMODITIES_GRADUATION_OPEN_COMPOSITE_FLOOR = 0.44
+COMMODITIES_GRADUATION_OPEN_COMPOSITE_FLOOR = 0.42
 COMMODITIES_FUTURES_WEEKEND_FLAT_EXIT_BAND_USD = 1.0
 COMMODITIES_WEEKEND_SPOT_SYMBOLS = frozenset({"XAUUSDT", "PAXGUSDT"})
 COMMODITIES_GOLD_PROXY_PREFERRED = "XAUUSDT"
@@ -967,6 +968,16 @@ def crypto_graduation_entry_min_signal(
   return entry_min_signal
 
 
+def crypto_momentum_retreat_composite_floor(
+  signal_direction: str = "buy",
+  macd_signal: str = "bullish",
+) -> float:
+  """Per-setup composite floor during crypto momentum retreat."""
+  if signal_direction == "buy" and macd_signal == "bullish":
+    return CRYPTO_MOMENTUM_RETREAT_ALIGNED_COMPOSITE_FLOOR
+  return CRYPTO_MOMENTUM_RETREAT_MIN_SIGNAL
+
+
 def crypto_momentum_retreat_entry_min_signal(
   entry_min_signal: float,
   *,
@@ -976,6 +987,8 @@ def crypto_momentum_retreat_entry_min_signal(
   bot_win_rate: float | None = None,
   profit_factor: float | None = None,
   total_pnl: float | None = None,
+  signal_direction: str = "buy",
+  macd_signal: str = "bullish",
 ) -> float:
   """Raise composite floor during crypto momentum retreat — block marginal cap rotations."""
   if not (graduation_nudge and shadow_mode and bot_type == "crypto"):
@@ -988,7 +1001,11 @@ def crypto_momentum_retreat_entry_min_signal(
     total_pnl,
   ):
     return entry_min_signal
-  return max(entry_min_signal, CRYPTO_MOMENTUM_RETREAT_MIN_SIGNAL)
+  retreat_floor = crypto_momentum_retreat_composite_floor(
+    signal_direction,
+    macd_signal,
+  )
+  return max(entry_min_signal, retreat_floor)
 
 
 def crypto_momentum_retreat_raw_signal_ok(
@@ -1069,7 +1086,10 @@ def crypto_momentum_retreat_gate_skip_bypass(
     return False
   if signal_direction != "buy" or macd_signal != "bullish":
     return False
-  return composite >= CRYPTO_MOMENTUM_RETREAT_MIN_SIGNAL
+  return composite >= crypto_momentum_retreat_composite_floor(
+    signal_direction,
+    macd_signal,
+  )
 
 
 def crypto_shadow_raw_signal_floor_active(
