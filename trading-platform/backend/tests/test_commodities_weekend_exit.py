@@ -1,7 +1,8 @@
 """Tests for commodities weekend stale exit guard."""
 
+import asyncio
 from datetime import datetime
-from unittest.mock import patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from app.engines.gate_entry_guard import (
   commodities_futures_weekend_closed,
@@ -100,3 +101,28 @@ def test_commodities_weekend_stale_signal_exit_not_blocked_weekday():
       unrealized=0.0,
       signal_direction="sell",
     ) is False
+
+
+def test_commodities_weekend_spot_cooldown_eased():
+  from app.engines.gate_entry_guard import (
+    COMMODITIES_WEEKEND_SPOT_COOLDOWN_MULTIPLIER,
+    _bot_cooldown_seconds,
+    symbol_cooldown_remaining_seconds,
+  )
+
+  session = AsyncMock()
+  executed_at = datetime(2026, 8, 29, 10, 0, 0)
+  session.execute = AsyncMock(
+    return_value=MagicMock(
+      first=MagicMock(return_value=(False, executed_at, "loss exit", -5.0))
+    )
+  )
+  base = _bot_cooldown_seconds("commodities", after_loss=True)
+  with patch("app.engines.gate_entry_guard.datetime") as mock_dt:
+    mock_dt.utcnow.return_value = datetime(2026, 8, 29, 11, 0, 0)
+    mock_dt.side_effect = lambda *a, **k: datetime(*a, **k)
+    remaining = asyncio.run(
+      symbol_cooldown_remaining_seconds(session, "commodities", "XAUUSDT")
+    )
+  expected = int(base * COMMODITIES_WEEKEND_SPOT_COOLDOWN_MULTIPLIER) - 3600
+  assert remaining == max(0, expected)

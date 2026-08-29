@@ -331,7 +331,7 @@ async def _scan_phantom_rpc(session: AsyncSession, addresses: list[str]) -> int:
   hour_bucket = datetime.utcnow().strftime("%Y%m%d%H")
   rpc = settings.solana_rpc_url.strip() or "https://api.mainnet-beta.solana.com"
   async with httpx.AsyncClient(timeout=45) as client:
-    for address in addresses[:6]:
+    for address in addresses[:8]:
       try:
         balance_response = await client.post(
           rpc,

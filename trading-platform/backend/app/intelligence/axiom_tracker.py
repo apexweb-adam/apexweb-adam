@@ -294,6 +294,37 @@ async def scan_axiom_wallet_mirror(session: AsyncSession) -> int:
     )
     if mirror_result.get("status") == "received":
       ingested += 1
+
+  phantom_cutoff = datetime.utcnow() - timedelta(hours=6)
+  phantom_result = await session.execute(
+    select(IntelligenceItem)
+    .where(
+      IntelligenceItem.source == "phantom",
+      IntelligenceItem.fetched_at >= phantom_cutoff,
+    )
+    .order_by(IntelligenceItem.fetched_at.desc())
+    .limit(20)
+  )
+  for item in phantom_result.scalars().all():
+    if "holding" not in f"{item.title} {item.content}".lower():
+      continue
+    symbol_raw = (item.symbols_mentioned or "SOL").split(",")[0].replace("USDT", "")
+    mirror_url = f"axiom:phantom-mirror:{item.url}"[:1000]
+    mirror_result = await ingest_axiom_webhook(
+      session,
+      {
+        "event_type": "holdings",
+        "symbol": symbol_raw,
+        "action": "watch",
+        "message": f"Phantom portfolio mirror | {item.title[:120]}",
+        "url": mirror_url,
+        "wallets_watching": wallet_count,
+        "relevance": min(0.9, float(item.relevance_score or 0.74) + 0.03),
+        "sentiment": item.sentiment or 0.15,
+      },
+    )
+    if mirror_result.get("status") == "received":
+      ingested += 1
   return ingested
 
 

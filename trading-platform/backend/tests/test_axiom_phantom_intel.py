@@ -141,8 +141,11 @@ def test_scan_axiom_wallet_mirror_ingests_from_wallet_tracker():
   wallet_result = MagicMock(
     scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=[wallet_item])))
   )
+  phantom_empty = MagicMock(
+    scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=[])))
+  )
   session = AsyncMock()
-  session.execute = AsyncMock(side_effect=[wallet_result, duplicate_result])
+  session.execute = AsyncMock(side_effect=[wallet_result, duplicate_result, phantom_empty])
   session.commit = AsyncMock()
 
   with patch("app.intelligence.axiom_tracker.settings") as mock_settings, patch(
