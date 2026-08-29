@@ -99,11 +99,13 @@ async def crm_landing():
       build_crm_learning_highlights,
     )
     from app.engines.intel_source_status import build_intel_sources
+    from app.engines.crm_summary import build_crm_live_snapshot
 
     monday_recovery = await build_monday_recovery_summary(session)
     learning = await build_crm_learning_highlights(session)
     content_study = await build_crm_content_study_highlights(session)
     intel_sources = await build_intel_sources(session)
+    live_snapshot = await build_crm_live_snapshot(session)
 
   day = gate.get("verification_day", 0)
   trades = gate.get("total_trades", 0)
@@ -140,7 +142,7 @@ async def crm_landing():
       f"<td>{composite_label}</td><td>{blockers}</td></tr>"
     )
 
-  redirect_seconds = 15 if recovery_candidates else 3
+  redirect_seconds = 15 if recovery_candidates or live_snapshot.get("positions") else 3
 
   from app.engines.gate_entry_guard import commodities_session_info, stocks_session_info
 
@@ -209,6 +211,34 @@ async def crm_landing():
   if intel_degraded:
     intel_footer += f" ({', '.join(intel_degraded)} degraded)"
 
+  position_rows = ""
+  total_unrealized = 0.0
+  for row in live_snapshot.get("positions") or []:
+    pnl = row.get("unrealized_pnl") or 0
+    total_unrealized += pnl
+    pnl_class = "pnl-pos" if pnl >= 0 else "pnl-neg"
+    gate_tag = "gate" if row.get("is_active_gate") else "shadow"
+    position_rows += (
+      f"<tr><td>{row.get('bot_type')}</td><td><strong>{row.get('symbol')}</strong></td>"
+      f"<td>{row.get('side')}</td><td>{row.get('entry_price', 0):,.2f}</td>"
+      f"<td>{row.get('current_price', 0):,.2f}</td>"
+      f"<td class='{pnl_class}'>${pnl:,.2f}</td><td>{gate_tag}</td></tr>"
+    )
+
+  tightening = live_snapshot.get("gate_tightening") or {}
+  blocked_entries = ", ".join(tightening.get("blocked_new_entries") or []) or "none"
+  proven_winners = live_snapshot.get("proven_winner_symbols") or {}
+  proven_labels = []
+  for bot_type, symbols in proven_winners.items():
+    if symbols:
+      proven_labels.append(f"{bot_type}: {', '.join(symbols[:4])}")
+  proven_summary = " · ".join(proven_labels) if proven_labels else "—"
+  live_summary = (
+    f"Active gate: {', '.join(live_snapshot.get('active_bots') or [])} · "
+    f"unrealized ${total_unrealized:,.2f} · "
+    f"MACD bullish required: {'yes' if tightening.get('require_macd_bullish') else 'no'}"
+  )
+
   if stale and url == deploy.get("verified_dashboard_url"):
     bundle_label = deploy.get("verified_bundle_revision") or EXPECTED_DASHBOARD_BUNDLE
     deploy_note = (
@@ -262,6 +292,10 @@ async def crm_landing():
     .learning h2 {{ color: #60a5fa; font-size: 1rem; margin: 0 0 0.5rem; }}
     .learning-item {{ margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid #2a2a35; }}
     .learning-item:first-of-type {{ border-top: none; padding-top: 0; margin-top: 0; }}
+    .live {{ border-color: #4c1d95; background: #1a1033; }}
+    .live h2 {{ color: #c4b5fd; font-size: 1rem; margin: 0 0 0.5rem; }}
+    .pnl-pos {{ color: #4ade80; }}
+    .pnl-neg {{ color: #f87171; }}
 </head>
 <body>
   <h1>Apex Trading CRM</h1>
@@ -282,6 +316,16 @@ async def crm_landing():
       <tbody>{bot_rows}</tbody>
     </table>
   </div>
+  {f"""<div class="card live">
+    <h2>Live gate positions</h2>
+    <p class="muted" style="margin-top:0;">{live_summary}</p>
+    <table>
+      <thead><tr><th>Bot</th><th>Symbol</th><th>Side</th><th>Entry</th><th>Mark</th><th>PnL</th><th>Mode</th></tr></thead>
+      <tbody>{position_rows}</tbody>
+    </table>
+    <p class="muted" style="margin-top:0.75rem;">Blocked entries: {blocked_entries}</p>
+    <p class="muted" style="margin-top:0;">Proven winners: {proven_summary}</p>
+  </div>""" if position_rows else ""}
   {f"""<div class="card recovery">
     <h2>Monday recovery watchlist</h2>
     <p class="muted" style="margin-top:0;">Recovery-ready symbols across commodities and stocks shadow bots.</p>
