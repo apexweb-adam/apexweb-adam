@@ -381,6 +381,9 @@ def test_shadow_graduation_loss_exposure_blocks_entry():
     [SimpleNamespace(unrealized_pnl=-1.0)], graduation_nudge=True, shadow_mode=True
   ) is False
   assert shadow_graduation_loss_exposure_blocks_entry(
+    [SimpleNamespace(unrealized_pnl=-2.6)], graduation_nudge=True, shadow_mode=True
+  ) is True
+  assert shadow_graduation_loss_exposure_blocks_entry(
     [SimpleNamespace(unrealized_pnl=-4.2)], graduation_nudge=True, shadow_mode=True
   ) is True
 
@@ -454,18 +457,18 @@ def test_shadow_graduation_loss_wind_down_profitable_nudge_threshold():
     bot_win_rate=0.45,
     profit_factor=1.11,
     total_pnl=10.0,
-  ) is False
+  ) is True
   assert shadow_graduation_loss_wind_down(
     graduation_nudge=True,
     shadow_mode=True,
     bot_type="crypto",
-    unrealized=-5.5,
+    unrealized=-3.5,
     held_seconds=900,
     min_hold_seconds=900,
     bot_win_rate=0.45,
     profit_factor=1.11,
     total_pnl=10.0,
-  ) is True
+  ) is False
 
 
 def test_active_gate_uses_tighter_exit_thresholds():
@@ -490,9 +493,14 @@ def test_active_gate_uses_tighter_exit_thresholds():
   ) is True
   assert shadow_graduation_loss_wind_down(
     shadow_mode=True,
-    unrealized=-4.0,
+    unrealized=-3.5,
     **profitable,
   ) is False
+  assert shadow_graduation_loss_wind_down(
+    shadow_mode=True,
+    unrealized=-4.5,
+    **profitable,
+  ) is True
   assert shadow_graduation_profit_lock(
     shadow_mode=False,
     unrealized=3.1,
