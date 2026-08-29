@@ -5,7 +5,7 @@ from app.engines.deploy_status import EXPECTED_PLATFORM_REVISION
 
 def test_expected_platform_revision_is_set():
   assert EXPECTED_PLATFORM_REVISION.startswith("2026-08-29-r")
-  assert EXPECTED_PLATFORM_REVISION.endswith("268")
+  assert EXPECTED_PLATFORM_REVISION.endswith("269")
 
 
 def test_stale_hook_skip_reason_documented():

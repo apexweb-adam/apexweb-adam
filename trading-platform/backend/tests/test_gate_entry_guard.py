@@ -1092,6 +1092,34 @@ def test_shadow_graduation_loss_wind_down():
   ) is False
 
 
+def test_commodities_active_gate_loss_wind_down_threshold():
+  from app.engines.gate_entry_guard import (
+    COMMODITIES_ACTIVE_GATE_LOSS_WIND_DOWN_USD,
+    shadow_graduation_loss_wind_down,
+  )
+
+  gate = dict(
+    graduation_nudge=True,
+    shadow_mode=False,
+    bot_type="commodities",
+    held_seconds=900,
+    min_hold_seconds=900,
+    bot_win_rate=0.50,
+    profit_factor=1.2,
+    total_pnl=20.0,
+  )
+  assert shadow_graduation_loss_wind_down(
+    **gate,
+    unrealized=-COMMODITIES_ACTIVE_GATE_LOSS_WIND_DOWN_USD - 0.1,
+  ) is True
+  assert shadow_graduation_loss_wind_down(
+    **gate,
+    unrealized=-COMMODITIES_ACTIVE_GATE_LOSS_WIND_DOWN_USD + 0.1,
+  ) is False
+  # Default graduation tier would allow -$3.50; gate commodities tightens to $2.
+  assert shadow_graduation_loss_wind_down(**gate, unrealized=-2.5) is True
+
+
 def test_shadow_graduation_loss_wind_down_profitable_nudge_threshold():
   from app.engines.gate_entry_guard import shadow_graduation_loss_wind_down
 
