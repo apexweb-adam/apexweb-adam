@@ -94,8 +94,10 @@ async def crm_landing():
     gate = await gate_engine.evaluate()
     per_bot = await gate_engine.evaluate_per_bot()
     from app.engines.scan_preview import build_monday_recovery_summary
+    from app.engines.learning_engine import build_crm_learning_highlights
 
     monday_recovery = await build_monday_recovery_summary(session)
+    learning = await build_crm_learning_highlights(session)
 
   day = gate.get("verification_day", 0)
   trades = gate.get("total_trades", 0)
@@ -153,6 +155,29 @@ async def crm_landing():
     session_lines.append("US stocks session open")
   session_summary = " · ".join(session_lines)
 
+  learning_rows = ""
+  learning_reviews = learning.get("reviews") or []
+  for row in learning_reviews:
+    bot_type = row.get("bot_type", "")
+    trades = row.get("total_trades", 0)
+    losses = row.get("losing_trades", 0)
+    wr_pct = (row.get("win_rate") or 0) * 100
+    pnl_val = row.get("net_pnl") or 0
+    patterns = row.get("patterns_found") or "—"
+    changes = row.get("strategy_changes") or "—"
+    learning_rows += (
+      f"<div class='learning-item'><strong>{bot_type}</strong> — "
+      f"{trades} trades ({losses}L) · {wr_pct:.0f}% WR · ${pnl_val:,.2f}<br>"
+      f"<span class='muted'>Patterns: {patterns}</span><br>"
+      f"<span class='muted'>Changes: {changes}</span></div>"
+    )
+
+  learning_summary = (
+    f"{learning.get('trade_analyses', 0)} post-mortems · "
+    f"{learning.get('pending_insights', 0)} pending insights · "
+    f"review date {learning.get('review_date', '')}"
+  )
+
   if stale and url == deploy.get("verified_dashboard_url"):
     bundle_label = deploy.get("verified_bundle_revision") or EXPECTED_DASHBOARD_BUNDLE
     deploy_note = (
@@ -202,6 +227,10 @@ async def crm_landing():
     .tag-shadow {{ color: #fbbf24; }}
     .recovery {{ border-color: #166534; background: #052e16; }}
     .recovery h2 {{ color: #4ade80; font-size: 1rem; margin: 0 0 0.5rem; }}
+    .learning {{ border-color: #1e3a5f; background: #0c1929; }}
+    .learning h2 {{ color: #60a5fa; font-size: 1rem; margin: 0 0 0.5rem; }}
+    .learning-item {{ margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid #2a2a35; }}
+    .learning-item:first-of-type {{ border-top: none; padding-top: 0; margin-top: 0; }}
 </head>
 <body>
   <h1>Apex Trading CRM</h1>
@@ -230,6 +259,11 @@ async def crm_landing():
       <tbody>{recovery_rows}</tbody>
     </table>
   </div>""" if recovery_rows else ""}
+  {f"""<div class="card learning">
+    <h2>Today's learning loop</h2>
+    <p class="muted" style="margin-top:0;">{learning_summary}</p>
+    {learning_rows if learning_rows else "<p class='muted'>No losing-trade patterns today — bots scanning.</p>"}
+  </div>""" if learning else ""}
   <p><a href="{url}">Open live dashboard →</a> <span class="muted">(redirecting in {redirect_seconds}s)</span></p>
   <p class="muted">{deploy_note}</p>
   {backend_note}
