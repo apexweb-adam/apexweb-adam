@@ -194,3 +194,45 @@ def test_commodities_weekend_spot_gate_skip_bypass():
       )
     )
     assert remaining == 0
+
+
+def test_commodities_weekend_graduation_open_cap_bonus():
+  from app.engines.gate_entry_guard import (
+    GateEntryTightening,
+    commodities_effective_open_cap,
+    open_position_cap_blocks_entry,
+  )
+
+  tightening = GateEntryTightening(
+    active=False,
+    win_rate=0.44,
+    min_sentiment=0.0,
+    require_macd_bullish=False,
+    min_composite_boost=0.0,
+    max_commodities_open_positions=3,
+  )
+  with patch("app.engines.gate_entry_guard.datetime") as mock_dt:
+    mock_dt.utcnow.return_value = datetime(2026, 8, 29, 14, 0, 0)
+    mock_dt.side_effect = lambda *a, **k: datetime(*a, **k)
+    assert commodities_effective_open_cap(
+      3,
+      bot_type="commodities",
+      graduation_nudge=True,
+      shadow_mode=False,
+    ) == 4
+    assert open_position_cap_blocks_entry(
+      "commodities",
+      shadow_mode=False,
+      open_count=3,
+      gate_tightening=tightening,
+      shadow_open_cap=None,
+      graduation_nudge=True,
+    ) is False
+    assert open_position_cap_blocks_entry(
+      "commodities",
+      shadow_mode=False,
+      open_count=4,
+      gate_tightening=tightening,
+      shadow_open_cap=None,
+      graduation_nudge=True,
+    ) is True

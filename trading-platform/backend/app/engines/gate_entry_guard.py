@@ -170,6 +170,21 @@ def shadow_max_open_for_bot(
   return base
 
 
+def commodities_effective_open_cap(
+  cap: int | None,
+  *,
+  bot_type: str,
+  graduation_nudge: bool,
+  shadow_mode: bool,
+) -> int | None:
+  """Give commodities one extra slot on weekends during graduation nudge for spot proxies."""
+  if cap is None or bot_type != "commodities" or shadow_mode or not graduation_nudge:
+    return cap
+  if commodities_futures_weekend_closed():
+    return cap + COMMODITIES_WEEKEND_GRADUATION_CAP_BONUS
+  return cap
+
+
 def open_position_cap_blocks_entry(
   bot_type: str,
   *,
@@ -177,6 +192,7 @@ def open_position_cap_blocks_entry(
   open_count: int,
   gate_tightening: GateEntryTightening,
   shadow_open_cap: int | None,
+  graduation_nudge: bool = False,
 ) -> bool:
   """Shadow bots use shadow_open_cap only — gate tightening caps apply to active gate bots."""
   if shadow_mode:
@@ -187,7 +203,12 @@ def open_position_cap_blocks_entry(
     "stocks_futures": gate_tightening.max_stocks_open_positions,
     "polymarket": gate_tightening.max_pm_open_positions,
   }
-  cap = gate_caps.get(bot_type)
+  cap = commodities_effective_open_cap(
+    gate_caps.get(bot_type),
+    bot_type=bot_type,
+    graduation_nudge=graduation_nudge,
+    shadow_mode=shadow_mode,
+  )
   if not isinstance(cap, int):
     return False
   return open_count >= cap
@@ -319,7 +340,8 @@ COMMODITIES_HIGH_COMPOSITE_RECOVERY_FLOOR = 0.48
 COMMODITIES_FUTURES_WEEKEND_FLAT_EXIT_BAND_USD = 1.0
 COMMODITIES_WEEKEND_SPOT_SYMBOLS = frozenset({"XAUUSDT", "PAXGUSDT"})
 COMMODITIES_WEEKEND_SPOT_COOLDOWN_MULTIPLIER = 0.55
-COMMODITIES_WEEKEND_SPOT_GATE_SKIP_COMPOSITE_FLOOR = 0.41
+COMMODITIES_WEEKEND_SPOT_GATE_SKIP_COMPOSITE_FLOOR = 0.40
+COMMODITIES_WEEKEND_GRADUATION_CAP_BONUS = 1
 STOCKS_SESSION_CLOSE_WIND_DOWN_MINUTES = 30
 STOCKS_SESSION_CLOSE_FORCE_MINUTES = 15
 DEFAULT_ENTRY_MIN_SIGNAL_FLOOR = 0.08
@@ -888,7 +910,12 @@ def gate_cap_pressure_proxy_wind_down(
 
   if symbol not in CRYPTO_LIVE_PRICE_PROXY:
     return False
-  cap = gate_tightening.max_commodities_open_positions
+  cap = commodities_effective_open_cap(
+    gate_tightening.max_commodities_open_positions,
+    bot_type=bot_type,
+    graduation_nudge=graduation_nudge,
+    shadow_mode=shadow_mode,
+  )
   if not isinstance(cap, int) or open_count < cap:
     return False
   if held_seconds < min_hold_seconds:
@@ -912,7 +939,12 @@ def gate_cap_pressure_proxy_entry_blocked(
 
   if symbol not in CRYPTO_LIVE_PRICE_PROXY:
     return False
-  cap = gate_tightening.max_commodities_open_positions
+  cap = commodities_effective_open_cap(
+    gate_tightening.max_commodities_open_positions,
+    bot_type=bot_type,
+    graduation_nudge=graduation_nudge,
+    shadow_mode=shadow_mode,
+  )
   if not isinstance(cap, int) or open_count < cap:
     return False
   return True

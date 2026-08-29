@@ -1,5 +1,7 @@
 """Tests for gate entry tightening helpers."""
 
+from unittest.mock import patch
+
 import pytest
 
 from app.engines.gate_entry_guard import (
@@ -1439,6 +1441,8 @@ def test_apply_gate_tightening_skips_loss_streak_during_graduation_nudge():
 
 
 def test_gate_cap_pressure_proxy_wind_down_at_cap():
+  from datetime import datetime
+
   from app.engines.gate_entry_guard import gate_cap_pressure_proxy_wind_down
 
   tightening = GateEntryTightening(
@@ -1459,10 +1463,13 @@ def test_gate_cap_pressure_proxy_wind_down_at_cap():
     open_count=3,
     gate_tightening=tightening,
   )
-  assert gate_cap_pressure_proxy_wind_down(unrealized=-0.80, **base) is True
-  assert gate_cap_pressure_proxy_wind_down(unrealized=-0.27, **base) is True
-  assert gate_cap_pressure_proxy_wind_down(unrealized=0.0, **base) is False
-  assert gate_cap_pressure_proxy_wind_down(unrealized=0.50, **base) is False
+  with patch("app.engines.gate_entry_guard.datetime") as mock_dt:
+    mock_dt.utcnow.return_value = datetime(2026, 8, 31, 14, 0, 0)
+    mock_dt.side_effect = lambda *a, **k: datetime(*a, **k)
+    assert gate_cap_pressure_proxy_wind_down(unrealized=-0.80, **base) is True
+    assert gate_cap_pressure_proxy_wind_down(unrealized=-0.27, **base) is True
+    assert gate_cap_pressure_proxy_wind_down(unrealized=0.0, **base) is False
+    assert gate_cap_pressure_proxy_wind_down(unrealized=0.50, **base) is False
   assert gate_cap_pressure_proxy_wind_down(
     unrealized=-0.80,
     open_count=2,
@@ -1499,6 +1506,8 @@ def test_gate_cap_pressure_proxy_wind_down_at_cap():
 
 
 def test_gate_cap_pressure_proxy_entry_blocked_at_cap():
+  from datetime import datetime
+
   from app.engines.gate_entry_guard import gate_cap_pressure_proxy_entry_blocked
 
   tightening = GateEntryTightening(
@@ -1517,8 +1526,17 @@ def test_gate_cap_pressure_proxy_entry_blocked_at_cap():
     open_count=3,
     gate_tightening=tightening,
   )
-  assert gate_cap_pressure_proxy_entry_blocked(**base) is True
+  with patch("app.engines.gate_entry_guard.datetime") as mock_dt:
+    mock_dt.utcnow.return_value = datetime(2026, 8, 31, 14, 0, 0)
+    mock_dt.side_effect = lambda *a, **k: datetime(*a, **k)
+    assert gate_cap_pressure_proxy_entry_blocked(**base) is True
   below_cap = {**base, "open_count": 2}
   assert gate_cap_pressure_proxy_entry_blocked(**below_cap) is False
   assert gate_cap_pressure_proxy_entry_blocked(**{**base, "symbol": "CL=F"}) is False
   assert gate_cap_pressure_proxy_entry_blocked(**{**base, "shadow_mode": True}) is False
+
+  with patch("app.engines.gate_entry_guard.datetime") as mock_dt:
+    mock_dt.utcnow.return_value = datetime(2026, 8, 29, 14, 0, 0)
+    mock_dt.side_effect = lambda *a, **k: datetime(*a, **k)
+    assert gate_cap_pressure_proxy_entry_blocked(**base) is False
+    assert gate_cap_pressure_proxy_entry_blocked(**{**base, "open_count": 4}) is True

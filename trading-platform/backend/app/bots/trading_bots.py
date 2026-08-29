@@ -713,6 +713,7 @@ class BaseBot(ABC):
           open_count=open_count,
           gate_tightening=gate_tightening,
           shadow_open_cap=shadow_open_cap,
+          graduation_nudge=graduation_nudge,
         ):
           continue
 
