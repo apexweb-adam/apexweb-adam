@@ -2,6 +2,7 @@ from collections.abc import AsyncGenerator
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.pool import NullPool
 
 from app.config import settings, BOT_TYPES
 
@@ -24,6 +25,13 @@ def _engine_kwargs(url: str) -> dict:
   kwargs: dict = {"echo": False}
   if normalized.startswith("postgresql+asyncpg://"):
     kwargs["connect_args"] = {"ssl": "require"}
+    # Supabase pooler session mode caps concurrent clients — keep pool small.
+    kwargs["pool_size"] = 5
+    kwargs["max_overflow"] = 3
+    kwargs["pool_pre_ping"] = True
+    kwargs["pool_recycle"] = 280
+  elif normalized.startswith("sqlite"):
+    kwargs["poolclass"] = NullPool
   return kwargs
 
 
