@@ -776,6 +776,7 @@ class BaseBot(ABC):
           macd_signal=signal.macd_signal,
           proven_winners=proven_winners,
           bot_win_rate=per_bot_stats.get("win_rate"),
+          total_trades=int(per_bot_stats.get("total_trades") or 0),
         ):
           continue
 
@@ -791,6 +792,7 @@ class BaseBot(ABC):
           composite=composite,
           signal_direction=signal.direction,
           macd_signal=signal.macd_signal,
+          total_trades=int(per_bot_stats.get("total_trades") or 0),
         ):
           continue
 
@@ -843,6 +845,7 @@ class BaseBot(ABC):
             macd_signal=signal.macd_signal,
             sentiment=sentiment,
             integration_boost=integration_boost,
+            total_trades=int(per_bot_stats.get("total_trades") or 0),
           )
         ):
           continue

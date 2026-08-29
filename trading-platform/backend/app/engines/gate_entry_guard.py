@@ -312,11 +312,30 @@ EARLY_VERIFICATION_MACD_INTEGRATION_BYPASS = 0.05
 STOCKS_NEGATIVE_PF_MIN_COMPOSITE = 0.42
 STOCKS_NEGATIVE_PF_HIGH_WR_MIN_COMPOSITE = 0.38
 STOCKS_PROVEN_RECOVERY_MIN_COMPOSITE = 0.38
+STOCKS_TRADE_COUNT_GRADUATION_GAP = 5
+STOCKS_TRADE_COUNT_RECOVERY_MIN_COMPOSITE = 0.34
 COMMODITIES_HIGH_COMPOSITE_RECOVERY_FLOOR = 0.48
 COMMODITIES_FUTURES_WEEKEND_FLAT_EXIT_BAND_USD = 1.0
 STOCKS_SESSION_CLOSE_WIND_DOWN_MINUTES = 30
 STOCKS_SESSION_CLOSE_FORCE_MINUTES = 15
 DEFAULT_ENTRY_MIN_SIGNAL_FLOOR = 0.08
+
+
+def stocks_trade_count_graduation_nudge(
+  bot_type: str,
+  shadow_mode: bool,
+  bot_win_rate: float | None,
+  total_trades: int,
+) -> bool:
+  """Stocks shadow has graduation WR but needs a few more trades — ease proven-winner entries."""
+  from app.engines.profitability_gate import ProfitabilityGate
+
+  if not (shadow_mode and bot_type == "stocks_futures"):
+    return False
+  if bot_win_rate is None or bot_win_rate < ProfitabilityGate.GRADUATION_MIN_WIN_RATE:
+    return False
+  gap = ProfitabilityGate.GRADUATION_MIN_TRADES - total_trades
+  return 0 < gap <= STOCKS_TRADE_COUNT_GRADUATION_GAP
 
 
 def early_verification_active(active_trades: int, active_wr: float) -> bool:
@@ -553,6 +572,7 @@ def chronic_loser_blocks_shadow_entry(
   composite: float | None = None,
   signal_direction: str | None = None,
   macd_signal: str | None = None,
+  total_trades: int = 0,
 ) -> bool:
   """Chronic losers are skippable during graduation nudge when intel override applies."""
   if symbol not in chronic_symbols:
@@ -566,6 +586,7 @@ def chronic_loser_blocks_shadow_entry(
     composite=composite or 0.0,
     signal_direction=signal_direction or "buy",
     macd_signal=macd_signal or "bullish",
+    total_trades=total_trades,
   ):
     return False
   if commodities_high_composite_recovery_entry_ok(
@@ -1342,6 +1363,7 @@ def hard_skip_blocks_shadow_entry(
   macd_signal: str = "bullish",
   proven_winners: frozenset[str] | None = None,
   bot_win_rate: float | None = None,
+  total_trades: int = 0,
 ) -> bool:
   """Hard gate-skip during graduation nudge — review blocks ease on strong active-gate composites."""
   recovery_ok = (
@@ -1354,6 +1376,7 @@ def hard_skip_blocks_shadow_entry(
       composite=composite,
       signal_direction=signal_direction,
       macd_signal=macd_signal,
+      total_trades=total_trades,
     )
     or commodities_high_composite_recovery_entry_ok(
       bot_type=bot_type,
@@ -1906,6 +1929,10 @@ def stocks_negative_pf_blocks_entry(
     and bot_win_rate >= ProfitabilityGate.GRADUATION_MIN_WIN_RATE
   ):
     min_composite = STOCKS_NEGATIVE_PF_HIGH_WR_MIN_COMPOSITE
+    if stocks_trade_count_graduation_nudge(
+      bot_type, True, bot_win_rate, total_trades
+    ):
+      min_composite = STOCKS_TRADE_COUNT_RECOVERY_MIN_COMPOSITE
   if symbol in proven_winners and composite >= min_composite:
     return False
   return True
@@ -1921,6 +1948,7 @@ def stocks_proven_winner_recovery_entry_ok(
   composite: float,
   signal_direction: str,
   macd_signal: str,
+  total_trades: int = 0,
 ) -> bool:
   """High-WR stocks shadow can re-enter proven winners with aligned bullish signals."""
   from app.engines.profitability_gate import ProfitabilityGate
@@ -1933,7 +1961,12 @@ def stocks_proven_winner_recovery_entry_ok(
     return False
   if signal_direction != "buy" or macd_signal != "bullish":
     return False
-  return composite >= STOCKS_PROVEN_RECOVERY_MIN_COMPOSITE
+  min_composite = STOCKS_PROVEN_RECOVERY_MIN_COMPOSITE
+  if stocks_trade_count_graduation_nudge(
+    bot_type, shadow_mode, bot_win_rate, total_trades
+  ):
+    min_composite = STOCKS_TRADE_COUNT_RECOVERY_MIN_COMPOSITE
+  return composite >= min_composite
 
 
 def commodities_high_composite_recovery_entry_ok(
@@ -1969,6 +2002,7 @@ def stocks_proven_winner_sentiment_gate_ok(
   macd_signal: str,
   sentiment: float,
   integration_boost: float,
+  total_trades: int = 0,
 ) -> bool:
   """Allow proven-winner recovery entries despite weak sentiment during gate tightening."""
   if stocks_gate_entry_sentiment_ok(sentiment, integration_boost):
@@ -1982,6 +2016,7 @@ def stocks_proven_winner_sentiment_gate_ok(
     composite=composite,
     signal_direction=signal_direction,
     macd_signal=macd_signal,
+    total_trades=total_trades,
   )
 
 
@@ -2020,6 +2055,7 @@ STOCKS_MONDAY_RECOVERY_SOFT_BLOCKERS = frozenset({
   "volume",
   "sentiment_gate",
   "gate_skip",
+  "stocks_negative_pf",
 })
 
 
@@ -2032,6 +2068,7 @@ def stocks_monday_recovery_ready(
   bot_win_rate: float | None,
   composite: float,
   blockers: list[str],
+  total_trades: int = 0,
 ) -> bool:
   """Proven stock shadow winner blocked only by session/signal gates that flip on aligned setups."""
   if not stocks_proven_winner_recovery_entry_ok(
@@ -2043,6 +2080,7 @@ def stocks_monday_recovery_ready(
     composite=composite,
     signal_direction="buy",
     macd_signal="bullish",
+    total_trades=total_trades,
   ):
     return False
   if not blockers:

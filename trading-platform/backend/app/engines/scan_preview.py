@@ -51,6 +51,7 @@ from app.engines.gate_entry_guard import (
   shadow_intel_composite_override,
   shadow_requires_macd,
   stocks_monday_recovery_ready,
+  stocks_trade_count_graduation_nudge,
   stocks_proven_winner_sentiment_gate_ok,
   stocks_negative_pf_blocks_entry,
   stocks_session_info,
@@ -150,6 +151,12 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
     bot_wr,
     profit_factor=per_bot_stats.get("profit_factor"),
     total_pnl=per_bot_stats.get("total_pnl"),
+  )
+  stocks_trade_count_nudge = stocks_trade_count_graduation_nudge(
+    bot_type,
+    shadow_mode,
+    per_bot_stats.get("win_rate"),
+    int(per_bot_stats.get("total_trades") or 0),
   )
   min_sentiment = graduation_nudge_min_sentiment(
     bot_type,
@@ -385,6 +392,7 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
       macd_signal=signal.macd_signal,
       proven_winners=proven_winners,
       bot_win_rate=per_bot_stats.get("win_rate"),
+      total_trades=int(per_bot_stats.get("total_trades") or 0),
     ):
       blockers.append("gate_skip")
     if chronic_loser_blocks_shadow_entry(
@@ -399,6 +407,7 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
       composite=composite,
       signal_direction=signal.direction,
       macd_signal=signal.macd_signal,
+      total_trades=int(per_bot_stats.get("total_trades") or 0),
     ):
       blockers.append("chronic_loser")
     if (
@@ -505,6 +514,7 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
         macd_signal=signal.macd_signal,
         sentiment=sentiment,
         integration_boost=integration_boost,
+        total_trades=int(per_bot_stats.get("total_trades") or 0),
       )
     ):
       blockers.append("sentiment_gate")
@@ -543,6 +553,7 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
             bot_win_rate=per_bot_stats.get("win_rate"),
             composite=composite,
             blockers=blockers,
+            total_trades=int(per_bot_stats.get("total_trades") or 0),
           )
         ),
         "integration_boost": round(integration_boost, 3),
@@ -564,6 +575,7 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
     "bot_type": bot_type,
     "shadow_mode": shadow_mode,
     "graduation_nudge": graduation_nudge,
+    "stocks_trade_count_nudge": stocks_trade_count_nudge,
     "early_verification_boost": early_verification_boost,
     "shadow_bot_wr": bot_wr if bot_wr is not None else shadow_bot_wr,
     "proven_winners": sorted(proven_winners),

@@ -210,6 +210,24 @@ def test_stocks_negative_pf_blocks_entry():
   assert stocks_negative_pf_blocks_entry(
     bot_type="stocks_futures",
     symbol="NVDA",
+    composite=0.34,
+    proven_winners=frozenset({"NVDA"}),
+    profit_factor=0.62,
+    total_trades=15,
+    bot_win_rate=0.57,
+  ) is False
+  assert stocks_negative_pf_blocks_entry(
+    bot_type="stocks_futures",
+    symbol="NVDA",
+    composite=0.33,
+    proven_winners=frozenset({"NVDA"}),
+    profit_factor=0.62,
+    total_trades=15,
+    bot_win_rate=0.57,
+  ) is True
+  assert stocks_negative_pf_blocks_entry(
+    bot_type="stocks_futures",
+    symbol="NVDA",
     composite=0.39,
     proven_winners=frozenset({"NVDA"}),
     profit_factor=0.62,
@@ -224,6 +242,67 @@ def test_stocks_negative_pf_blocks_entry():
     profit_factor=0.62,
     total_trades=15,
   ) is False
+
+
+def test_stocks_trade_count_graduation_nudge():
+  from app.engines.gate_entry_guard import (
+    STOCKS_TRADE_COUNT_GRADUATION_GAP,
+    stocks_trade_count_graduation_nudge,
+    stocks_proven_winner_recovery_entry_ok,
+    stocks_monday_recovery_ready,
+  )
+
+  assert stocks_trade_count_graduation_nudge(
+    "stocks_futures", True, 0.57, 15
+  ) is True
+  assert stocks_trade_count_graduation_nudge(
+    "stocks_futures", True, 0.57, 20
+  ) is False
+  assert stocks_trade_count_graduation_nudge(
+    "stocks_futures", True, 0.57, 14
+  ) is False
+  assert stocks_trade_count_graduation_nudge(
+    "stocks_futures", True, 0.57, 20 - STOCKS_TRADE_COUNT_GRADUATION_GAP
+  ) is True
+  assert stocks_trade_count_graduation_nudge(
+    "stocks_futures", True, 0.57, 20 - STOCKS_TRADE_COUNT_GRADUATION_GAP - 1
+  ) is False
+  assert stocks_trade_count_graduation_nudge(
+    "stocks_futures", False, 0.57, 15
+  ) is False
+  assert stocks_trade_count_graduation_nudge(
+    "commodities", True, 0.57, 15
+  ) is False
+  assert stocks_trade_count_graduation_nudge(
+    "stocks_futures", True, 0.50, 15
+  ) is False
+
+  recovery = dict(
+    bot_type="stocks_futures",
+    shadow_mode=True,
+    symbol="NVDA",
+    proven_winners=frozenset({"NVDA"}),
+    bot_win_rate=0.57,
+    composite=0.34,
+    signal_direction="buy",
+    macd_signal="bullish",
+    total_trades=15,
+  )
+  assert stocks_proven_winner_recovery_entry_ok(**recovery) is True
+  assert stocks_proven_winner_recovery_entry_ok(
+    **{**recovery, "total_trades": 20}
+  ) is False
+
+  assert stocks_monday_recovery_ready(
+    bot_type="stocks_futures",
+    shadow_mode=True,
+    symbol="NVDA",
+    proven_winners=frozenset({"NVDA"}),
+    bot_win_rate=0.57,
+    composite=0.34,
+    blockers=["stocks_negative_pf", "signal_sell"],
+    total_trades=15,
+  ) is True
 
 
 def test_stocks_proven_winner_recovery_bypasses_large_loss_skip():
