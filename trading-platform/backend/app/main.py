@@ -134,6 +134,25 @@ async def crm_landing():
 
   redirect_seconds = 15 if recovery_candidates else 3
 
+  from app.engines.gate_entry_guard import commodities_session_info, stocks_session_info
+
+  cme_session = commodities_session_info()
+  stocks_session = stocks_session_info()
+  session_lines: list[str] = []
+  if not cme_session.get("in_session"):
+    mins = cme_session.get("minutes_until_open")
+    if mins is not None:
+      session_lines.append(f"CME futures reopen in {mins // 60}h {mins % 60}m ({cme_session.get('mode', '')})")
+  else:
+    session_lines.append("CME futures session open")
+  if not stocks_session.get("in_session"):
+    mins = stocks_session.get("minutes_until_open")
+    if mins is not None:
+      session_lines.append(f"US stocks open in {mins // 60}h {mins % 60}m ({stocks_session.get('mode', '')})")
+  else:
+    session_lines.append("US stocks session open")
+  session_summary = " · ".join(session_lines)
+
   if stale and url == deploy.get("verified_dashboard_url"):
     bundle_label = deploy.get("verified_bundle_revision") or EXPECTED_DASHBOARD_BUNDLE
     deploy_note = (
@@ -187,6 +206,7 @@ async def crm_landing():
 <body>
   <h1>Apex Trading CRM</h1>
   <p>Paper trading · 4 autonomous bots · Real-time WebSocket</p>
+  <p class="muted" style="margin-top:0;">{session_summary}</p>
   <div class="card">
     <p class="label">30-day verification gate · day {day}/30</p>
     <div class="grid">
