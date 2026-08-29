@@ -11,7 +11,12 @@ from app.engines.gate_entry_guard import build_gate_ws_payload
 from app.engines.platform_settings import get_paused_bot_types
 from app.intelligence.axiom_tracker import axiom_configured, get_axiom_session_status
 from app.intelligence.fomo_tracker import fomo_configured, get_fomo_bearer_status
-from app.intelligence.phantom_tracker import parse_phantom_wallet_addresses, phantom_configured
+from app.intelligence.phantom_tracker import (
+  parse_phantom_wallet_addresses,
+  phantom_configured,
+  phantom_poll_wallet_addresses,
+  phantom_portfolio_poll_active,
+)
 from app.intelligence.wallet_tracker import wallet_tracker_configured
 from app.models.entities import IntelligenceItem, Position
 
@@ -86,11 +91,9 @@ async def build_crm_integration_hooks(session: AsyncSession) -> dict[str, Any]:
       "configured": phantom_configured(),
       "webhook_url": "https://apex-trading-backend.onrender.com/api/webhooks/phantom",
       "userscript_url": "https://apex-trading-backend.onrender.com/api/phantom/userscript",
-      "portfolio_poll": bool(
-        settings.phantom_portfolio_poll_enabled
-        and parse_phantom_wallet_addresses()
-        and settings.helius_api_key
-      ),
+      "portfolio_poll": phantom_portfolio_poll_active(),
+      "tracked_wallets": len(phantom_poll_wallet_addresses()),
+      "using_default_wallets": not bool(parse_phantom_wallet_addresses()),
       "note": "Phantom MCP in Cursor is docs-only — webhook, userscript, or Helius portfolio poll",
     },
   }

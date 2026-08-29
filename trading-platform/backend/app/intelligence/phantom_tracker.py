@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.intelligence.fomo_tracker import normalize_fomo_symbol, trader_sentiment
+from app.intelligence.memecoin_whales import DEFAULT_SOLANA_WHALE_ADDRESSES
 from app.intelligence.scanner import categorize
 from app.models.entities import IntelligenceItem
 
@@ -40,6 +41,25 @@ def parse_phantom_wallet_addresses() -> list[str]:
       seen.add(addr)
       unique.append(addr)
   return unique
+
+
+def phantom_poll_wallet_addresses() -> list[str]:
+  """Wallets for 24/7 Helius portfolio poll — explicit PHANTOM_WALLET_ADDRESSES or default whales."""
+  explicit = parse_phantom_wallet_addresses()
+  if explicit:
+    return explicit
+  if settings.wallet_tracker_use_defaults:
+    return list(DEFAULT_SOLANA_WHALE_ADDRESSES)
+  return []
+
+
+def phantom_portfolio_poll_active() -> bool:
+  return bool(
+    settings.phantom_enabled
+    and settings.phantom_portfolio_poll_enabled
+    and settings.helius_api_key
+    and phantom_poll_wallet_addresses()
+  )
 
 
 async def ingest_phantom_webhook(session: AsyncSession, payload: dict) -> dict:
@@ -147,7 +167,7 @@ async def scan_phantom_portfolios(session: AsyncSession) -> int:
   if not settings.helius_api_key:
     return 0
 
-  addresses = parse_phantom_wallet_addresses()
+  addresses = phantom_poll_wallet_addresses()
   if not addresses:
     return 0
 

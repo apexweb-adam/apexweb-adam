@@ -670,10 +670,13 @@ export default function Dashboard() {
                             {platformStatus.integrations.phantom_portfolio_poll ? (
                               <p className="mt-1 text-[10px] text-green-400">
                                 Server-side Helius portfolio poll active
+                                {platformStatus.integrations.phantom_tracked_wallets
+                                  ? ` (${platformStatus.integrations.phantom_tracked_wallets} wallets)`
+                                  : ""}
                               </p>
                             ) : (
                               <p className="mt-1 text-[10px] text-amber-400">
-                                Set PHANTOM_WALLET_ADDRESSES + HELIUS_API_KEY for 24/7 server poll
+                                Helius poll inactive — set HELIUS_API_KEY or install Phantom userscript
                               </p>
                             )}
                             {platformStatus.integrations.phantom_setup && (
