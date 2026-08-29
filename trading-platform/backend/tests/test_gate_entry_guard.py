@@ -641,6 +641,74 @@ def test_stocks_monday_recovery_ready():
   assert stocks_monday_recovery_ready(**base, blockers=[]) is False
 
 
+def test_stocks_monday_open_ready():
+  from app.engines.gate_entry_guard import stocks_monday_open_ready
+
+  base = dict(
+    bot_type="stocks_futures",
+    shadow_mode=True,
+    symbol="AAPL",
+    proven_winners=frozenset({"AAPL", "NVDA"}),
+    bot_win_rate=0.57,
+    composite=0.47,
+    signal_direction="buy",
+    macd_signal="bullish",
+    total_trades=15,
+  )
+  assert stocks_monday_open_ready(**base, blockers=["gate_skip"]) is True
+  assert stocks_monday_open_ready(
+    **base, blockers=["gate_skip", "signal_sell"]
+  ) is False
+  assert stocks_monday_open_ready(**base, blockers=[]) is False
+  assert stocks_monday_open_ready(
+    **{**base, "signal_direction": "sell"}, blockers=["gate_skip"]
+  ) is False
+
+
+def test_crypto_momentum_retreat_gate_skip_bypass():
+  from app.engines.gate_entry_guard import (
+    CRYPTO_MOMENTUM_RETREAT_MIN_SIGNAL,
+    crypto_momentum_retreat_gate_skip_bypass,
+    hard_skip_blocks_shadow_entry,
+  )
+
+  retreat = dict(
+    bot_type="crypto",
+    shadow_mode=True,
+    graduation_nudge=True,
+    bot_win_rate=0.468,
+    profit_factor=1.07,
+    total_pnl=9.85,
+    signal_direction="buy",
+    macd_signal="bullish",
+    composite=CRYPTO_MOMENTUM_RETREAT_MIN_SIGNAL + 0.05,
+  )
+  assert crypto_momentum_retreat_gate_skip_bypass(**retreat) is True
+  assert crypto_momentum_retreat_gate_skip_bypass(
+    **{**retreat, "composite": CRYPTO_MOMENTUM_RETREAT_MIN_SIGNAL - 0.01}
+  ) is False
+  assert crypto_momentum_retreat_gate_skip_bypass(
+    **{**retreat, "signal_direction": "sell"}
+  ) is False
+  assert hard_skip_blocks_shadow_entry(
+    "SOLUSDT",
+    bot_type="crypto",
+    recent_skip=frozenset({"SOLUSDT"}),
+    large_skip=frozenset(),
+    review_skip=frozenset(),
+    graduation_nudge=True,
+    shadow_mode=True,
+    intel_override=False,
+    composite=0.55,
+    integration_boost=0.0,
+    signal_direction="buy",
+    macd_signal="bullish",
+    bot_win_rate=0.468,
+    profit_factor=1.07,
+    total_pnl=9.85,
+  ) is False
+
+
 def test_stocks_monday_gate_skip_bypass():
   from datetime import datetime
   from unittest.mock import patch

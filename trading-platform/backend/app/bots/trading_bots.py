@@ -1006,6 +1006,8 @@ class BaseBot(ABC):
           proven_winners=proven_winners,
           bot_win_rate=per_bot_stats.get("win_rate"),
           total_trades=int(per_bot_stats.get("total_trades") or 0),
+          profit_factor=per_bot_stats.get("profit_factor"),
+          total_pnl=per_bot_stats.get("total_pnl"),
         ):
           continue
 

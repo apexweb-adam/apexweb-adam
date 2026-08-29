@@ -1027,6 +1027,33 @@ def crypto_momentum_retreat_raw_signal_ok(
   return signal_score >= CRYPTO_MOMENTUM_RETREAT_MIN_RAW_SIGNAL
 
 
+def crypto_momentum_retreat_gate_skip_bypass(
+  *,
+  bot_type: str,
+  shadow_mode: bool,
+  graduation_nudge: bool,
+  bot_win_rate: float | None,
+  profit_factor: float | None,
+  total_pnl: float | None,
+  signal_direction: str,
+  macd_signal: str,
+  composite: float,
+) -> bool:
+  """Crypto shadow momentum retreat bypasses recent gate_skip on aligned setups."""
+  if not crypto_momentum_retreat_active(
+    bot_type,
+    shadow_mode,
+    graduation_nudge,
+    bot_win_rate,
+    profit_factor,
+    total_pnl,
+  ):
+    return False
+  if signal_direction != "buy" or macd_signal != "bullish":
+    return False
+  return composite >= CRYPTO_MOMENTUM_RETREAT_MIN_SIGNAL
+
+
 def crypto_shadow_raw_signal_floor_active(
   bot_type: str,
   shadow_mode: bool,
@@ -1186,6 +1213,18 @@ def chronic_loser_blocks_shadow_entry(
     proven_winners=proven_winners or frozenset(),
     bot_win_rate=bot_win_rate,
     total_trades=total_trades,
+    signal_direction=signal_direction or "buy",
+    macd_signal=macd_signal or "bullish",
+    composite=composite or 0.0,
+  ):
+    return False
+  if crypto_momentum_retreat_gate_skip_bypass(
+    bot_type=bot_type,
+    shadow_mode=shadow_mode,
+    graduation_nudge=graduation_nudge,
+    bot_win_rate=bot_win_rate,
+    profit_factor=profit_factor,
+    total_pnl=total_pnl,
     signal_direction=signal_direction or "buy",
     macd_signal=macd_signal or "bullish",
     composite=composite or 0.0,
@@ -2389,6 +2428,8 @@ def hard_skip_blocks_shadow_entry(
   proven_winners: frozenset[str] | None = None,
   bot_win_rate: float | None = None,
   total_trades: int = 0,
+  profit_factor: float | None = None,
+  total_pnl: float | None = None,
 ) -> bool:
   """Hard gate-skip during graduation nudge — review blocks ease on strong active-gate composites."""
   recovery_ok = (
@@ -2496,6 +2537,18 @@ def hard_skip_blocks_shadow_entry(
       composite=composite,
     ):
       return False
+    if crypto_momentum_retreat_gate_skip_bypass(
+      bot_type=bot_type,
+      shadow_mode=shadow_mode,
+      graduation_nudge=graduation_nudge,
+      bot_win_rate=bot_win_rate,
+      profit_factor=profit_factor,
+      total_pnl=total_pnl,
+      signal_direction=signal_direction,
+      macd_signal=macd_signal,
+      composite=composite,
+    ):
+      return False
     if graduation_nudge_easing_active(
       bot_type,
       graduation_nudge=graduation_nudge,
@@ -2537,6 +2590,18 @@ def hard_skip_blocks_shadow_entry(
       proven_winners=proven_winners or frozenset(),
       bot_win_rate=bot_win_rate,
       total_trades=total_trades,
+      signal_direction=signal_direction,
+      macd_signal=macd_signal,
+      composite=composite,
+    ):
+      return False
+    if crypto_momentum_retreat_gate_skip_bypass(
+      bot_type=bot_type,
+      shadow_mode=shadow_mode,
+      graduation_nudge=graduation_nudge,
+      bot_win_rate=bot_win_rate,
+      profit_factor=profit_factor,
+      total_pnl=total_pnl,
       signal_direction=signal_direction,
       macd_signal=macd_signal,
       composite=composite,
@@ -3443,6 +3508,39 @@ STOCKS_MONDAY_RECOVERY_SOFT_BLOCKERS = frozenset({
   "gate_skip",
   "stocks_negative_pf",
 })
+
+STOCKS_MONDAY_OPEN_READY_BLOCKERS = frozenset({"gate_skip"})
+
+
+def stocks_monday_open_ready(
+  *,
+  bot_type: str,
+  shadow_mode: bool,
+  symbol: str,
+  proven_winners: frozenset[str],
+  bot_win_rate: float | None,
+  composite: float,
+  signal_direction: str,
+  macd_signal: str,
+  blockers: list[str],
+  total_trades: int = 0,
+) -> bool:
+  """Proven stock shadow winner that will enter when gate_skip clears pre-US open."""
+  if not stocks_proven_winner_recovery_entry_ok(
+    bot_type=bot_type,
+    shadow_mode=shadow_mode,
+    symbol=symbol,
+    proven_winners=proven_winners,
+    bot_win_rate=bot_win_rate,
+    composite=composite,
+    signal_direction=signal_direction,
+    macd_signal=macd_signal,
+    total_trades=total_trades,
+  ):
+    return False
+  if not blockers:
+    return False
+  return set(blockers).issubset(STOCKS_MONDAY_OPEN_READY_BLOCKERS)
 
 
 def stocks_monday_recovery_ready(

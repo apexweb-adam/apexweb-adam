@@ -37,6 +37,7 @@ from app.engines.gate_entry_guard import (
   crypto_momentum_retreat_entry_min_signal,
   crypto_momentum_retreat_active,
   crypto_momentum_retreat_raw_signal_ok,
+  crypto_momentum_retreat_gate_skip_bypass,
   crypto_shadow_raw_signal_floor_active,
   CRYPTO_MOMENTUM_RETREAT_MIN_RAW_SIGNAL,
   CRYPTO_MOMENTUM_RETREAT_LOSS_WIND_DOWN_USD,
@@ -70,6 +71,7 @@ from app.engines.gate_entry_guard import (
   shadow_intel_composite_override,
   shadow_requires_macd,
   stocks_monday_gate_skip_bypass,
+  stocks_monday_open_ready,
   stocks_monday_recovery_ready,
   stocks_trade_count_entry_min_signal,
   stocks_trade_count_graduation_nudge,
@@ -512,6 +514,8 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
       proven_winners=proven_winners,
       bot_win_rate=per_bot_stats.get("win_rate"),
       total_trades=int(per_bot_stats.get("total_trades") or 0),
+      profit_factor=per_bot_stats.get("profit_factor"),
+      total_pnl=per_bot_stats.get("total_pnl"),
     ):
       blockers.append("gate_skip")
     if chronic_loser_blocks_shadow_entry(
@@ -661,6 +665,7 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
       blockers.append(f"shadow_raw<{CRYPTO_MOMENTUM_RETREAT_MIN_RAW_SIGNAL:.2f}")
 
     monday_gate_skip_ready = False
+    crypto_retreat_gate_skip_ready = False
     if bot_type == "stocks_futures":
       monday_gate_skip_ready = stocks_monday_gate_skip_bypass(
         bot_type=bot_type,
@@ -671,6 +676,18 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
         total_trades=int(per_bot_stats.get("total_trades") or 0),
         signal_direction="buy",
         macd_signal="bullish",
+        composite=composite,
+      )
+    if bot_type == "crypto":
+      crypto_retreat_gate_skip_ready = crypto_momentum_retreat_gate_skip_bypass(
+        bot_type=bot_type,
+        shadow_mode=shadow_mode,
+        graduation_nudge=graduation_nudge,
+        bot_win_rate=per_bot_stats.get("win_rate"),
+        profit_factor=per_bot_stats.get("profit_factor"),
+        total_pnl=per_bot_stats.get("total_pnl"),
+        signal_direction=signal.direction,
+        macd_signal=signal.macd_signal,
         composite=composite,
       )
 
@@ -706,17 +723,32 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
             total_trades=int(per_bot_stats.get("total_trades") or 0),
           )
         ),
-        "monday_open_ready": commodities_monday_open_ready(
-          bot_type=bot_type,
-          shadow_mode=shadow_mode,
-          symbol=symbol,
-          composite=composite,
-          signal_direction=signal.direction,
-          macd_signal=signal.macd_signal,
-          blockers=blockers,
-          graduation_nudge=graduation_nudge,
+        "monday_open_ready": (
+          commodities_monday_open_ready(
+            bot_type=bot_type,
+            shadow_mode=shadow_mode,
+            symbol=symbol,
+            composite=composite,
+            signal_direction=signal.direction,
+            macd_signal=signal.macd_signal,
+            blockers=blockers,
+            graduation_nudge=graduation_nudge,
+          )
+          or stocks_monday_open_ready(
+            bot_type=bot_type,
+            shadow_mode=shadow_mode,
+            symbol=symbol,
+            proven_winners=proven_winners,
+            bot_win_rate=per_bot_stats.get("win_rate"),
+            composite=composite,
+            signal_direction=signal.direction,
+            macd_signal=signal.macd_signal,
+            blockers=blockers,
+            total_trades=int(per_bot_stats.get("total_trades") or 0),
+          )
         ),
         "monday_gate_skip_ready": monday_gate_skip_ready,
+        "crypto_retreat_gate_skip_ready": crypto_retreat_gate_skip_ready,
         "integration_boost": round(integration_boost, 3),
         "intel_override": intel_override,
         "cooldown_seconds": cooldown_remaining or None,
