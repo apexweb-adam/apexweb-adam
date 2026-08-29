@@ -1768,3 +1768,68 @@ def test_commodities_gold_proxy_duplicate_entry_and_wind_down():
     assert commodities_gold_proxy_duplicate_wind_down(
       **{**base, "held_symbols": {"XAUUSDT"}}, symbol="PAXGUSDT"
     ) is False
+    assert commodities_gold_proxy_duplicate_wind_down(
+      **{**base, "held_seconds": 90, "min_hold_seconds": 600}, symbol="PAXGUSDT"
+    ) is True
+    assert commodities_gold_proxy_duplicate_wind_down(
+      **{**base, "held_seconds": 30, "min_hold_seconds": 600}, symbol="PAXGUSDT"
+    ) is False
+
+
+def test_commodities_weekend_spot_post_profit_lock_entry_blocked():
+  import asyncio
+  from datetime import datetime
+  from unittest.mock import AsyncMock, MagicMock, patch
+
+  from app.engines.gate_entry_guard import (
+    commodities_weekend_spot_post_profit_lock_entry_blocked,
+  )
+
+  locked_at = datetime(2026, 8, 29, 13, 20, 0)
+  session = AsyncMock()
+  session.execute = AsyncMock(
+    return_value=MagicMock(scalar_one_or_none=MagicMock(return_value=locked_at))
+  )
+  base = dict(
+    bot_type="commodities",
+    shadow_mode=False,
+    graduation_nudge=True,
+    symbol="XAUUSDT",
+  )
+  with patch("app.engines.gate_entry_guard.datetime") as mock_dt:
+    mock_dt.utcnow.return_value = datetime(2026, 8, 29, 14, 0, 0)
+    mock_dt.side_effect = lambda *a, **k: datetime(*a, **k)
+    assert (
+      asyncio.run(
+        commodities_weekend_spot_post_profit_lock_entry_blocked(session, **base)
+      )
+      is True
+    )
+    assert (
+      asyncio.run(
+        commodities_weekend_spot_post_profit_lock_entry_blocked(
+          session, **{**base, "symbol": "PAXGUSDT"}
+        )
+      )
+      is True
+    )
+    assert (
+      asyncio.run(
+        commodities_weekend_spot_post_profit_lock_entry_blocked(
+          session, **{**base, "symbol": "NG=F"}
+        )
+      )
+      is False
+    )
+  session.execute = AsyncMock(
+    return_value=MagicMock(scalar_one_or_none=MagicMock(return_value=None))
+  )
+  with patch("app.engines.gate_entry_guard.datetime") as mock_dt:
+    mock_dt.utcnow.return_value = datetime(2026, 8, 29, 14, 0, 0)
+    mock_dt.side_effect = lambda *a, **k: datetime(*a, **k)
+    assert (
+      asyncio.run(
+        commodities_weekend_spot_post_profit_lock_entry_blocked(session, **base)
+      )
+      is False
+    )

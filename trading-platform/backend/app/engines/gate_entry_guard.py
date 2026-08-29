@@ -366,6 +366,8 @@ COMMODITIES_WEEKEND_SPOT_COOLDOWN_MULTIPLIER = 0.55
 COMMODITIES_WEEKEND_SPOT_GATE_SKIP_COMPOSITE_FLOOR = 0.40
 COMMODITIES_WEEKEND_GRADUATION_CAP_BONUS = 1
 COMMODITIES_WEEKEND_SPOT_PROFIT_LOCK_USD = 1.0
+COMMODITIES_WEEKEND_SPOT_POST_LOCK_BUFFER_MINUTES = 60
+COMMODITIES_GOLD_PROXY_DEDUP_MIN_HOLD_SECONDS = 60
 COMMODITIES_CAP_PRESSURE_LOSER_WIND_DOWN_USD = 0.35
 COMMODITIES_MONDAY_CAP_PRESSURE_FLAT_BAND_USD = 0.15
 STOCKS_SESSION_CLOSE_WIND_DOWN_MINUTES = 30
@@ -1029,9 +1031,53 @@ def commodities_gold_proxy_duplicate_wind_down(
     return False
   if symbol == COMMODITIES_GOLD_PROXY_PREFERRED:
     return False
-  if held_seconds < min_hold_seconds:
+  min_hold = min(min_hold_seconds, COMMODITIES_GOLD_PROXY_DEDUP_MIN_HOLD_SECONDS)
+  if held_seconds < min_hold:
     return False
   return True
+
+
+async def commodities_weekend_spot_post_profit_lock_entry_blocked(
+  session: AsyncSession,
+  *,
+  bot_type: str,
+  shadow_mode: bool,
+  graduation_nudge: bool,
+  symbol: str,
+) -> bool:
+  """After banking weekend spot profits, block re-entry until CME reopen."""
+  if shadow_mode or bot_type != "commodities" or not graduation_nudge:
+    return False
+  if symbol not in COMMODITIES_WEEKEND_SPOT_SYMBOLS:
+    return False
+  if not commodities_futures_weekend_closed():
+    return False
+  from app.models.entities import Trade
+
+  result = await session.execute(
+    select(Trade.executed_at)
+    .where(
+      Trade.bot_type == "commodities",
+      Trade.action == "sell",
+      Trade.symbol.in_(tuple(COMMODITIES_WEEKEND_SPOT_SYMBOLS)),
+      Trade.is_winner.is_(True),
+      Trade.reason.ilike("%profit lock%"),
+    )
+    .order_by(Trade.executed_at.desc())
+    .limit(1)
+  )
+  locked_at = result.scalar_one_or_none()
+  if not locked_at:
+    return False
+  session_info = commodities_session_info()
+  minutes_until = session_info.get("minutes_until_open")
+  if minutes_until is None:
+    return False
+  if locked_at.tzinfo is not None:
+    locked_at = locked_at.replace(tzinfo=None)
+  if (datetime.utcnow() - locked_at).total_seconds() > 7 * 86400:
+    return False
+  return minutes_until > 0
 
 
 def commodities_cap_pressure_loser_wind_down(

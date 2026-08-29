@@ -46,6 +46,7 @@ from app.engines.gate_entry_guard import (
   commodities_weekend_futures_entry_blocked,
   commodities_weekend_forex_entry_blocked,
   commodities_gold_proxy_duplicate_entry_blocked,
+  commodities_weekend_spot_post_profit_lock_entry_blocked,
   gate_cap_pressure_proxy_entry_blocked,
   shadow_entry_min_signal,
   shadow_graduation_min_composite,
@@ -395,6 +396,14 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
       blockers.append("weekend_forex_blocked")
     if commodities_gold_proxy_duplicate_entry_blocked(symbol, held_symbols):
       blockers.append("gold_proxy_duplicate")
+    if await commodities_weekend_spot_post_profit_lock_entry_blocked(
+      session,
+      bot_type=bot_type,
+      shadow_mode=shadow_mode,
+      graduation_nudge=graduation_nudge,
+      symbol=symbol,
+    ):
+      blockers.append("weekend_spot_post_lock")
     if gate_cap_pressure_proxy_entry_blocked(
       bot_type=bot_type,
       shadow_mode=shadow_mode,
