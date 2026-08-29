@@ -68,7 +68,7 @@ SHADOW_GRADUATION_MIN_HOLD_BY_BOT = {
   "commodities": 600,
 }
 SHADOW_GRADUATION_MIN_COMPOSITE_BY_BOT = {
-  "crypto": 0.30,
+  "crypto": 0.26,
   "commodities": 0.28,
 }
 SHADOW_GRADUATION_LOSS_WIND_DOWN_USD = 1.0
@@ -79,8 +79,11 @@ GRADUATION_NUDGE_SENTIMENT_EASE_BY_BOT = {
 }
 COMMODITIES_GRADUATION_BULLISH_SIGNAL_EASE = 0.09
 COMMODITIES_GRADUATION_BULLISH_SIGNAL_FLOOR = 0.20
+CRYPTO_GRADUATION_BULLISH_SIGNAL_EASE = 0.06
+CRYPTO_GRADUATION_BULLISH_SIGNAL_FLOOR = 0.24
 CRYPTO_SHADOW_REVIEW_BYPASS_COMPOSITE = 0.32
 CRYPTO_SHADOW_COMPOSITE_SENTIMENT_MARGIN = 0.01
+CRYPTO_SHADOW_BULLISH_SENTIMENT_COMPOSITE_FLOOR = 0.26
 
 
 def shadow_min_signal_boost(
@@ -413,6 +416,26 @@ def commodities_graduation_entry_min_signal(
   return eased
 
 
+def crypto_graduation_entry_min_signal(
+  entry_min_signal: float,
+  *,
+  bot_type: str,
+  graduation_nudge: bool,
+  shadow_mode: bool,
+  signal_direction: str,
+  macd_signal: str,
+) -> float:
+  """Ease entry threshold for aligned bullish shadow crypto during graduation nudge."""
+  if not (graduation_nudge and shadow_mode and bot_type == "crypto"):
+    return entry_min_signal
+  if signal_direction == "buy" and macd_signal == "bullish":
+    return max(
+      CRYPTO_GRADUATION_BULLISH_SIGNAL_FLOOR,
+      entry_min_signal - CRYPTO_GRADUATION_BULLISH_SIGNAL_EASE,
+    )
+  return entry_min_signal
+
+
 def graduation_nudge_sentiment_ok(
   bot_type: str,
   *,
@@ -423,6 +446,8 @@ def graduation_nudge_sentiment_ok(
   min_sentiment: float,
   composite: float,
   entry_min_signal: float,
+  signal_direction: str = "buy",
+  macd_signal: str = "bullish",
 ) -> bool:
   """Allow strong-composite shadow crypto entries during graduation nudge despite weak sentiment."""
   if sentiment + integration_boost >= min_sentiment:
@@ -432,6 +457,15 @@ def graduation_nudge_sentiment_ok(
     and shadow_mode
     and bot_type == "crypto"
     and composite >= entry_min_signal + CRYPTO_SHADOW_COMPOSITE_SENTIMENT_MARGIN
+  ):
+    return True
+  if (
+    graduation_nudge
+    and shadow_mode
+    and bot_type == "crypto"
+    and signal_direction == "buy"
+    and macd_signal == "bullish"
+    and composite >= CRYPTO_SHADOW_BULLISH_SENTIMENT_COMPOSITE_FLOOR
   ):
     return True
   return False

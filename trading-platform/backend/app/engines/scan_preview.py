@@ -33,6 +33,7 @@ from app.engines.gate_entry_guard import (
   hard_skip_blocks_shadow_entry,
   bot_win_rate_for_graduation_nudge,
   commodities_graduation_entry_min_signal,
+  crypto_graduation_entry_min_signal,
   graduation_nudge_min_sentiment,
   graduation_nudge_sentiment_ok,
   in_shadow_graduation_nudge,
@@ -250,6 +251,14 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
       symbol=symbol,
       proven_winners=proven_winners,
     )
+    entry_min_signal = crypto_graduation_entry_min_signal(
+      entry_min_signal,
+      bot_type=bot_type,
+      graduation_nudge=graduation_nudge,
+      shadow_mode=shadow_mode,
+      signal_direction=signal.direction,
+      macd_signal=signal.macd_signal,
+    )
 
     volume_required = signal.volume_confirmed
     if (
@@ -423,6 +432,8 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
       min_sentiment=min_sentiment,
       composite=composite,
       entry_min_signal=entry_min_signal,
+      signal_direction=signal.direction,
+      macd_signal=signal.macd_signal,
     ):
       blockers.append(f"sentiment<{min_sentiment:.2f}")
     if (

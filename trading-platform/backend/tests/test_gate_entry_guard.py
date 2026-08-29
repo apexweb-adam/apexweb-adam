@@ -310,7 +310,7 @@ def test_shadow_graduation_min_composite():
 
   assert shadow_graduation_min_composite(
     "crypto", graduation_nudge=True, shadow_mode=True
-  ) == 0.30
+  ) == 0.26
   assert shadow_graduation_min_composite(
     "commodities", graduation_nudge=True, shadow_mode=False
   ) == 0.28
@@ -568,6 +568,20 @@ def test_commodities_graduation_entry_min_signal_bullish_ease():
   assert eased == 0.22
 
 
+def test_crypto_graduation_entry_min_signal_bullish_ease():
+  from app.engines.gate_entry_guard import crypto_graduation_entry_min_signal
+
+  eased = crypto_graduation_entry_min_signal(
+    0.302,
+    bot_type="crypto",
+    graduation_nudge=True,
+    shadow_mode=True,
+    signal_direction="buy",
+    macd_signal="bullish",
+  )
+  assert eased == 0.242
+
+
 def test_graduation_nudge_sentiment_ok_shadow_crypto_composite_bypass():
   from app.engines.gate_entry_guard import graduation_nudge_sentiment_ok
 
@@ -590,4 +604,18 @@ def test_graduation_nudge_sentiment_ok_shadow_crypto_composite_bypass():
     min_sentiment=0.06,
     composite=0.295,
     entry_min_signal=0.30,
+    signal_direction="sell",
+    macd_signal="bearish",
   ) is False
+  assert graduation_nudge_sentiment_ok(
+    "crypto",
+    graduation_nudge=True,
+    shadow_mode=True,
+    sentiment=-0.197,
+    integration_boost=0.0,
+    min_sentiment=0.06,
+    composite=0.267,
+    entry_min_signal=0.26,
+    signal_direction="buy",
+    macd_signal="bullish",
+  ) is True
