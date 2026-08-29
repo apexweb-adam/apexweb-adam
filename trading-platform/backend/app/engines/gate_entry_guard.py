@@ -192,6 +192,16 @@ def shadow_max_open_for_bot(
     )
   ):
     return max(base, SHADOW_PROFITABLE_GRADUATION_NUDGE_MAX_OPEN)
+  if (
+    crypto_near_graduation_nudge(
+      bot_type,
+      shadow_mode,
+      bot_win_rate,
+      profit_factor,
+      total_pnl,
+    )
+  ):
+    return max(base, SHADOW_PROFITABLE_GRADUATION_NUDGE_MAX_OPEN)
   if in_shadow_graduation_nudge(
     bot_type,
     bot_win_rate,
