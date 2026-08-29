@@ -1651,6 +1651,12 @@ function BotScanPreview({ botType }: { botType: string }) {
         {preview.crypto_pre_graduation_nudge && (
           <span className="text-sky-400/90"> · pre-graduation (loss cut $2.00)</span>
         )}
+        {preview.crypto_cap_pressure_active && (
+          <span className="text-rose-400/90" title="At shadow cap — fast loser exits active (60s@-$6, 180s@-$4, 300s@-$2)">
+            {" "}
+            · cap pressure
+          </span>
+        )}
         {preview.recovery_candidates && preview.recovery_candidates.length > 0 && (
           <span className="text-emerald-400/90">
             {" "}
