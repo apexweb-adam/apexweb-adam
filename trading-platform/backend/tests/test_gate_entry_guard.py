@@ -1111,6 +1111,23 @@ def test_shadow_graduation_profit_lock():
     profit_factor=0.96,
     total_pnl=-4.85,
   ) is False
+
+
+def test_crypto_near_graduation_early_profit_lock():
+  from app.engines.gate_entry_guard import shadow_graduation_profit_lock
+
+  base = dict(
+    graduation_nudge=True,
+    shadow_mode=True,
+    bot_type="crypto",
+    min_hold_seconds=900,
+    bot_win_rate=0.426,
+    profit_factor=0.99,
+    total_pnl=-1.58,
+  )
+  assert shadow_graduation_profit_lock(unrealized=3.25, held_seconds=120, **base) is True
+  assert shadow_graduation_profit_lock(unrealized=3.25, held_seconds=30, **base) is False
+  assert shadow_graduation_profit_lock(unrealized=2.0, held_seconds=120, **base) is False
   assert shadow_graduation_profit_lock(
     graduation_nudge=True,
     shadow_mode=False,
