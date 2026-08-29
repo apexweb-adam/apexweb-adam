@@ -52,6 +52,11 @@ YAHOO_CRYPTO_SYMBOLS = {
   "XAUUSDT": "GC=F",
 }
 
+# Prefer 24/7 crypto feeds over stale Yahoo futures for paper marks and exits.
+CRYPTO_LIVE_PRICE_PROXY: dict[str, str] = {
+  "XAUUSDT": "PAXGUSDT",
+}
+
 _price_cache: dict[str, float] = {}
 
 
@@ -166,6 +171,15 @@ async def fetch_yahoo_crypto(symbol: str, interval: str = "15m") -> tuple[float,
 
 
 async def fetch_crypto_data(symbol: str, interval: str = "5m") -> tuple[float, pd.DataFrame | None]:
+  proxy = CRYPTO_LIVE_PRICE_PROXY.get(symbol)
+  if proxy and proxy != symbol:
+    proxy_price, proxy_df = await fetch_crypto_data(proxy, interval)
+    if proxy_price > 0:
+      _price_cache[symbol] = proxy_price
+      if proxy_df is not None and len(proxy_df) >= 30:
+        return proxy_price, proxy_df
+      return proxy_price, generate_synthetic_ohlcv(proxy_price)
+
   price, df = await fetch_binance(symbol, interval)
   if price > 0 and df is not None and len(df) >= 30:
     return price, df

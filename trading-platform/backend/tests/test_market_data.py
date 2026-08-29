@@ -44,6 +44,39 @@ def test_fetch_crypto_data_yahoo_fallback_when_binance_blocked():
   asyncio.run(run())
 
 
+def test_fetch_crypto_data_xauusdt_uses_paxg_live_proxy():
+  import pandas as pd
+
+  async def run():
+    df = pd.DataFrame(
+      {
+        "open": [4400.0] * 40,
+        "high": [4410.0] * 40,
+        "low": [4390.0] * 40,
+        "close": [4405.0] * 40,
+        "volume": [1000.0] * 40,
+      }
+    )
+
+    async def mock_binance(sym, interval="5m", limit=100):
+      if sym == "PAXGUSDT":
+        return 4460.69, df
+      return 0.0, None
+
+    with patch(
+      "app.engines.market_data.fetch_binance",
+      new=AsyncMock(side_effect=mock_binance),
+    ), patch(
+      "app.engines.market_data.settings"
+    ) as mock_settings:
+      mock_settings.hyperliquid_enabled = False
+      price, out_df = await fetch_crypto_data("XAUUSDT", "15m")
+      assert price == 4460.69
+      assert out_df is not None
+
+  asyncio.run(run())
+
+
 def test_fetch_yahoo_crypto_synthetic_when_chart_sparse():
   async def run():
     with patch(
