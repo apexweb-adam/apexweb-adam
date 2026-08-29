@@ -290,6 +290,8 @@ def crypto_momentum_retreat_active(
   """Crypto shadow in momentum retreat — WR/PF below entry-ease tier."""
   if not (graduation_nudge and shadow_mode and bot_type == "crypto"):
     return False
+  if bot_win_rate is None or profit_factor is None or total_pnl is None:
+    return False
   return not crypto_graduation_entry_ease_active(
     bot_type,
     shadow_mode,
