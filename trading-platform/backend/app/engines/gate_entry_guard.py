@@ -342,6 +342,7 @@ STOCKS_TRADE_COUNT_MIN_SENTIMENT = 0.05
 COMMODITIES_HIGH_COMPOSITE_RECOVERY_FLOOR = 0.48
 COMMODITIES_FUTURES_WEEKEND_FLAT_EXIT_BAND_USD = 1.0
 COMMODITIES_WEEKEND_SPOT_SYMBOLS = frozenset({"XAUUSDT", "PAXGUSDT"})
+COMMODITIES_GOLD_PROXY_PREFERRED = "XAUUSDT"
 COMMODITIES_WEEKEND_SPOT_COOLDOWN_MULTIPLIER = 0.55
 COMMODITIES_WEEKEND_SPOT_GATE_SKIP_COMPOSITE_FLOOR = 0.40
 COMMODITIES_WEEKEND_GRADUATION_CAP_BONUS = 1
@@ -921,9 +922,7 @@ def gate_cap_pressure_proxy_wind_down(
   """Free gate slots by exiting losing crypto proxy marks when commodities is at open cap."""
   if shadow_mode or bot_type not in ACTIVE_GATE_GRADUATION_NUDGE_BOTS or not graduation_nudge:
     return False
-  from app.engines.market_data import CRYPTO_LIVE_PRICE_PROXY
-
-  if symbol not in CRYPTO_LIVE_PRICE_PROXY:
+  if symbol not in _commodities_cap_pressure_proxy_symbols():
     return False
   cap = commodities_effective_open_cap(
     gate_tightening.max_commodities_open_positions,
@@ -938,6 +937,12 @@ def gate_cap_pressure_proxy_wind_down(
   return unrealized < 0
 
 
+def _commodities_cap_pressure_proxy_symbols() -> frozenset[str]:
+  from app.engines.market_data import CRYPTO_LIVE_PRICE_PROXY
+
+  return frozenset(CRYPTO_LIVE_PRICE_PROXY) | COMMODITIES_WEEKEND_SPOT_SYMBOLS
+
+
 def gate_cap_pressure_proxy_entry_blocked(
   *,
   bot_type: str,
@@ -950,9 +955,7 @@ def gate_cap_pressure_proxy_entry_blocked(
   """Block new proxy marks at open cap — avoids cap-pressure churn on immediate wind-down."""
   if shadow_mode or bot_type not in ACTIVE_GATE_GRADUATION_NUDGE_BOTS or not graduation_nudge:
     return False
-  from app.engines.market_data import CRYPTO_LIVE_PRICE_PROXY
-
-  if symbol not in CRYPTO_LIVE_PRICE_PROXY:
+  if symbol not in _commodities_cap_pressure_proxy_symbols():
     return False
   cap = commodities_effective_open_cap(
     gate_tightening.max_commodities_open_positions,
@@ -961,6 +964,44 @@ def gate_cap_pressure_proxy_entry_blocked(
     shadow_mode=shadow_mode,
   )
   if not isinstance(cap, int) or open_count < cap:
+    return False
+  return True
+
+
+def commodities_gold_proxy_duplicate_entry_blocked(
+  symbol: str,
+  held_symbols: frozenset[str] | set[str],
+) -> bool:
+  """Block a second weekend gold proxy when one is already held — same exposure thesis."""
+  if symbol not in COMMODITIES_WEEKEND_SPOT_SYMBOLS:
+    return False
+  held_spot = frozenset(held_symbols) & COMMODITIES_WEEKEND_SPOT_SYMBOLS
+  return bool(held_spot - {symbol})
+
+
+def commodities_gold_proxy_duplicate_wind_down(
+  *,
+  bot_type: str,
+  shadow_mode: bool,
+  graduation_nudge: bool,
+  symbol: str,
+  held_symbols: frozenset[str] | set[str],
+  held_seconds: float,
+  min_hold_seconds: int,
+) -> bool:
+  """Drop the non-preferred gold proxy when both are held over the weekend."""
+  if shadow_mode or bot_type != "commodities" or not graduation_nudge:
+    return False
+  if not commodities_futures_weekend_closed():
+    return False
+  held_spot = frozenset(held_symbols) & COMMODITIES_WEEKEND_SPOT_SYMBOLS
+  if len(held_spot) < 2 or symbol not in held_spot:
+    return False
+  if COMMODITIES_GOLD_PROXY_PREFERRED not in held_spot:
+    return False
+  if symbol == COMMODITIES_GOLD_PROXY_PREFERRED:
+    return False
+  if held_seconds < min_hold_seconds:
     return False
   return True
 

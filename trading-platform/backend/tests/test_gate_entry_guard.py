@@ -1533,10 +1533,11 @@ def test_gate_cap_pressure_proxy_entry_blocked_at_cap():
     mock_dt.utcnow.return_value = datetime(2026, 8, 31, 14, 0, 0)
     mock_dt.side_effect = lambda *a, **k: datetime(*a, **k)
     assert gate_cap_pressure_proxy_entry_blocked(**base) is True
-  below_cap = {**base, "open_count": 2}
-  assert gate_cap_pressure_proxy_entry_blocked(**below_cap) is False
-  assert gate_cap_pressure_proxy_entry_blocked(**{**base, "symbol": "CL=F"}) is False
-  assert gate_cap_pressure_proxy_entry_blocked(**{**base, "shadow_mode": True}) is False
+    below_cap = {**base, "open_count": 2}
+    assert gate_cap_pressure_proxy_entry_blocked(**below_cap) is False
+    assert gate_cap_pressure_proxy_entry_blocked(**{**base, "symbol": "CL=F"}) is False
+    assert gate_cap_pressure_proxy_entry_blocked(**{**base, "symbol": "PAXGUSDT"}) is True
+    assert gate_cap_pressure_proxy_entry_blocked(**{**base, "shadow_mode": True}) is False
 
   with patch("app.engines.gate_entry_guard.datetime") as mock_dt:
     mock_dt.utcnow.return_value = datetime(2026, 8, 29, 14, 0, 0)
@@ -1703,3 +1704,34 @@ def test_commodities_weekend_forex_entry_blocked():
     mock_dt.utcnow.return_value = datetime(2026, 8, 31, 14, 0, 0)
     mock_dt.side_effect = lambda *a, **k: datetime(*a, **k)
     assert commodities_weekend_forex_entry_blocked(**base, symbol="EURUSD=X") is False
+
+
+def test_commodities_gold_proxy_duplicate_entry_and_wind_down():
+  from datetime import datetime
+
+  from app.engines.gate_entry_guard import (
+    commodities_gold_proxy_duplicate_entry_blocked,
+    commodities_gold_proxy_duplicate_wind_down,
+  )
+
+  assert commodities_gold_proxy_duplicate_entry_blocked("PAXGUSDT", {"XAUUSDT"}) is True
+  assert commodities_gold_proxy_duplicate_entry_blocked("XAUUSDT", {"PAXGUSDT"}) is True
+  assert commodities_gold_proxy_duplicate_entry_blocked("XAUUSDT", {"XAUUSDT"}) is False
+  assert commodities_gold_proxy_duplicate_entry_blocked("NG=F", {"XAUUSDT"}) is False
+
+  base = dict(
+    bot_type="commodities",
+    shadow_mode=False,
+    graduation_nudge=True,
+    held_symbols={"XAUUSDT", "PAXGUSDT"},
+    held_seconds=600,
+    min_hold_seconds=180,
+  )
+  with patch("app.engines.gate_entry_guard.datetime") as mock_dt:
+    mock_dt.utcnow.return_value = datetime(2026, 8, 29, 14, 0, 0)
+    mock_dt.side_effect = lambda *a, **k: datetime(*a, **k)
+    assert commodities_gold_proxy_duplicate_wind_down(**base, symbol="PAXGUSDT") is True
+    assert commodities_gold_proxy_duplicate_wind_down(**base, symbol="XAUUSDT") is False
+    assert commodities_gold_proxy_duplicate_wind_down(
+      **{**base, "held_symbols": {"XAUUSDT"}}, symbol="PAXGUSDT"
+    ) is False

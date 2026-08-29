@@ -67,6 +67,8 @@ from app.engines.gate_entry_guard import (
   commodities_weekend_stale_signal_exit_blocked,
   commodities_weekend_futures_entry_blocked,
   commodities_weekend_forex_entry_blocked,
+  commodities_gold_proxy_duplicate_entry_blocked,
+  commodities_gold_proxy_duplicate_wind_down,
   GATE_INDEX_ETF_SYMBOLS,
   HardGateSkipSets,
 )
@@ -438,6 +440,29 @@ class BaseBot(ABC):
             label = "Shadow" if shadow_mode else "Gate"
             reason = (
               f"{label} graduation profit lock (uPnL ${unrealized:.2f}) | {signal.reason}"
+            )
+            result = await engine.sell(symbol, price, reason)
+            if result:
+              actions.append(result)
+              if result.get("is_winner") is False:
+                await self._analyze_loss(session, symbol)
+                self._register_symbol_cooldown(symbol, after_loss=True)
+              else:
+                self._register_symbol_cooldown(symbol, after_loss=False)
+            continue
+
+          if commodities_gold_proxy_duplicate_wind_down(
+            bot_type=self.bot_type,
+            shadow_mode=shadow_mode,
+            graduation_nudge=graduation_nudge,
+            symbol=symbol,
+            held_symbols=held_symbols,
+            held_seconds=held_seconds,
+            min_hold_seconds=min_hold,
+          ):
+            unrealized = (price - position.entry_price) * position.quantity
+            reason = (
+              f"Gold proxy dedup wind-down (uPnL ${unrealized:.2f}) | {signal.reason}"
             )
             result = await engine.sell(symbol, price, reason)
             if result:
@@ -998,6 +1023,9 @@ class BaseBot(ABC):
           symbol=symbol,
           graduation_nudge=graduation_nudge,
         ):
+          continue
+
+        if commodities_gold_proxy_duplicate_entry_blocked(symbol, held_symbols):
           continue
 
         if gate_cap_pressure_proxy_entry_blocked(
