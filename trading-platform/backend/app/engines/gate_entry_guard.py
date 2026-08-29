@@ -314,6 +314,7 @@ STOCKS_NEGATIVE_PF_HIGH_WR_MIN_COMPOSITE = 0.38
 STOCKS_PROVEN_RECOVERY_MIN_COMPOSITE = 0.38
 STOCKS_TRADE_COUNT_GRADUATION_GAP = 5
 STOCKS_TRADE_COUNT_RECOVERY_MIN_COMPOSITE = 0.34
+STOCKS_TRADE_COUNT_MIN_SENTIMENT = 0.05
 COMMODITIES_HIGH_COMPOSITE_RECOVERY_FLOOR = 0.48
 COMMODITIES_FUTURES_WEEKEND_FLAT_EXIT_BAND_USD = 1.0
 STOCKS_SESSION_CLOSE_WIND_DOWN_MINUTES = 30
@@ -356,6 +357,29 @@ def stocks_trade_count_entry_min_signal(
   ):
     return entry_min_signal
   return min(entry_min_signal, STOCKS_TRADE_COUNT_RECOVERY_MIN_COMPOSITE)
+
+
+def stocks_trade_count_min_sentiment(
+  base_min_sentiment: float,
+  *,
+  bot_type: str,
+  shadow_mode: bool,
+  symbol: str,
+  proven_winners: frozenset[str],
+  bot_win_rate: float | None,
+  total_trades: int,
+  composite: float,
+) -> float:
+  """Ease sentiment floor for proven winners nearing graduation trade count."""
+  if symbol not in proven_winners:
+    return base_min_sentiment
+  if composite < STOCKS_TRADE_COUNT_RECOVERY_MIN_COMPOSITE:
+    return base_min_sentiment
+  if not stocks_trade_count_graduation_nudge(
+    bot_type, shadow_mode, bot_win_rate, total_trades
+  ):
+    return base_min_sentiment
+  return min(base_min_sentiment, STOCKS_TRADE_COUNT_MIN_SENTIMENT)
 
 
 def early_verification_active(active_trades: int, active_wr: float) -> bool:

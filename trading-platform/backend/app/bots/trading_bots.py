@@ -55,6 +55,7 @@ from app.engines.gate_entry_guard import (
   stocks_negative_pf_blocks_entry,
   stocks_trade_count_entry_min_signal,
   stocks_trade_count_graduation_nudge,
+  stocks_trade_count_min_sentiment,
   whale_memecoin_aligned,
   stocks_in_us_session,
   stocks_session_close_wind_down,
@@ -765,6 +766,16 @@ class BaseBot(ABC):
           bot_win_rate=per_bot_stats.get("win_rate"),
           total_trades=int(per_bot_stats.get("total_trades") or 0),
         )
+        symbol_min_sentiment = stocks_trade_count_min_sentiment(
+          min_sentiment,
+          bot_type=self.bot_type,
+          shadow_mode=shadow_mode,
+          symbol=symbol,
+          proven_winners=proven_winners,
+          bot_win_rate=per_bot_stats.get("win_rate"),
+          total_trades=int(per_bot_stats.get("total_trades") or 0),
+          composite=composite,
+        )
 
         intel_override = shadow_intel_composite_override(
           self.bot_type,
@@ -917,7 +928,7 @@ class BaseBot(ABC):
             shadow_mode=shadow_mode,
             sentiment=sentiment,
             integration_boost=integration_boost,
-            min_sentiment=min_sentiment,
+            min_sentiment=symbol_min_sentiment,
             composite=composite,
             entry_min_signal=entry_min_signal,
             signal_direction=signal.direction,
