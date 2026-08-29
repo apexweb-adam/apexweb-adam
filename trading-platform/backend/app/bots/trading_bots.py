@@ -27,6 +27,7 @@ from app.engines.gate_entry_guard import (
   bot_win_rate_for_graduation_nudge,
   commodities_graduation_entry_min_signal,
   graduation_nudge_min_sentiment,
+  graduation_nudge_sentiment_ok,
   in_shadow_graduation_nudge,
   intel_override_allows_long_entry,
   is_symbol_in_trade_cooldown,
@@ -740,7 +741,16 @@ class BaseBot(ABC):
           entry_direction_ok
           and volume_required
           and composite >= entry_min_signal
-          and sentiment + integration_boost >= min_sentiment
+          and graduation_nudge_sentiment_ok(
+            self.bot_type,
+            graduation_nudge=graduation_nudge,
+            shadow_mode=shadow_mode,
+            sentiment=sentiment,
+            integration_boost=integration_boost,
+            min_sentiment=min_sentiment,
+            composite=composite,
+            entry_min_signal=entry_min_signal,
+          )
           and (shadow_mode or self.bot_type not in gate_tightening.blocked_new_entries)
         ):
           reason = f"Signal:{signal.score:.2f} Sentiment:{sentiment:.2f}"

@@ -79,6 +79,8 @@ GRADUATION_NUDGE_SENTIMENT_EASE_BY_BOT = {
 }
 COMMODITIES_GRADUATION_BULLISH_SIGNAL_EASE = 0.09
 COMMODITIES_GRADUATION_BULLISH_SIGNAL_FLOOR = 0.20
+CRYPTO_SHADOW_REVIEW_BYPASS_COMPOSITE = 0.32
+CRYPTO_SHADOW_COMPOSITE_SENTIMENT_MARGIN = 0.01
 
 
 def shadow_min_signal_boost(
@@ -409,6 +411,30 @@ def commodities_graduation_entry_min_signal(
       eased - 0.03,
     )
   return eased
+
+
+def graduation_nudge_sentiment_ok(
+  bot_type: str,
+  *,
+  graduation_nudge: bool,
+  shadow_mode: bool,
+  sentiment: float,
+  integration_boost: float,
+  min_sentiment: float,
+  composite: float,
+  entry_min_signal: float,
+) -> bool:
+  """Allow strong-composite shadow crypto entries during graduation nudge despite weak sentiment."""
+  if sentiment + integration_boost >= min_sentiment:
+    return True
+  if (
+    graduation_nudge
+    and shadow_mode
+    and bot_type == "crypto"
+    and composite >= entry_min_signal + CRYPTO_SHADOW_COMPOSITE_SENTIMENT_MARGIN
+  ):
+    return True
+  return False
 
 
 def chronic_loser_blocks_shadow_entry(
@@ -981,6 +1007,14 @@ def hard_skip_blocks_shadow_entry(
         and composite >= composite_only - 0.02
       ):
         return False
+    if (
+      shadow_mode
+      and bot_type == "crypto"
+      and graduation_nudge
+      and intel_override
+      and composite >= CRYPTO_SHADOW_REVIEW_BYPASS_COMPOSITE
+    ):
+      return False
     return True
   large_bypass_floor = SHADOW_LARGE_LOSS_BYPASS_COMPOSITE_BY_BOT.get(
     bot_type, SHADOW_LARGE_LOSS_BYPASS_COMPOSITE

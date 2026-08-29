@@ -332,6 +332,35 @@ def test_hard_skip_blocks_shadow_entry_review_bypass_active_commodities():
   ) is False
 
 
+def test_hard_skip_blocks_shadow_entry_review_bypass_crypto_shadow():
+  from app.engines.gate_entry_guard import hard_skip_blocks_shadow_entry
+
+  assert hard_skip_blocks_shadow_entry(
+    "BTCUSDT",
+    bot_type="crypto",
+    recent_skip=frozenset(),
+    large_skip=frozenset(),
+    review_skip=frozenset({"BTCUSDT"}),
+    graduation_nudge=True,
+    shadow_mode=True,
+    intel_override=True,
+    composite=0.337,
+    integration_boost=0.10,
+  ) is False
+  assert hard_skip_blocks_shadow_entry(
+    "BTCUSDT",
+    bot_type="crypto",
+    recent_skip=frozenset(),
+    large_skip=frozenset(),
+    review_skip=frozenset({"BTCUSDT"}),
+    graduation_nudge=True,
+    shadow_mode=True,
+    intel_override=True,
+    composite=0.30,
+    integration_boost=0.10,
+  ) is True
+
+
 def test_recent_loser_symbols_blocks_zero_win_streak():
   session = AsyncMock()
   cutoff_losses = [

@@ -33,6 +33,7 @@ from app.engines.gate_entry_guard import (
   bot_win_rate_for_graduation_nudge,
   commodities_graduation_entry_min_signal,
   graduation_nudge_min_sentiment,
+  graduation_nudge_sentiment_ok,
   in_shadow_graduation_nudge,
   intel_override_allows_long_entry,
   is_symbol_in_trade_cooldown,
@@ -403,7 +404,16 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
       blockers.append("volume")
     if composite < entry_min_signal:
       blockers.append(f"composite<{entry_min_signal:.2f}")
-    if sentiment + integration_boost < min_sentiment:
+    if not graduation_nudge_sentiment_ok(
+      bot_type,
+      graduation_nudge=graduation_nudge,
+      shadow_mode=shadow_mode,
+      sentiment=sentiment,
+      integration_boost=integration_boost,
+      min_sentiment=min_sentiment,
+      composite=composite,
+      entry_min_signal=entry_min_signal,
+    ):
       blockers.append(f"sentiment<{min_sentiment:.2f}")
     if (
       gate_tightening.active

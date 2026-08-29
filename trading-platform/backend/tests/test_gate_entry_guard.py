@@ -566,3 +566,28 @@ def test_commodities_graduation_entry_min_signal_bullish_ease():
     proven_winners=frozenset(),
   )
   assert eased == 0.22
+
+
+def test_graduation_nudge_sentiment_ok_shadow_crypto_composite_bypass():
+  from app.engines.gate_entry_guard import graduation_nudge_sentiment_ok
+
+  assert graduation_nudge_sentiment_ok(
+    "crypto",
+    graduation_nudge=True,
+    shadow_mode=True,
+    sentiment=-0.5,
+    integration_boost=0.0,
+    min_sentiment=0.06,
+    composite=0.311,
+    entry_min_signal=0.30,
+  ) is True
+  assert graduation_nudge_sentiment_ok(
+    "crypto",
+    graduation_nudge=True,
+    shadow_mode=True,
+    sentiment=-0.5,
+    integration_boost=0.0,
+    min_sentiment=0.06,
+    composite=0.295,
+    entry_min_signal=0.30,
+  ) is False
