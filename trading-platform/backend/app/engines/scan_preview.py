@@ -450,6 +450,8 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
       entry_min_signal=entry_min_signal,
       signal_direction=signal.direction,
       macd_signal=signal.macd_signal,
+      symbol=symbol,
+      proven_winners=proven_winners,
     ):
       blockers.append(f"sentiment<{min_sentiment:.2f}")
     if (

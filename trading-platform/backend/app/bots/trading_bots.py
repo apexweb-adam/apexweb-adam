@@ -798,6 +798,8 @@ class BaseBot(ABC):
             entry_min_signal=entry_min_signal,
             signal_direction=signal.direction,
             macd_signal=signal.macd_signal,
+            symbol=symbol,
+            proven_winners=proven_winners,
           )
           and (shadow_mode or self.bot_type not in gate_tightening.blocked_new_entries)
         ):
