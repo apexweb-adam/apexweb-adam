@@ -140,6 +140,7 @@ async def risk_migration_job() -> None:
       adapt_for_gate_win_rate,
       clamp_verification_strategy_params,
       close_excess_commodities_positions,
+      close_excess_shadow_positions,
       ensure_polymarket_strategy,
       sync_bot_strategy_versions,
       trim_oversized_polymarket_positions,
@@ -154,12 +155,13 @@ async def risk_migration_job() -> None:
     updated = await ensure_polymarket_strategy(session)
     trimmed = await trim_oversized_polymarket_positions(session)
     commodities_trimmed = await close_excess_commodities_positions(session)
+    shadow_trimmed = await close_excess_shadow_positions(session)
     synced = await sync_bot_strategy_versions(session)
-    if gate_paused or gate_rotation or gate_graduated or clamped or adapted or updated or trimmed or commodities_trimmed or synced:
+    if gate_paused or gate_rotation or gate_graduated or clamped or adapted or updated or trimmed or commodities_trimmed or shadow_trimmed or synced:
       print(
         f"[RiskMigration] gate_paused={gate_paused} gate_rotation={gate_rotation} gate_graduated={gate_graduated} clamped={clamped} gate_adapted={adapted} "
         f"strategy_updated={updated} trimmed={trimmed} commodities_trimmed={commodities_trimmed} "
-        f"synced={synced} at {datetime.utcnow().isoformat()}"
+        f"shadow_trimmed={shadow_trimmed} synced={synced} at {datetime.utcnow().isoformat()}"
       )
 
 
@@ -275,6 +277,7 @@ async def setup_scheduler() -> None:
     from app.engines.strategy_migration import (
       clamp_verification_strategy_params,
       close_excess_commodities_positions,
+      close_excess_shadow_positions,
       ensure_polymarket_strategy,
       fix_breakeven_trade_labels,
       dedupe_polymarket_positions,
@@ -319,6 +322,9 @@ async def setup_scheduler() -> None:
     commodities_trimmed = await close_excess_commodities_positions(session)
     if commodities_trimmed:
       print(f"[Strategy] Closed {commodities_trimmed} excess commodities position(s)")
+    shadow_trimmed = await close_excess_shadow_positions(session)
+    if shadow_trimmed:
+      print(f"[Strategy] Closed {shadow_trimmed} excess shadow position(s)")
     synced = await sync_bot_strategy_versions(session)
     if synced:
       print(f"[Strategy] Synced strategy version on {synced} bot(s)")
