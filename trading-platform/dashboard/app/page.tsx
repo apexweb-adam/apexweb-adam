@@ -1749,6 +1749,11 @@ function BotScanPreview({ botType }: { botType: string }) {
           <span className="text-amber-400/90" title="WR/PF below momentum tier — entry filters tightened">
             {" "}
             · momentum retreat
+            {preview.crypto_momentum_retreat_min_signal != null && (
+              <span> (floor {preview.crypto_momentum_retreat_min_signal})</span>
+            )}
+            {" "}
+            · profit lock $1.25
           </span>
         )}
         {preview.recovery_candidates && preview.recovery_candidates.length > 0 && (
