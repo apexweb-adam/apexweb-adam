@@ -338,6 +338,26 @@ def stocks_trade_count_graduation_nudge(
   return 0 < gap <= STOCKS_TRADE_COUNT_GRADUATION_GAP
 
 
+def stocks_trade_count_entry_min_signal(
+  entry_min_signal: float,
+  *,
+  bot_type: str,
+  shadow_mode: bool,
+  symbol: str,
+  proven_winners: frozenset[str],
+  bot_win_rate: float | None,
+  total_trades: int,
+) -> float:
+  """Cap proven-winner entry threshold during trade-count graduation nudge."""
+  if symbol not in proven_winners:
+    return entry_min_signal
+  if not stocks_trade_count_graduation_nudge(
+    bot_type, shadow_mode, bot_win_rate, total_trades
+  ):
+    return entry_min_signal
+  return min(entry_min_signal, STOCKS_TRADE_COUNT_RECOVERY_MIN_COMPOSITE)
+
+
 def early_verification_active(active_trades: int, active_wr: float) -> bool:
   from app.engines.profitability_gate import ProfitabilityGate
 

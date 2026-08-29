@@ -51,6 +51,7 @@ from app.engines.gate_entry_guard import (
   shadow_intel_composite_override,
   shadow_requires_macd,
   stocks_monday_recovery_ready,
+  stocks_trade_count_entry_min_signal,
   stocks_trade_count_graduation_nudge,
   stocks_proven_winner_sentiment_gate_ok,
   stocks_negative_pf_blocks_entry,
@@ -286,6 +287,15 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
       shadow_mode=shadow_mode,
       signal_direction=signal.direction,
       macd_signal=signal.macd_signal,
+    )
+    entry_min_signal = stocks_trade_count_entry_min_signal(
+      entry_min_signal,
+      bot_type=bot_type,
+      shadow_mode=shadow_mode,
+      symbol=symbol,
+      proven_winners=proven_winners,
+      bot_win_rate=per_bot_stats.get("win_rate"),
+      total_trades=int(per_bot_stats.get("total_trades") or 0),
     )
 
     volume_required = signal.volume_confirmed

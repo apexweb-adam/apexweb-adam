@@ -277,6 +277,40 @@ def test_stocks_trade_count_graduation_nudge():
     "stocks_futures", True, 0.50, 15
   ) is False
 
+  from app.engines.gate_entry_guard import (
+    STOCKS_TRADE_COUNT_RECOVERY_MIN_COMPOSITE,
+    stocks_trade_count_entry_min_signal,
+  )
+
+  eased = stocks_trade_count_entry_min_signal(
+    0.40,
+    bot_type="stocks_futures",
+    shadow_mode=True,
+    symbol="NVDA",
+    proven_winners=frozenset({"NVDA"}),
+    bot_win_rate=0.57,
+    total_trades=15,
+  )
+  assert eased == STOCKS_TRADE_COUNT_RECOVERY_MIN_COMPOSITE
+  assert stocks_trade_count_entry_min_signal(
+    0.40,
+    bot_type="stocks_futures",
+    shadow_mode=True,
+    symbol="SPY",
+    proven_winners=frozenset({"NVDA"}),
+    bot_win_rate=0.57,
+    total_trades=15,
+  ) == 0.40
+  assert stocks_trade_count_entry_min_signal(
+    0.32,
+    bot_type="stocks_futures",
+    shadow_mode=True,
+    symbol="NVDA",
+    proven_winners=frozenset({"NVDA"}),
+    bot_win_rate=0.57,
+    total_trades=15,
+  ) == 0.32
+
   recovery = dict(
     bot_type="stocks_futures",
     shadow_mode=True,
