@@ -3916,7 +3916,7 @@ def commodities_reopen_imminent_scan_active(
   *,
   graduation_nudge: bool = False,
 ) -> bool:
-  """Ultra-fast scan window in the last 30 minutes before CME Sunday reopen."""
+  """Ultra-fast scan window in the last 60 minutes before CME Sunday reopen."""
   if not graduation_nudge:
     return False
   session = session_info or commodities_session_info()
