@@ -133,6 +133,43 @@ async def stocks_pre_session_prep_job() -> None:
     await push_live_update()
 
 
+COMMODITIES_PREP_SYMBOLS = ("CL=F", "SI=F", "NG=F", "GC=F", "HG=F")
+
+
+async def commodities_pre_session_prep_job() -> None:
+  """90 min before CME futures reopen: refresh TradingView boosts for key commodities."""
+  from app.engines.gate_entry_guard import (
+    commodities_session_info,
+    get_proven_winner_symbols,
+  )
+  from app.engines.integration_signals import refresh_tradingview_signals
+
+  session_info = commodities_session_info()
+  if session_info["in_session"]:
+    return
+
+  minutes_until_open = session_info.get("minutes_until_open")
+  if minutes_until_open is None or minutes_until_open > 90:
+    return
+
+  async with SessionLocal() as session:
+    winners = await get_proven_winner_symbols(session, "commodities")
+    symbols = sorted(set(COMMODITIES_PREP_SYMBOLS) | set(winners))
+    refreshed = await refresh_tradingview_signals(
+      session,
+      symbols,
+      reason_prefix="Pre-CME-session TV refresh",
+    )
+  if refreshed:
+    print(
+      f"[CommoditiesPrep] Refreshed TradingView signals for {', '.join(refreshed)} "
+      f"({minutes_until_open} min until CME open)"
+    )
+    from app.ws_manager import push_live_update
+
+    await push_live_update()
+
+
 async def risk_migration_job() -> None:
   async with SessionLocal() as session:
     from app.engines.gate_entry_guard import sync_gate_bot_pauses, sync_gate_recovery_rotation, try_graduate_paused_bots
@@ -255,6 +292,7 @@ async def _deferred_startup_jobs() -> None:
     await ensure_daily_review_on_startup()
     await verification_snapshot_job()
     await stocks_pre_session_prep_job()
+    await commodities_pre_session_prep_job()
   except Exception as exc:
     print(f"[Startup] Deferred jobs error: {exc}")
 
@@ -352,6 +390,20 @@ async def setup_scheduler() -> None:
     minute=0,
     day_of_week="mon-fri",
     id="stocks_pre_session_prep",
+  )
+  scheduler.add_job(
+    commodities_pre_session_prep_job,
+    "interval",
+    minutes=15,
+    id="commodities_pre_session_prep_poll",
+  )
+  scheduler.add_job(
+    commodities_pre_session_prep_job,
+    "cron",
+    hour=22,
+    minute=30,
+    day_of_week="sun",
+    id="commodities_pre_session_prep",
   )
   scheduler.add_job(daily_review_job, "cron", hour=22, minute=0, id="daily_review")
   scheduler.add_job(verification_snapshot_job, "cron", hour=23, minute=0, id="verification_snapshot")

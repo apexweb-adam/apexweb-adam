@@ -295,6 +295,9 @@ def test_commodities_high_composite_recovery_bypasses_chronic():
   )
   assert commodities_high_composite_recovery_entry_ok(**recovery) is True
   assert commodities_high_composite_recovery_entry_ok(
+    **{**recovery, "composite": 0.47}
+  ) is False
+  assert commodities_high_composite_recovery_entry_ok(
     **{**recovery, "symbol": "XAUUSDT"}
   ) is False
   assert chronic_loser_blocks_shadow_entry(
