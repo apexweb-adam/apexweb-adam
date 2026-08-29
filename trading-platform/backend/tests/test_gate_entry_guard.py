@@ -518,6 +518,22 @@ def test_prioritize_stocks_monday_scan_outside_prep_window():
     session_info=session,
   )
   assert ordered[0] == "AAPL"
+
+
+def test_prioritize_stocks_monday_scan_trade_count_nudge():
+  from app.engines.gate_entry_guard import prioritize_stocks_monday_scan
+
+  symbols = ["MSFT", "NVDA", "AAPL", "TSLA"]
+  session = {"in_session": False, "minutes_until_open": 45, "minutes_since_open": 0}
+  ordered = prioritize_stocks_monday_scan(
+    symbols,
+    chronic_losers=frozenset({"NVDA"}),
+    proven_winners=frozenset({"AAPL", "NVDA", "TSLA"}),
+    session_info=session,
+    trade_count_nudge=True,
+  )
+  assert ordered[:3] == ["AAPL", "NVDA", "TSLA"]
+  assert ordered[3] == "MSFT"
   assert "NVDA" in ordered
 
 

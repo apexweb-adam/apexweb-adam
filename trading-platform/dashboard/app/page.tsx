@@ -1301,6 +1301,11 @@ function MondayRecoveryBanner({ summary }: { summary: MondayRecoverySummary | nu
   return (
     <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-4">
       <p className="text-sm font-medium text-emerald-400 mb-2">Monday recovery watchlist</p>
+      {summary.stocks_trade_count_nudge && (
+        <p className="text-[11px] text-amber-400/90 mb-2">
+          Stocks trade-count nudge active — proven winners scanned first (composite floor 0.34).
+        </p>
+      )}
       <ul className="space-y-1.5">
         {summary.all.map((row) => (
           <li

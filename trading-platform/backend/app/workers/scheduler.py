@@ -113,8 +113,11 @@ async def stocks_pre_session_prep_job() -> None:
     get_chronic_loser_symbols,
     get_proven_winner_symbols,
     stocks_session_info,
+    stocks_trade_count_graduation_nudge,
   )
   from app.engines.integration_signals import refresh_tradingview_signals
+  from app.engines.platform_settings import is_bot_paused
+  from app.engines.profitability_gate import ProfitabilityGate
 
   session_info = stocks_session_info()
   if session_info["in_session"]:
@@ -125,9 +128,21 @@ async def stocks_pre_session_prep_job() -> None:
     return
 
   async with SessionLocal() as session:
+    shadow_mode = await is_bot_paused(session, "stocks_futures")
+    per_bot = (await ProfitabilityGate(session).evaluate_per_bot()).get("stocks_futures") or {}
     winners = await get_proven_winner_symbols(session, "stocks_futures")
     chronic = await get_chronic_loser_symbols(session, "stocks_futures")
-    symbols = sorted(set(winners) | set(chronic) | {"NVDA"})
+    trade_count_nudge = stocks_trade_count_graduation_nudge(
+      "stocks_futures",
+      shadow_mode,
+      per_bot.get("win_rate"),
+      int(per_bot.get("total_trades") or 0),
+    )
+    base_symbols = set(winners) | set(chronic) | {"NVDA"}
+    if trade_count_nudge and winners:
+      symbols = list(winners) + sorted(base_symbols - set(winners))
+    else:
+      symbols = sorted(base_symbols)
     refreshed = await refresh_tradingview_signals(
       session,
       symbols,
