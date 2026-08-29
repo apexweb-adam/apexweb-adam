@@ -121,7 +121,9 @@ def _is_trading_relevant_intel(title: str, content: str, source: str) -> bool:
   noise_markers = (
     "spread:", "o/u ", "over/under", "bo3)", "bo5)",
     "counter-strike", " vs. ", " vs ", "mlb-", "nfl-", "nba-",
-    "will win the 2026", "will win the 2027", "uefa champions",
+    "will win the 2026", "will win the 2027", "will win the 2028",
+    "presidential nomination", "republican nomination", "democratic nomination",
+    "uefa champions",
     "counter-strike:", "dota", "valorant",
   )
   if any(marker in text for marker in noise_markers):

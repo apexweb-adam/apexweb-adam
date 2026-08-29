@@ -5,6 +5,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.entities import DailyReview, IntelligenceItem, LearningInsight, StrategyConfig, Trade, TradeAnalysis
 
+LEARNING_NOISE_DISMISS_MAX_CONFIDENCE = 0.54
+
 
 class LearningEngine:
   """Analyzes losing trades, runs daily reviews, and adapts strategy parameters."""
