@@ -345,6 +345,8 @@ COMMODITIES_WEEKEND_SPOT_SYMBOLS = frozenset({"XAUUSDT", "PAXGUSDT"})
 COMMODITIES_WEEKEND_SPOT_COOLDOWN_MULTIPLIER = 0.55
 COMMODITIES_WEEKEND_SPOT_GATE_SKIP_COMPOSITE_FLOOR = 0.40
 COMMODITIES_WEEKEND_GRADUATION_CAP_BONUS = 1
+COMMODITIES_CAP_PRESSURE_LOSER_WIND_DOWN_USD = 0.35
+COMMODITIES_MONDAY_CAP_PRESSURE_FLAT_BAND_USD = 0.15
 STOCKS_SESSION_CLOSE_WIND_DOWN_MINUTES = 30
 STOCKS_SESSION_CLOSE_FORCE_MINUTES = 15
 DEFAULT_ENTRY_MIN_SIGNAL_FLOOR = 0.08
@@ -961,6 +963,74 @@ def gate_cap_pressure_proxy_entry_blocked(
   if not isinstance(cap, int) or open_count < cap:
     return False
   return True
+
+
+def commodities_cap_pressure_loser_wind_down(
+  *,
+  bot_type: str,
+  shadow_mode: bool,
+  graduation_nudge: bool,
+  symbol: str,
+  unrealized: float,
+  held_seconds: float,
+  min_hold_seconds: int,
+  open_count: int,
+  gate_tightening: GateEntryTightening,
+) -> bool:
+  """Free gate slots by exiting small futures/forex losers when commodities is at open cap."""
+  if shadow_mode or bot_type not in ACTIVE_GATE_GRADUATION_NUDGE_BOTS or not graduation_nudge:
+    return False
+  from app.engines.market_data import CRYPTO_LIVE_PRICE_PROXY
+
+  if symbol in CRYPTO_LIVE_PRICE_PROXY:
+    return False
+  cap = commodities_effective_open_cap(
+    gate_tightening.max_commodities_open_positions,
+    bot_type=bot_type,
+    graduation_nudge=graduation_nudge,
+    shadow_mode=shadow_mode,
+  )
+  if not isinstance(cap, int) or open_count < cap:
+    return False
+  if held_seconds < min_hold_seconds:
+    return False
+  return unrealized <= -COMMODITIES_CAP_PRESSURE_LOSER_WIND_DOWN_USD
+
+
+def commodities_monday_cap_pressure_flat_wind_down(
+  *,
+  bot_type: str,
+  shadow_mode: bool,
+  graduation_nudge: bool,
+  symbol: str,
+  unrealized: float,
+  held_seconds: float,
+  min_hold_seconds: int,
+  open_count: int,
+  gate_tightening: GateEntryTightening,
+) -> bool:
+  """Ahead of CME reopen, flatten idle forex holds at cap for recovery futures."""
+  if shadow_mode or bot_type != "commodities" or not graduation_nudge:
+    return False
+  if is_commodities_futures_symbol(symbol):
+    return False
+  from app.engines.market_data import CRYPTO_LIVE_PRICE_PROXY
+
+  if symbol in CRYPTO_LIVE_PRICE_PROXY:
+    return False
+  if not commodities_monday_scan_priority_active(commodities_session_info()):
+    return False
+  cap = commodities_effective_open_cap(
+    gate_tightening.max_commodities_open_positions,
+    bot_type=bot_type,
+    graduation_nudge=graduation_nudge,
+    shadow_mode=shadow_mode,
+  )
+  if not isinstance(cap, int) or open_count < cap:
+    return False
+  if held_seconds < min_hold_seconds:
+    return False
+  return abs(unrealized) <= COMMODITIES_MONDAY_CAP_PRESSURE_FLAT_BAND_USD
 
 
 def stocks_session_close_wind_down(

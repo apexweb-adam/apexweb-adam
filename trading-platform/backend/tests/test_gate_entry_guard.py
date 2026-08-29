@@ -1543,3 +1543,76 @@ def test_gate_cap_pressure_proxy_entry_blocked_at_cap():
     mock_dt.side_effect = lambda *a, **k: datetime(*a, **k)
     assert gate_cap_pressure_proxy_entry_blocked(**base) is False
     assert gate_cap_pressure_proxy_entry_blocked(**{**base, "open_count": 4}) is True
+
+
+def test_commodities_cap_pressure_loser_wind_down_at_cap():
+  from datetime import datetime
+
+  from app.engines.gate_entry_guard import commodities_cap_pressure_loser_wind_down
+
+  tightening = GateEntryTightening(
+    active=False,
+    win_rate=0.45,
+    min_sentiment=0.0,
+    require_macd_bullish=False,
+    min_composite_boost=0.0,
+    max_commodities_open_positions=3,
+  )
+  base = dict(
+    bot_type="commodities",
+    shadow_mode=False,
+    graduation_nudge=True,
+    symbol="CL=F",
+    held_seconds=600,
+    min_hold_seconds=180,
+    open_count=4,
+    gate_tightening=tightening,
+  )
+  with patch("app.engines.gate_entry_guard.datetime") as mock_dt:
+    mock_dt.utcnow.return_value = datetime(2026, 8, 29, 14, 0, 0)
+    mock_dt.side_effect = lambda *a, **k: datetime(*a, **k)
+    assert commodities_cap_pressure_loser_wind_down(unrealized=-0.47, **base) is True
+    assert commodities_cap_pressure_loser_wind_down(unrealized=-0.20, **base) is False
+    assert commodities_cap_pressure_loser_wind_down(
+      unrealized=-0.47, **{**base, "open_count": 3}
+    ) is False
+    assert commodities_cap_pressure_loser_wind_down(
+      unrealized=-0.47, **{**base, "symbol": "XAUUSDT"}
+    ) is False
+
+
+def test_commodities_monday_cap_pressure_flat_wind_down():
+  from datetime import datetime
+
+  from app.engines.gate_entry_guard import commodities_monday_cap_pressure_flat_wind_down
+
+  tightening = GateEntryTightening(
+    active=False,
+    win_rate=0.45,
+    min_sentiment=0.0,
+    require_macd_bullish=False,
+    min_composite_boost=0.0,
+    max_commodities_open_positions=3,
+  )
+  base = dict(
+    bot_type="commodities",
+    shadow_mode=False,
+    graduation_nudge=True,
+    symbol="EURUSD=X",
+    held_seconds=600,
+    min_hold_seconds=180,
+    open_count=4,
+    gate_tightening=tightening,
+  )
+  with patch("app.engines.gate_entry_guard.datetime") as mock_dt:
+    mock_dt.utcnow.return_value = datetime(2026, 8, 30, 23, 0, 0)
+    mock_dt.side_effect = lambda *a, **k: datetime(*a, **k)
+    assert commodities_monday_cap_pressure_flat_wind_down(unrealized=0.0, **base) is True
+    assert commodities_monday_cap_pressure_flat_wind_down(unrealized=0.20, **base) is False
+    assert commodities_monday_cap_pressure_flat_wind_down(
+      unrealized=0.0, **{**base, "symbol": "NG=F"}
+    ) is False
+  with patch("app.engines.gate_entry_guard.datetime") as mock_dt:
+    mock_dt.utcnow.return_value = datetime(2026, 8, 29, 14, 0, 0)
+    mock_dt.side_effect = lambda *a, **k: datetime(*a, **k)
+    assert commodities_monday_cap_pressure_flat_wind_down(unrealized=0.0, **base) is False
