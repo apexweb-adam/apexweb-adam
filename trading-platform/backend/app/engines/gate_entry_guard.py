@@ -3203,9 +3203,44 @@ def is_commodities_futures_symbol(symbol: str) -> bool:
   return symbol.endswith("=F")
 
 
+COMMODITIES_CME_SUNDAY_REOPEN_HOUR_UTC = 22
+COMMODITIES_CME_SUNDAY_REOPEN_MINUTE_UTC = 0
+
+
+def _commodities_cme_sunday_reopen_utc(day: datetime) -> datetime:
+  """Sunday evening CME Globex reopen (5pm CT ≈ 22:00 UTC)."""
+  return day.replace(
+    hour=COMMODITIES_CME_SUNDAY_REOPEN_HOUR_UTC,
+    minute=COMMODITIES_CME_SUNDAY_REOPEN_MINUTE_UTC,
+    second=0,
+    microsecond=0,
+  )
+
+
+def _commodities_cme_next_reopen_utc(now: datetime | None = None) -> datetime:
+  """Next CME futures reopen after *now* (always a Sunday 22:00 UTC)."""
+  now = now or datetime.utcnow()
+  reopen = _commodities_cme_sunday_reopen_utc(now)
+  weekday = now.weekday()
+  if weekday == 6 and now < reopen:
+    return reopen
+  if weekday < 6:
+    days_ahead = 6 - weekday
+    return _commodities_cme_sunday_reopen_utc(now + timedelta(days=days_ahead))
+  # Saturday — reopen is tomorrow (Sunday) evening.
+  return _commodities_cme_sunday_reopen_utc(now + timedelta(days=1))
+
+
 def commodities_futures_weekend_closed() -> bool:
-  """CME metals/energy futures have no meaningful weekend session (Sat–Sun UTC)."""
-  return datetime.utcnow().weekday() >= 5
+  """CME metals/energy futures are closed Sat and until Sunday 22:00 UTC reopen."""
+  now = datetime.utcnow()
+  weekday = now.weekday()
+  if weekday == 5:
+    return True
+  if weekday == 6:
+    reopen = _commodities_cme_sunday_reopen_utc(now)
+    return now < reopen
+  return False
 
 
 def commodities_weekend_stale_signal_exit_blocked(
@@ -3265,7 +3300,10 @@ def commodities_session_info() -> dict[str, Any]:
   """UTC schedule for CME futures — weekend stale-feed guard aligns with session closed."""
   now = datetime.utcnow()
   if not commodities_futures_weekend_closed():
-    open_at = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    if now.weekday() == 6 and now.hour >= COMMODITIES_CME_SUNDAY_REOPEN_HOUR_UTC:
+      open_at = _commodities_cme_sunday_reopen_utc(now)
+    else:
+      open_at = now.replace(hour=0, minute=0, second=0, microsecond=0)
     minutes_since_open = max(0, int((now - open_at).total_seconds() // 60))
     return {
       "in_session": True,
@@ -3276,11 +3314,7 @@ def commodities_session_info() -> dict[str, Any]:
       "minutes_since_open": minutes_since_open,
     }
 
-  weekday = now.weekday()
-  days_until_monday = (7 - weekday) % 7 or 1
-  open_at = (now + timedelta(days=days_until_monday)).replace(
-    hour=0, minute=0, second=0, microsecond=0
-  )
+  open_at = _commodities_cme_next_reopen_utc(now)
   minutes_until_open = max(0, int((open_at - now).total_seconds() // 60))
   mode = "pre_session" if minutes_until_open <= 90 else "weekend_closed"
   return {

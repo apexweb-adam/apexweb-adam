@@ -63,20 +63,37 @@ def test_commodities_session_info_weekend_closed():
     info = commodities_session_info()
     assert info["in_session"] is False
     assert info["mode"] == "weekend_closed"
-    assert info["minutes_until_open"] == 44 * 60
+    # Saturday 04:00 → Sunday 22:00 UTC reopen = 42h
+    assert info["minutes_until_open"] == 42 * 60
 
 
 def test_commodities_session_info_pre_session():
   from app.engines.gate_entry_guard import commodities_session_info
 
   with patch("app.engines.gate_entry_guard.datetime") as mock_dt:
-    mock_dt.utcnow.return_value = datetime(2026, 8, 30, 22, 45, 0)
+    mock_dt.utcnow.return_value = datetime(2026, 8, 30, 20, 45, 0)
     mock_dt.side_effect = lambda *a, **k: datetime(*a, **k)
     info = commodities_session_info()
     assert info["in_session"] is False
     assert info["mode"] == "pre_session"
     assert info["minutes_until_open"] == 75
     assert info["minutes_since_open"] == 0
+
+
+def test_commodities_session_info_sunday_reopen():
+  from app.engines.gate_entry_guard import (
+    commodities_session_info,
+    commodities_weekend_futures_entry_blocked,
+  )
+
+  with patch("app.engines.gate_entry_guard.datetime") as mock_dt:
+    mock_dt.utcnow.return_value = datetime(2026, 8, 30, 22, 45, 0)
+    mock_dt.side_effect = lambda *a, **k: datetime(*a, **k)
+    info = commodities_session_info()
+    assert info["in_session"] is True
+    assert info["mode"] == "entries"
+    assert info["minutes_since_open"] == 45
+    assert commodities_weekend_futures_entry_blocked("NG=F") is False
 
 
 def test_commodities_session_info_weekday_open():
