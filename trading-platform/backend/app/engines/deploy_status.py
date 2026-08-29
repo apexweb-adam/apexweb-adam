@@ -29,7 +29,7 @@ def github_headers() -> dict[str, str]:
 PRODUCTION_DASHBOARD_URL = "https://apex-trading-dashboard-flame.vercel.app"
 DEFAULT_VERIFIED_DASHBOARD_URL = "https://apex-trading-dashboard-4am3sz5kv-apexweb-adams-projects.vercel.app"
 DEFAULT_VERIFIED_DEPLOYMENT_ID = "dpl_GQTTm469KGGRkiKfwrULaLieM5VE"
-EXPECTED_DASHBOARD_BUNDLE = "2026-08-29-r33"
+EXPECTED_DASHBOARD_BUNDLE = "2026-08-29-r34"
 EXPECTED_PLATFORM_REVISION = "2026-08-29-r184"
 GIT_MAIN_ALIAS = "apex-trading-dashboard-git-main"
 ACCEPTABLE_DASHBOARD_BUNDLES = frozenset({
@@ -40,6 +40,7 @@ ACCEPTABLE_DASHBOARD_BUNDLES = frozenset({
   "2026-08-29-r31",
   "2026-08-29-r32",
   "2026-08-29-r33",
+  "2026-08-29-r34",
 })
 
 

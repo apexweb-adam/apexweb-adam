@@ -19,7 +19,7 @@ jobs:
 
       - name: Check production dashboard bundle and proxy
         env:
-          VERIFIED_PREVIEW: "https://apex-trading-dashboard-git-main-apexweb-adams-projects.vercel.app"
+          VERIFIED_PREVIEW: "https://apex-trading-dashboard-4am3sz5kv-apexweb-adams-projects.vercel.app"
         run: |
           set -euo pipefail
           DASHBOARD="https://apex-trading-dashboard-flame.vercel.app"
@@ -28,8 +28,10 @@ jobs:
           import json, os
           with open("/tmp/dash-config.json") as f:
               cfg = json.load(f)
-          expected = "2026-08-28-r28"
-          acceptable = {"2026-08-28-r28", "2026-08-28-r27", "2026-08-28-r26", "2026-08-28-r25", "2026-08-28-r24", "2026-08-28-r23", "2026-08-28-r22", "2026-08-28-r21", "2026-08-28-r20"}
+          acceptable = {
+              "2026-08-29-r34", "2026-08-29-r33", "2026-08-29-r32", "2026-08-29-r31",
+              "2026-08-28-r29", "2026-08-28-r28", "2026-08-28-r27",
+          }
           rev = cfg.get("bundleRevision")
           current = rev in acceptable and (cfg.get("features") or {}).get("activeGate") is True
           if current:
@@ -38,7 +40,7 @@ jobs:
               preview = os.environ.get("VERIFIED_PREVIEW", "")
               print(f"::warning::Production Vercel bundle stale (rev={cfg.get('bundleRevision')!r})")
               print(f"::warning::Use verified preview until promote: {preview}")
-              print("::warning::Promote dpl_9cVRxRBgcHVStS2A35ZmPFbwrZTS or add VERCEL_TOKEN secret")
+              print("::warning::Promote dpl_GQTTm469KGGRkiKfwrULaLieM5VE or add VERCEL_TOKEN secret")
           PY
           echo "Checking $DASHBOARD/api/config ..."
           curl -fsS "$DASHBOARD/api/config" | python3 -c "import json,sys; d=json.load(sys.stdin); assert d.get('apiUrl'), 'missing apiUrl'"
@@ -77,16 +79,16 @@ jobs:
             echo "OK: backend recommends production -flame (bundle may still be stale until promote)"
           fi
 
-      - name: Check verified r27 preview dashboard
+      - name: Check verified preview dashboard
         env:
-          VERIFIED_PREVIEW: "https://apex-trading-dashboard-git-main-apexweb-adams-projects.vercel.app"
+          VERIFIED_PREVIEW: "https://apex-trading-dashboard-4am3sz5kv-apexweb-adams-projects.vercel.app"
         run: |
           set -euo pipefail
           curl -fsS "$VERIFIED_PREVIEW/api/config" | python3 -c "
           import json,sys
           d=json.load(sys.stdin)
           rev=d.get('bundleRevision','')
-          assert rev in ('2026-08-28-r28','2026-08-28-r27','2026-08-28-r26','2026-08-28-r25','2026-08-28-r24','2026-08-28-r23'), rev
+          assert rev in ('2026-08-29-r34','2026-08-29-r33','2026-08-29-r32','2026-08-29-r31','2026-08-28-r29'), rev
           assert (d.get('features') or {}).get('activeGate') is True
           print('OK: verified preview bundle', rev)
           "
@@ -158,15 +160,17 @@ jobs:
                   data = json.loads(msg)
                   assert data.get("type") == "update", data
                   assert "stats" in data and "portfolios" in data, list(data.keys())
-                  print("OK: WebSocket live update — equity=%s trades=%s" % (
-                      data["stats"].get("total_equity"), data["stats"].get("total_trades")))
+                  assert "monday_recovery" in data, list(data.keys())
+                  print("OK: WebSocket live update — equity=%s trades=%s recovery=%s" % (
+                      data["stats"].get("total_equity"), data["stats"].get("total_trades"),
+                      len((data.get("monday_recovery") or {}).get("all") or [])))
 
           asyncio.run(check())
           PY
 
       - name: Check active-bot gate endpoint (production proxy)
         env:
-          VERIFIED_PREVIEW: "https://apex-trading-dashboard-git-main-apexweb-adams-projects.vercel.app"
+          VERIFIED_PREVIEW: "https://apex-trading-dashboard-4am3sz5kv-apexweb-adams-projects.vercel.app"
         run: |
           set -euo pipefail
           PROD="https://apex-trading-dashboard-flame.vercel.app"
@@ -188,7 +192,7 @@ jobs:
           NATIVE=$(curl -fsS -o /dev/null -w "%{http_code}" "$PROD/api/active-gate" || echo "000")
           PREVIEW="${VERIFIED_PREVIEW}"
           if [[ "$NATIVE" != "200" ]]; then
-            echo "::warning::Production /api/active-gate is $NATIVE — promote dpl_9cVRxRBgcHVStS2A35ZmPFbwrZTS"
+            echo "::warning::Production /api/active-gate is $NATIVE — promote dpl_GQTTm469KGGRkiKfwrULaLieM5VE"
             PREVIEW_NATIVE=$(curl -fsS -o /dev/null -w "%{http_code}" "$PREVIEW/api/active-gate" || echo "000")
             echo "Verified preview /api/active-gate HTTP $PREVIEW_NATIVE ($PREVIEW)"
             if [[ "$PREVIEW_NATIVE" != "200" ]]; then
