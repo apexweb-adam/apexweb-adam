@@ -80,6 +80,7 @@ SHADOW_GRADUATION_LOSS_EXPOSURE_SINGLE_POSITION_USD = 2.5
 GRADUATION_NUDGE_PROFIT_LOCK_USD = 3.0
 PROFITABLE_SHADOW_PROFIT_LOCK_USD = 3.5
 SHADOW_GRADUATION_LOSS_COOLDOWN_MULTIPLIER = 2
+FEED_ARTIFACT_COOLDOWN_MULTIPLIER = 3
 GRADUATION_NUDGE_SENTIMENT_EASE_BY_BOT = {
   "crypto": 0.04,
   "commodities": 0.02,
@@ -1167,7 +1168,7 @@ async def symbol_cooldown_remaining_seconds(
   from app.models.entities import Trade
 
   result = await session.execute(
-    select(Trade.is_winner, Trade.executed_at, Trade.reason)
+    select(Trade.is_winner, Trade.executed_at, Trade.reason, Trade.pnl)
     .where(
       Trade.bot_type == bot_type,
       Trade.symbol == symbol,
@@ -1179,7 +1180,7 @@ async def symbol_cooldown_remaining_seconds(
   row = result.first()
   if not row:
     return 0
-  is_winner, executed_at, reason = row
+  is_winner, executed_at, reason, pnl = row
   if not executed_at or is_winner is None:
     return 0
   if executed_at.tzinfo is not None:
@@ -1208,6 +1209,8 @@ async def symbol_cooldown_remaining_seconds(
     and bot_type in ("crypto", "commodities")
   ):
     seconds = int(seconds * SHADOW_GRADUATION_LOSS_COOLDOWN_MULTIPLIER)
+  if is_winner is False and is_feed_artifact_loss(bot_type, symbol, pnl, reason):
+    seconds = int(seconds * FEED_ARTIFACT_COOLDOWN_MULTIPLIER)
   return max(0, int(seconds - elapsed))
 
 
