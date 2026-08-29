@@ -1733,6 +1733,25 @@ function BotScanPreview({ botType }: { botType: string }) {
         {preview.stocks_trade_count_nudge && (
           <span className="text-amber-400/90"> · trade-count nudge (floor 0.34 / sent 0.05)</span>
         )}
+        {preview.stocks_gate_fast_scan_active && (
+          <span className="text-sky-400/90" title="15s scan interval during trade-count prep">
+            {" "}
+            · fast scan 15s
+          </span>
+        )}
+        {preview.commodities_gate_fast_scan_active && (
+          <span className="text-sky-400/90" title="15s scan interval during CME graduation prep">
+            {" "}
+            · CME fast scan 15s
+          </span>
+        )}
+        {preview.session && !preview.session.in_session && preview.session.minutes_until_open != null && (
+          <span className="text-gray-400">
+            {" "}
+            · opens in {Math.floor(preview.session.minutes_until_open / 60)}h{" "}
+            {preview.session.minutes_until_open % 60}m
+          </span>
+        )}
         {preview.crypto_strong_momentum_nudge && (
           <span className="text-emerald-400/90"> · strong momentum (cap 4 / loss cut $2.50)</span>
         )}
@@ -1817,6 +1836,11 @@ function BotScanPreview({ botType }: { botType: string }) {
               {row.recovery_ready && (
                 <span className="ml-1 text-emerald-400/80">↗</span>
               )}
+              {row.monday_open_ready && (
+                <span className="ml-1 text-lime-400/80" title="Will enter when session opens">
+                  ◉
+                </span>
+              )}
               {row.monday_gate_skip_ready && (
                 <span className="ml-1 text-sky-400/80" title="Monday gate-skip bypass eligible">
                   M
@@ -1825,14 +1849,18 @@ function BotScanPreview({ botType }: { botType: string }) {
             </span>
             <span
               className={
-                row.recovery_ready
+                row.monday_open_ready
+                  ? "text-lime-400"
+                  : row.recovery_ready
                   ? "text-emerald-400"
                   : row.would_enter
                     ? "text-apex-green"
                     : "text-gray-500"
               }
             >
-              {row.recovery_ready
+              {row.monday_open_ready
+                ? "open ready"
+                : row.recovery_ready
                 ? "recovery ready"
                 : row.would_enter
                   ? "would enter"
