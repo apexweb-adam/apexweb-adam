@@ -385,6 +385,33 @@ def test_shadow_graduation_loss_wind_down():
   ) is False
 
 
+def test_shadow_graduation_loss_wind_down_profitable_nudge_threshold():
+  from app.engines.gate_entry_guard import shadow_graduation_loss_wind_down
+
+  assert shadow_graduation_loss_wind_down(
+    graduation_nudge=True,
+    shadow_mode=True,
+    bot_type="crypto",
+    unrealized=-1.5,
+    held_seconds=900,
+    min_hold_seconds=900,
+    bot_win_rate=0.45,
+    profit_factor=1.11,
+    total_pnl=10.0,
+  ) is False
+  assert shadow_graduation_loss_wind_down(
+    graduation_nudge=True,
+    shadow_mode=True,
+    bot_type="crypto",
+    unrealized=-4.0,
+    held_seconds=900,
+    min_hold_seconds=900,
+    bot_win_rate=0.45,
+    profit_factor=1.11,
+    total_pnl=10.0,
+  ) is True
+
+
 def test_early_verification_macd_ok():
   from app.engines.gate_entry_guard import early_verification_macd_ok
 
