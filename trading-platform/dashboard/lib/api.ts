@@ -401,6 +401,18 @@ export type PlatformStatus = {
     wallet_tracker_webhook?: boolean;
     wallet_tracker_webhook_url?: string | null;
     wallet_tracker_example_payload?: Record<string, unknown> | null;
+    fomo_family?: boolean;
+    fomo_webhook?: boolean;
+    fomo_webhook_url?: string | null;
+    fomo_userscript_url?: string | null;
+    fomo_setup?: string | null;
+    fomo_example_payload?: Record<string, unknown> | null;
+    fomo_bridge_scripts?: {
+      userscript?: string;
+      zapier_guide?: string;
+      manual_curl?: string;
+      test_webhook?: string;
+    };
     reddit_oauth?: boolean;
     twitter_x?: boolean;
   };

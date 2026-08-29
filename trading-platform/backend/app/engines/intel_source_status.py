@@ -7,6 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
+from app.intelligence.fomo_tracker import fomo_configured
 from app.intelligence.wallet_tracker import wallet_tracker_configured
 from app.models.entities import IntelligenceItem
 
@@ -18,6 +19,7 @@ INTEL_SOURCE_ORDER = [
   "tiktok",
   "dexscreener",
   "hyperliquid",
+  "fomo",
   "polymarket",
   "polymarket_account",
   "wallet_tracker",
@@ -84,6 +86,7 @@ async def build_intel_sources(session: AsyncSession) -> list[dict[str, Any]]:
     "tiktok": True,
     "dexscreener": True,
     "hyperliquid": settings.hyperliquid_enabled,
+    "fomo": fomo_configured(),
     "tradingview": bool(settings.tradingview_webhook_secret),
     "x": bool(settings.twitter_bearer_token) or bool(settings.newsapi_key),
     "newsapi": bool(settings.newsapi_key),

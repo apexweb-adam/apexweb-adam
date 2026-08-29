@@ -17,11 +17,16 @@ def test_build_crm_integration_hooks_reports_tv_and_polymarket():
     mock_settings.polymarket_deposit_address = ""
     mock_settings.polymarket_api_key = "pm-key"
     mock_settings.polymarket_profile_url = "https://polymarket.com/@apexweb"
+    mock_settings.fomo_enabled = True
     with patch(
       "app.engines.crm_summary.wallet_tracker_configured",
       return_value=True,
     ):
-      result = asyncio.run(build_crm_integration_hooks(session))
+      with patch(
+        "app.engines.crm_summary.fomo_configured",
+        return_value=True,
+      ):
+        result = asyncio.run(build_crm_integration_hooks(session))
 
   assert result["tradingview"]["configured"] is True
   assert result["tradingview"]["items"] == 12
@@ -29,6 +34,8 @@ def test_build_crm_integration_hooks_reports_tv_and_polymarket():
   assert result["polymarket"]["api_configured"] is True
   assert result["polymarket"]["intel_items"] == 170
   assert result["wallet_tracker"]["configured"] is True
+  assert result["fomo"]["configured"] is True
+  assert "webhooks/fomo" in result["fomo"]["webhook_url"]
 
 
 def test_crm_landing_includes_integration_hooks():
@@ -56,6 +63,12 @@ def test_crm_landing_includes_integration_hooks():
       "configured": True,
       "webhook_url": "https://apex-trading-backend.onrender.com/api/webhooks/wallet",
     },
+    "fomo": {
+      "configured": True,
+      "webhook_url": "https://apex-trading-backend.onrender.com/api/webhooks/fomo",
+      "userscript_url": "https://apex-trading-backend.onrender.com/api/fomo/userscript",
+      "bridge_guide": "trading-platform/scripts/fomo-zapier-setup.md",
+    },
   }
 
   with patch("app.main.recommended_dashboard_url", new_callable=AsyncMock, return_value="https://example.com"):
@@ -79,6 +92,7 @@ def test_crm_landing_includes_integration_hooks():
 
   assert response.status_code == 200
   body = response.text
-  assert "TradingView &amp; Polymarket hooks" in body or "TradingView & Polymarket hooks" in body
+  assert "TradingView" in body and "fomo" in body
   assert "webhooks/tradingview" in body
+  assert "webhooks/fomo" in body
   assert "polymarket.com/@apexweb" in body

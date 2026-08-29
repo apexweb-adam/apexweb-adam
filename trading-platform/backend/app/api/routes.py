@@ -587,6 +587,47 @@ async def get_platform_status(db: AsyncSession = Depends(get_db)) -> dict[str, A
         if settings.tradingview_webhook_secret
         else None
       ),
+      "fomo_family": settings.fomo_enabled,
+      "fomo_webhook": bool(settings.fomo_enabled and settings.tradingview_webhook_secret),
+      "fomo_webhook_url": (
+        "https://apex-trading-backend.onrender.com/api/webhooks/fomo"
+        if settings.fomo_enabled and settings.tradingview_webhook_secret
+        else None
+      ),
+      "fomo_userscript_url": (
+        "https://apex-trading-backend.onrender.com/api/fomo/userscript"
+        if settings.fomo_enabled
+        else None
+      ),
+      "fomo_setup": (
+        "3 bridges: (1) Tampermonkey script scripts/fomo-family-bridge.user.js on fomo.family, "
+        "(2) Zapier email/push → webhook — see scripts/fomo-zapier-setup.md, "
+        "(3) curl scripts/fomo-send-alert.sh while tuning traders."
+        if settings.fomo_enabled and settings.tradingview_webhook_secret
+        else None
+      ),
+      "fomo_bridge_scripts": {
+        "userscript": "trading-platform/scripts/fomo-family-bridge.user.js",
+        "zapier_guide": "trading-platform/scripts/fomo-zapier-setup.md",
+        "manual_curl": "trading-platform/scripts/fomo-send-alert.sh",
+        "test_webhook": "trading-platform/scripts/fomo-test-webhook.sh",
+      },
+      "fomo_example_payload": (
+        {
+          "secret": "<TRADINGVIEW_WEBHOOK_SECRET>",
+          "event_type": "trade",
+          "symbol": "WIF",
+          "action": "buy",
+          "trader_name": "top_trader",
+          "trader_rank": 5,
+          "trader_pnl_pct": 180.5,
+          "chain": "solana",
+          "amount_usd": 2500,
+          "message": "fomo leaderboard trader opened WIF",
+        }
+        if settings.fomo_enabled and settings.tradingview_webhook_secret
+        else None
+      ),
     },
     "scheduler": {
       "intelligence_scan": "every 5 min",
@@ -1005,6 +1046,73 @@ async def wallet_webhook(payload: dict[str, Any], db: AsyncSession = Depends(get
   result = await ingest_wallet_webhook(db, payload)
   await push_live_update()
   return result
+
+
+@router.get("/fomo/userscript")
+async def fomo_userscript() -> HTMLResponse:
+  """Serve Tampermonkey userscript for fomo.family → Apex webhook bridge."""
+  from pathlib import Path
+
+  script_path = (
+    Path(__file__).resolve().parents[3] / "scripts" / "fomo-family-bridge.user.js"
+  )
+  if not script_path.is_file():
+    return HTMLResponse(
+      content="fomo bridge userscript not found on server",
+      status_code=404,
+    )
+  body = script_path.read_text(encoding="utf-8")
+  return HTMLResponse(
+    content=body,
+    media_type="application/javascript; charset=utf-8",
+    headers={"Content-Disposition": 'inline; filename="apex-fomo-bridge.user.js"'},
+  )
+
+
+@router.post("/webhooks/fomo")
+async def fomo_webhook(payload: dict[str, Any], db: AsyncSession = Depends(get_db)):
+  """Ingest fomo.family trader alerts / copy-trade signals into intel pipeline."""
+  from app.config import settings
+  from app.intelligence.fomo_tracker import ingest_fomo_webhook
+  from app.ws_manager import push_live_update
+
+  if not settings.fomo_enabled:
+    return {"status": "disabled"}
+  secret = payload.get("secret", "")
+  if not settings.tradingview_webhook_secret or secret != settings.tradingview_webhook_secret:
+    return {"status": "unauthorized"}
+
+  result = await ingest_fomo_webhook(db, payload)
+  await push_live_update()
+  return result
+
+
+@router.post("/admin/test-fomo-webhook")
+async def test_fomo_webhook(payload: dict[str, Any], db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
+  """Inject a sample fomo.family leaderboard trader alert to verify webhook pipeline."""
+  secret = payload.get("secret", "")
+  if not settings.tradingview_webhook_secret or secret != settings.tradingview_webhook_secret:
+    return {"status": "unauthorized"}
+
+  sample = {
+    "secret": settings.tradingview_webhook_secret,
+    "event_type": "trade",
+    "symbol": payload.get("symbol", "WIF"),
+    "action": payload.get("action", "buy"),
+    "trader_name": payload.get("trader_name", "fomo_top_trader"),
+    "trader_rank": payload.get("trader_rank", 3),
+    "trader_pnl_pct": payload.get("trader_pnl_pct", 220.0),
+    "chain": payload.get("chain", "solana"),
+    "amount_usd": payload.get("amount_usd", 5000),
+    "message": payload.get("message", "Test fomo leaderboard trader buy alert"),
+  }
+  result = await fomo_webhook(sample, db)
+  return {
+    "status": "ok",
+    "webhook_url": "https://apex-trading-backend.onrender.com/api/webhooks/fomo",
+    "sample_payload": {k: v for k, v in sample.items() if k != "secret"},
+    "result": result,
+  }
 
 
 @router.post("/admin/test-wallet-webhook")

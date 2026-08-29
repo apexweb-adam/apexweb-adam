@@ -1093,7 +1093,20 @@ class CryptoBot(BaseBot):
   scan_interval = 20
 
   async def get_symbols(self) -> list[str]:
-    return [s.strip() for s in settings.crypto_symbols.split(",")]
+    base = [s.strip() for s in settings.crypto_symbols.split(",") if s.strip()]
+    if not settings.fomo_hot_symbols_enabled:
+      return base
+    async with SessionLocal() as session:
+      from app.intelligence.fomo_tracker import get_fomo_hot_symbols
+
+      hot = await get_fomo_hot_symbols(session)
+    if not hot:
+      return base
+    merged = list(base)
+    for sym in hot:
+      if sym not in merged:
+        merged.append(sym)
+    return merged
 
   async def fetch_price_data(self, symbol: str) -> tuple[float, pd.DataFrame | None]:
     return await fetch_crypto_data(symbol, "15m")

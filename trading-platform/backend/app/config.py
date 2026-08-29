@@ -28,6 +28,12 @@ class Settings(BaseSettings):
     memecoin_min_liquidity_usd: float = 25_000.0
     hyperliquid_enabled: bool = True
 
+    # fomo.family social copy-trading (webhook ingest — no public API)
+    fomo_enabled: bool = True
+    fomo_hot_symbols_enabled: bool = True
+    fomo_hot_symbols_max: int = 8
+    fomo_hot_symbol_min_relevance: float = 0.80
+
     # Integrations
     tradingview_webhook_secret: str = ""
     polymarket_api_url: str = "https://gamma-api.polymarket.com"

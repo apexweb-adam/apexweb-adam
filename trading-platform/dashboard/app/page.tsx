@@ -508,6 +508,61 @@ export default function Dashboard() {
                             )}
                           </div>
                         )}
+                        {(platformStatus.integrations?.fomo_webhook ||
+                          platformStatus.integrations?.fomo_family) && (
+                          <div className="rounded-lg border border-apex-border bg-apex-dark px-3 py-2 text-xs text-gray-400">
+                            <p className="text-apex-gold font-medium mb-1">
+                              fomo.family {platformStatus.integrations.fomo_webhook ? "webhook ready" : "enabled"}
+                            </p>
+                            {platformStatus.integrations.fomo_webhook_url && (
+                              <p className="font-mono text-[10px] text-gray-500 break-all">
+                                {platformStatus.integrations.fomo_webhook_url}
+                              </p>
+                            )}
+                            {platformStatus.integrations.fomo_userscript_url && (
+                              <p className="mt-1 text-[10px]">
+                                <a
+                                  href={platformStatus.integrations.fomo_userscript_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-apex-gold hover:underline break-all"
+                                >
+                                  Install userscript (Tampermonkey)
+                                </a>
+                              </p>
+                            )}
+                            {platformStatus.integrations.fomo_setup && (
+                              <p className="mt-1 text-[10px] text-gray-500">
+                                {platformStatus.integrations.fomo_setup}
+                              </p>
+                            )}
+                            {platformStatus.integrations.fomo_bridge_scripts && (
+                              <ul className="mt-2 text-[10px] text-gray-500 list-disc list-inside space-y-1">
+                                <li>
+                                  Userscript:{" "}
+                                  <code>{platformStatus.integrations.fomo_bridge_scripts.userscript}</code>
+                                </li>
+                                <li>
+                                  Zapier:{" "}
+                                  <code>{platformStatus.integrations.fomo_bridge_scripts.zapier_guide}</code>
+                                </li>
+                                <li>
+                                  Manual curl:{" "}
+                                  <code>{platformStatus.integrations.fomo_bridge_scripts.manual_curl}</code>
+                                </li>
+                              </ul>
+                            )}
+                            {platformStatus.integrations.fomo_example_payload && (
+                              <pre className="mt-2 p-2 rounded bg-black/40 text-[10px] text-gray-400 overflow-x-auto">
+                                {JSON.stringify(
+                                  platformStatus.integrations.fomo_example_payload,
+                                  null,
+                                  2
+                                )}
+                              </pre>
+                            )}
+                          </div>
+                        )}
                         {(platformStatus.deploy.next_steps?.length ?? 0) > 0 && (
                           <ul className="space-y-2 text-xs text-gray-400 list-disc list-inside">
                             {platformStatus.deploy.next_steps.map((step) => (
