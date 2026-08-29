@@ -410,6 +410,10 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
       chronic_symbols=chronic_losers,
       large_loss_symbols=hard_skip_sets.large,
       graduation_nudge=graduation_nudge,
+      shadow_mode=shadow_mode,
+      signal_direction=signal.direction,
+      macd_signal=signal.macd_signal,
+      composite=composite,
     )
     if cooldown_remaining > 0:
       blockers.append("symbol_cooldown")

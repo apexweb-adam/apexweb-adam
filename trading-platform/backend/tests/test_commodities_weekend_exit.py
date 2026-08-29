@@ -133,6 +133,7 @@ def test_commodities_weekend_spot_gate_skip_bypass():
     COMMODITIES_WEEKEND_SPOT_GATE_SKIP_COMPOSITE_FLOOR,
     commodities_weekend_spot_gate_skip_bypass,
     hard_skip_blocks_shadow_entry,
+    symbol_cooldown_remaining_seconds,
   )
 
   base = dict(
@@ -168,3 +169,16 @@ def test_commodities_weekend_spot_gate_skip_bypass():
       signal_direction="buy",
       macd_signal="bullish",
     ) is False
+    remaining = asyncio.run(
+      symbol_cooldown_remaining_seconds(
+        AsyncMock(),
+        "commodities",
+        "XAUUSDT",
+        graduation_nudge=True,
+        shadow_mode=False,
+        signal_direction="buy",
+        macd_signal="bullish",
+        composite=0.434,
+      )
+    )
+    assert remaining == 0

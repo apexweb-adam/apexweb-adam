@@ -1339,6 +1339,10 @@ async def is_symbol_in_trade_cooldown(
   chronic_symbols: frozenset[str] = frozenset(),
   large_loss_symbols: frozenset[str] = frozenset(),
   graduation_nudge: bool = False,
+  shadow_mode: bool = True,
+  signal_direction: str = "buy",
+  macd_signal: str = "bullish",
+  composite: float = 0.0,
 ) -> bool:
   """DB-backed re-entry cooldown — survives deploy restarts."""
   remaining = await symbol_cooldown_remaining_seconds(
@@ -1348,6 +1352,10 @@ async def is_symbol_in_trade_cooldown(
     chronic_symbols=chronic_symbols,
     large_loss_symbols=large_loss_symbols,
     graduation_nudge=graduation_nudge,
+    shadow_mode=shadow_mode,
+    signal_direction=signal_direction,
+    macd_signal=macd_signal,
+    composite=composite,
   )
   return remaining > 0
 
@@ -1360,8 +1368,22 @@ async def symbol_cooldown_remaining_seconds(
   chronic_symbols: frozenset[str] = frozenset(),
   large_loss_symbols: frozenset[str] = frozenset(),
   graduation_nudge: bool = False,
+  shadow_mode: bool = True,
+  signal_direction: str = "buy",
+  macd_signal: str = "bullish",
+  composite: float = 0.0,
 ) -> int:
   """Seconds until symbol re-entry is allowed after last sell."""
+  if commodities_weekend_spot_gate_skip_bypass(
+    bot_type=bot_type,
+    shadow_mode=shadow_mode,
+    symbol=symbol,
+    graduation_nudge=graduation_nudge,
+    signal_direction=signal_direction,
+    macd_signal=macd_signal,
+    composite=composite,
+  ):
+    return 0
   from app.models.entities import Trade
 
   result = await session.execute(

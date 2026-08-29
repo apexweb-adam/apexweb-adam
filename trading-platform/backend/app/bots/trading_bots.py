@@ -28,6 +28,7 @@ from app.engines.gate_entry_guard import (
   hard_skip_blocks_shadow_entry,
   bot_win_rate_for_graduation_nudge,
   commodities_graduation_entry_min_signal,
+  commodities_weekend_spot_gate_skip_bypass,
   commodities_session_info,
   crypto_graduation_entry_min_signal,
   graduation_nudge_min_sentiment,
@@ -617,9 +618,19 @@ class BaseBot(ABC):
         if not allow_new_entries:
           continue
 
-        cooldown = self._symbol_cooldown_until.get(symbol)
-        if cooldown and datetime.utcnow() < cooldown:
-          continue
+        weekend_spot_cooldown_waived = commodities_weekend_spot_gate_skip_bypass(
+          bot_type=self.bot_type,
+          shadow_mode=shadow_mode,
+          symbol=symbol,
+          graduation_nudge=graduation_nudge,
+          signal_direction=signal.direction,
+          macd_signal=signal.macd_signal,
+          composite=composite,
+        )
+        if not weekend_spot_cooldown_waived:
+          cooldown = self._symbol_cooldown_until.get(symbol)
+          if cooldown and datetime.utcnow() < cooldown:
+            continue
         if await is_symbol_in_trade_cooldown(
           session,
           self.bot_type,
@@ -627,6 +638,10 @@ class BaseBot(ABC):
           chronic_symbols=chronic_losers,
           large_loss_symbols=hard_skip_sets.large,
           graduation_nudge=graduation_nudge,
+          shadow_mode=shadow_mode,
+          signal_direction=signal.direction,
+          macd_signal=signal.macd_signal,
+          composite=composite,
         ):
           continue
 
