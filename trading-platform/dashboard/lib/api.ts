@@ -288,6 +288,7 @@ export type MondayRecoverySummary = {
     composite?: number;
     blockers?: string[];
     minutes_until_open?: number | null;
+    monday_gate_skip_ready?: boolean;
   }>;
   stocks_trade_count_nudge?: boolean;
   commodities_graduation_nudge?: boolean;

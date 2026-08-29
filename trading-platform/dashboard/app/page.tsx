@@ -1692,6 +1692,12 @@ function MondayRecoveryBanner({ summary }: { summary: MondayRecoverySummary | nu
                 </span>
                 <span className="text-lime-400/90 text-right">
                   {(row.composite ?? 0).toFixed(3)}
+                  {row.monday_gate_skip_ready && (
+                    <span className="text-sky-400/80" title="Gate-skip bypass eligible pre-open">
+                      {" "}
+                      · gate-skip
+                    </span>
+                  )}
                   {(row.blockers?.length ?? 0) > 0 && (
                     <span className="text-gray-500">
                       {" "}

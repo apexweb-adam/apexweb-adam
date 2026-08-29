@@ -3,14 +3,19 @@
 from unittest.mock import AsyncMock, patch
 
 from app.bots.trading_bots import CommoditiesBot
-from app.engines.gate_entry_guard import GateEntryTightening
+from app.engines.gate_entry_guard import (
+  COMMODITIES_REOPEN_IMMINENT_SCAN_MINUTES,
+  GateEntryTightening,
+)
 
 
 def test_commodities_effective_scan_interval_fast_during_cme_prep():
   import asyncio
 
   bot = CommoditiesBot()
-  session_info = {"in_session": False, "minutes_until_open": 45, "minutes_since_open": 0}
+  # Outside imminent-reopen window (60m) but still in graduation prep fast-scan.
+  minutes_until = COMMODITIES_REOPEN_IMMINENT_SCAN_MINUTES + 15
+  session_info = {"in_session": False, "minutes_until_open": minutes_until, "minutes_since_open": 0}
   tightening = GateEntryTightening(
     active=True,
     win_rate=0.5,

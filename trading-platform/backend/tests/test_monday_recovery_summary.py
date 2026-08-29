@@ -28,6 +28,7 @@ def test_build_monday_recovery_summary_aggregates_bots():
               "composite": 0.644,
               "recovery_ready": False,
               "monday_open_ready": True,
+              "monday_gate_skip_ready": True,
               "blockers": ["weekend_futures_closed"],
             },
           ],
@@ -51,6 +52,7 @@ def test_build_monday_recovery_summary_aggregates_bots():
               "composite": 0.467,
               "recovery_ready": False,
               "monday_open_ready": True,
+              "monday_gate_skip_ready": True,
               "blockers": ["stocks_session_closed"],
             },
           ],
@@ -78,7 +80,9 @@ def test_build_monday_recovery_summary_aggregates_bots():
   assert len(result["open_ready"]) == 2
   assert result["open_ready"][0]["symbol"] == "NG=F"
   assert result["open_ready"][0]["minutes_until_open"] == 120
+  assert result["open_ready"][0]["monday_gate_skip_ready"] is True
   assert result["open_ready"][1]["minutes_until_open"] == 3000
+  assert result["open_ready"][1]["monday_gate_skip_ready"] is True
 
 
 def test_build_monday_recovery_summary_nudge_without_recovery_candidates():
