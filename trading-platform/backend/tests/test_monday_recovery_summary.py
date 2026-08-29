@@ -20,9 +20,18 @@ def test_build_monday_recovery_summary_aggregates_bots():
               "symbol": "SI=F",
               "composite": 0.518,
               "recovery_ready": True,
+              "monday_open_ready": False,
               "blockers": ["weekend_futures_closed", "signal_sell"],
-            }
+            },
+            {
+              "symbol": "NG=F",
+              "composite": 0.644,
+              "recovery_ready": False,
+              "monday_open_ready": True,
+              "blockers": ["weekend_futures_closed"],
+            },
           ],
+          "open_ready_candidates": ["NG=F"],
         }
       if bot_type == "stocks_futures":
         return {
@@ -34,9 +43,18 @@ def test_build_monday_recovery_summary_aggregates_bots():
               "symbol": "NVDA",
               "composite": 0.414,
               "recovery_ready": True,
+              "monday_open_ready": False,
               "blockers": ["gate_skip", "signal_sell"],
-            }
+            },
+            {
+              "symbol": "AAPL",
+              "composite": 0.467,
+              "recovery_ready": False,
+              "monday_open_ready": True,
+              "blockers": ["stocks_session_closed"],
+            },
           ],
+          "open_ready_candidates": ["AAPL"],
         }
       return {"error": "unknown"}
 
@@ -56,6 +74,9 @@ def test_build_monday_recovery_summary_aggregates_bots():
   assert "commodities" in result["bots"]
   assert "stocks_futures" in result["bots"]
   assert result["bots"]["commodities"]["recovery_candidates"] == ["SI=F"]
+  assert result["open_ready_candidates"] == ["NG=F", "AAPL"]
+  assert len(result["open_ready"]) == 2
+  assert result["open_ready"][0]["symbol"] == "NG=F"
 
 
 def test_build_monday_recovery_summary_nudge_without_recovery_candidates():

@@ -281,6 +281,13 @@ export type SessionPrepStatus = {
 
 export type MondayRecoverySummary = {
   recovery_candidates: string[];
+  open_ready_candidates?: string[];
+  open_ready?: Array<{
+    bot_type: string;
+    symbol: string;
+    composite?: number;
+    blockers?: string[];
+  }>;
   stocks_trade_count_nudge?: boolean;
   commodities_graduation_nudge?: boolean;
   all: Array<{
@@ -293,6 +300,7 @@ export type MondayRecoverySummary = {
     string,
     {
       recovery_candidates: string[];
+      open_ready_candidates?: string[];
       session?: ScanPreview["session"];
       symbols: ScanPreviewSymbol[];
     }

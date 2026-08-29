@@ -28,6 +28,7 @@ import {
   cn,
   formatCurrency,
   formatPct,
+  formatScanBlockers,
   formatTime,
   pnlColor,
   sentimentColor,
@@ -1663,11 +1664,40 @@ function SessionPrepBanner({ sessionPrep }: { sessionPrep: SessionPrepStatus | n
 
 function MondayRecoveryBanner({ summary }: { summary: MondayRecoverySummary | null }) {
   const hasNudge = summary?.stocks_trade_count_nudge || summary?.commodities_graduation_nudge;
-  if (!summary?.all?.length && !hasNudge) return null;
+  const openReady = summary?.open_ready ?? [];
+  if (!summary?.all?.length && !hasNudge && openReady.length === 0) return null;
 
   return (
     <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-4">
       <p className="text-sm font-medium text-emerald-400 mb-2">Monday recovery watchlist</p>
+      {openReady.length > 0 && (
+        <div className="mb-3 rounded border border-lime-500/30 bg-lime-500/5 p-2.5">
+          <p className="text-[11px] font-medium text-lime-400 mb-1.5">
+            Session open ready — will enter when market opens
+          </p>
+          <ul className="space-y-1">
+            {openReady.map((row) => (
+              <li
+                key={`open-${row.bot_type}-${row.symbol}`}
+                className="flex items-center justify-between gap-3 text-xs"
+              >
+                <span className="text-gray-100 font-medium">
+                  {botLabel(row.bot_type)} · {row.symbol}
+                </span>
+                <span className="text-lime-400/90 text-right">
+                  {(row.composite ?? 0).toFixed(3)}
+                  {(row.blockers?.length ?? 0) > 0 && (
+                    <span className="text-gray-500">
+                      {" "}
+                      · {formatScanBlockers(row.blockers!)}
+                    </span>
+                  )}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       {summary.stocks_trade_count_nudge && (
         <p className="text-[11px] text-amber-400/90 mb-2">
           Stocks trade-count nudge active — proven winners scanned first (composite floor 0.34).
@@ -1691,7 +1721,7 @@ function MondayRecoveryBanner({ summary }: { summary: MondayRecoverySummary | nu
               <span className="text-gray-500 text-right">
                 composite {(row.composite ?? 0).toFixed(3)}
                 {(row.blockers?.length ?? 0) > 0 && (
-                  <span className="text-gray-600"> · {row.blockers!.slice(0, 2).join(", ")}</span>
+                  <span className="text-gray-600"> · {formatScanBlockers(row.blockers!)}</span>
                 )}
               </span>
             </li>
@@ -1917,7 +1947,7 @@ function BotScanPreview({ botType }: { botType: string }) {
                 ? "recovery ready"
                 : row.would_enter
                   ? "would enter"
-                  : (row.blockers ?? []).slice(0, 2).join(", ")}
+                  : formatScanBlockers(row.blockers ?? [], 2)}
             </span>
           </li>
         ))}
