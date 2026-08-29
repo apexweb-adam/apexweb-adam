@@ -30,7 +30,7 @@ PRODUCTION_DASHBOARD_URL = "https://apex-trading-dashboard-flame.vercel.app"
 DEFAULT_VERIFIED_DASHBOARD_URL = "https://apex-trading-dashboard-43tumxweh-apexweb-adams-projects.vercel.app"
 DEFAULT_VERIFIED_DEPLOYMENT_ID = "dpl_4fzZAaUaL2mBCEv1EewqeGci2A5a"
 EXPECTED_DASHBOARD_BUNDLE = "2026-08-29-r68"
-EXPECTED_PLATFORM_REVISION = "2026-08-29-r294"
+EXPECTED_PLATFORM_REVISION = "2026-08-29-r295"
 GIT_MAIN_ALIAS = "apex-trading-dashboard-git-main"
 ACCEPTABLE_DASHBOARD_BUNDLES = frozenset({
   "2026-08-27-r9", "2026-08-27-r10", "2026-08-27-r11", "2026-08-27-r12",
@@ -180,6 +180,8 @@ def verified_dashboard_candidates() -> list[str]:
 
   # Configured verified URL first — env is authoritative when probe succeeds.
   add(configured_verified_dashboard_url())
+  # Recent PR preview with SessionPrepBanner fast scan (r67).
+  add("https://apex-trading-dashboard-o7tb7wydk-apexweb-adams-projects.vercel.app")
   # Newest main-branch previews — prefer before stale git-main alias.
   add("https://apex-trading-dashboard-43tumxweh-apexweb-adams-projects.vercel.app")
   add("https://apex-trading-dashboard-4am3sz5kv-apexweb-adams-projects.vercel.app")
@@ -556,7 +558,7 @@ async def fetch_vercel_dashboard_bundle() -> dict[str, Any]:
     proxy_ok = await probe_production_proxy_operational()
     if prod_cfg and bundle_is_acceptable(prod_cfg) and proxy_ok:
       behind_expected = not bundle_is_current(prod_cfg)
-      return {
+      result: dict[str, Any] = {
         "vercel_bundle_stale": False,
         "vercel_bundle_behind_expected": behind_expected,
         "vercel_bundle_revision": prod_cfg.get("bundleRevision"),
@@ -564,6 +566,14 @@ async def fetch_vercel_dashboard_bundle() -> dict[str, Any]:
         "dashboard_url": PRODUCTION_DASHBOARD_URL,
         "expected_dashboard_bundle": EXPECTED_DASHBOARD_BUNDLE,
       }
+      if behind_expected:
+        discovered = await discover_verified_dashboard()
+        result["verified_dashboard_url"] = discovered["verified_dashboard_url"]
+        result["verified_dashboard_discovered"] = discovered.get("discovered", False)
+        result["verified_bundle_revision"] = discovered.get("vercel_bundle_revision")
+        result["vercel_promote_deployment_id"] = promote_id
+        result["vercel_promote_url"] = promote_url
+      return result
 
     discovered = await discover_verified_dashboard()
     verified_url = discovered["verified_dashboard_url"]
