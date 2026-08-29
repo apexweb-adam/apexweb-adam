@@ -43,6 +43,8 @@ def test_build_live_payload_includes_learning_fields():
     assert "strategies" in payload
     assert "verification_history" in payload
     assert "monday_recovery" in payload
+    assert "session_prep" in payload
+    assert "content_study" in payload
     assert isinstance(payload["analyses"], list)
     assert isinstance(payload["reviews"], list)
     assert isinstance(payload["insights"], list)

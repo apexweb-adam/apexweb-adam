@@ -516,7 +516,13 @@ def test_build_scan_preview_crypto_intel_override_on_sell_signal():
               return_value={"live_trading_ready": False, "total_trades": 5, "win_rate": 0.6}
             )
             GateCls.return_value.evaluate_per_bot = AsyncMock(
-              return_value={"crypto": {"win_rate": 0.46}}
+              return_value={
+                "crypto": {
+                  "win_rate": 0.50,
+                  "profit_factor": 1.25,
+                  "total_pnl": 31.0,
+                }
+              }
             )
             with patch(
               "app.engines.scan_preview.get_gate_entry_tightening",

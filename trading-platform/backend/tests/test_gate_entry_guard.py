@@ -1391,7 +1391,7 @@ def test_stocks_session_close_wind_down():
 def test_shadow_requires_macd_crypto_nudge_off():
   assert shadow_requires_macd(
     "crypto",
-    bot_win_rate=0.46,
+    bot_win_rate=0.50,
     gate_tightening=GateEntryTightening(
       active=False,
       win_rate=1.0,
@@ -1400,6 +1400,8 @@ def test_shadow_requires_macd_crypto_nudge_off():
       min_composite_boost=0.0,
     ),
     shadow_mode=True,
+    profit_factor=1.25,
+    total_pnl=31.0,
   ) is False
 
 
