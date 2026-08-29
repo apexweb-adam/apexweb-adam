@@ -1627,6 +1627,12 @@ function BotScanPreview({ botType }: { botType: string }) {
     <div className="mb-2 rounded border border-apex-border/60 bg-apex-dark/40 p-2">
       <p className="text-[10px] text-gray-500 mb-1">
         Scan preview
+        {preview.open_count != null && preview.shadow_open_cap != null && (
+          <span className="text-gray-400">
+            {" "}
+            · {preview.open_count}/{preview.shadow_open_cap} open
+          </span>
+        )}
         {preview.graduation_nudge && (
           <span className="text-amber-500/90"> · graduation nudge</span>
         )}
@@ -1647,6 +1653,11 @@ function BotScanPreview({ botType }: { botType: string }) {
               {row.symbol}
               {row.recovery_ready && (
                 <span className="ml-1 text-emerald-400/80">↗</span>
+              )}
+              {row.monday_gate_skip_ready && (
+                <span className="ml-1 text-sky-400/80" title="Monday gate-skip bypass eligible">
+                  M
+                </span>
               )}
             </span>
             <span
