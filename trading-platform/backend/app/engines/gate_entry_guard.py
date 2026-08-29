@@ -81,6 +81,7 @@ GRADUATION_NUDGE_PROFIT_LOCK_USD = 3.0
 PROFITABLE_SHADOW_PROFIT_LOCK_USD = 3.5
 SHADOW_GRADUATION_LOSS_COOLDOWN_MULTIPLIER = 2
 FEED_ARTIFACT_COOLDOWN_MULTIPLIER = 3
+GATE_CAP_PRESSURE_PROXY_WIND_DOWN_USD = 0.75
 GRADUATION_NUDGE_SENTIMENT_EASE_BY_BOT = {
   "crypto": 0.04,
   "commodities": 0.02,
@@ -710,6 +711,36 @@ def shadow_graduation_profit_lock(
   else:
     threshold = GRADUATION_NUDGE_PROFIT_LOCK_USD
   return unrealized >= threshold
+
+
+def gate_cap_pressure_proxy_wind_down(
+  *,
+  bot_type: str,
+  shadow_mode: bool,
+  graduation_nudge: bool,
+  symbol: str,
+  unrealized: float,
+  held_seconds: float,
+  min_hold_seconds: int,
+  open_count: int,
+  gate_tightening: GateEntryTightening,
+  signal_direction: str | None = None,
+) -> bool:
+  """Free gate slots by exiting losing crypto proxy marks when commodities is at open cap."""
+  if shadow_mode or bot_type not in ACTIVE_GATE_GRADUATION_NUDGE_BOTS or not graduation_nudge:
+    return False
+  from app.engines.market_data import CRYPTO_LIVE_PRICE_PROXY
+
+  if symbol not in CRYPTO_LIVE_PRICE_PROXY:
+    return False
+  cap = gate_tightening.max_commodities_open_positions
+  if not isinstance(cap, int) or open_count < cap:
+    return False
+  if held_seconds < min_hold_seconds:
+    return False
+  if unrealized <= -GATE_CAP_PRESSURE_PROXY_WIND_DOWN_USD:
+    return True
+  return unrealized < 0 and signal_direction == "sell"
 
 
 def stocks_session_close_wind_down(

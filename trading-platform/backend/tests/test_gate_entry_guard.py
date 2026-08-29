@@ -957,3 +957,66 @@ def test_apply_gate_tightening_skips_loss_streak_during_graduation_nudge():
   )
   assert base == pytest.approx(0.43)
   assert eased == pytest.approx(0.31)
+
+
+def test_gate_cap_pressure_proxy_wind_down_at_cap():
+  from app.engines.gate_entry_guard import gate_cap_pressure_proxy_wind_down
+
+  tightening = GateEntryTightening(
+    active=False,
+    win_rate=0.444,
+    min_sentiment=0.0,
+    require_macd_bullish=False,
+    min_composite_boost=0.0,
+    max_commodities_open_positions=3,
+  )
+  base = dict(
+    bot_type="commodities",
+    shadow_mode=False,
+    graduation_nudge=True,
+    symbol="XAUUSDT",
+    held_seconds=600,
+    min_hold_seconds=180,
+    open_count=3,
+    gate_tightening=tightening,
+  )
+  assert gate_cap_pressure_proxy_wind_down(unrealized=-0.80, **base) is True
+  assert gate_cap_pressure_proxy_wind_down(unrealized=-0.50, **base) is False
+  assert gate_cap_pressure_proxy_wind_down(
+    unrealized=-0.50,
+    signal_direction="sell",
+    **base,
+  ) is True
+  assert gate_cap_pressure_proxy_wind_down(
+    unrealized=-0.80,
+    open_count=2,
+    bot_type="commodities",
+    shadow_mode=False,
+    graduation_nudge=True,
+    symbol="XAUUSDT",
+    held_seconds=600,
+    min_hold_seconds=180,
+    gate_tightening=tightening,
+  ) is False
+  assert gate_cap_pressure_proxy_wind_down(
+    unrealized=-0.80,
+    bot_type="commodities",
+    shadow_mode=True,
+    graduation_nudge=True,
+    symbol="XAUUSDT",
+    held_seconds=600,
+    min_hold_seconds=180,
+    open_count=3,
+    gate_tightening=tightening,
+  ) is False
+  assert gate_cap_pressure_proxy_wind_down(
+    unrealized=-0.80,
+    bot_type="commodities",
+    shadow_mode=False,
+    graduation_nudge=True,
+    symbol="CL=F",
+    held_seconds=600,
+    min_hold_seconds=180,
+    open_count=3,
+    gate_tightening=tightening,
+  ) is False
