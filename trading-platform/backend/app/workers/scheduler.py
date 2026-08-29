@@ -140,7 +140,9 @@ async def commodities_pre_session_prep_job() -> None:
   """90 min before CME futures reopen: refresh TradingView boosts for key commodities."""
   from app.engines.gate_entry_guard import (
     commodities_session_info,
+    get_chronic_loser_symbols,
     get_proven_winner_symbols,
+    is_commodities_futures_symbol,
   )
   from app.engines.integration_signals import refresh_tradingview_signals
 
@@ -154,7 +156,9 @@ async def commodities_pre_session_prep_job() -> None:
 
   async with SessionLocal() as session:
     winners = await get_proven_winner_symbols(session, "commodities")
-    symbols = sorted(set(COMMODITIES_PREP_SYMBOLS) | set(winners))
+    chronic = await get_chronic_loser_symbols(session, "commodities")
+    recovery_futures = {s for s in chronic if is_commodities_futures_symbol(s)}
+    symbols = sorted(set(COMMODITIES_PREP_SYMBOLS) | set(winners) | recovery_futures)
     refreshed = await refresh_tradingview_signals(
       session,
       symbols,

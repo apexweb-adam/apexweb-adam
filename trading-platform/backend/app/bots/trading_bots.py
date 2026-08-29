@@ -28,6 +28,7 @@ from app.engines.gate_entry_guard import (
   hard_skip_blocks_shadow_entry,
   bot_win_rate_for_graduation_nudge,
   commodities_graduation_entry_min_signal,
+  commodities_session_info,
   crypto_graduation_entry_min_signal,
   graduation_nudge_min_sentiment,
   graduation_nudge_sentiment_ok,
@@ -35,6 +36,7 @@ from app.engines.gate_entry_guard import (
   intel_override_allows_long_entry,
   is_symbol_in_trade_cooldown,
   open_position_cap_blocks_entry,
+  prioritize_commodities_monday_scan,
   shadow_chronic_position_scale,
   shadow_graduation_min_hold_seconds,
   shadow_graduation_min_composite,
@@ -201,7 +203,14 @@ class BaseBot(ABC):
         hard_skip_sets = await get_hard_gate_skip_components(session, self.bot_type)
         if self.bot_type in ("stocks_futures", "commodities"):
           proven_winners = await get_proven_winner_symbols(session, self.bot_type)
-          if proven_winners:
+          if self.bot_type == "commodities":
+            symbols = prioritize_commodities_monday_scan(
+              symbols,
+              chronic_losers=chronic_losers,
+              proven_winners=proven_winners,
+              session_info=commodities_session_info(),
+            )
+          elif proven_winners:
             symbols = _prioritize_symbols(symbols, proven_winners)
       open_positions = await engine.get_open_positions()
       open_count = len(open_positions)
