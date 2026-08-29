@@ -1959,6 +1959,64 @@ STOCKS_MONDAY_SCAN_PREP_MINUTES = 90
 STOCKS_TRADE_COUNT_PREP_MINUTES = 4320  # 72h — weekend TV refresh before Monday open
 
 
+def build_session_prep_status(
+  *,
+  stocks_session: dict[str, Any],
+  commodities_session: dict[str, Any],
+  stocks_trade_count_nudge: bool,
+  commodities_graduation_nudge: bool,
+) -> dict[str, Any]:
+  """Summarize whether extended weekend TV prep windows are active."""
+  stocks_minutes = stocks_session.get("minutes_until_open")
+  commodities_minutes = commodities_session.get("minutes_until_open")
+  stocks_window = stocks_pre_session_prep_window_minutes(stocks_trade_count_nudge)
+  commodities_window = commodities_pre_session_prep_window_minutes(
+    commodities_graduation_nudge
+  )
+
+  def _prep_entry(
+    bot_type: str,
+    session_info: dict[str, Any],
+    prep_window: int,
+    nudge: bool,
+    nudge_label: str,
+  ) -> dict[str, Any]:
+    minutes_until = session_info.get("minutes_until_open")
+    in_session = bool(session_info.get("in_session"))
+    prep_active = (
+      not in_session
+      and minutes_until is not None
+      and minutes_until <= prep_window
+    )
+    return {
+      "bot_type": bot_type,
+      "prep_active": prep_active,
+      "prep_window_minutes": prep_window,
+      "minutes_until_open": minutes_until,
+      "extended_weekend_prep": nudge and prep_window > 90,
+      "nudge_active": nudge,
+      "nudge_label": nudge_label if nudge else None,
+      "session_mode": session_info.get("mode"),
+    }
+
+  return {
+    "stocks_futures": _prep_entry(
+      "stocks_futures",
+      stocks_session,
+      stocks_window,
+      stocks_trade_count_nudge,
+      "trade-count nudge",
+    ),
+    "commodities": _prep_entry(
+      "commodities",
+      commodities_session,
+      commodities_window,
+      commodities_graduation_nudge,
+      "graduation nudge",
+    ),
+  }
+
+
 def stocks_pre_session_prep_window_minutes(trade_count_nudge: bool) -> int:
   """How far ahead of US open to refresh TradingView boosts for stocks prep."""
   if trade_count_nudge:

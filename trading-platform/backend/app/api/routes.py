@@ -226,6 +226,25 @@ async def get_monday_recovery_summary(db: AsyncSession = Depends(get_db)) -> dic
   return await build_monday_recovery_summary(db)
 
 
+@router.get("/gate/prep-status")
+async def get_session_prep_status(db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
+  """Weekend/session TV prep window status for stocks and commodities."""
+  from app.engines.gate_entry_guard import (
+    build_session_prep_status,
+    commodities_session_info,
+    stocks_session_info,
+  )
+  from app.engines.scan_preview import build_monday_recovery_summary
+
+  recovery = await build_monday_recovery_summary(db)
+  return build_session_prep_status(
+    stocks_session=stocks_session_info(),
+    commodities_session=commodities_session_info(),
+    stocks_trade_count_nudge=bool(recovery.get("stocks_trade_count_nudge")),
+    commodities_graduation_nudge=bool(recovery.get("commodities_graduation_nudge")),
+  )
+
+
 @router.get("/intelligence")
 async def get_intelligence(
   limit: int = 50,
@@ -574,8 +593,8 @@ async def get_platform_status(db: AsyncSession = Depends(get_db)) -> dict[str, A
       "content_study": "every 2 hours",
       "risk_migration": "every 15 min",
       "redeploy_check": "every 1 hour",
-      "stocks_pre_session_prep": "13:00 UTC Mon-Fri + every 15 min within 90 min of open",
-      "commodities_pre_session_prep": "22:30 UTC Sun + every 15 min within 90 min of CME open",
+      "stocks_pre_session_prep": "13:00 UTC Mon-Fri + Sat/Sun 14:00 + every 15 min (72h window when trade-count nudge)",
+      "commodities_pre_session_prep": "22:30 UTC Sun + every 15 min (72h window when graduation nudge)",
       "held_positions_tv_refresh": "every 30 min for open gate positions",
       "daily_review": "22:00 UTC",
       "daily_review_refresh": "every 4 hours",
@@ -728,7 +747,7 @@ async def run_commodities_prep_admin(payload: dict[str, Any]) -> dict[str, Any]:
 
 @router.post("/admin/run-stocks-prep")
 async def run_stocks_prep_admin(payload: dict[str, Any]) -> dict[str, Any]:
-  """Refresh TradingView signals for proven stock winners within 90 min of US open."""
+  """Refresh TradingView signals for proven stock winners within prep window (up to 72h when trade-count nudge)."""
   from app.engines.gate_entry_guard import stocks_session_info
   from app.workers.scheduler import stocks_pre_session_prep_job
 

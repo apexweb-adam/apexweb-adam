@@ -29,3 +29,18 @@ def test_refresh_tradingview_signals_injects_missing():
   assert refreshed == ["NVDA", "AAPL"]
   assert session.add.call_count == 2
   session.commit.assert_awaited_once()
+
+
+def test_refresh_tradingview_signals_force_refresh():
+  session = AsyncMock()
+  recent_item = MagicMock()
+  result_mock = MagicMock()
+  result_mock.scalar_one_or_none.return_value = recent_item
+  session.execute.return_value = result_mock
+
+  refreshed = asyncio.run(
+    refresh_tradingview_signals(session, ["NVDA"], force_refresh=True)
+  )
+  assert refreshed == ["NVDA"]
+  session.add.assert_called_once()
+  session.commit.assert_awaited_once()

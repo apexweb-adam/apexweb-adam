@@ -628,6 +628,21 @@ def test_prioritize_stocks_monday_scan_outside_prep_window():
   assert ordered[0] == "AAPL"
 
 
+def test_build_session_prep_status_extended_weekend():
+  from app.engines.gate_entry_guard import build_session_prep_status
+
+  status = build_session_prep_status(
+    stocks_session={"in_session": False, "minutes_until_open": 3000, "mode": "weekend_closed"},
+    commodities_session={"in_session": False, "minutes_until_open": 2400, "mode": "weekend_closed"},
+    stocks_trade_count_nudge=True,
+    commodities_graduation_nudge=True,
+  )
+  assert status["stocks_futures"]["prep_active"] is True
+  assert status["stocks_futures"]["extended_weekend_prep"] is True
+  assert status["commodities"]["prep_active"] is True
+  assert status["commodities"]["extended_weekend_prep"] is True
+
+
 def test_prioritize_stocks_monday_scan_trade_count_nudge():
   from app.engines.gate_entry_guard import prioritize_stocks_monday_scan
 

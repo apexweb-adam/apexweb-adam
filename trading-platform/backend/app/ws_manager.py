@@ -60,6 +60,18 @@ async def build_live_payload(session: AsyncSession) -> dict:
   from app.engines.scan_preview import build_monday_recovery_summary
 
   monday_recovery = await build_monday_recovery_summary(session)
+  from app.engines.gate_entry_guard import (
+    build_session_prep_status,
+    commodities_session_info,
+    stocks_session_info,
+  )
+
+  session_prep = build_session_prep_status(
+    stocks_session=stocks_session_info(),
+    commodities_session=commodities_session_info(),
+    stocks_trade_count_nudge=bool(monday_recovery.get("stocks_trade_count_nudge")),
+    commodities_graduation_nudge=bool(monday_recovery.get("commodities_graduation_nudge")),
+  )
   portfolios = (await session.execute(select(Portfolio))).scalars().all()
   sell_trades = (await session.execute(select(Trade).where(Trade.action == "sell"))).scalars().all()
   positions = (
@@ -223,6 +235,7 @@ async def build_live_payload(session: AsyncSession) -> dict:
     ],
     "verification_history": [serialize_verification_snapshot(s) for s in verification_history],
     "monday_recovery": monday_recovery,
+    "session_prep": session_prep,
     **gate_payload,
   }
 

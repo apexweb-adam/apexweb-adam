@@ -175,10 +175,31 @@ async def crm_landing():
 
   redirect_seconds = 15 if recovery_candidates or live_snapshot.get("positions") or recovery_nudge_note else 3
 
-  from app.engines.gate_entry_guard import commodities_session_info, stocks_session_info
+  from app.engines.gate_entry_guard import (
+    build_session_prep_status,
+    commodities_session_info,
+    stocks_session_info,
+  )
 
   cme_session = commodities_session_info()
   stocks_session = stocks_session_info()
+  session_prep = build_session_prep_status(
+    stocks_session=stocks_session,
+    commodities_session=cme_session,
+    stocks_trade_count_nudge=stocks_trade_count_nudge,
+    commodities_graduation_nudge=commodities_graduation_nudge,
+  )
+  prep_lines: list[str] = []
+  for bot_key, label in (("stocks_futures", "Stocks"), ("commodities", "Commodities")):
+    entry = session_prep.get(bot_key) or {}
+    if entry.get("prep_active"):
+      mins = entry.get("minutes_until_open")
+      hours_label = f"{mins // 60}h {mins % 60}m" if mins is not None else "soon"
+      extended = "weekend TV prep · " if entry.get("extended_weekend_prep") else "TV prep · "
+      nudge = entry.get("nudge_label") or "nudge"
+      prep_lines.append(f"{label}: {extended}{nudge} — open in {hours_label}")
+  prep_summary = " · ".join(prep_lines)
+
   session_lines: list[str] = []
   if not cme_session.get("in_session"):
     mins = cme_session.get("minutes_until_open")
@@ -355,6 +376,7 @@ async def crm_landing():
   <h1>Apex Trading CRM</h1>
   <p>Paper trading · 4 autonomous bots · Real-time WebSocket</p>
   <p class="muted" style="margin-top:0;">{session_summary}</p>
+  {f"<p class='muted' style='margin-top:0;color:#fbbf24;'>{prep_summary}</p>" if prep_summary else ""}
   <div class="card">
     <p class="label">30-day verification gate · day {day}/30</p>
     <div class="grid">

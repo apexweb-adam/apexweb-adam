@@ -120,6 +120,7 @@ def test_stocks_prep_refreshes_within_trade_count_extended_window():
 
                   asyncio.run(stocks_pre_session_prep_job())
             mock_refresh.assert_called_once()
+            assert mock_refresh.call_args.kwargs.get("force_refresh") is True
             symbols = mock_refresh.call_args[0][1]
             assert "NVDA" in symbols
             assert "AAPL" in symbols

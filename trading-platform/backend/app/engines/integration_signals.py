@@ -101,6 +101,7 @@ async def refresh_tradingview_signals(
   action: str = "buy",
   max_age_hours: float = 12,
   reason_prefix: str = "Pre-session refresh",
+  force_refresh: bool = False,
 ) -> list[str]:
   """Inject TradingView intel for symbols missing a recent alert (keeps TV boost fresh at open)."""
   if not symbols:
@@ -109,17 +110,18 @@ async def refresh_tradingview_signals(
   refreshed: list[str] = []
   cutoff = datetime.utcnow() - timedelta(hours=max_age_hours)
   for symbol in symbols:
-    result = await session.execute(
-      select(IntelligenceItem)
-      .where(
-        IntelligenceItem.source == "tradingview",
-        IntelligenceItem.fetched_at >= cutoff,
-        IntelligenceItem.symbols_mentioned.ilike(f"%{symbol}%"),
+    if not force_refresh:
+      result = await session.execute(
+        select(IntelligenceItem)
+        .where(
+          IntelligenceItem.source == "tradingview",
+          IntelligenceItem.fetched_at >= cutoff,
+          IntelligenceItem.symbols_mentioned.ilike(f"%{symbol}%"),
+        )
+        .limit(1)
       )
-      .limit(1)
-    )
-    if result.scalar_one_or_none():
-      continue
+      if result.scalar_one_or_none():
+        continue
 
     action_lower = action.lower()
     sentiment = 0.5 if "buy" in action_lower else -0.5 if "sell" in action_lower else 0.0

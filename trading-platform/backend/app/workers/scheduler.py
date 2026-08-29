@@ -152,6 +152,7 @@ async def stocks_pre_session_prep_job() -> None:
       session,
       symbols,
       reason_prefix="Pre-US-session TV refresh",
+      force_refresh=trade_count_nudge,
     )
   if refreshed:
     print(
@@ -245,6 +246,7 @@ async def commodities_pre_session_prep_job() -> None:
       session,
       symbols,
       reason_prefix="Pre-CME-session TV refresh",
+      force_refresh=graduation_nudge,
     )
   if refreshed:
     print(
@@ -492,7 +494,14 @@ async def setup_scheduler() -> None:
     id="commodities_pre_session_prep",
   )
   scheduler.add_job(
-    held_positions_tv_refresh_job,
+    stocks_pre_session_prep_job,
+    "cron",
+    hour=14,
+    minute=0,
+    day_of_week="sat,sun",
+    id="stocks_weekend_prep",
+  )
+  scheduler.add_job(
     "interval",
     minutes=30,
     id="held_positions_tv_refresh",
