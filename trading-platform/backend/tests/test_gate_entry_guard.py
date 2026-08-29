@@ -2382,6 +2382,31 @@ def test_commodities_weekend_forex_entry_blocked():
     assert commodities_weekend_forex_entry_blocked(**base, symbol="EURUSD=X") is False
 
 
+def test_commodities_weekend_spot_entry_blocked():
+  from datetime import datetime
+
+  from app.engines.gate_entry_guard import commodities_weekend_spot_entry_blocked
+
+  base = dict(
+    bot_type="commodities",
+    shadow_mode=False,
+    graduation_nudge=True,
+  )
+  with patch("app.engines.gate_entry_guard.datetime") as mock_dt:
+    mock_dt.utcnow.return_value = datetime(2026, 8, 29, 14, 0, 0)
+    mock_dt.side_effect = lambda *a, **k: datetime(*a, **k)
+    assert commodities_weekend_spot_entry_blocked(**base, symbol="XAUUSDT") is True
+    assert commodities_weekend_spot_entry_blocked(**base, symbol="PAXGUSDT") is True
+    assert commodities_weekend_spot_entry_blocked(**base, symbol="NG=F") is False
+    assert commodities_weekend_spot_entry_blocked(
+      **{**base, "shadow_mode": True}, symbol="XAUUSDT"
+    ) is False
+  with patch("app.engines.gate_entry_guard.datetime") as mock_dt:
+    mock_dt.utcnow.return_value = datetime(2026, 8, 31, 14, 0, 0)
+    mock_dt.side_effect = lambda *a, **k: datetime(*a, **k)
+    assert commodities_weekend_spot_entry_blocked(**base, symbol="XAUUSDT") is False
+
+
 def test_commodities_gold_proxy_duplicate_entry_and_wind_down():
   from datetime import datetime
 

@@ -2839,6 +2839,21 @@ def commodities_weekend_forex_entry_blocked(
   return symbol.endswith("=X")
 
 
+def commodities_weekend_spot_entry_blocked(
+  *,
+  bot_type: str,
+  shadow_mode: bool,
+  symbol: str,
+  graduation_nudge: bool,
+) -> bool:
+  """Block weekend spot proxy entries while CME closed — prefer futures at reopen."""
+  if shadow_mode or bot_type != "commodities" or not graduation_nudge:
+    return False
+  if not commodities_futures_weekend_closed():
+    return False
+  return symbol in COMMODITIES_WEEKEND_SPOT_SYMBOLS
+
+
 def commodities_session_info() -> dict[str, Any]:
   """UTC schedule for CME futures — weekend stale-feed guard aligns with session closed."""
   now = datetime.utcnow()
