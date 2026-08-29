@@ -94,6 +94,7 @@ from app.engines.gate_entry_guard import (
   stocks_proven_winner_sentiment_gate_ok,
   STOCKS_TRADE_COUNT_PROFIT_LOCK_USD,
   stocks_negative_pf_blocks_entry,
+  stocks_session_entry_blocked,
   stocks_session_info,
   whale_memecoin_aligned,
 )
@@ -198,13 +199,14 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
     per_bot_stats.get("win_rate"),
     int(per_bot_stats.get("total_trades") or 0),
   )
+  stocks_session = stocks_session_info() if bot_type == "stocks_futures" else None
   stocks_fast_scan_active = stocks_gate_fast_scan_active(
-    stocks_session_info() if bot_type == "stocks_futures" else None,
+    stocks_session,
     trade_count_nudge=stocks_trade_count_nudge,
   )
   stocks_open_imminent = (
     stocks_open_imminent_scan_active(
-      stocks_session_info(),
+      stocks_session,
       trade_count_nudge=stocks_trade_count_nudge,
     )
     if bot_type == "stocks_futures" and stocks_trade_count_nudge
@@ -498,6 +500,8 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
     blockers: list[str] = []
     if symbol in held_symbols:
       blockers.append("already_held")
+    if stocks_session_entry_blocked(bot_type, stocks_session):
+      blockers.append("stocks_session_closed")
     if commodities_weekend_futures_entry_blocked(symbol):
       blockers.append("weekend_futures_closed")
     if commodities_weekend_forex_entry_blocked(

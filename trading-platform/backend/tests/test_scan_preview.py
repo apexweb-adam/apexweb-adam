@@ -370,7 +370,11 @@ def test_build_scan_preview_stocks_early_verification_volume_relax():
                           "app.engines.scan_preview.symbol_cooldown_remaining_seconds",
                           new=AsyncMock(return_value=0),
                         ):
-                          return await build_scan_preview(session, "stocks_futures")
+                          with patch(
+                            "app.engines.scan_preview.stocks_session_info",
+                            return_value={"in_session": True, "minutes_until_open": 0},
+                          ):
+                            return await build_scan_preview(session, "stocks_futures")
 
   import asyncio
 
@@ -873,5 +877,7 @@ def test_build_scan_preview_stocks_monday_gate_skip_ready():
   aapl = next(row for row in result["symbols"] if row["symbol"] == "AAPL")
   assert aapl["monday_gate_skip_ready"] is True
   assert "gate_skip" in aapl["blockers"]
+  assert "stocks_session_closed" in aapl["blockers"]
+  assert aapl["would_enter"] is False
   assert result.get("stocks_trade_count_nudge") is True
   assert result.get("stocks_gate_fast_scan_active") is True

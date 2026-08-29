@@ -3556,6 +3556,17 @@ def stocks_session_info() -> dict[str, Any]:
   }
 
 
+def stocks_session_entry_blocked(
+  bot_type: str,
+  session_info: dict[str, Any] | None = None,
+) -> bool:
+  """Stocks shadow only enters during US cash session — block scan preview outside hours."""
+  if bot_type != "stocks_futures":
+    return False
+  session = session_info or stocks_session_info()
+  return not session.get("in_session", False)
+
+
 STOCKS_MONDAY_SCAN_OPEN_HOUR_MINUTES = 60
 STOCKS_MONDAY_SCAN_PREP_MINUTES = 90
 STOCKS_TRADE_COUNT_PREP_MINUTES = 4320  # 72h — weekend TV refresh before Monday open
@@ -4160,9 +4171,10 @@ STOCKS_MONDAY_RECOVERY_SOFT_BLOCKERS = frozenset({
   "sentiment_gate",
   "gate_skip",
   "stocks_negative_pf",
+  "stocks_session_closed",
 })
 
-STOCKS_MONDAY_OPEN_READY_BLOCKERS = frozenset({"gate_skip"})
+STOCKS_MONDAY_OPEN_READY_BLOCKERS = frozenset({"gate_skip", "stocks_session_closed"})
 
 
 def stocks_monday_open_ready(
