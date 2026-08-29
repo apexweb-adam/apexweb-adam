@@ -78,6 +78,7 @@ SHADOW_GRADUATION_LOSS_EXPOSURE_PER_POSITION_USD = 2.5
 SHADOW_GRADUATION_LOSS_EXPOSURE_AGGREGATE_USD = 6.0
 SHADOW_GRADUATION_LOSS_EXPOSURE_SINGLE_POSITION_USD = 2.5
 GRADUATION_NUDGE_PROFIT_LOCK_USD = 3.0
+COMMODITIES_PROVEN_WINNER_PROFIT_LOCK_USD = 2.0
 PROFITABLE_SHADOW_PROFIT_LOCK_USD = 3.5
 SHADOW_GRADUATION_LOSS_COOLDOWN_MULTIPLIER = 2
 FEED_ARTIFACT_COOLDOWN_MULTIPLIER = 3
@@ -714,6 +715,8 @@ def shadow_graduation_profit_lock(
   bot_win_rate: float | None = None,
   profit_factor: float | None = None,
   total_pnl: float | None = None,
+  symbol: str | None = None,
+  proven_winners: frozenset[str] | None = None,
 ) -> bool:
   """Bank winners during graduation nudge instead of round-tripping gains."""
   if not shadow_graduation_exits_active(
@@ -737,6 +740,14 @@ def shadow_graduation_profit_lock(
     threshold = PROFITABLE_SHADOW_PROFIT_LOCK_USD
   else:
     threshold = GRADUATION_NUDGE_PROFIT_LOCK_USD
+  if (
+    not shadow_mode
+    and bot_type == "commodities"
+    and symbol
+    and proven_winners
+    and symbol in proven_winners
+  ):
+    threshold = min(threshold, COMMODITIES_PROVEN_WINNER_PROFIT_LOCK_USD)
   return unrealized >= threshold
 
 
