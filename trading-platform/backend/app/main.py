@@ -299,7 +299,23 @@ async def crm_landing():
   pm_status = "wallet + API" if pm.get("wallet_configured") and pm.get("api_configured") else (
     "wallet only" if pm.get("wallet_configured") else "API only" if pm.get("api_configured") else "not configured"
   )
-  fomo_status = "webhook ready" if fomo.get("configured") else "off"
+  if fomo.get("bearer_configured"):
+    mins = fomo.get("bearer_minutes_remaining")
+    if fomo.get("bearer_polling_active"):
+      fomo_status = f"poll active ({mins} min left)" if mins is not None else "poll active"
+    else:
+      fomo_status = "bearer expired — open fomo.family + Tampermonkey or run fomo-set-bearer.sh"
+  elif fomo.get("configured"):
+    fomo_status = "webhook ready"
+  else:
+    fomo_status = "off"
+  fomo_bearer_note = ""
+  if fomo.get("bearer_configured"):
+    expires = fomo.get("bearer_expires_at") or "unknown"
+    polling = "yes" if fomo.get("bearer_polling_active") else "no"
+    fomo_bearer_note = (
+      f"<p class='muted' style='margin-top:0;'>fomo server poll: {polling} · expires {expires}</p>"
+    )
   integrations_summary = (
     f"TradingView {tv_status} ({tv.get('items', 0)} alerts) · "
     f"Polymarket {pm_status} ({pm.get('intel_items', 0)} markets) · "
@@ -431,6 +447,7 @@ async def crm_landing():
     <p class="muted" style="margin-top:0;">Wallet webhook: <code>{wt.get('webhook_url', '')}</code></p>
     <p class="muted" style="margin-top:0;">fomo webhook: <code>{fomo.get('webhook_url', '')}</code></p>
     <p class="muted" style="margin-top:0;">fomo userscript (Tampermonkey): <a href="{fomo.get('userscript_url', '')}">{fomo.get('userscript_url', '')}</a></p>
+    {fomo_bearer_note}
     {pm_profile_link}
   </div>
   <p><a href="{url}">Open live dashboard →</a> <span class="muted">(redirecting in {redirect_seconds}s)</span></p>
