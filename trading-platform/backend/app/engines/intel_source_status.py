@@ -116,7 +116,13 @@ async def build_intel_sources(session: AsyncSession) -> list[dict[str, Any]]:
       configured=configured,
     )
     if source == "fomo" and fomo_bearer.get("configured") and not fomo_bearer.get("polling_active"):
-      status = "degraded"
+      latest = source_latest.get("fomo")
+      recent_webhook = False
+      if latest is not None:
+        latest_naive = latest.replace(tzinfo=None) if latest.tzinfo else latest
+        recent_webhook = (datetime.utcnow() - latest_naive).total_seconds() < 6 * 3600
+      if not recent_webhook:
+        status = "degraded"
     if source == "axiom" and axiom_session.get("configured") and axiom_session.get("poll_mode") == "session" and not axiom_session.get("polling_active"):
       status = "degraded"
     if source == "axiom" and axiom_session.get("poll_mode") == "off":
@@ -138,6 +144,10 @@ async def build_intel_sources(session: AsyncSession) -> list[dict[str, Any]]:
       row["webhook_fallback_active"] = bool(
         fomo_bearer.get("configured") and not fomo_bearer.get("polling_active")
       )
+      latest = source_latest.get("fomo")
+      if latest is not None:
+        latest_naive = latest.replace(tzinfo=None) if latest.tzinfo else latest
+        row["webhook_recent"] = (datetime.utcnow() - latest_naive).total_seconds() < 6 * 3600
     if source == "axiom":
       row["session_configured"] = axiom_session.get("configured")
       row["session_polling_active"] = axiom_session.get("polling_active")

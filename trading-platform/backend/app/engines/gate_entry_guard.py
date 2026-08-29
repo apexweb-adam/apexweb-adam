@@ -319,7 +319,7 @@ COMMODITIES_HIGH_COMPOSITE_RECOVERY_FLOOR = 0.48
 COMMODITIES_FUTURES_WEEKEND_FLAT_EXIT_BAND_USD = 1.0
 COMMODITIES_WEEKEND_SPOT_SYMBOLS = frozenset({"XAUUSDT", "PAXGUSDT"})
 COMMODITIES_WEEKEND_SPOT_COOLDOWN_MULTIPLIER = 0.55
-COMMODITIES_WEEKEND_SPOT_GATE_SKIP_COMPOSITE_FLOOR = 0.42
+COMMODITIES_WEEKEND_SPOT_GATE_SKIP_COMPOSITE_FLOOR = 0.41
 STOCKS_SESSION_CLOSE_WIND_DOWN_MINUTES = 30
 STOCKS_SESSION_CLOSE_FORCE_MINUTES = 15
 DEFAULT_ENTRY_MIN_SIGNAL_FLOOR = 0.08
@@ -682,6 +682,16 @@ def chronic_loser_blocks_shadow_entry(
     composite=composite or 0.0,
     signal_direction=signal_direction or "buy",
     macd_signal=macd_signal or "bullish",
+  ):
+    return False
+  if commodities_weekend_spot_gate_skip_bypass(
+    bot_type=bot_type,
+    shadow_mode=shadow_mode,
+    symbol=symbol,
+    graduation_nudge=graduation_nudge,
+    signal_direction=signal_direction or "buy",
+    macd_signal=macd_signal or "bullish",
+    composite=composite or 0.0,
   ):
     return False
   if graduation_nudge_easing_active(
@@ -2203,7 +2213,7 @@ def commodities_weekend_spot_gate_skip_bypass(
   macd_signal: str,
   composite: float,
 ) -> bool:
-  """Weekend spot gold proxies can bypass recent/large gate_skip during graduation nudge."""
+  """Weekend spot gold proxies can bypass recent/large gate_skip and chronic blocks."""
   if shadow_mode or bot_type != "commodities":
     return False
   if not graduation_nudge:
