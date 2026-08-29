@@ -18,6 +18,13 @@ from app.intelligence.scanner import categorize
 from app.models.entities import IntelligenceItem
 
 PHANTOM_SOURCE = "phantom"
+TOKEN_PROGRAM_ID = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+KNOWN_SOLANA_MINT_SYMBOLS: dict[str, str] = {
+  "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263": "BONK",
+  "EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm": "WIF",
+  "7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr": "POPCAT",
+  "ukHH6c7mMyiWCf1b9pnWe25TSpkDDt3H5pQZgZ74J82": "BOME",
+}
 
 
 def phantom_configured() -> bool:
@@ -57,9 +64,20 @@ def phantom_portfolio_poll_active() -> bool:
   return bool(
     settings.phantom_enabled
     and settings.phantom_portfolio_poll_enabled
-    and settings.helius_api_key
     and phantom_poll_wallet_addresses()
+    and (
+      settings.helius_api_key
+      or settings.wallet_tracker_use_blockscout_fallback
+    )
   )
+
+
+def phantom_portfolio_poll_mode() -> str:
+  if not phantom_portfolio_poll_active():
+    return "off"
+  if settings.helius_api_key:
+    return "helius"
+  return "rpc"
 
 
 async def ingest_phantom_webhook(session: AsyncSession, payload: dict) -> dict:
@@ -161,16 +179,23 @@ async def get_phantom_watch_symbols(session: AsyncSession, *, max_age_hours: int
 
 
 async def scan_phantom_portfolios(session: AsyncSession) -> int:
-  """Poll Helius token balances for configured Phantom wallets (24/7 server-side)."""
+  """Poll token balances for Phantom-tracked wallets (Helius or Solana RPC fallback)."""
   if not settings.phantom_enabled or not settings.phantom_portfolio_poll_enabled:
-    return 0
-  if not settings.helius_api_key:
     return 0
 
   addresses = phantom_poll_wallet_addresses()
   if not addresses:
     return 0
 
+  ingested = 0
+  if settings.helius_api_key:
+    ingested += await _scan_phantom_helius(session, addresses)
+  if ingested == 0 and settings.wallet_tracker_use_blockscout_fallback:
+    ingested += await _scan_phantom_rpc(session, addresses)
+  return ingested
+
+
+async def _scan_phantom_helius(session: AsyncSession, addresses: list[str]) -> int:
   import httpx
 
   ingested = 0
@@ -186,7 +211,7 @@ async def scan_phantom_portfolios(session: AsyncSession) -> int:
           continue
         payload = response.json()
       except Exception as exc:
-        print(f"[phantom] balance poll error for {address[:8]}…: {exc}")
+        print(f"[phantom] Helius balance poll error for {address[:8]}…: {exc}")
         continue
 
       tokens = payload.get("tokens") if isinstance(payload, dict) else None
@@ -224,6 +249,68 @@ async def scan_phantom_portfolios(session: AsyncSession) -> int:
         )
         if result.get("status") == "received":
           ingested += 1
+  return ingested
 
+
+async def _scan_phantom_rpc(session: AsyncSession, addresses: list[str]) -> int:
+  """Free Solana JSON-RPC fallback when Helius API key is not set."""
+  import httpx
+
+  ingested = 0
+  hour_bucket = datetime.utcnow().strftime("%Y%m%d%H")
+  rpc = settings.solana_rpc_url.strip() or "https://api.mainnet-beta.solana.com"
+  async with httpx.AsyncClient(timeout=25) as client:
+    for address in addresses[:4]:
+      try:
+        response = await client.post(
+          rpc,
+          json={
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "getTokenAccountsByOwner",
+            "params": [
+              address,
+              {"programId": TOKEN_PROGRAM_ID},
+              {"encoding": "jsonParsed"},
+            ],
+          },
+        )
+        if response.status_code != 200:
+          continue
+        accounts = (response.json().get("result") or {}).get("value") or []
+      except Exception as exc:
+        print(f"[phantom] RPC balance poll error for {address[:8]}…: {exc}")
+        continue
+
+      for entry in accounts[:15]:
+        parsed = (((entry.get("account") or {}).get("data") or {}).get("parsed") or {})
+        info = parsed.get("info") or {}
+        mint = str(info.get("mint") or "")
+        token_amount = info.get("tokenAmount") or {}
+        amount = float(token_amount.get("uiAmount") or 0)
+        if amount <= 0:
+          continue
+        symbol = KNOWN_SOLANA_MINT_SYMBOLS.get(mint, "")
+        if not symbol:
+          continue
+        if amount < 1000 and symbol in ("BONK", "PEPE"):
+          continue
+
+        result = await ingest_phantom_webhook(
+          session,
+          {
+            "event_type": "holdings",
+            "symbol": symbol,
+            "wallet_address": address,
+            "chain": "solana",
+            "balance_usd": 0,
+            "message": f"Phantom RPC holding {symbol} ({amount:,.0f})",
+            "url": f"phantom:rpc-holdings:{address}:{symbol}:{hour_bucket}",
+            "relevance": 0.74,
+            "token_address": mint,
+          },
+        )
+        if result.get("status") == "received":
+          ingested += 1
   return ingested
 

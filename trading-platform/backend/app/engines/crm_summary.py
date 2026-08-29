@@ -16,6 +16,7 @@ from app.intelligence.phantom_tracker import (
   phantom_configured,
   phantom_poll_wallet_addresses,
   phantom_portfolio_poll_active,
+  phantom_portfolio_poll_mode,
 )
 from app.intelligence.wallet_tracker import wallet_tracker_configured
 from app.models.entities import IntelligenceItem, Position
@@ -92,6 +93,7 @@ async def build_crm_integration_hooks(session: AsyncSession) -> dict[str, Any]:
       "webhook_url": "https://apex-trading-backend.onrender.com/api/webhooks/phantom",
       "userscript_url": "https://apex-trading-backend.onrender.com/api/phantom/userscript",
       "portfolio_poll": phantom_portfolio_poll_active(),
+      "portfolio_poll_mode": phantom_portfolio_poll_mode(),
       "tracked_wallets": len(phantom_poll_wallet_addresses()),
       "using_default_wallets": not bool(parse_phantom_wallet_addresses()),
       "note": "Phantom MCP in Cursor is docs-only — webhook, userscript, or Helius portfolio poll",

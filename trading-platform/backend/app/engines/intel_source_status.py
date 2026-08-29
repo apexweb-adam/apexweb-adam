@@ -13,6 +13,7 @@ from app.intelligence.phantom_tracker import (
   phantom_configured,
   phantom_poll_wallet_addresses,
   phantom_portfolio_poll_active,
+  phantom_portfolio_poll_mode,
 )
 from app.intelligence.solana_wallet_tracker import tracked_solana_wallet_count
 from app.intelligence.wallet_tracker import wallet_tracker_configured
@@ -140,6 +141,7 @@ async def build_intel_sources(session: AsyncSession) -> list[dict[str, Any]]:
       row["min_wallets_required"] = settings.wallet_tracker_min_wallets
     if source == "phantom":
       row["portfolio_poll_active"] = phantom_portfolio_poll_active()
+      row["portfolio_poll_mode"] = phantom_portfolio_poll_mode()
       row["tracked_wallets"] = len(phantom_poll_wallet_addresses())
       row["using_default_wallets"] = not bool(settings.phantom_wallet_addresses.strip())
     rows.append(row)
