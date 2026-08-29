@@ -309,6 +309,7 @@ EARLY_VERIFICATION_LOSS_WIND_DOWN_USD = 15.0
 EARLY_VERIFICATION_LOSS_WIND_DOWN_SECONDS = 7200
 EARLY_VERIFICATION_MACD_INTEGRATION_BYPASS = 0.05
 STOCKS_NEGATIVE_PF_MIN_COMPOSITE = 0.42
+STOCKS_NEGATIVE_PF_HIGH_WR_MIN_COMPOSITE = 0.38
 STOCKS_SESSION_CLOSE_WIND_DOWN_MINUTES = 30
 STOCKS_SESSION_CLOSE_FORCE_MINUTES = 15
 DEFAULT_ENTRY_MIN_SIGNAL_FLOOR = 0.08
@@ -1630,15 +1631,24 @@ def stocks_negative_pf_blocks_entry(
   proven_winners: frozenset[str],
   profit_factor: float | None,
   total_trades: int,
+  bot_win_rate: float | None = None,
 ) -> bool:
   """During early verification with negative PF, only allow strong proven-winner entries."""
+  from app.engines.profitability_gate import ProfitabilityGate
+
   if bot_type != "stocks_futures":
     return False
   if total_trades >= EARLY_VERIFICATION_MAX_TRADES:
     return False
   if profit_factor is None or profit_factor >= 1.0:
     return False
-  if symbol in proven_winners and composite >= STOCKS_NEGATIVE_PF_MIN_COMPOSITE:
+  min_composite = STOCKS_NEGATIVE_PF_MIN_COMPOSITE
+  if (
+    bot_win_rate is not None
+    and bot_win_rate >= ProfitabilityGate.GRADUATION_MIN_WIN_RATE
+  ):
+    min_composite = STOCKS_NEGATIVE_PF_HIGH_WR_MIN_COMPOSITE
+  if symbol in proven_winners and composite >= min_composite:
     return False
   return True
 

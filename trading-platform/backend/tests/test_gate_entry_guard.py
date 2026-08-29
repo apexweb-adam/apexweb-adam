@@ -199,6 +199,24 @@ def test_stocks_negative_pf_blocks_entry():
     total_trades=15,
   ) is False
   assert stocks_negative_pf_blocks_entry(
+    bot_type="stocks_futures",
+    symbol="NVDA",
+    composite=0.39,
+    proven_winners=frozenset({"NVDA"}),
+    profit_factor=0.62,
+    total_trades=15,
+    bot_win_rate=0.571,
+  ) is False
+  assert stocks_negative_pf_blocks_entry(
+    bot_type="stocks_futures",
+    symbol="NVDA",
+    composite=0.39,
+    proven_winners=frozenset({"NVDA"}),
+    profit_factor=0.62,
+    total_trades=15,
+    bot_win_rate=0.50,
+  ) is True
+  assert stocks_negative_pf_blocks_entry(
     bot_type="crypto",
     symbol="BTCUSDT",
     composite=0.35,
