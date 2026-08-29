@@ -730,7 +730,14 @@ def apply_gate_tightening_min_signal(
     shadow_mode=shadow_mode,
   ):
     boosted = min(0.95, boosted + gate_tightening.min_composite_boost)
-  if loss_streak >= 3:
+  if (
+    loss_streak >= 3
+    and not graduation_nudge_easing_active(
+      bot_type,
+      graduation_nudge=graduation_nudge,
+      shadow_mode=shadow_mode,
+    )
+  ):
     boosted = min(0.95, boosted + 0.08)
   return boosted
 

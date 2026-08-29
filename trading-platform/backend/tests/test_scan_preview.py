@@ -49,6 +49,7 @@ def test_build_scan_preview_commodities_structure():
           engine = EngineCls.return_value
           engine.get_strategy = AsyncMock(return_value=strategy)
           engine.get_open_positions = AsyncMock(return_value=[])
+          engine.get_consecutive_losses = AsyncMock(return_value=0)
           with patch("app.engines.scan_preview.ProfitabilityGate") as GateCls:
             GateCls.return_value.evaluate = AsyncMock(
               return_value={"live_trading_ready": False, "total_trades": 5, "win_rate": 0.6}
@@ -134,6 +135,7 @@ def test_build_scan_preview_commodities_intel_override_on_sell_signal():
           engine = EngineCls.return_value
           engine.get_strategy = AsyncMock(return_value=strategy)
           engine.get_open_positions = AsyncMock(return_value=[])
+          engine.get_consecutive_losses = AsyncMock(return_value=0)
           with patch("app.engines.scan_preview.ProfitabilityGate") as GateCls:
             GateCls.return_value.evaluate = AsyncMock(
               return_value={"live_trading_ready": False, "total_trades": 5, "win_rate": 0.6}
@@ -219,6 +221,7 @@ def test_build_scan_preview_commodities_chronic_loser_intel_bypass():
           engine = EngineCls.return_value
           engine.get_strategy = AsyncMock(return_value=strategy)
           engine.get_open_positions = AsyncMock(return_value=[])
+          engine.get_consecutive_losses = AsyncMock(return_value=0)
           with patch("app.engines.scan_preview.ProfitabilityGate") as GateCls:
             GateCls.return_value.evaluate = AsyncMock(
               return_value={"live_trading_ready": False, "total_trades": 5, "win_rate": 0.6}
@@ -310,6 +313,7 @@ def test_build_scan_preview_stocks_early_verification_volume_relax():
           engine = EngineCls.return_value
           engine.get_strategy = AsyncMock(return_value=strategy)
           engine.get_open_positions = AsyncMock(return_value=[])
+          engine.get_consecutive_losses = AsyncMock(return_value=0)
           with patch("app.engines.scan_preview.ProfitabilityGate") as GateCls:
             GateCls.return_value.evaluate_per_bot = AsyncMock(return_value={})
             GateCls.return_value.evaluate = AsyncMock(
@@ -406,6 +410,7 @@ def test_build_scan_preview_stocks_early_verification_blocks_weak_raw_signal():
           engine = EngineCls.return_value
           engine.get_strategy = AsyncMock(return_value=strategy)
           engine.get_open_positions = AsyncMock(return_value=[])
+          engine.get_consecutive_losses = AsyncMock(return_value=0)
           with patch("app.engines.scan_preview.ProfitabilityGate") as GateCls:
             GateCls.return_value.evaluate_per_bot = AsyncMock(return_value={})
             GateCls.return_value.evaluate = AsyncMock(
@@ -493,6 +498,7 @@ def test_build_scan_preview_crypto_intel_override_on_sell_signal():
           engine = EngineCls.return_value
           engine.get_strategy = AsyncMock(return_value=strategy)
           engine.get_open_positions = AsyncMock(return_value=[])
+          engine.get_consecutive_losses = AsyncMock(return_value=0)
           with patch("app.engines.scan_preview.ProfitabilityGate") as GateCls:
             GateCls.return_value.evaluate = AsyncMock(
               return_value={"live_trading_ready": False, "total_trades": 5, "win_rate": 0.6}
