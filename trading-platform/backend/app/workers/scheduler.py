@@ -8,7 +8,7 @@ from app.config import BOT_TYPES
 from app.database import SessionLocal, init_db
 from app.intelligence.content_study import ContentStudyEngine
 from app.intelligence.extended_scanners import ExtendedIntelligenceScanner
-from app.engines.learning_engine import LearningEngine
+from app.engines.learning_engine import LEARNING_NOISE_DISMISS_MAX_CONFIDENCE, LearningEngine
 
 scheduler = AsyncIOScheduler()
 bots: dict[str, object] = {}
@@ -239,7 +239,9 @@ async def _deferred_startup_jobs() -> None:
     await content_study_job()
     async with SessionLocal() as session:
       learner = LearningEngine(session)
-      dismissed = await learner.dismiss_noise_insights(max_confidence=0.5)
+      dismissed = await learner.dismiss_noise_insights(
+        max_confidence=LEARNING_NOISE_DISMISS_MAX_CONFIDENCE,
+      )
       if dismissed:
         print(f"[Learning] Dismissed {dismissed} low-confidence noise insight(s)")
       pending = await learner.apply_pending_insights(min_confidence=0.55)

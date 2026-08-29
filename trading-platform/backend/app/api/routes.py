@@ -744,7 +744,7 @@ async def run_intelligence_scan_admin(payload: dict[str, Any]) -> dict[str, Any]
 @router.post("/admin/run-content-study")
 async def run_content_study_admin(payload: dict[str, Any]) -> dict[str, Any]:
   """Run content study and apply pending learning insights (requires webhook secret)."""
-  from app.engines.learning_engine import LearningEngine
+  from app.engines.learning_engine import LEARNING_NOISE_DISMISS_MAX_CONFIDENCE, LearningEngine
   from app.workers.scheduler import content_study_job
 
   secret = payload.get("secret", "")
@@ -758,7 +758,7 @@ async def run_content_study_admin(payload: dict[str, Any]) -> dict[str, Any]:
       min_confidence=float(payload.get("min_confidence", 0.55))
     )
     dismissed = await learner.dismiss_noise_insights(
-      max_confidence=float(payload.get("dismiss_below", 0.5))
+      max_confidence=float(payload.get("dismiss_below", LEARNING_NOISE_DISMISS_MAX_CONFIDENCE))
     )
   return {
     "status": "ok",
