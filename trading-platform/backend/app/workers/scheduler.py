@@ -56,6 +56,11 @@ async def daily_review_job() -> None:
   await push_live_update()
 
 
+async def daily_review_refresh_job() -> None:
+  """Re-upsert today's reviews so intra-day trades appear before 22:00 UTC cron."""
+  await daily_review_job()
+
+
 async def verification_snapshot_job() -> None:
   from app.engines.verification_snapshot import record_verification_snapshot
 
@@ -454,6 +459,7 @@ async def setup_scheduler() -> None:
     id="held_positions_tv_refresh",
   )
   scheduler.add_job(daily_review_job, "cron", hour=22, minute=0, id="daily_review")
+  scheduler.add_job(daily_review_refresh_job, "interval", hours=4, id="daily_review_refresh")
   scheduler.add_job(verification_snapshot_job, "cron", hour=23, minute=0, id="verification_snapshot")
   scheduler.add_job(reset_daily_bot_stats_job, "cron", hour=0, minute=0, id="reset_daily_stats")
   scheduler.start()

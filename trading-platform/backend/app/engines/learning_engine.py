@@ -56,6 +56,8 @@ class LearningEngine:
     self.session.add(analysis)
     await self._apply_adjustments(trade.bot_type, adjustments)
     await self.session.commit()
+    review_date = (trade.executed_at or datetime.utcnow()).strftime("%Y-%m-%d")
+    await self.run_daily_review(trade.bot_type, review_date)
     from app.ws_manager import push_live_update
 
     await push_live_update()
