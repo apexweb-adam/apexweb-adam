@@ -468,6 +468,43 @@ def test_shadow_graduation_loss_wind_down_profitable_nudge_threshold():
   ) is True
 
 
+def test_active_gate_uses_tighter_exit_thresholds():
+  from app.engines.gate_entry_guard import (
+    shadow_graduation_loss_wind_down,
+    shadow_graduation_profit_lock,
+  )
+
+  profitable = dict(
+    graduation_nudge=True,
+    bot_type="commodities",
+    held_seconds=900,
+    min_hold_seconds=600,
+    bot_win_rate=0.444,
+    profit_factor=1.19,
+    total_pnl=19.13,
+  )
+  assert shadow_graduation_loss_wind_down(
+    shadow_mode=False,
+    unrealized=-4.0,
+    **profitable,
+  ) is True
+  assert shadow_graduation_loss_wind_down(
+    shadow_mode=True,
+    unrealized=-4.0,
+    **profitable,
+  ) is False
+  assert shadow_graduation_profit_lock(
+    shadow_mode=False,
+    unrealized=3.1,
+    **profitable,
+  ) is True
+  assert shadow_graduation_profit_lock(
+    shadow_mode=True,
+    unrealized=3.1,
+    **profitable,
+  ) is False
+
+
 def test_shadow_graduation_profit_lock():
   from app.engines.gate_entry_guard import shadow_graduation_profit_lock
 
