@@ -1224,6 +1224,7 @@ def crypto_momentum_retreat_cooldown_bypass(
   open_count: int | None = None,
   shadow_open_cap: int | None = None,
   last_exit_reason: str | None = None,
+  last_exit_after_loss: bool | None = None,
 ) -> bool:
   """Waive re-entry cooldown for aligned retreat setups when cap has room or after cap-pressure rotation."""
   if not crypto_momentum_retreat_gate_skip_bypass(
@@ -1243,7 +1244,11 @@ def crypto_momentum_retreat_cooldown_bypass(
   if last_exit_reason and "cap-pressure" in last_exit_reason:
     return True
   if open_count is not None and shadow_open_cap is not None:
-    return open_count < shadow_open_cap
+    if open_count < shadow_open_cap:
+      # Do not immediately re-enter the same symbol after a loss when cap has room.
+      if last_exit_after_loss:
+        return False
+      return True
   return False
 
 

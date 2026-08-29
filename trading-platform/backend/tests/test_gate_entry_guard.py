@@ -683,6 +683,9 @@ def test_crypto_momentum_retreat_cooldown_bypass():
     **retreat, open_count=1, shadow_open_cap=2
   ) is True
   assert crypto_momentum_retreat_cooldown_bypass(
+    **retreat, open_count=1, shadow_open_cap=2, last_exit_after_loss=True
+  ) is False
+  assert crypto_momentum_retreat_cooldown_bypass(
     **retreat, open_count=2, shadow_open_cap=2
   ) is False
   assert crypto_momentum_retreat_cooldown_bypass(
