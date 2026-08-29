@@ -1165,6 +1165,8 @@ class BaseBot(ABC):
           composite=composite,
           signal_direction=signal.direction,
           macd_signal=signal.macd_signal,
+          open_count=open_count,
+          shadow_open_cap=shadow_open_cap,
         ):
           continue
 
