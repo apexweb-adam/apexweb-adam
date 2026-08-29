@@ -72,6 +72,7 @@ SHADOW_GRADUATION_MIN_COMPOSITE_BY_BOT = {
   "commodities": 0.28,
 }
 SHADOW_GRADUATION_LOSS_WIND_DOWN_USD = 1.0
+PROFITABLE_SHADOW_LOSS_WIND_DOWN_USD = 3.5
 SHADOW_GRADUATION_LOSS_COOLDOWN_MULTIPLIER = 2
 GRADUATION_NUDGE_SENTIMENT_EASE_BY_BOT = {
   "crypto": 0.04,
@@ -578,13 +579,24 @@ def shadow_graduation_loss_wind_down(
   unrealized: float,
   held_seconds: float,
   min_hold_seconds: int,
+  bot_win_rate: float | None = None,
+  profit_factor: float | None = None,
+  total_pnl: float | None = None,
 ) -> bool:
   """Exit losing shadow positions during graduation nudge after min hold to cut churn."""
   if not (graduation_nudge and shadow_mode and bot_type in ("crypto", "commodities")):
     return False
   if held_seconds < min_hold_seconds:
     return False
-  return unrealized <= -SHADOW_GRADUATION_LOSS_WIND_DOWN_USD
+  threshold = SHADOW_GRADUATION_LOSS_WIND_DOWN_USD
+  if is_profitable_graduation_nudge(
+    bot_type,
+    bot_win_rate,
+    profit_factor=profit_factor,
+    total_pnl=total_pnl,
+  ):
+    threshold = PROFITABLE_SHADOW_LOSS_WIND_DOWN_USD
+  return unrealized <= -threshold
 
 
 def stocks_session_close_wind_down(
