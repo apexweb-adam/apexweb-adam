@@ -1,8 +1,19 @@
 """Tests for commodities pre-CME-session TradingView prep."""
 
+from contextlib import contextmanager
 from unittest.mock import AsyncMock, patch
 
 from app.workers.scheduler import commodities_pre_session_prep_job
+
+
+@contextmanager
+def _mock_scheduler_session():
+  mock_session = AsyncMock()
+  mock_cm = AsyncMock()
+  mock_cm.__aenter__.return_value = mock_session
+  mock_cm.__aexit__.return_value = None
+  with patch("app.workers.scheduler.SessionLocal", return_value=mock_cm):
+    yield mock_session
 
 
 def test_commodities_prep_skips_when_in_session():
@@ -35,18 +46,24 @@ def test_commodities_prep_refreshes_within_prep_window():
       return_value=frozenset({"CL=F"}),
     ):
       with patch(
-        "app.engines.integration_signals.refresh_tradingview_signals",
+        "app.engines.gate_entry_guard.get_chronic_loser_symbols",
         new_callable=AsyncMock,
-        return_value=["CL=F", "SI=F"],
-      ) as mock_refresh:
-        with patch("app.ws_manager.push_live_update", new_callable=AsyncMock):
-          import asyncio
+        return_value=frozenset(),
+      ):
+        with patch(
+          "app.engines.integration_signals.refresh_tradingview_signals",
+          new_callable=AsyncMock,
+          return_value=["CL=F", "SI=F"],
+        ) as mock_refresh:
+          with patch("app.ws_manager.push_live_update", new_callable=AsyncMock):
+            with _mock_scheduler_session():
+              import asyncio
 
-          asyncio.run(commodities_pre_session_prep_job())
-          mock_refresh.assert_called_once()
-          symbols = mock_refresh.call_args[0][1]
-          assert "CL=F" in symbols
-          assert "SI=F" in symbols
+              asyncio.run(commodities_pre_session_prep_job())
+            mock_refresh.assert_called_once()
+            symbols = mock_refresh.call_args[0][1]
+            assert "CL=F" in symbols
+            assert "SI=F" in symbols
 
 
 def test_commodities_prep_includes_chronic_recovery_futures():
@@ -74,9 +91,10 @@ def test_commodities_prep_includes_chronic_recovery_futures():
           return_value=["SI=F"],
         ) as mock_refresh:
           with patch("app.ws_manager.push_live_update", new_callable=AsyncMock):
-            import asyncio
+            with _mock_scheduler_session():
+              import asyncio
 
-            asyncio.run(commodities_pre_session_prep_job())
+              asyncio.run(commodities_pre_session_prep_job())
             symbols = mock_refresh.call_args[0][1]
             assert "SI=F" in symbols
             assert "XAUUSDT" not in symbols
