@@ -1062,6 +1062,49 @@ def test_shadow_cap_pressure_loser_wind_down():
   ) is False
 
 
+def test_shadow_cap_pressure_pre_graduation_large_loser_fast_exit():
+  from app.engines.gate_entry_guard import shadow_cap_pressure_loser_wind_down
+
+  pre_grad = dict(
+    bot_type="crypto",
+    shadow_mode=True,
+    min_hold_seconds=900,
+    open_count=4,
+    shadow_open_cap=4,
+    bot_win_rate=0.50,
+    profit_factor=1.25,
+    total_pnl=31.0,
+  )
+  # LINK-style severe loser exits after 60s, not full 15-min hold
+  assert shadow_cap_pressure_loser_wind_down(
+    unrealized=-6.64,
+    held_seconds=60,
+    **pre_grad,
+  ) is True
+  assert shadow_cap_pressure_loser_wind_down(
+    unrealized=-6.64,
+    held_seconds=30,
+    **pre_grad,
+  ) is False
+  # Moderate loser (BONK-style) exits after 5 min at -$1.60 threshold
+  assert shadow_cap_pressure_loser_wind_down(
+    unrealized=-2.93,
+    held_seconds=300,
+    **pre_grad,
+  ) is True
+  assert shadow_cap_pressure_loser_wind_down(
+    unrealized=-2.93,
+    held_seconds=120,
+    **pre_grad,
+  ) is False
+  # Not at cap — no cap-pressure exit
+  assert shadow_cap_pressure_loser_wind_down(
+    unrealized=-6.64,
+    held_seconds=60,
+    **{**pre_grad, "open_count": 3},
+  ) is False
+
+
 def test_active_gate_uses_tighter_exit_thresholds():
   from app.engines.gate_entry_guard import (
     shadow_graduation_loss_wind_down,

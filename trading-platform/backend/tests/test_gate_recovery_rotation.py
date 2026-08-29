@@ -122,6 +122,7 @@ def test_crypto_strong_momentum_chronic_bypass():
 def test_crypto_pre_graduation_loss_wind_down():
   from app.engines.gate_entry_guard import (
     CRYPTO_PRE_GRADUATION_LOSS_WIND_DOWN_USD,
+    shadow_cap_pressure_loser_wind_down,
     shadow_graduation_loss_wind_down,
   )
 
@@ -146,6 +147,14 @@ def test_crypto_pre_graduation_loss_wind_down():
     min_hold_seconds=900,
     **stats,
   ) is False
+  assert shadow_cap_pressure_loser_wind_down(
+    unrealized=-4.5,
+    held_seconds=180,
+    min_hold_seconds=900,
+    open_count=4,
+    shadow_open_cap=4,
+    **stats,
+  ) is True
 
 
 def test_sync_gate_recovery_rotation_pauses_stocks_and_activates_crypto():
