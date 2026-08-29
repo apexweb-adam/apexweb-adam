@@ -120,6 +120,55 @@ def test_stocks_bot_faster_scan_during_verification_period():
   asyncio.run(_run())
 
 
+def test_stocks_bot_faster_scan_during_trade_count_prep():
+  bot = StocksFuturesBot()
+  gate_result = {"total_trades": 50, "win_rate": 0.6, "shadow_mode": True}
+  per_bot = {"total_trades": 95, "win_rate": 0.6, "profit_factor": 1.1, "total_pnl": 10.0}
+  tightening = GateEntryTightening(
+    active=False,
+    win_rate=0.6,
+    min_sentiment=0.0,
+    require_macd_bullish=False,
+    min_composite_boost=0.0,
+  )
+
+  async def _run():
+    mock_session = AsyncMock()
+    mock_cm = AsyncMock()
+    mock_cm.__aenter__.return_value = mock_session
+    mock_cm.__aexit__.return_value = None
+
+    with patch("app.bots.trading_bots.SessionLocal", return_value=mock_cm):
+      with patch("app.bots.trading_bots.stocks_in_us_session", return_value=False):
+        with patch(
+          "app.engines.profitability_gate.ProfitabilityGate",
+        ) as MockGate:
+          MockGate.MIN_TRADES = 100
+          MockGate.GRADUATION_MIN_WIN_RATE = 0.55
+          MockGate.GRADUATION_MIN_TRADES = 100
+          MockGate.return_value.evaluate = AsyncMock(return_value=gate_result)
+          MockGate.return_value.evaluate_per_bot = AsyncMock(
+            return_value={"stocks_futures": per_bot}
+          )
+          with patch(
+            "app.bots.trading_bots.get_gate_entry_tightening",
+            return_value=tightening,
+          ):
+            with patch(
+              "app.engines.gate_entry_guard.stocks_gate_fast_scan_active",
+              return_value=True,
+            ):
+              with patch(
+                "app.engines.gate_entry_guard.ProfitabilityGate",
+                MockGate,
+              ):
+                assert await bot._effective_scan_interval() == 15
+
+  import asyncio
+
+  asyncio.run(_run())
+
+
 def test_stocks_session_info_in_session():
   with patch("app.engines.gate_entry_guard.datetime") as mock_dt:
     mock_dt.utcnow.return_value = datetime(2026, 8, 28, 15, 0, 0)

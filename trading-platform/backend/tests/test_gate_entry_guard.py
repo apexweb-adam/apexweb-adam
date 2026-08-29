@@ -1170,6 +1170,60 @@ def test_shadow_graduation_loss_exposure_blocks_entry():
   ) is True
 
 
+def test_crypto_momentum_retreat_loss_exposure_bypass():
+  from types import SimpleNamespace
+
+  from app.engines.gate_entry_guard import shadow_graduation_loss_exposure_blocks_entry
+
+  single_loser = [SimpleNamespace(unrealized_pnl=-3.2)]
+  assert shadow_graduation_loss_exposure_blocks_entry(
+    single_loser,
+    graduation_nudge=True,
+    shadow_mode=True,
+    bot_type="crypto",
+    shadow_open_cap=2,
+    bot_win_rate=0.46,
+    profit_factor=1.07,
+    total_pnl=10.0,
+  ) is False
+  assert shadow_graduation_loss_exposure_blocks_entry(
+    single_loser,
+    graduation_nudge=True,
+    shadow_mode=True,
+    bot_type="crypto",
+    shadow_open_cap=1,
+    bot_win_rate=0.46,
+    profit_factor=1.07,
+    total_pnl=10.0,
+  ) is True
+  two_losers = [
+    SimpleNamespace(unrealized_pnl=-2.8),
+    SimpleNamespace(unrealized_pnl=-2.6),
+  ]
+  assert shadow_graduation_loss_exposure_blocks_entry(
+    two_losers,
+    graduation_nudge=True,
+    shadow_mode=True,
+    bot_type="crypto",
+    shadow_open_cap=2,
+    bot_win_rate=0.46,
+    profit_factor=1.07,
+    total_pnl=10.0,
+  ) is True
+
+
+def test_stocks_gate_fast_scan_active_trade_count_prep():
+  from app.engines.gate_entry_guard import stocks_gate_fast_scan_active
+
+  session = {"in_session": False, "minutes_until_open": 4000}
+  assert stocks_gate_fast_scan_active(session, trade_count_nudge=True) is True
+  assert stocks_gate_fast_scan_active(session, trade_count_nudge=False) is False
+  session_far = {"in_session": False, "minutes_until_open": 5000}
+  assert stocks_gate_fast_scan_active(session_far, trade_count_nudge=True) is False
+  session_open = {"in_session": True}
+  assert stocks_gate_fast_scan_active(session_open, trade_count_nudge=True) is True
+
+
 def test_shadow_graduation_loss_wind_down():
   from app.engines.gate_entry_guard import shadow_graduation_loss_wind_down
 
