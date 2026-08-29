@@ -512,6 +512,7 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
       open_count=open_count,
       gate_tightening=gate_tightening,
       shadow_open_cap=shadow_cap,
+      graduation_nudge=graduation_nudge,
     )
     ):
       blockers.append("open_cap")

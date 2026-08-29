@@ -1,5 +1,7 @@
 """Tests for gate entry tightening helpers."""
 
+from unittest.mock import patch
+
 import pytest
 
 from app.engines.gate_entry_guard import (
@@ -1499,6 +1501,8 @@ def test_gate_cap_pressure_proxy_wind_down_at_cap():
 
 
 def test_gate_cap_pressure_proxy_entry_blocked_at_cap():
+  from datetime import datetime
+
   from app.engines.gate_entry_guard import gate_cap_pressure_proxy_entry_blocked
 
   tightening = GateEntryTightening(
@@ -1517,8 +1521,17 @@ def test_gate_cap_pressure_proxy_entry_blocked_at_cap():
     open_count=3,
     gate_tightening=tightening,
   )
-  assert gate_cap_pressure_proxy_entry_blocked(**base) is True
+  with patch("app.engines.gate_entry_guard.datetime") as mock_dt:
+    mock_dt.utcnow.return_value = datetime(2026, 8, 31, 14, 0, 0)
+    mock_dt.side_effect = lambda *a, **k: datetime(*a, **k)
+    assert gate_cap_pressure_proxy_entry_blocked(**base) is True
   below_cap = {**base, "open_count": 2}
   assert gate_cap_pressure_proxy_entry_blocked(**below_cap) is False
   assert gate_cap_pressure_proxy_entry_blocked(**{**base, "symbol": "CL=F"}) is False
   assert gate_cap_pressure_proxy_entry_blocked(**{**base, "shadow_mode": True}) is False
+
+  with patch("app.engines.gate_entry_guard.datetime") as mock_dt:
+    mock_dt.utcnow.return_value = datetime(2026, 8, 29, 14, 0, 0)
+    mock_dt.side_effect = lambda *a, **k: datetime(*a, **k)
+    assert gate_cap_pressure_proxy_entry_blocked(**base) is False
+    assert gate_cap_pressure_proxy_entry_blocked(**{**base, "open_count": 4}) is True
