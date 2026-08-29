@@ -1281,7 +1281,8 @@ function BotCard({
         </p>
       )}
       {(gate?.graduation?.paused ||
-        (bot.bot_type === "commodities" && session && !session.in_session)) && (
+        (bot.bot_type === "commodities" && session && !session.in_session) ||
+        (bot.bot_type === "stocks_futures" && session && !session.in_session)) && (
         <BotScanPreview botType={bot.bot_type} />
       )}
       <div className="flex justify-between text-[10px] text-gray-500">

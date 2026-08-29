@@ -368,6 +368,9 @@ def test_stocks_monday_recovery_ready():
     **base, blockers=["macd", "volume", "sentiment_gate"]
   ) is True
   assert stocks_monday_recovery_ready(
+    **base, blockers=["gate_skip", "signal_sell", "macd", "volume"]
+  ) is True
+  assert stocks_monday_recovery_ready(
     **base, blockers=["composite<0.38", "signal_sell"]
   ) is True
   assert stocks_monday_recovery_ready(
