@@ -336,6 +336,15 @@ async def crm_landing():
     fomo_bearer_note = (
       f"<p class='muted' style='margin-top:0;'>fomo server poll: {polling} · expires {expires}</p>"
     )
+  integration_health_note = ""
+  if fomo.get("bearer_configured") and not fomo.get("bearer_polling_active"):
+    integration_health_note = (
+      "<p style='color:#fbbf24;margin:0.5rem 0;'>"
+      "fomo.family bearer expired — memecoin copy-trade intel paused. "
+      "Open fomo.family with Tampermonkey bridge or run "
+      "<code>./trading-platform/scripts/fomo-set-bearer.sh 'eyJ...'</code>"
+      "</p>"
+    )
   integrations_summary = (
     f"TradingView {tv_status} ({tv.get('items', 0)} alerts) · "
     f"Polymarket {pm_status} ({pm.get('intel_items', 0)} markets) · "
@@ -464,6 +473,7 @@ async def crm_landing():
   </div>""" if content_study else ""}
   <div class="card integrations">
     <h2>TradingView, Polymarket, fomo, axiom &amp; Phantom hooks</h2>
+    {integration_health_note}
     <p class="muted" style="margin-top:0;">{integrations_summary}</p>
     <p class="muted" style="margin-top:0;">TV webhook: <code>{tv.get('webhook_url', '')}</code></p>
     <p class="muted" style="margin-top:0;">Wallet webhook: <code>{wt.get('webhook_url', '')}</code></p>
@@ -473,7 +483,7 @@ async def crm_landing():
     <p class="muted" style="margin-top:0;">axiom webhook: <code>{axiom.get('webhook_url', '')}</code></p>
     <p class="muted" style="margin-top:0;">axiom userscript: <a href="{axiom.get('userscript_url', '')}">{axiom.get('userscript_url', '')}</a> · min {axiom.get('min_wallets_required', 8)} wallets</p>
     <p class="muted" style="margin-top:0;">Phantom webhook: <code>{phantom.get('webhook_url', '')}</code> — {phantom.get('note', 'forward portfolio via webhook')}</p>
-    <p class="muted" style="margin-top:0;">Phantom userscript: <a href="{phantom.get('userscript_url', '')}">{phantom.get('userscript_url', '')}</a> · Helius poll: {'on' if phantom.get('portfolio_poll') else 'set PHANTOM_WALLET_ADDRESSES + HELIUS_API_KEY'}</p>
+    <p class="muted" style="margin-top:0;">Phantom userscript: <a href="{phantom.get('userscript_url', '')}">{phantom.get('userscript_url', '')}</a> · portfolio poll: {'on (' + str(phantom.get('portfolio_poll_mode', 'off')) + ')' if phantom.get('portfolio_poll') else 'off'}</p>
     {pm_profile_link}
   </div>
   <p><a href="{url}">Open live dashboard →</a> <span class="muted">(redirecting in {redirect_seconds}s)</span></p>

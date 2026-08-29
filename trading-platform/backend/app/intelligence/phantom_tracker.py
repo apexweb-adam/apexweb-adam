@@ -25,6 +25,11 @@ KNOWN_SOLANA_MINT_SYMBOLS: dict[str, str] = {
   "7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr": "POPCAT",
   "ukHH6c7mMyiWCf1b9pnWe25TSpkDDt3H5pQZgZ74J82": "BOME",
 }
+STABLECOIN_MINTS = frozenset({
+  "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",  # USDC
+  "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB",  # USDT
+})
+DEXSCREENER_TOKEN_URL = "https://api.dexscreener.com/latest/dex/tokens"
 
 
 def phantom_configured() -> bool:
@@ -178,6 +183,78 @@ async def get_phantom_watch_symbols(session: AsyncSession, *, max_age_hours: int
   return symbols
 
 
+async def _resolve_mint_symbols(client, mints: list[str]) -> dict[str, str]:
+  """Resolve Solana mint addresses to ticker symbols via DexScreener."""
+  resolved = {mint: symbol for mint, symbol in KNOWN_SOLANA_MINT_SYMBOLS.items() if mint in mints}
+  pending = [mint for mint in mints if mint not in resolved]
+  for offset in range(0, len(pending), 30):
+    batch = pending[offset : offset + 30]
+    if not batch:
+      continue
+    try:
+      response = await client.get(f"{DEXSCREENER_TOKEN_URL}/{','.join(batch)}", timeout=20)
+      if response.status_code != 200:
+        continue
+      pairs = response.json().get("pairs") or []
+      if not isinstance(pairs, list):
+        continue
+      for pair in pairs:
+        if not isinstance(pair, dict):
+          continue
+        base = pair.get("baseToken") or {}
+        mint = str(base.get("address") or "")
+        symbol = str(base.get("symbol") or "").strip().upper()
+        if mint and symbol and len(symbol) <= 12 and symbol.isalnum():
+          resolved[mint] = symbol
+    except Exception as exc:
+      print(f"[phantom] DexScreener mint resolve error: {exc}")
+  return resolved
+
+
+def _top_token_holdings(accounts: list[dict], *, limit: int = 8) -> list[tuple[str, float]]:
+  """Return top SPL holdings by uiAmount, excluding stablecoins."""
+  holdings: list[tuple[str, float]] = []
+  for entry in accounts:
+    parsed = (((entry.get("account") or {}).get("data") or {}).get("parsed") or {})
+    info = parsed.get("info") or {}
+    mint = str(info.get("mint") or "")
+    if not mint or mint in STABLECOIN_MINTS:
+      continue
+    amount = float((info.get("tokenAmount") or {}).get("uiAmount") or 0)
+    if amount <= 0:
+      continue
+    holdings.append((mint, amount))
+  holdings.sort(key=lambda item: item[1], reverse=True)
+  return holdings[:limit]
+
+
+async def _ingest_phantom_holding(
+  session: AsyncSession,
+  *,
+  address: str,
+  symbol: str,
+  amount: float,
+  balance_usd: float,
+  hour_bucket: str,
+  mint: str = "",
+) -> bool:
+  result = await ingest_phantom_webhook(
+    session,
+    {
+      "event_type": "holdings",
+      "symbol": symbol,
+      "wallet_address": address,
+      "chain": "solana",
+      "balance_usd": balance_usd,
+      "message": f"Phantom portfolio holding {symbol} ({amount:,.4f})",
+      "url": f"phantom:holdings:{address}:{symbol}:{hour_bucket}",
+      "relevance": 0.78 if balance_usd >= settings.phantom_min_holding_usd else 0.74,
+      "token_address": mint,
+    },
+  )
+  return result.get("status") == "received"
+
+
 async def scan_phantom_portfolios(session: AsyncSession) -> int:
   """Poll token balances for Phantom-tracked wallets (Helius or Solana RPC fallback)."""
   if not settings.phantom_enabled or not settings.phantom_portfolio_poll_enabled:
@@ -233,21 +310,15 @@ async def _scan_phantom_helius(session: AsyncSession, addresses: list[str]) -> i
           continue
 
         mint = str(token.get("mint") or token.get("address") or "")
-        result = await ingest_phantom_webhook(
+        if await _ingest_phantom_holding(
           session,
-          {
-            "event_type": "holdings",
-            "symbol": symbol,
-            "wallet_address": address,
-            "chain": "solana",
-            "balance_usd": balance_usd,
-            "message": f"Phantom portfolio holding {symbol} ({amount:.4f})",
-            "url": f"phantom:holdings:{address}:{symbol}:{hour_bucket}",
-            "relevance": 0.78 if balance_usd >= settings.phantom_min_holding_usd * 2 else 0.72,
-            "token_address": mint,
-          },
-        )
-        if result.get("status") == "received":
+          address=address,
+          symbol=symbol,
+          amount=amount,
+          balance_usd=balance_usd,
+          hour_bucket=hour_bucket,
+          mint=mint,
+        ):
           ingested += 1
   return ingested
 
@@ -259,8 +330,29 @@ async def _scan_phantom_rpc(session: AsyncSession, addresses: list[str]) -> int:
   ingested = 0
   hour_bucket = datetime.utcnow().strftime("%Y%m%d%H")
   rpc = settings.solana_rpc_url.strip() or "https://api.mainnet-beta.solana.com"
-  async with httpx.AsyncClient(timeout=25) as client:
-    for address in addresses[:4]:
+  async with httpx.AsyncClient(timeout=45) as client:
+    for address in addresses[:6]:
+      try:
+        balance_response = await client.post(
+          rpc,
+          json={"jsonrpc": "2.0", "id": 1, "method": "getBalance", "params": [address]},
+        )
+        if balance_response.status_code == 200:
+          lamports = int((balance_response.json().get("result") or {}).get("value") or 0)
+          sol_amount = lamports / 1e9
+          if sol_amount >= 100:
+            if await _ingest_phantom_holding(
+              session,
+              address=address,
+              symbol="SOL",
+              amount=sol_amount,
+              balance_usd=sol_amount * 150,
+              hour_bucket=hour_bucket,
+            ):
+              ingested += 1
+      except Exception as exc:
+        print(f"[phantom] RPC SOL balance error for {address[:8]}…: {exc}")
+
       try:
         response = await client.post(
           rpc,
@@ -282,35 +374,24 @@ async def _scan_phantom_rpc(session: AsyncSession, addresses: list[str]) -> int:
         print(f"[phantom] RPC balance poll error for {address[:8]}…: {exc}")
         continue
 
-      for entry in accounts[:15]:
-        parsed = (((entry.get("account") or {}).get("data") or {}).get("parsed") or {})
-        info = parsed.get("info") or {}
-        mint = str(info.get("mint") or "")
-        token_amount = info.get("tokenAmount") or {}
-        amount = float(token_amount.get("uiAmount") or 0)
-        if amount <= 0:
+      top_holdings = _top_token_holdings(accounts, limit=8)
+      if not top_holdings:
+        continue
+      mints = [mint for mint, _ in top_holdings]
+      symbols = await _resolve_mint_symbols(client, mints)
+      for mint, amount in top_holdings:
+        symbol = symbols.get(mint, "")
+        if not symbol or symbol in ("USDC", "USDT"):
           continue
-        symbol = KNOWN_SOLANA_MINT_SYMBOLS.get(mint, "")
-        if not symbol:
-          continue
-        if amount < 1000 and symbol in ("BONK", "PEPE"):
-          continue
-
-        result = await ingest_phantom_webhook(
+        if await _ingest_phantom_holding(
           session,
-          {
-            "event_type": "holdings",
-            "symbol": symbol,
-            "wallet_address": address,
-            "chain": "solana",
-            "balance_usd": 0,
-            "message": f"Phantom RPC holding {symbol} ({amount:,.0f})",
-            "url": f"phantom:rpc-holdings:{address}:{symbol}:{hour_bucket}",
-            "relevance": 0.74,
-            "token_address": mint,
-          },
-        )
-        if result.get("status") == "received":
+          address=address,
+          symbol=symbol,
+          amount=amount,
+          balance_usd=0,
+          hour_bucket=hour_bucket,
+          mint=mint,
+        ):
           ingested += 1
   return ingested
 

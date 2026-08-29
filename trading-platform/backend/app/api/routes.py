@@ -1318,6 +1318,31 @@ async def set_axiom_session_admin(payload: dict[str, Any], db: AsyncSession = De
   }
 
 
+@router.post("/admin/poll-phantom-portfolios")
+async def poll_phantom_portfolios_admin(payload: dict[str, Any], db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
+  """Immediately poll Phantom-tracked Solana wallets (Helius or RPC fallback)."""
+  from app.intelligence.phantom_tracker import (
+    phantom_portfolio_poll_active,
+    phantom_portfolio_poll_mode,
+    scan_phantom_portfolios,
+  )
+  from app.ws_manager import push_live_update
+
+  secret = payload.get("secret", "")
+  if not settings.tradingview_webhook_secret or secret != settings.tradingview_webhook_secret:
+    return {"status": "unauthorized"}
+
+  ingested = await scan_phantom_portfolios(db)
+  await push_live_update()
+  return {
+    "status": "ok",
+    "ingested": ingested,
+    "phantom_portfolio_poll": phantom_portfolio_poll_active(),
+    "phantom_portfolio_poll_mode": phantom_portfolio_poll_mode(),
+    "timestamp": datetime.utcnow().isoformat(),
+  }
+
+
 @router.post("/admin/poll-axiom-feed")
 async def poll_axiom_feed_admin(payload: dict[str, Any], db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
   """Immediately poll axiom.trade feed (requires session token)."""
