@@ -77,6 +77,38 @@ def test_fetch_crypto_data_xauusdt_uses_paxg_live_proxy():
   asyncio.run(run())
 
 
+def test_reconcile_proxy_entry_levels_aligns_stale_xau_entry():
+  from types import SimpleNamespace
+
+  from app.engines.market_data import reconcile_proxy_entry_levels
+
+  position = SimpleNamespace(
+    symbol="XAUUSDT",
+    entry_price=4504.1,
+    stop_loss=4427.5303,
+    take_profit=4684.264,
+  )
+  assert reconcile_proxy_entry_levels(position, 4461.6) is True
+  assert position.entry_price == 4461.6
+  assert position.stop_loss < 4427.5303
+  assert position.take_profit < 4684.264
+
+
+def test_reconcile_proxy_entry_levels_skips_small_drift():
+  from types import SimpleNamespace
+
+  from app.engines.market_data import reconcile_proxy_entry_levels
+
+  position = SimpleNamespace(
+    symbol="XAUUSDT",
+    entry_price=4460.0,
+    stop_loss=4400.0,
+    take_profit=4600.0,
+  )
+  assert reconcile_proxy_entry_levels(position, 4455.0) is False
+  assert position.entry_price == 4460.0
+
+
 def test_fetch_yahoo_crypto_synthetic_when_chart_sparse():
   async def run():
     with patch(

@@ -312,6 +312,9 @@ class BaseBot(ABC):
         position = await engine.get_position(symbol)
 
         if position:
+          from app.engines.market_data import reconcile_proxy_entry_levels
+
+          reconcile_proxy_entry_levels(position, price)
           opened = position.opened_at
           if opened and opened.tzinfo is not None:
             opened = opened.replace(tzinfo=None)
