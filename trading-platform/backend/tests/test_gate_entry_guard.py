@@ -1389,10 +1389,7 @@ def test_crypto_momentum_retreat_cap_pressure_nudge():
     total_pnl=9.85,
   )
   assert crypto_cap_pressure_nudge(**retreat) is True
-  assert crypto_cap_pressure_loser_threshold(**retreat) == min(
-    CRYPTO_MOMENTUM_RETREAT_CAP_PRESSURE_LOSER_USD,
-    0.35,
-  )
+  assert crypto_cap_pressure_loser_threshold(**retreat) == CRYPTO_MOMENTUM_RETREAT_CAP_PRESSURE_LOSER_USD
   assert shadow_cap_pressure_loser_wind_down(
     unrealized=-0.40,
     held_seconds=900,
@@ -2016,6 +2013,48 @@ def test_crypto_graduation_entry_ease_active_requires_momentum_tier():
   )
   assert crypto_graduation_entry_ease_active(**strong) is True
   assert crypto_graduation_entry_ease_active(**retreat) is False
+
+
+def test_crypto_retreat_cap_full_min_hold():
+  from app.engines.gate_entry_guard import crypto_retreat_cap_full_min_hold
+
+  retreat = dict(
+    bot_type="crypto",
+    shadow_mode=True,
+    graduation_nudge=True,
+    open_count=2,
+    shadow_open_cap=2,
+    bot_win_rate=0.468,
+    profit_factor=1.07,
+    total_pnl=9.85,
+  )
+  assert crypto_retreat_cap_full_min_hold(900, **retreat) == 300
+  assert crypto_retreat_cap_full_min_hold(900, **{**retreat, "open_count": 1}) == 900
+
+
+def test_crypto_momentum_retreat_raw_signal_floor():
+  from app.engines.gate_entry_guard import (
+    CRYPTO_MOMENTUM_RETREAT_ALIGNED_RAW_SIGNAL,
+    crypto_momentum_retreat_raw_signal_floor,
+  )
+
+  retreat = dict(
+    bot_type="crypto",
+    graduation_nudge=True,
+    shadow_mode=True,
+    bot_win_rate=0.468,
+    profit_factor=1.07,
+    total_pnl=9.85,
+    composite=0.49,
+    signal_direction="buy",
+    macd_signal="bullish",
+  )
+  assert crypto_momentum_retreat_raw_signal_floor(**retreat) == (
+    CRYPTO_MOMENTUM_RETREAT_ALIGNED_RAW_SIGNAL
+  )
+  assert crypto_momentum_retreat_raw_signal_floor(
+    **{**retreat, "composite": 0.40}
+  ) == 0.42
 
 
 def test_crypto_momentum_retreat_entry_min_signal_floor():
