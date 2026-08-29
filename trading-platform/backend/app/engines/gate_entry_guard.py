@@ -1842,6 +1842,14 @@ def commodities_session_info() -> dict[str, Any]:
 
 COMMODITIES_MONDAY_SCAN_OPEN_HOUR_MINUTES = 60
 COMMODITIES_MONDAY_SCAN_PREP_MINUTES = 90
+COMMODITIES_GRADUATION_PREP_MINUTES = 4320  # 72h — weekend TV refresh before CME reopen
+
+
+def commodities_pre_session_prep_window_minutes(graduation_nudge: bool) -> int:
+  """How far ahead of CME reopen to refresh TradingView boosts for commodities prep."""
+  if graduation_nudge:
+    return COMMODITIES_GRADUATION_PREP_MINUTES
+  return COMMODITIES_MONDAY_SCAN_PREP_MINUTES
 
 
 def commodities_monday_scan_priority_active(session_info: dict[str, Any]) -> bool:
@@ -1948,6 +1956,14 @@ def stocks_session_info() -> dict[str, Any]:
 
 STOCKS_MONDAY_SCAN_OPEN_HOUR_MINUTES = 60
 STOCKS_MONDAY_SCAN_PREP_MINUTES = 90
+STOCKS_TRADE_COUNT_PREP_MINUTES = 4320  # 72h — weekend TV refresh before Monday open
+
+
+def stocks_pre_session_prep_window_minutes(trade_count_nudge: bool) -> int:
+  """How far ahead of US open to refresh TradingView boosts for stocks prep."""
+  if trade_count_nudge:
+    return STOCKS_TRADE_COUNT_PREP_MINUTES
+  return STOCKS_MONDAY_SCAN_PREP_MINUTES
 
 
 def stocks_monday_scan_priority_active(session_info: dict[str, Any]) -> bool:

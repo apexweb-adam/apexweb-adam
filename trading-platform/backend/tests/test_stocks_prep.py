@@ -78,3 +78,79 @@ def test_stocks_prep_refreshes_recovery_symbols_within_prep_window():
             symbols = mock_refresh.call_args[0][1]
             assert "NVDA" in symbols
             assert "AAPL" in symbols
+
+
+def test_stocks_prep_refreshes_within_trade_count_extended_window():
+  with patch(
+    "app.engines.gate_entry_guard.stocks_session_info",
+    return_value={
+      "in_session": False,
+      "minutes_until_open": 3000,
+      "mode": "weekend_closed",
+    },
+  ):
+    with patch(
+      "app.engines.gate_entry_guard.get_proven_winner_symbols",
+      new_callable=AsyncMock,
+      return_value=frozenset({"NVDA", "AAPL"}),
+    ):
+      with patch(
+        "app.engines.gate_entry_guard.get_chronic_loser_symbols",
+        new_callable=AsyncMock,
+        return_value=frozenset(),
+      ):
+        with patch(
+          "app.engines.integration_signals.refresh_tradingview_signals",
+          new_callable=AsyncMock,
+          return_value=["NVDA"],
+        ) as mock_refresh:
+          with patch("app.ws_manager.push_live_update", new_callable=AsyncMock):
+            with patch(
+              "app.engines.platform_settings.is_bot_paused",
+              new_callable=AsyncMock,
+              return_value=True,
+            ):
+              with patch(
+                "app.engines.profitability_gate.ProfitabilityGate.evaluate_per_bot",
+                new_callable=AsyncMock,
+                return_value={"stocks_futures": {"win_rate": 0.57, "total_trades": 15}},
+              ):
+                with _mock_scheduler_session():
+                  import asyncio
+
+                  asyncio.run(stocks_pre_session_prep_job())
+            mock_refresh.assert_called_once()
+            symbols = mock_refresh.call_args[0][1]
+            assert "NVDA" in symbols
+            assert "AAPL" in symbols
+            assert symbols.index("AAPL") < symbols.index("NVDA")
+
+
+def test_stocks_prep_skips_outside_trade_count_extended_window():
+  with patch(
+    "app.engines.gate_entry_guard.stocks_session_info",
+    return_value={
+      "in_session": False,
+      "minutes_until_open": 5000,
+      "mode": "weekend_closed",
+    },
+  ):
+    with patch(
+      "app.engines.integration_signals.refresh_tradingview_signals",
+      new_callable=AsyncMock,
+    ) as mock_refresh:
+      with patch(
+        "app.engines.platform_settings.is_bot_paused",
+        new_callable=AsyncMock,
+        return_value=True,
+      ):
+        with patch(
+          "app.engines.profitability_gate.ProfitabilityGate.evaluate_per_bot",
+          new_callable=AsyncMock,
+          return_value={"stocks_futures": {"win_rate": 0.57, "total_trades": 15}},
+        ):
+          with _mock_scheduler_session():
+            import asyncio
+
+            asyncio.run(stocks_pre_session_prep_job())
+      mock_refresh.assert_not_called()
