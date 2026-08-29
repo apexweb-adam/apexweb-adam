@@ -67,9 +67,15 @@ def test_stocks_bot_faster_scan_during_gated_us_session():
           "app.engines.profitability_gate.ProfitabilityGate",
         ) as MockGate:
           MockGate.MIN_TRADES = 100
-          MockGate.return_value.evaluate = AsyncMock(return_value={"total_trades": 100})
+          MockGate.return_value.evaluate = AsyncMock(
+            return_value={"total_trades": 100, "shadow_mode": False}
+          )
+          MockGate.return_value.evaluate_per_bot = AsyncMock(
+            return_value={"stocks_futures": {"total_trades": 10, "win_rate": 0.47}}
+          )
           with patch(
             "app.bots.trading_bots.get_gate_entry_tightening",
+            new_callable=AsyncMock,
             return_value=tightening,
           ):
             assert await bot._effective_scan_interval() == 15
@@ -102,10 +108,25 @@ def test_stocks_bot_default_scan_outside_session():
             return_value={"stocks_futures": {"total_trades": 15, "win_rate": 0.4}}
           )
           with patch(
-            "app.engines.gate_entry_guard.stocks_gate_fast_scan_active",
+            "app.engines.gate_entry_guard.stocks_trade_count_graduation_nudge",
             return_value=False,
           ):
-            assert await bot._effective_scan_interval() == 30
+            with patch(
+              "app.engines.gate_entry_guard.stocks_gate_fast_scan_active",
+              return_value=False,
+            ):
+              with patch(
+                "app.bots.trading_bots.get_gate_entry_tightening",
+                new_callable=AsyncMock,
+                return_value=GateEntryTightening(
+                  active=False,
+                  win_rate=0.4,
+                  min_sentiment=0.0,
+                  require_macd_bullish=False,
+                  min_composite_boost=0.0,
+                ),
+              ):
+                assert await bot._effective_scan_interval() == 30
 
   import asyncio
 
@@ -114,7 +135,7 @@ def test_stocks_bot_default_scan_outside_session():
 
 def test_stocks_bot_faster_scan_during_verification_period():
   bot = StocksFuturesBot()
-  gate_result = {"total_trades": 5, "win_rate": 1.0}
+  gate_result = {"total_trades": 5, "win_rate": 1.0, "shadow_mode": False}
   tightening = GateEntryTightening(
     active=False,
     win_rate=1.0,
@@ -124,17 +145,28 @@ def test_stocks_bot_faster_scan_during_verification_period():
   )
 
   async def _run():
-    with patch("app.bots.trading_bots.stocks_in_us_session", return_value=True):
-      with patch("app.config.settings.paper_trading_only", True):
-        with patch(
-          "app.engines.profitability_gate.ProfitabilityGate.evaluate",
-          return_value=gate_result,
-        ):
+    mock_session = AsyncMock()
+    mock_cm = AsyncMock()
+    mock_cm.__aenter__.return_value = mock_session
+    mock_cm.__aexit__.return_value = None
+
+    with patch("app.bots.trading_bots.SessionLocal", return_value=mock_cm):
+      with patch("app.bots.trading_bots.stocks_in_us_session", return_value=True):
+        with patch("app.config.settings.paper_trading_only", True):
           with patch(
-            "app.bots.trading_bots.get_gate_entry_tightening",
-            return_value=tightening,
-          ):
-            assert await bot._effective_scan_interval() == 15
+            "app.engines.profitability_gate.ProfitabilityGate",
+          ) as MockGate:
+            MockGate.MIN_TRADES = 100
+            MockGate.return_value.evaluate = AsyncMock(return_value=gate_result)
+            MockGate.return_value.evaluate_per_bot = AsyncMock(
+              return_value={"stocks_futures": {"total_trades": 5, "win_rate": 1.0}}
+            )
+            with patch(
+              "app.bots.trading_bots.get_gate_entry_tightening",
+              new_callable=AsyncMock,
+              return_value=tightening,
+            ):
+              assert await bot._effective_scan_interval() == 15
 
   import asyncio
 
@@ -173,6 +205,7 @@ def test_stocks_bot_faster_scan_during_trade_count_prep():
           )
           with patch(
             "app.bots.trading_bots.get_gate_entry_tightening",
+            new_callable=AsyncMock,
             return_value=tightening,
           ):
             with patch(
