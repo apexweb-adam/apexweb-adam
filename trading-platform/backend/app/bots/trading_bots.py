@@ -37,6 +37,7 @@ from app.engines.gate_entry_guard import (
   is_symbol_in_trade_cooldown,
   open_position_cap_blocks_entry,
   prioritize_commodities_monday_scan,
+  prioritize_stocks_monday_scan,
   shadow_chronic_position_scale,
   shadow_graduation_min_hold_seconds,
   shadow_graduation_min_composite,
@@ -209,6 +210,13 @@ class BaseBot(ABC):
               chronic_losers=chronic_losers,
               proven_winners=proven_winners,
               session_info=commodities_session_info(),
+            )
+          elif self.bot_type == "stocks_futures":
+            symbols = prioritize_stocks_monday_scan(
+              symbols,
+              chronic_losers=chronic_losers,
+              proven_winners=proven_winners,
+              session_info=stocks_session_info(),
             )
           elif proven_winners:
             symbols = _prioritize_symbols(symbols, proven_winners)

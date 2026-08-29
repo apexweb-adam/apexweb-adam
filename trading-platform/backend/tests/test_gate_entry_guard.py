@@ -412,6 +412,36 @@ def test_prioritize_commodities_monday_scan_outside_prep_window():
   assert "SI=F" in ordered
 
 
+def test_prioritize_stocks_monday_scan_pre_session():
+  from app.engines.gate_entry_guard import prioritize_stocks_monday_scan
+
+  symbols = ["AAPL", "NVDA", "MSFT"]
+  session = {"in_session": False, "minutes_until_open": 45, "minutes_since_open": 0}
+  ordered = prioritize_stocks_monday_scan(
+    symbols,
+    chronic_losers=frozenset({"NVDA"}),
+    proven_winners=frozenset({"AAPL"}),
+    session_info=session,
+  )
+  assert ordered[0] == "NVDA"
+  assert ordered[1] == "AAPL"
+
+
+def test_prioritize_stocks_monday_scan_outside_prep_window():
+  from app.engines.gate_entry_guard import prioritize_stocks_monday_scan
+
+  symbols = ["AAPL", "NVDA", "MSFT"]
+  session = {"in_session": False, "minutes_until_open": 200, "minutes_since_open": 0}
+  ordered = prioritize_stocks_monday_scan(
+    symbols,
+    chronic_losers=frozenset({"NVDA"}),
+    proven_winners=frozenset({"AAPL"}),
+    session_info=session,
+  )
+  assert ordered[0] == "AAPL"
+  assert "NVDA" in ordered
+
+
 def test_stocks_proven_winner_sentiment_gate_ok():
   from app.engines.gate_entry_guard import stocks_proven_winner_sentiment_gate_ok
 

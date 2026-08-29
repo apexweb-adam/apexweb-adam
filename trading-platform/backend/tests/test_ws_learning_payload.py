@@ -23,9 +23,14 @@ def test_build_live_payload_includes_learning_fields():
 
   import app.ws_manager as ws_mod
   import app.engines.gate_entry_guard as gate_mod
+  import app.engines.scan_preview as scan_mod
 
   orig = gate_mod.build_gate_ws_payload
+  orig_summary = scan_mod.build_monday_recovery_summary
   gate_mod.build_gate_ws_payload = fake_gate_payload
+  scan_mod.build_monday_recovery_summary = AsyncMock(
+    return_value={"bots": {}, "all": [], "recovery_candidates": []},
+  )
   try:
     payload = asyncio.run(build_live_payload(session))
     assert "analyses" in payload
@@ -34,6 +39,7 @@ def test_build_live_payload_includes_learning_fields():
     assert "intel_sources" in payload
     assert "strategies" in payload
     assert "verification_history" in payload
+    assert "monday_recovery" in payload
     assert isinstance(payload["analyses"], list)
     assert isinstance(payload["reviews"], list)
     assert isinstance(payload["insights"], list)
@@ -41,3 +47,4 @@ def test_build_live_payload_includes_learning_fields():
     assert isinstance(payload["strategies"], list)
   finally:
     gate_mod.build_gate_ws_payload = orig
+    scan_mod.build_monday_recovery_summary = orig_summary

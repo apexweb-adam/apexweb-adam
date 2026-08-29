@@ -57,6 +57,9 @@ async def build_live_payload(session: AsyncSession) -> dict:
   from app.engines.verification_snapshot import serialize_verification_snapshot
 
   gate_payload = await build_gate_ws_payload(session)
+  from app.engines.scan_preview import build_monday_recovery_summary
+
+  monday_recovery = await build_monday_recovery_summary(session)
   portfolios = (await session.execute(select(Portfolio))).scalars().all()
   sell_trades = (await session.execute(select(Trade).where(Trade.action == "sell"))).scalars().all()
   positions = (
@@ -219,6 +222,7 @@ async def build_live_payload(session: AsyncSession) -> dict:
       for i in recent_insights
     ],
     "verification_history": [serialize_verification_snapshot(s) for s in verification_history],
+    "monday_recovery": monday_recovery,
     **gate_payload,
   }
 

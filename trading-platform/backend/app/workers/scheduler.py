@@ -103,8 +103,12 @@ async def redeploy_check_job() -> None:
 
 
 async def stocks_pre_session_prep_job() -> None:
-  """30 min before US cash open: refresh TradingView boosts for proven stock winners."""
-  from app.engines.gate_entry_guard import get_proven_winner_symbols, stocks_session_info
+  """90 min before US cash open: refresh TradingView boosts for winners and recovery symbols."""
+  from app.engines.gate_entry_guard import (
+    get_chronic_loser_symbols,
+    get_proven_winner_symbols,
+    stocks_session_info,
+  )
   from app.engines.integration_signals import refresh_tradingview_signals
 
   session_info = stocks_session_info()
@@ -117,7 +121,8 @@ async def stocks_pre_session_prep_job() -> None:
 
   async with SessionLocal() as session:
     winners = await get_proven_winner_symbols(session, "stocks_futures")
-    symbols = sorted(winners) if winners else ["NVDA"]
+    chronic = await get_chronic_loser_symbols(session, "stocks_futures")
+    symbols = sorted(set(winners) | set(chronic) | {"NVDA"})
     refreshed = await refresh_tradingview_signals(
       session,
       symbols,

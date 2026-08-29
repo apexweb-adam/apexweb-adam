@@ -1798,7 +1798,9 @@ def stocks_session_info() -> dict[str, Any]:
 
   in_session = weekday < 5 and open_minutes <= now_minutes <= close_minutes
   if in_session:
+    open_at = at_minutes(now, open_minutes)
     close_at = at_minutes(now, close_minutes)
+    minutes_since_open = max(0, int((now - open_at).total_seconds() // 60))
     minutes_until_close = max(0, int((close_at - now).total_seconds() // 60))
     mode = "entries"
     if minutes_until_close <= STOCKS_SESSION_CLOSE_WIND_DOWN_MINUTES:
@@ -1806,10 +1808,11 @@ def stocks_session_info() -> dict[str, Any]:
     return {
       "in_session": True,
       "mode": mode,
-      "session_open_utc": at_minutes(now, open_minutes).isoformat(),
+      "session_open_utc": open_at.isoformat(),
       "session_close_utc": close_at.isoformat(),
       "minutes_until_open": 0,
       "minutes_until_close": minutes_until_close,
+      "minutes_since_open": minutes_since_open,
     }
 
   if weekday < 5 and now_minutes < open_minutes:
@@ -1832,7 +1835,45 @@ def stocks_session_info() -> dict[str, Any]:
     "session_close_utc": at_minutes(open_at, close_minutes).isoformat(),
     "minutes_until_open": minutes_until_open,
     "minutes_until_close": None,
+    "minutes_since_open": 0,
   }
+
+
+STOCKS_MONDAY_SCAN_OPEN_HOUR_MINUTES = 60
+STOCKS_MONDAY_SCAN_PREP_MINUTES = 90
+
+
+def stocks_monday_scan_priority_active(session_info: dict[str, Any]) -> bool:
+  """Prioritize chronic recovery symbols pre-US open and during the first hour."""
+  if session_info.get("in_session"):
+    since = session_info.get("minutes_since_open")
+    return since is not None and since <= STOCKS_MONDAY_SCAN_OPEN_HOUR_MINUTES
+  minutes_until = session_info.get("minutes_until_open")
+  return (
+    minutes_until is not None
+    and minutes_until <= STOCKS_MONDAY_SCAN_PREP_MINUTES
+  )
+
+
+def prioritize_stocks_monday_scan(
+  symbols: list[str],
+  *,
+  chronic_losers: frozenset[str],
+  proven_winners: frozenset[str],
+  session_info: dict[str, Any],
+) -> list[str]:
+  """Scan chronic stock recovery symbols first ahead of Monday US open / open hour."""
+  if not stocks_monday_scan_priority_active(session_info):
+    if proven_winners:
+      winners = [s for s in symbols if s in proven_winners]
+      rest = [s for s in symbols if s not in proven_winners]
+      return winners + rest
+    return symbols
+
+  recovery = [s for s in symbols if s in chronic_losers]
+  winners = [s for s in symbols if s in proven_winners and s not in recovery]
+  rest = [s for s in symbols if s not in recovery and s not in winners]
+  return recovery + winners + rest
 
 
 def stocks_gate_entry_sentiment_ok(sentiment: float, integration_boost: float) -> bool:
