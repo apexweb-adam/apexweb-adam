@@ -19,3 +19,4 @@ def test_fomo_userscript_served():
   assert response.status_code == 200
   assert "apex-fomo-bridge" in response.text
   assert "prod-api.fomo.family" in response.text
+  assert "set-fomo-bearer" in response.text
