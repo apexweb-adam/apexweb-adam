@@ -632,7 +632,7 @@ async def websocket_endpoint(websocket: WebSocket):
       async with SessionLocal() as db:
         payload = await build_live_payload(db)
       await websocket.send_json(payload)
-      await asyncio.sleep(2)
+      await asyncio.sleep(5)
   except WebSocketDisconnect:
     manager.disconnect(websocket)
   except Exception:
