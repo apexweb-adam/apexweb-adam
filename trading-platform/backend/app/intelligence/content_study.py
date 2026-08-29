@@ -135,7 +135,16 @@ def _is_trading_relevant_intel(title: str, content: str, source: str) -> bool:
   return True
 
 
-LIVE_INTEL_SOURCES = ("fomo", "dexscreener", "hyperliquid", "wallet_tracker")
+LIVE_INTEL_SOURCES = (
+  "fomo",
+  "dexscreener",
+  "hyperliquid",
+  "wallet_tracker",
+  "x",
+  "tiktok",
+  "reddit",
+  "tradingview",
+)
 
 
 def _extract_live_intel_impact(source: str, title: str, content: str, symbols: str, sentiment: float, relevance: float) -> tuple[str, float] | None:
@@ -192,6 +201,63 @@ def _extract_live_intel_impact(source: str, title: str, content: str, symbols: s
       return (
         f"Whale wallet distribution on {sym} — crypto bot: tighten stops and reduce position size on whale exits",
         min(0.8, relevance * 0.85),
+      )
+    return None
+
+  if source == "x":
+    if sentiment > 0.25:
+      if any(k in text for k in ("crypto", "bitcoin", "btc", "meme", "solana")):
+        return (
+          f"X/Twitter bullish buzz on {sym} — crypto bot: increase sentiment weight when social aligns with TA",
+          min(0.78, relevance * 0.85 + abs(sentiment) * 0.15),
+        )
+      return (
+        f"X/Twitter positive sentiment on {sym} — stocks_futures bot: favor long bias when sentiment confirms",
+        min(0.72, relevance * 0.8 + abs(sentiment) * 0.1),
+      )
+    if sentiment < -0.25:
+      return (
+        f"X/Twitter bearish chatter on {sym} — tighten stop-loss and reduce long exposure",
+        min(0.75, relevance * 0.82),
+      )
+    return None
+
+  if source == "tiktok":
+    if relevance > 0.45 and any(k in text for k in ("meme", "crypto", "bitcoin", "stock", "trading")):
+      return (
+        f"TikTok viral trading sentiment on {sym} — crypto bot: require volume confirmation on social-driven entries",
+        min(0.76, relevance * 0.88),
+      )
+    return None
+
+  if source == "reddit":
+    if sentiment > 0.2:
+      if any(k in text for k in ("wsb", "wallstreetbets", "yolo", "meme", "cryptocurrency")):
+        return (
+          f"Reddit retail buzz on {sym} — crypto bot: treat social hype as sentiment input, not sole entry signal",
+          min(0.74, relevance * 0.85 + abs(sentiment) * 0.1),
+        )
+      return (
+        f"Reddit bullish discussion on {sym} — increase sentiment weight when aligned with technical signals",
+        min(0.7, relevance * 0.8),
+      )
+    if sentiment < -0.2:
+      return (
+        f"Reddit bearish thread on {sym} — avoid counter-trend longs; tighten stops on open positions",
+        min(0.72, relevance * 0.8),
+      )
+    return None
+
+  if source == "tradingview":
+    if sentiment > 0 or any(k in text for k in ("buy", "long", "bullish")):
+      return (
+        f"TradingView alert on {sym} — require webhook signal alignment before entry; increase technical_weight",
+        min(0.8, relevance * 0.9),
+      )
+    if sentiment < 0 or any(k in text for k in ("sell", "short", "bearish")):
+      return (
+        f"TradingView exit signal on {sym} — honor TV alerts for wind-down; avoid fighting the alert",
+        min(0.78, relevance * 0.85),
       )
     return None
 

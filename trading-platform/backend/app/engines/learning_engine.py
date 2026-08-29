@@ -26,14 +26,28 @@ def _target_bot_types_from_impact(impact: str) -> set[str] | None:
       "solana",
       "hl perp",
       "pump.fun",
+      "tiktok",
+      "reddit retail",
     )
   ):
     targets.add("crypto")
-  if any(k in text for k in ("commodities bot", "gold", "oil", "commodit", "geopolitical")):
+  if any(
+    k in text
+    for k in ("commodities bot", "gold", "oil", "commodit", "geopolitical")
+  ):
     targets.add("commodities")
   if any(
     k in text
-    for k in ("stocks bot", "stocks_futures", "futures bot", "day-trad", "day trad", "macd")
+    for k in (
+      "stocks bot",
+      "stocks_futures",
+      "stocks_futures bot",
+      "futures bot",
+      "day-trad",
+      "day trad",
+      "macd",
+      "x/twitter positive",
+    )
   ):
     targets.add("stocks_futures")
   if any(k in text for k in ("polymarket", "prediction market", "prediction-market")):
@@ -445,6 +459,9 @@ class LearningEngine:
         changed = True
       if "sentiment" in impact_lower:
         config.sentiment_weight = min(0.5, config.sentiment_weight + 0.05)
+        changed = True
+      if "technical_weight" in impact_lower or "tradingview" in impact_lower:
+        config.technical_weight = min(0.6, config.technical_weight + 0.05)
         changed = True
       # Never raise Polymarket position size from external content (0–1 share math)
       if "position" in impact_lower and config.bot_type != "polymarket":

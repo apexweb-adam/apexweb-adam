@@ -87,3 +87,46 @@ def test_study_live_intel_sources_applies_fomo_item():
   assert item.applied is True
   call_kwargs = learner.apply_external_insight.await_args.kwargs
   assert "crypto bot" in call_kwargs["impact"].lower()
+
+
+def test_extract_x_crypto_bullish_impact():
+  impact, confidence = _extract_live_intel_impact(
+    "x",
+    "Bitcoin breaking out",
+    "BTC momentum on X",
+    "BTCUSDT",
+    0.45,
+    0.7,
+  )
+  assert impact is not None
+  assert "crypto bot" in impact.lower()
+  assert confidence >= 0.55
+
+
+def test_extract_tradingview_alert_impact():
+  impact, confidence = _extract_live_intel_impact(
+    "tradingview",
+    "TradingView alert: AAPL buy",
+    "strategy order buy",
+    "AAPL",
+    0.3,
+    0.85,
+  )
+  assert impact is not None
+  assert "tradingview" in impact.lower()
+  assert "technical_weight" in impact.lower()
+  assert confidence >= 0.6
+
+
+def test_extract_reddit_wsb_impact():
+  impact, _ = _extract_live_intel_impact(
+    "reddit",
+    "WSB yolo on PEPE",
+    "wallstreetbets discussion",
+    "PEPEUSDT",
+    0.35,
+    0.65,
+  )
+  assert impact is not None
+  assert "reddit" in impact.lower()
+  assert "crypto bot" in impact.lower()
