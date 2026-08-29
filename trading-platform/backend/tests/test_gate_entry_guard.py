@@ -539,7 +539,7 @@ def test_commodities_high_composite_recovery_bypasses_chronic():
     **{**recovery, "symbol": "XAUUSDT"}
   ) is False
   with patch("app.engines.gate_entry_guard.datetime") as mock_dt:
-    mock_dt.utcnow.return_value = datetime(2026, 8, 31, 0, 15, 0)
+    mock_dt.utcnow.return_value = datetime(2026, 8, 29, 18, 0, 0)
     mock_dt.side_effect = lambda *a, **k: datetime(*a, **k)
     eased = COMMODITIES_GRADUATION_OPEN_COMPOSITE_FLOOR + 0.029
     assert commodities_recovery_composite_floor(graduation_nudge=True) == (
@@ -773,6 +773,25 @@ def test_commodities_monday_open_ready():
       },
       blockers=["weekend_futures_closed"],
     ) is True
+
+
+def test_commodities_graduation_prep_active_weekend_window():
+  from app.engines.gate_entry_guard import commodities_graduation_prep_active
+
+  with patch("app.engines.gate_entry_guard.datetime") as mock_dt:
+    mock_dt.utcnow.return_value = datetime(2026, 8, 29, 18, 0, 0)
+    mock_dt.side_effect = lambda *a, **k: datetime(*a, **k)
+    assert commodities_graduation_prep_active(graduation_nudge=True) is True
+    assert commodities_graduation_prep_active(graduation_nudge=False) is False
+
+
+def test_commodities_graduation_prep_active_outside_window():
+  from app.engines.gate_entry_guard import commodities_graduation_prep_active
+
+  with patch("app.engines.gate_entry_guard.datetime") as mock_dt:
+    mock_dt.utcnow.return_value = datetime(2026, 8, 25, 12, 0, 0)
+    mock_dt.side_effect = lambda *a, **k: datetime(*a, **k)
+    assert commodities_graduation_prep_active(graduation_nudge=True) is False
 
 
 def test_prioritize_commodities_monday_scan_pre_session():
