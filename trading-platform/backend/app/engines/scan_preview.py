@@ -42,6 +42,7 @@ from app.engines.gate_entry_guard import (
   open_position_cap_blocks_entry,
   symbol_cooldown_remaining_seconds,
   commodities_weekend_futures_entry_blocked,
+  gate_cap_pressure_proxy_entry_blocked,
   shadow_entry_min_signal,
   shadow_graduation_min_composite,
   shadow_graduation_loss_exposure_blocks_entry,
@@ -336,6 +337,15 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
       blockers.append("already_held")
     if commodities_weekend_futures_entry_blocked(symbol):
       blockers.append("weekend_futures_closed")
+    if gate_cap_pressure_proxy_entry_blocked(
+      bot_type=bot_type,
+      shadow_mode=shadow_mode,
+      graduation_nudge=graduation_nudge,
+      symbol=symbol,
+      open_count=len(held_symbols),
+      gate_tightening=gate_tightening,
+    ):
+      blockers.append("open_cap_proxy")
     if stocks_negative_pf_blocks_entry(
       bot_type=bot_type,
       symbol=symbol,

@@ -758,6 +758,28 @@ def gate_cap_pressure_proxy_wind_down(
   return unrealized < 0
 
 
+def gate_cap_pressure_proxy_entry_blocked(
+  *,
+  bot_type: str,
+  shadow_mode: bool,
+  graduation_nudge: bool,
+  symbol: str,
+  open_count: int,
+  gate_tightening: GateEntryTightening,
+) -> bool:
+  """Block new proxy marks at open cap — avoids cap-pressure churn on immediate wind-down."""
+  if shadow_mode or bot_type not in ACTIVE_GATE_GRADUATION_NUDGE_BOTS or not graduation_nudge:
+    return False
+  from app.engines.market_data import CRYPTO_LIVE_PRICE_PROXY
+
+  if symbol not in CRYPTO_LIVE_PRICE_PROXY:
+    return False
+  cap = gate_tightening.max_commodities_open_positions
+  if not isinstance(cap, int) or open_count < cap:
+    return False
+  return True
+
+
 def stocks_session_close_wind_down(
   *,
   in_session: bool,
