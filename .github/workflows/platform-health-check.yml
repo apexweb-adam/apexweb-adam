@@ -108,7 +108,9 @@ jobs:
           html = sys.stdin.read()
           assert 'Apex Trading CRM' in html, 'missing CRM title'
           assert 'dashboard' in html.lower(), 'missing dashboard link'
-          if 'verification gate' in html.lower():
+          if 'Monday recovery watchlist' in html:
+              print('OK: CRM landing shows Monday recovery watchlist')
+          elif 'verification gate' in html.lower():
               print('OK: CRM landing shows verification gate stats')
           else:
               print('::warning::CRM landing is legacy redirect-only — backend deploy may be stale (PR #76+)')
