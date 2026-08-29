@@ -27,10 +27,10 @@ def github_headers() -> dict[str, str]:
     headers["Authorization"] = f"Bearer {token}"
   return headers
 PRODUCTION_DASHBOARD_URL = "https://apex-trading-dashboard-flame.vercel.app"
-DEFAULT_VERIFIED_DASHBOARD_URL = "https://apex-trading-dashboard-4am3sz5kv-apexweb-adams-projects.vercel.app"
-DEFAULT_VERIFIED_DEPLOYMENT_ID = "dpl_GQTTm469KGGRkiKfwrULaLieM5VE"
+DEFAULT_VERIFIED_DASHBOARD_URL = "https://apex-trading-dashboard-43tumxweh-apexweb-adams-projects.vercel.app"
+DEFAULT_VERIFIED_DEPLOYMENT_ID = "dpl_3dNmumttz3SytQkzSaw11vFNUv2F"
 EXPECTED_DASHBOARD_BUNDLE = "2026-08-29-r45"
-EXPECTED_PLATFORM_REVISION = "2026-08-29-r211"
+EXPECTED_PLATFORM_REVISION = "2026-08-29-r212"
 GIT_MAIN_ALIAS = "apex-trading-dashboard-git-main"
 ACCEPTABLE_DASHBOARD_BUNDLES = frozenset({
   "2026-08-27-r9", "2026-08-27-r10", "2026-08-27-r11", "2026-08-27-r12",
@@ -158,7 +158,8 @@ def verified_dashboard_candidates() -> list[str]:
 
   # Configured verified URL first — env is authoritative when probe succeeds.
   add(configured_verified_dashboard_url())
-  # Newest main-branch previews (r31 recovery preview) — prefer before stale git-main alias.
+  # Newest main-branch previews — prefer before stale git-main alias.
+  add("https://apex-trading-dashboard-43tumxweh-apexweb-adams-projects.vercel.app")
   add("https://apex-trading-dashboard-4am3sz5kv-apexweb-adams-projects.vercel.app")
   add("https://apex-trading-dashboard-fh95xdpz2-apexweb-adams-projects.vercel.app")
   add("https://apex-trading-dashboard-git-main-apexweb-adams-projects.vercel.app")
@@ -531,12 +532,15 @@ async def fetch_vercel_dashboard_bundle() -> dict[str, Any]:
   try:
     prod_cfg = await probe_dashboard_config(PRODUCTION_DASHBOARD_URL)
     proxy_ok = await probe_production_proxy_operational()
-    if prod_cfg and bundle_is_current(prod_cfg):
+    if prod_cfg and bundle_is_acceptable(prod_cfg) and proxy_ok:
+      behind_expected = not bundle_is_current(prod_cfg)
       return {
         "vercel_bundle_stale": False,
+        "vercel_bundle_behind_expected": behind_expected,
         "vercel_bundle_revision": prod_cfg.get("bundleRevision"),
         "production_proxy_operational": proxy_ok,
         "dashboard_url": PRODUCTION_DASHBOARD_URL,
+        "expected_dashboard_bundle": EXPECTED_DASHBOARD_BUNDLE,
       }
 
     discovered = await discover_verified_dashboard()
@@ -544,6 +548,7 @@ async def fetch_vercel_dashboard_bundle() -> dict[str, Any]:
     dashboard_url = PRODUCTION_DASHBOARD_URL if proxy_ok else verified_url
     return {
       "vercel_bundle_stale": True,
+      "vercel_bundle_behind_expected": True,
       "vercel_bundle_revision": (prod_cfg or {}).get("bundleRevision"),
       "production_proxy_operational": proxy_ok,
       "verified_dashboard_url": verified_url,
@@ -552,17 +557,20 @@ async def fetch_vercel_dashboard_bundle() -> dict[str, Any]:
       "vercel_promote_deployment_id": promote_id,
       "vercel_promote_url": promote_url,
       "dashboard_url": dashboard_url,
+      "expected_dashboard_bundle": EXPECTED_DASHBOARD_BUNDLE,
     }
   except Exception:
     verified_url = configured_verified_dashboard_url()
     proxy_ok = await probe_production_proxy_operational()
     return {
       "vercel_bundle_stale": True,
+      "vercel_bundle_behind_expected": True,
       "production_proxy_operational": proxy_ok,
       "verified_dashboard_url": verified_url,
       "vercel_promote_deployment_id": promote_id,
       "vercel_promote_url": promote_url,
       "dashboard_url": PRODUCTION_DASHBOARD_URL if proxy_ok else verified_url,
+      "expected_dashboard_bundle": EXPECTED_DASHBOARD_BUNDLE,
     }
 
 
@@ -676,16 +684,19 @@ async def _build_deploy_status_uncached() -> dict[str, Any]:
       )
 
   vercel = await fetch_vercel_dashboard_bundle()
-  if vercel.get("vercel_bundle_stale"):
+  if vercel.get("vercel_bundle_behind_expected"):
     verified = vercel.get("verified_dashboard_url", configured_verified_dashboard_url())
     promote_id = vercel.get("vercel_promote_deployment_id") or configured_verified_deployment_id()
+    expected_bundle = vercel.get("expected_dashboard_bundle") or EXPECTED_DASHBOARD_BUNDLE
+    prod_bundle = vercel.get("vercel_bundle_revision") or "unknown"
     if vercel.get("production_proxy_operational"):
       next_steps.append(
-        "Vercel production bundle is stale but CRM proxy is operational on "
-        f"{PRODUCTION_DASHBOARD_URL} — promote {promote_id} for native routes and newest UI, "
+        "Vercel production bundle is behind expected "
+        f"({prod_bundle} vs {expected_bundle}) but CRM proxy is operational on "
+        f"{PRODUCTION_DASHBOARD_URL} — promote {promote_id} when deploy quota allows, "
         f"or use verified preview: {verified}"
       )
-    else:
+    elif vercel.get("vercel_bundle_stale"):
       next_steps.append(
         "Vercel production dashboard bundle is stale — promote "
         f"{promote_id} in Vercel, "
