@@ -167,6 +167,29 @@ def shadow_max_open_for_bot(
   return base
 
 
+def open_position_cap_blocks_entry(
+  bot_type: str,
+  *,
+  shadow_mode: bool,
+  open_count: int,
+  gate_tightening: GateEntryTightening,
+  shadow_open_cap: int | None,
+) -> bool:
+  """Shadow bots use shadow_open_cap only — gate tightening caps apply to active gate bots."""
+  if shadow_mode:
+    return shadow_open_cap is not None and open_count >= shadow_open_cap
+  gate_caps = {
+    "crypto": gate_tightening.max_crypto_open_positions,
+    "commodities": gate_tightening.max_commodities_open_positions,
+    "stocks_futures": gate_tightening.max_stocks_open_positions,
+    "polymarket": gate_tightening.max_pm_open_positions,
+  }
+  cap = gate_caps.get(bot_type)
+  if not isinstance(cap, int):
+    return False
+  return open_count >= cap
+
+
 def in_shadow_graduation_nudge(
   bot_type: str,
   bot_win_rate: float | None,

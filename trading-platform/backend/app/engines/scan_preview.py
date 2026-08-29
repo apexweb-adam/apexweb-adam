@@ -39,6 +39,7 @@ from app.engines.gate_entry_guard import (
   in_shadow_graduation_nudge,
   intel_override_allows_long_entry,
   is_symbol_in_trade_cooldown,
+  open_position_cap_blocks_entry,
   symbol_cooldown_remaining_seconds,
   shadow_entry_min_signal,
   shadow_graduation_min_composite,
@@ -133,6 +134,10 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
     strategy.min_sentiment_score,
     bot_min_sentiment(bot_type, gate_tightening),
   )
+  if shadow_mode:
+    from app.engines.gate_entry_guard import SHADOW_MIN_SENTIMENT_BOOST
+
+    min_sentiment += SHADOW_MIN_SENTIMENT_BOOST
   graduation_nudge = in_shadow_graduation_nudge(
     bot_type,
     bot_wr,
@@ -413,8 +418,14 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
       total_pnl=per_bot_stats.get("total_pnl"),
     ) and signal.macd_signal != "bullish":
       blockers.append("macd")
-    if shadow_cap is not None and open_count >= shadow_cap:
-      blockers.append("shadow_open_cap")
+    if open_position_cap_blocks_entry(
+      bot_type,
+      shadow_mode=shadow_mode,
+      open_count=open_count,
+      gate_tightening=gate_tightening,
+      shadow_open_cap=shadow_cap,
+    ):
+      blockers.append("open_cap")
     if not shadow_mode and bot_type in gate_tightening.blocked_new_entries:
       blockers.append("entries_blocked")
     if not entry_direction_ok:

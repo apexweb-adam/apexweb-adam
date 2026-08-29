@@ -619,3 +619,37 @@ def test_graduation_nudge_sentiment_ok_shadow_crypto_composite_bypass():
     signal_direction="buy",
     macd_signal="bullish",
   ) is True
+
+
+def test_open_position_cap_blocks_shadow_not_gate_tightening():
+  from app.engines.gate_entry_guard import GateEntryTightening, open_position_cap_blocks_entry
+
+  tightening = GateEntryTightening(
+    active=True,
+    win_rate=0.44,
+    min_sentiment=0.04,
+    require_macd_bullish=True,
+    min_composite_boost=0.04,
+    max_crypto_open_positions=1,
+  )
+  assert open_position_cap_blocks_entry(
+    "crypto",
+    shadow_mode=True,
+    open_count=1,
+    gate_tightening=tightening,
+    shadow_open_cap=3,
+  ) is False
+  assert open_position_cap_blocks_entry(
+    "crypto",
+    shadow_mode=True,
+    open_count=3,
+    gate_tightening=tightening,
+    shadow_open_cap=3,
+  ) is True
+  assert open_position_cap_blocks_entry(
+    "crypto",
+    shadow_mode=False,
+    open_count=1,
+    gate_tightening=tightening,
+    shadow_open_cap=None,
+  ) is True

@@ -33,6 +33,7 @@ from app.engines.gate_entry_guard import (
   in_shadow_graduation_nudge,
   intel_override_allows_long_entry,
   is_symbol_in_trade_cooldown,
+  open_position_cap_blocks_entry,
   shadow_chronic_position_scale,
   shadow_graduation_min_hold_seconds,
   shadow_graduation_min_composite,
@@ -571,28 +572,13 @@ class BaseBot(ABC):
         if macd_required and signal.macd_signal != "bullish":
           continue
 
-        if (
-          gate_tightening.max_crypto_open_positions is not None
-          and self.bot_type == "crypto"
-          and open_count >= gate_tightening.max_crypto_open_positions
+        if open_position_cap_blocks_entry(
+          self.bot_type,
+          shadow_mode=shadow_mode,
+          open_count=open_count,
+          gate_tightening=gate_tightening,
+          shadow_open_cap=shadow_open_cap,
         ):
-          continue
-
-        if (
-          gate_tightening.max_commodities_open_positions is not None
-          and self.bot_type == "commodities"
-          and open_count >= gate_tightening.max_commodities_open_positions
-        ):
-          continue
-
-        if (
-          gate_tightening.max_stocks_open_positions is not None
-          and self.bot_type == "stocks_futures"
-          and open_count >= gate_tightening.max_stocks_open_positions
-        ):
-          continue
-
-        if shadow_open_cap is not None and open_count >= shadow_open_cap:
           continue
 
         entry_min_signal = min_signal
