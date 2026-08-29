@@ -563,6 +563,90 @@ def test_stocks_monday_recovery_ready():
   assert stocks_monday_recovery_ready(**base, blockers=[]) is False
 
 
+def test_stocks_monday_gate_skip_bypass():
+  from datetime import datetime
+  from unittest.mock import patch
+
+  from app.engines.gate_entry_guard import (
+    STOCKS_TRADE_COUNT_RECOVERY_MIN_COMPOSITE,
+    chronic_loser_blocks_shadow_entry,
+    hard_skip_blocks_shadow_entry,
+    stocks_monday_gate_skip_bypass,
+  )
+
+  base = dict(
+    bot_type="stocks_futures",
+    shadow_mode=True,
+    symbol="AAPL",
+    proven_winners=frozenset({"AAPL", "NVDA"}),
+    bot_win_rate=0.57,
+    total_trades=15,
+    signal_direction="buy",
+    macd_signal="bullish",
+    composite=STOCKS_TRADE_COUNT_RECOVERY_MIN_COMPOSITE + 0.05,
+  )
+  session = {"in_session": False, "minutes_until_open": 45, "minutes_since_open": 0}
+  with patch(
+    "app.engines.gate_entry_guard.stocks_session_info",
+    return_value=session,
+  ):
+    assert stocks_monday_gate_skip_bypass(**base) is True
+    assert stocks_monday_gate_skip_bypass(
+      **{**base, "composite": STOCKS_TRADE_COUNT_RECOVERY_MIN_COMPOSITE - 0.01}
+    ) is False
+    assert stocks_monday_gate_skip_bypass(
+      **{**base, "total_trades": 10}
+    ) is False
+    assert hard_skip_blocks_shadow_entry(
+      "AAPL",
+      bot_type="stocks_futures",
+      recent_skip=frozenset({"AAPL"}),
+      large_skip=frozenset(),
+      review_skip=frozenset(),
+      graduation_nudge=False,
+      shadow_mode=True,
+      intel_override=False,
+      composite=0.40,
+      integration_boost=0.05,
+      signal_direction="buy",
+      macd_signal="bullish",
+      proven_winners=frozenset({"AAPL"}),
+      bot_win_rate=0.57,
+      total_trades=15,
+    ) is False
+    assert hard_skip_blocks_shadow_entry(
+      "AAPL",
+      bot_type="stocks_futures",
+      recent_skip=frozenset(),
+      large_skip=frozenset(),
+      review_skip=frozenset({"AAPL"}),
+      graduation_nudge=False,
+      shadow_mode=True,
+      intel_override=False,
+      composite=0.40,
+      integration_boost=0.05,
+      signal_direction="buy",
+      macd_signal="bullish",
+      proven_winners=frozenset({"AAPL"}),
+      bot_win_rate=0.57,
+      total_trades=15,
+    ) is False
+    assert chronic_loser_blocks_shadow_entry(
+      "AAPL",
+      frozenset({"AAPL"}),
+      bot_type="stocks_futures",
+      graduation_nudge=False,
+      shadow_mode=True,
+      intel_override=False,
+      proven_winners=frozenset({"AAPL"}),
+      bot_win_rate=0.57,
+      composite=0.40,
+      signal_direction="buy",
+      macd_signal="bullish",
+      total_trades=15,
+    ) is False
+
+
 def test_prioritize_commodities_monday_scan_pre_session():
   from app.engines.gate_entry_guard import prioritize_commodities_monday_scan
 

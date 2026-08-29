@@ -434,6 +434,9 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
       signal_direction=signal.direction,
       macd_signal=signal.macd_signal,
       composite=composite,
+      proven_winners=proven_winners,
+      bot_win_rate=per_bot_stats.get("win_rate"),
+      total_trades=int(per_bot_stats.get("total_trades") or 0),
     )
     if cooldown_remaining > 0:
       blockers.append("symbol_cooldown")

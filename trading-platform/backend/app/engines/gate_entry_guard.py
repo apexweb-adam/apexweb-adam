@@ -790,6 +790,18 @@ def chronic_loser_blocks_shadow_entry(
     composite=composite or 0.0,
   ):
     return False
+  if stocks_monday_gate_skip_bypass(
+    bot_type=bot_type,
+    shadow_mode=shadow_mode,
+    symbol=symbol,
+    proven_winners=proven_winners or frozenset(),
+    bot_win_rate=bot_win_rate,
+    total_trades=total_trades,
+    signal_direction=signal_direction or "buy",
+    macd_signal=macd_signal or "bullish",
+    composite=composite or 0.0,
+  ):
+    return False
   if graduation_nudge_easing_active(
     bot_type,
     graduation_nudge=graduation_nudge,
@@ -1715,6 +1727,9 @@ async def is_symbol_in_trade_cooldown(
   signal_direction: str = "buy",
   macd_signal: str = "bullish",
   composite: float = 0.0,
+  proven_winners: frozenset[str] = frozenset(),
+  bot_win_rate: float | None = None,
+  total_trades: int = 0,
 ) -> bool:
   """DB-backed re-entry cooldown — survives deploy restarts."""
   remaining = await symbol_cooldown_remaining_seconds(
@@ -1728,6 +1743,9 @@ async def is_symbol_in_trade_cooldown(
     signal_direction=signal_direction,
     macd_signal=macd_signal,
     composite=composite,
+    proven_winners=proven_winners,
+    bot_win_rate=bot_win_rate,
+    total_trades=total_trades,
   )
   return remaining > 0
 
@@ -1744,6 +1762,9 @@ async def symbol_cooldown_remaining_seconds(
   signal_direction: str = "buy",
   macd_signal: str = "bullish",
   composite: float = 0.0,
+  proven_winners: frozenset[str] = frozenset(),
+  bot_win_rate: float | None = None,
+  total_trades: int = 0,
 ) -> int:
   """Seconds until symbol re-entry is allowed after last sell."""
   if commodities_weekend_spot_gate_skip_bypass(
@@ -1761,6 +1782,18 @@ async def symbol_cooldown_remaining_seconds(
     shadow_mode=shadow_mode,
     symbol=symbol,
     graduation_nudge=graduation_nudge,
+    signal_direction=signal_direction,
+    macd_signal=macd_signal,
+    composite=composite,
+  ):
+    return 0
+  if stocks_monday_gate_skip_bypass(
+    bot_type=bot_type,
+    shadow_mode=shadow_mode,
+    symbol=symbol,
+    proven_winners=proven_winners,
+    bot_win_rate=bot_win_rate,
+    total_trades=total_trades,
     signal_direction=signal_direction,
     macd_signal=macd_signal,
     composite=composite,
@@ -1916,6 +1949,18 @@ def hard_skip_blocks_shadow_entry(
       and macd_signal == "bullish"
     ):
       return False
+    if stocks_monday_gate_skip_bypass(
+      bot_type=bot_type,
+      shadow_mode=shadow_mode,
+      symbol=symbol,
+      proven_winners=proven_winners or frozenset(),
+      bot_win_rate=bot_win_rate,
+      total_trades=total_trades,
+      signal_direction=signal_direction,
+      macd_signal=macd_signal,
+      composite=composite,
+    ):
+      return False
     return True
   large_bypass_floor = SHADOW_LARGE_LOSS_BYPASS_COMPOSITE_BY_BOT.get(
     bot_type, SHADOW_LARGE_LOSS_BYPASS_COMPOSITE
@@ -1938,6 +1983,18 @@ def hard_skip_blocks_shadow_entry(
       shadow_mode=shadow_mode,
       symbol=symbol,
       graduation_nudge=graduation_nudge,
+      signal_direction=signal_direction,
+      macd_signal=macd_signal,
+      composite=composite,
+    ):
+      return False
+    if stocks_monday_gate_skip_bypass(
+      bot_type=bot_type,
+      shadow_mode=shadow_mode,
+      symbol=symbol,
+      proven_winners=proven_winners or frozenset(),
+      bot_win_rate=bot_win_rate,
+      total_trades=total_trades,
       signal_direction=signal_direction,
       macd_signal=macd_signal,
       composite=composite,
@@ -1972,6 +2029,18 @@ def hard_skip_blocks_shadow_entry(
       shadow_mode=shadow_mode,
       symbol=symbol,
       graduation_nudge=graduation_nudge,
+      signal_direction=signal_direction,
+      macd_signal=macd_signal,
+      composite=composite,
+    ):
+      return False
+    if stocks_monday_gate_skip_bypass(
+      bot_type=bot_type,
+      shadow_mode=shadow_mode,
+      symbol=symbol,
+      proven_winners=proven_winners or frozenset(),
+      bot_win_rate=bot_win_rate,
+      total_trades=total_trades,
       signal_direction=signal_direction,
       macd_signal=macd_signal,
       composite=composite,
@@ -2658,6 +2727,34 @@ def commodities_monday_futures_gate_skip_bypass(
   if signal_direction != "buy" or macd_signal != "bullish":
     return False
   return composite >= COMMODITIES_HIGH_COMPOSITE_RECOVERY_FLOOR
+
+
+def stocks_monday_gate_skip_bypass(
+  *,
+  bot_type: str,
+  shadow_mode: bool,
+  symbol: str,
+  proven_winners: frozenset[str],
+  bot_win_rate: float | None,
+  total_trades: int,
+  signal_direction: str,
+  macd_signal: str,
+  composite: float,
+) -> bool:
+  """Proven stock shadow winners bypass gate_skip/chronic blocks pre-US open and first hour."""
+  if not shadow_mode or bot_type != "stocks_futures":
+    return False
+  if not stocks_trade_count_graduation_nudge(
+    bot_type, shadow_mode, bot_win_rate, total_trades
+  ):
+    return False
+  if symbol not in proven_winners:
+    return False
+  if not stocks_monday_scan_priority_active(stocks_session_info()):
+    return False
+  if signal_direction != "buy" or macd_signal != "bullish":
+    return False
+  return composite >= STOCKS_TRADE_COUNT_RECOVERY_MIN_COMPOSITE
 
 
 def commodities_high_composite_recovery_entry_ok(

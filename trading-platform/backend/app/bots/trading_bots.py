@@ -29,6 +29,7 @@ from app.engines.gate_entry_guard import (
   bot_win_rate_for_graduation_nudge,
   commodities_graduation_entry_min_signal,
   commodities_weekend_spot_gate_skip_bypass,
+  stocks_monday_gate_skip_bypass,
   commodities_session_info,
   crypto_graduation_entry_min_signal,
   graduation_nudge_min_sentiment,
@@ -763,7 +764,18 @@ class BaseBot(ABC):
           macd_signal=signal.macd_signal,
           composite=composite,
         )
-        if not weekend_spot_cooldown_waived:
+        monday_stocks_cooldown_waived = stocks_monday_gate_skip_bypass(
+          bot_type=self.bot_type,
+          shadow_mode=shadow_mode,
+          symbol=symbol,
+          proven_winners=proven_winners,
+          bot_win_rate=per_bot_stats.get("win_rate"),
+          total_trades=int(per_bot_stats.get("total_trades") or 0),
+          signal_direction=signal.direction,
+          macd_signal=signal.macd_signal,
+          composite=composite,
+        )
+        if not weekend_spot_cooldown_waived and not monday_stocks_cooldown_waived:
           cooldown = self._symbol_cooldown_until.get(symbol)
           if cooldown and datetime.utcnow() < cooldown:
             continue
@@ -778,6 +790,9 @@ class BaseBot(ABC):
           signal_direction=signal.direction,
           macd_signal=signal.macd_signal,
           composite=composite,
+          proven_winners=proven_winners,
+          bot_win_rate=per_bot_stats.get("win_rate"),
+          total_trades=int(per_bot_stats.get("total_trades") or 0),
         ):
           continue
 
