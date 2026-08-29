@@ -235,6 +235,10 @@ class PaperTradingEngine:
       if not price:
         continue
 
+      from app.engines.market_data import reconcile_proxy_entry_levels
+
+      reconcile_proxy_entry_levels(pos, price)
+
       # Stop-loss / take-profit always run — large adverse moves must not be skipped
       # by the stale-price guard (common on Polymarket sports markets).
       if pos.stop_loss and price <= pos.stop_loss:

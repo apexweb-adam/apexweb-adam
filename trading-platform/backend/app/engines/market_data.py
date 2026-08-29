@@ -1,5 +1,6 @@
 import random
 from datetime import datetime, timedelta
+from typing import Any
 
 import httpx
 import numpy as np
@@ -56,8 +57,30 @@ YAHOO_CRYPTO_SYMBOLS = {
 CRYPTO_LIVE_PRICE_PROXY: dict[str, str] = {
   "XAUUSDT": "PAXGUSDT",
 }
+PROXY_ENTRY_RECONCILE_DRIFT_PCT = 0.008
 
 _price_cache: dict[str, float] = {}
+
+
+def proxy_entry_drift_pct(symbol: str, entry_price: float, live_price: float) -> float | None:
+  """Return relative drift when symbol uses a live proxy feed."""
+  if symbol not in CRYPTO_LIVE_PRICE_PROXY or entry_price <= 0 or live_price <= 0:
+    return None
+  return abs(live_price - entry_price) / entry_price
+
+
+def reconcile_proxy_entry_levels(position: Any, live_price: float) -> bool:
+  """Align entry/stop/take to the proxy feed when a legacy entry used a stale tick."""
+  drift = proxy_entry_drift_pct(position.symbol, float(position.entry_price), live_price)
+  if drift is None or drift <= PROXY_ENTRY_RECONCILE_DRIFT_PCT:
+    return False
+  ratio = live_price / float(position.entry_price)
+  position.entry_price = live_price
+  if position.stop_loss:
+    position.stop_loss = float(position.stop_loss) * ratio
+  if position.take_profit:
+    position.take_profit = float(position.take_profit) * ratio
+  return True
 
 
 def generate_synthetic_ohlcv(base_price: float, periods: int = 100) -> pd.DataFrame:
