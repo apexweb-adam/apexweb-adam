@@ -117,7 +117,9 @@ async def build_intel_sources(session: AsyncSession) -> list[dict[str, Any]]:
     )
     if source == "fomo" and fomo_bearer.get("configured") and not fomo_bearer.get("polling_active"):
       status = "degraded"
-    if source == "axiom" and axiom_session.get("configured") and not axiom_session.get("polling_active"):
+    if source == "axiom" and axiom_session.get("configured") and axiom_session.get("poll_mode") == "session" and not axiom_session.get("polling_active"):
+      status = "degraded"
+    if source == "axiom" and axiom_session.get("poll_mode") == "off":
       status = "degraded"
     if source == "axiom" and not axiom_session.get("multi_wallet_ready"):
       status = "degraded"
@@ -136,6 +138,7 @@ async def build_intel_sources(session: AsyncSession) -> list[dict[str, Any]]:
     if source == "axiom":
       row["session_configured"] = axiom_session.get("configured")
       row["session_polling_active"] = axiom_session.get("polling_active")
+      row["poll_mode"] = axiom_session.get("poll_mode")
       row["multi_wallet_ready"] = axiom_session.get("multi_wallet_ready")
       row["tracked_wallets"] = axiom_session.get("tracked_wallets", tracked_solana_wallet_count())
       row["min_wallets_required"] = settings.wallet_tracker_min_wallets

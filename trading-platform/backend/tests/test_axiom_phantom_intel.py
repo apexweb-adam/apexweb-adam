@@ -1,6 +1,7 @@
 """Tests for axiom.trade and Phantom wallet intel pipelines."""
 
 import asyncio
+from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from app.intelligence.axiom_tracker import (
@@ -107,6 +108,54 @@ def test_normalize_axiom_feed_response():
 
 def test_wallet_track_relevance_top_wallet():
   assert wallet_track_relevance("alpha_wallet", 3) >= 0.95
+
+
+def test_axiom_poll_mode_mirror_without_session():
+  from app.intelligence.axiom_tracker import axiom_poll_mode
+
+  with patch("app.intelligence.axiom_tracker.settings") as mock_settings:
+    mock_settings.axiom_enabled = True
+    mock_settings.wallet_tracker_use_defaults = True
+    with patch("app.intelligence.axiom_tracker.axiom_multi_wallet_ready", return_value=True):
+      assert axiom_poll_mode(None) == "mirror"
+      assert axiom_poll_mode("session_token_1234567890") == "session"
+
+
+def test_scan_axiom_wallet_mirror_ingests_from_wallet_tracker():
+  from app.intelligence.axiom_tracker import scan_axiom_wallet_mirror
+  from app.models.entities import IntelligenceItem
+
+  wallet_item = IntelligenceItem(
+    source="wallet_tracker",
+    category="crypto",
+    title="[SOL Whale] swap BONK ($12,000)",
+    content="wallet 5tzFkiK… | swap | sig abc123",
+    url="sol_sig_abc123",
+    sentiment=0.5,
+    relevance_score=0.82,
+    symbols_mentioned="BONKUSDT",
+  )
+  wallet_item.fetched_at = datetime.utcnow()
+
+  duplicate_result = MagicMock(scalar_one_or_none=MagicMock(return_value=None))
+  wallet_result = MagicMock(
+    scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=[wallet_item])))
+  )
+  session = AsyncMock()
+  session.execute = AsyncMock(side_effect=[wallet_result, duplicate_result])
+  session.commit = AsyncMock()
+
+  with patch("app.intelligence.axiom_tracker.settings") as mock_settings, patch(
+    "app.engines.platform_settings.get_axiom_session_token",
+    new=AsyncMock(return_value=None),
+  ), patch("app.intelligence.axiom_tracker.axiom_multi_wallet_ready", return_value=True), patch(
+    "app.intelligence.axiom_tracker.tracked_solana_wallet_count",
+    return_value=8,
+  ):
+    mock_settings.axiom_enabled = True
+    count = asyncio.run(scan_axiom_wallet_mirror(session))
+
+  assert count == 1
 
 
 def test_axiom_multi_wallet_ready():

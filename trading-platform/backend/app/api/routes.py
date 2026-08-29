@@ -651,6 +651,7 @@ async def get_platform_status(db: AsyncSession = Depends(get_db)) -> dict[str, A
       "axiom_webhook": bool(settings.axiom_enabled and settings.tradingview_webhook_secret),
       "axiom_session_configured": bool(axiom_session.get("configured")),
       "axiom_session_polling_active": bool(axiom_session.get("polling_active")),
+      "axiom_poll_mode": axiom_session.get("poll_mode"),
       "axiom_multi_wallet_ready": bool(axiom_session.get("multi_wallet_ready")),
       "axiom_tracked_wallets": axiom_session.get("tracked_wallets"),
       "axiom_min_wallets": settings.wallet_tracker_min_wallets,
