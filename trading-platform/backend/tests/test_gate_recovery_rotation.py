@@ -150,6 +150,7 @@ def test_crypto_pre_graduation_loss_wind_down():
     **stats,
   ) is False
   assert shadow_cap_pressure_loser_wind_down(
+    graduation_nudge=True,
     unrealized=-4.5,
     held_seconds=180,
     min_hold_seconds=900,

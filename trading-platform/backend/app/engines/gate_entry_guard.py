@@ -114,6 +114,7 @@ CRYPTO_MOMENTUM_RETREAT_MIN_SIGNAL = 0.48
 CRYPTO_MOMENTUM_RETREAT_MIN_RAW_SIGNAL = 0.42
 CRYPTO_MOMENTUM_RETREAT_PROFIT_LOCK_USD = 1.25
 CRYPTO_MOMENTUM_RETREAT_LOSS_WIND_DOWN_USD = 1.5
+CRYPTO_MOMENTUM_RETREAT_CAP_PRESSURE_LOSER_USD = 1.0
 CRYPTO_MOMENTUM_RETREAT_MAX_OPEN = 2
 CRYPTO_PRE_GRADUATION_CAP_PRESSURE_LOSER_USD = 1.5
 CRYPTO_STRONG_MOMENTUM_CAP_PRESSURE_LOSER_USD = 1.0
@@ -196,13 +197,22 @@ def crypto_pre_graduation_nudge(
 def crypto_cap_pressure_nudge(
   bot_type: str,
   shadow_mode: bool,
+  graduation_nudge: bool,
   bot_win_rate: float | None,
   profit_factor: float | None,
   total_pnl: float | None,
 ) -> bool:
   """Crypto shadow tiers that should free cap slots when full."""
   return (
-    crypto_near_graduation_nudge(
+    crypto_momentum_retreat_active(
+      bot_type,
+      shadow_mode,
+      graduation_nudge,
+      bot_win_rate=bot_win_rate,
+      profit_factor=profit_factor,
+      total_pnl=total_pnl,
+    )
+    or crypto_near_graduation_nudge(
       bot_type, shadow_mode, bot_win_rate, profit_factor, total_pnl
     )
     or crypto_strong_momentum_nudge(
@@ -217,19 +227,36 @@ def crypto_cap_pressure_nudge(
 def crypto_cap_pressure_loser_threshold(
   bot_type: str,
   shadow_mode: bool,
+  graduation_nudge: bool,
   bot_win_rate: float | None,
   profit_factor: float | None,
   total_pnl: float | None,
 ) -> float:
   """Per-tier loser threshold when shadow open cap is full."""
+  thresholds: list[float] = []
+  if crypto_momentum_retreat_active(
+    bot_type,
+    shadow_mode,
+    graduation_nudge,
+    bot_win_rate=bot_win_rate,
+    profit_factor=profit_factor,
+    total_pnl=total_pnl,
+  ):
+    thresholds.append(CRYPTO_MOMENTUM_RETREAT_CAP_PRESSURE_LOSER_USD)
   if crypto_pre_graduation_nudge(
     bot_type, shadow_mode, bot_win_rate, profit_factor, total_pnl
   ):
-    return CRYPTO_PRE_GRADUATION_CAP_PRESSURE_LOSER_USD
+    thresholds.append(CRYPTO_PRE_GRADUATION_CAP_PRESSURE_LOSER_USD)
   if crypto_strong_momentum_nudge(
     bot_type, shadow_mode, bot_win_rate, profit_factor, total_pnl
   ):
-    return CRYPTO_STRONG_MOMENTUM_CAP_PRESSURE_LOSER_USD
+    thresholds.append(CRYPTO_STRONG_MOMENTUM_CAP_PRESSURE_LOSER_USD)
+  if crypto_near_graduation_nudge(
+    bot_type, shadow_mode, bot_win_rate, profit_factor, total_pnl
+  ):
+    thresholds.append(CRYPTO_NEAR_GRADUATION_CAP_PRESSURE_LOSER_USD)
+  if thresholds:
+    return min(thresholds)
   return CRYPTO_NEAR_GRADUATION_CAP_PRESSURE_LOSER_USD
 
 
@@ -1304,6 +1331,7 @@ def shadow_graduation_loss_wind_down(
 
 def shadow_cap_pressure_loser_wind_down(
   *,
+  graduation_nudge: bool,
   bot_type: str,
   shadow_mode: bool,
   unrealized: float,
@@ -1321,6 +1349,7 @@ def shadow_cap_pressure_loser_wind_down(
   if not crypto_cap_pressure_nudge(
     bot_type,
     shadow_mode,
+    graduation_nudge,
     bot_win_rate,
     profit_factor,
     total_pnl,
@@ -1335,6 +1364,7 @@ def shadow_cap_pressure_loser_wind_down(
   threshold = crypto_cap_pressure_loser_threshold(
     bot_type,
     shadow_mode,
+    graduation_nudge,
     bot_win_rate,
     profit_factor,
     total_pnl,
@@ -1412,6 +1442,7 @@ def shadow_graduation_profit_lock(
     and crypto_cap_pressure_nudge(
       bot_type,
       shadow_mode,
+      graduation_nudge,
       bot_win_rate,
       profit_factor,
       total_pnl,
