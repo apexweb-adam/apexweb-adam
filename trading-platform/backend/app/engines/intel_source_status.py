@@ -1,6 +1,6 @@
 """Shared intelligence source health for REST and WebSocket APIs."""
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from sqlalchemy import select
@@ -47,7 +47,11 @@ def _source_status(
   if source == "tiktok" and (is_configured or has_items):
     latest = source_latest.get(source)
     if latest and has_items:
-      age = datetime.utcnow() - latest
+      now = datetime.now(timezone.utc)
+      latest_utc = latest if latest.tzinfo else latest.replace(tzinfo=timezone.utc)
+      if latest_utc.tzinfo != timezone.utc:
+        latest_utc = latest_utc.astimezone(timezone.utc)
+      age = now - latest_utc
       if age <= timedelta(hours=12):
         return "active"
     return "degraded"

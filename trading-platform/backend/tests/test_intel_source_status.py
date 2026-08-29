@@ -1,15 +1,13 @@
 """Tests for intelligence source health reporting."""
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, patch
-
-import pytest
 
 from app.engines.intel_source_status import _source_status
 
 
 def test_tiktok_active_when_recent_items():
-  latest = datetime.utcnow() - timedelta(hours=2)
+  latest = datetime.now(timezone.utc) - timedelta(hours=2)
   status = _source_status(
     "tiktok",
     source_counts={"tiktok": 10},
@@ -20,7 +18,7 @@ def test_tiktok_active_when_recent_items():
 
 
 def test_tiktok_degraded_when_stale():
-  latest = datetime.utcnow() - timedelta(hours=20)
+  latest = datetime.now(timezone.utc) - timedelta(hours=20)
   status = _source_status(
     "tiktok",
     source_counts={"tiktok": 10},
@@ -30,12 +28,23 @@ def test_tiktok_degraded_when_stale():
   assert status == "degraded"
 
 
-@pytest.mark.asyncio
-async def test_build_intel_sources_includes_tiktok():
+def test_tiktok_active_with_timezone_aware_latest():
+  latest = datetime.now(timezone.utc) - timedelta(hours=1)
+  status = _source_status(
+    "tiktok",
+    source_counts={"tiktok": 5},
+    source_latest={"tiktok": latest},
+    configured={"tiktok": True},
+  )
+  assert status == "active"
+
+
+def test_build_intel_sources_includes_tiktok():
+  import asyncio
   from app.engines.intel_source_status import build_intel_sources
 
   session = AsyncMock()
-  now = datetime.utcnow()
+  now = datetime.now(timezone.utc)
   session.execute = AsyncMock(
     return_value=type(
       "Result",
@@ -62,7 +71,7 @@ async def test_build_intel_sources_includes_tiktok():
       "app.engines.intel_source_status.wallet_tracker_configured",
       return_value=True,
     ):
-      sources = await build_intel_sources(session)
+      sources = asyncio.run(build_intel_sources(session))
 
   tiktok = next(s for s in sources if s["source"] == "tiktok")
   assert tiktok["status"] == "active"
