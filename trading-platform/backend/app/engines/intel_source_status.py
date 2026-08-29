@@ -135,6 +135,9 @@ async def build_intel_sources(session: AsyncSession) -> list[dict[str, Any]]:
       row["bearer_expires_at"] = fomo_bearer.get("expires_at")
       row["bearer_minutes_remaining"] = fomo_bearer.get("minutes_remaining")
       row["bearer_polling_active"] = fomo_bearer.get("polling_active")
+      row["webhook_fallback_active"] = bool(
+        fomo_bearer.get("configured") and not fomo_bearer.get("polling_active")
+      )
     if source == "axiom":
       row["session_configured"] = axiom_session.get("configured")
       row["session_polling_active"] = axiom_session.get("polling_active")

@@ -317,6 +317,8 @@ STOCKS_TRADE_COUNT_RECOVERY_MIN_COMPOSITE = 0.34
 STOCKS_TRADE_COUNT_MIN_SENTIMENT = 0.05
 COMMODITIES_HIGH_COMPOSITE_RECOVERY_FLOOR = 0.48
 COMMODITIES_FUTURES_WEEKEND_FLAT_EXIT_BAND_USD = 1.0
+COMMODITIES_WEEKEND_SPOT_SYMBOLS = frozenset({"XAUUSDT", "PAXGUSDT"})
+COMMODITIES_WEEKEND_SPOT_COOLDOWN_MULTIPLIER = 0.55
 STOCKS_SESSION_CLOSE_WIND_DOWN_MINUTES = 30
 STOCKS_SESSION_CLOSE_FORCE_MINUTES = 15
 DEFAULT_ENTRY_MIN_SIGNAL_FLOOR = 0.08
@@ -1405,6 +1407,13 @@ async def symbol_cooldown_remaining_seconds(
     seconds = int(seconds * SHADOW_GRADUATION_LOSS_COOLDOWN_MULTIPLIER)
   if is_winner is False and is_feed_artifact_loss(bot_type, symbol, pnl, reason):
     seconds = int(seconds * FEED_ARTIFACT_COOLDOWN_MULTIPLIER)
+  if (
+    bot_type == "commodities"
+    and symbol in COMMODITIES_WEEKEND_SPOT_SYMBOLS
+    and commodities_futures_weekend_closed()
+    and not is_feed_artifact_loss(bot_type, symbol, pnl, reason)
+  ):
+    seconds = int(seconds * COMMODITIES_WEEKEND_SPOT_COOLDOWN_MULTIPLIER)
   return max(0, int(seconds - elapsed))
 
 
