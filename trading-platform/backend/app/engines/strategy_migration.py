@@ -30,6 +30,44 @@ def cap_verification_signal_score(bot_type: str, score: float) -> float:
   return min(score, ceiling)
 
 
+COMMODITIES_EXCESS_TRIM_MAX_LOSS_USD = 5.0
+
+
+def _commodities_position_unrealized(pos: Position) -> float:
+  if pos.unrealized_pnl is not None:
+    return float(pos.unrealized_pnl)
+  if pos.current_price and pos.entry_price:
+    return float((pos.current_price - pos.entry_price) * pos.quantity)
+  return 0.0
+
+
+def _commodities_excess_trim_rank(pos: Position) -> tuple[int, float]:
+  """Lower rank trims first: profits, breakeven, small losses; large losses last."""
+  u = _commodities_position_unrealized(pos)
+  if u >= 0:
+    return (0, -u)
+  if u >= -1.0:
+    return (1, u)
+  if u >= -COMMODITIES_EXCESS_TRIM_MAX_LOSS_USD:
+    return (2, u)
+  return (3, u)
+
+
+def select_commodities_excess_trim_targets(
+  positions: list[Position],
+  cap: int,
+) -> list[Position]:
+  """Pick positions to close when over cap — bank profits before realizing large losses."""
+  if len(positions) <= cap:
+    return []
+  need = len(positions) - cap
+  trimmable = [p for p in positions if _commodities_excess_trim_rank(p)[0] < 3]
+  ranked = sorted(positions, key=_commodities_excess_trim_rank)
+  if len(trimmable) >= need:
+    return ranked[:need]
+  return sorted(trimmable, key=_commodities_excess_trim_rank)[:need]
+
+
 async def adapt_for_gate_win_rate(session: AsyncSession) -> int:
   """Raise min_signal_score and min_sentiment when gate win rate is below target."""
   from app.engines.gate_entry_guard import get_underperforming_bots
@@ -449,7 +487,7 @@ async def close_excess_commodities_positions(
   session: AsyncSession,
   max_open: int = 2,
 ) -> int:
-  """Close oldest commodities positions when open count exceeds gate cap (legacy overexposure)."""
+  """Close commodities positions over gate cap — prefer profits and small losses over large losers."""
   from app.engines.gate_entry_guard import get_gate_entry_tightening
   from app.engines.market_data import fetch_crypto_data, fetch_yfinance_data
   from app.engines.paper_trading import PaperTradingEngine
@@ -459,11 +497,10 @@ async def close_excess_commodities_positions(
 
   engine = PaperTradingEngine(session, "commodities")
   positions = await engine.get_open_positions()
-  if len(positions) <= cap:
+  excess = select_commodities_excess_trim_targets(positions, cap)
+  if not excess:
     return 0
 
-  positions.sort(key=lambda p: p.opened_at or datetime.min)
-  excess = positions[: len(positions) - cap]
   closed = 0
   for pos in excess:
     if pos.symbol.endswith("USDT"):
@@ -474,10 +511,11 @@ async def close_excess_commodities_positions(
       price = pos.current_price or pos.entry_price
     if price <= 0:
       continue
+    u = _commodities_position_unrealized(pos)
     result = await engine.sell(
       pos.symbol,
       price,
-      f"Close excess commodities position (cap {cap})",
+      f"Close excess commodities position (cap {cap}, uPnL ${u:.2f})",
     )
     if result:
       closed += 1
