@@ -1711,12 +1711,15 @@ def commodities_session_info() -> dict[str, Any]:
   """UTC schedule for CME futures — weekend stale-feed guard aligns with session closed."""
   now = datetime.utcnow()
   if not commodities_futures_weekend_closed():
+    open_at = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    minutes_since_open = max(0, int((now - open_at).total_seconds() // 60))
     return {
       "in_session": True,
       "mode": "entries",
-      "session_open_utc": now.replace(hour=0, minute=0, second=0, microsecond=0).isoformat(),
+      "session_open_utc": open_at.isoformat(),
       "minutes_until_open": 0,
       "minutes_until_close": None,
+      "minutes_since_open": minutes_since_open,
     }
 
   weekday = now.weekday()
@@ -1732,7 +1735,48 @@ def commodities_session_info() -> dict[str, Any]:
     "session_open_utc": open_at.isoformat(),
     "minutes_until_open": minutes_until_open,
     "minutes_until_close": None,
+    "minutes_since_open": 0,
   }
+
+
+COMMODITIES_MONDAY_SCAN_OPEN_HOUR_MINUTES = 60
+COMMODITIES_MONDAY_SCAN_PREP_MINUTES = 90
+
+
+def commodities_monday_scan_priority_active(session_info: dict[str, Any]) -> bool:
+  """Prioritize chronic futures recovery symbols pre-open and during the first hour."""
+  if session_info.get("in_session"):
+    since = session_info.get("minutes_since_open")
+    return since is not None and since <= COMMODITIES_MONDAY_SCAN_OPEN_HOUR_MINUTES
+  minutes_until = session_info.get("minutes_until_open")
+  return (
+    minutes_until is not None
+    and minutes_until <= COMMODITIES_MONDAY_SCAN_PREP_MINUTES
+  )
+
+
+def prioritize_commodities_monday_scan(
+  symbols: list[str],
+  *,
+  chronic_losers: frozenset[str],
+  proven_winners: frozenset[str],
+  session_info: dict[str, Any],
+) -> list[str]:
+  """Scan chronic CME futures first ahead of Monday reopen / open hour."""
+  if not commodities_monday_scan_priority_active(session_info):
+    if proven_winners:
+      winners = [s for s in symbols if s in proven_winners]
+      rest = [s for s in symbols if s not in proven_winners]
+      return winners + rest
+    return symbols
+
+  recovery = [
+    s for s in symbols
+    if s in chronic_losers and is_commodities_futures_symbol(s)
+  ]
+  winners = [s for s in symbols if s in proven_winners and s not in recovery]
+  rest = [s for s in symbols if s not in recovery and s not in winners]
+  return recovery + winners + rest
 
 
 def stocks_session_info() -> dict[str, Any]:

@@ -47,3 +47,36 @@ def test_commodities_prep_refreshes_within_prep_window():
           symbols = mock_refresh.call_args[0][1]
           assert "CL=F" in symbols
           assert "SI=F" in symbols
+
+
+def test_commodities_prep_includes_chronic_recovery_futures():
+  with patch(
+    "app.engines.gate_entry_guard.commodities_session_info",
+    return_value={
+      "in_session": False,
+      "minutes_until_open": 45,
+      "mode": "pre_session",
+    },
+  ):
+    with patch(
+      "app.engines.gate_entry_guard.get_proven_winner_symbols",
+      new_callable=AsyncMock,
+      return_value=frozenset(),
+    ):
+      with patch(
+        "app.engines.gate_entry_guard.get_chronic_loser_symbols",
+        new_callable=AsyncMock,
+        return_value=frozenset({"SI=F", "XAUUSDT"}),
+      ):
+        with patch(
+          "app.engines.integration_signals.refresh_tradingview_signals",
+          new_callable=AsyncMock,
+          return_value=["SI=F"],
+        ) as mock_refresh:
+          with patch("app.ws_manager.push_live_update", new_callable=AsyncMock):
+            import asyncio
+
+            asyncio.run(commodities_pre_session_prep_job())
+            symbols = mock_refresh.call_args[0][1]
+            assert "SI=F" in symbols
+            assert "XAUUSDT" not in symbols
