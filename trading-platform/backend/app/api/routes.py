@@ -218,6 +218,14 @@ async def get_bot_scan_preview(bot_type: str, db: AsyncSession = Depends(get_db)
   return await build_scan_preview(db, bot_type)
 
 
+@router.get("/gate/monday-recovery")
+async def get_monday_recovery_summary(db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
+  """Cross-bot Monday recovery candidates for CRM overview banner."""
+  from app.engines.scan_preview import build_monday_recovery_summary
+
+  return await build_monday_recovery_summary(db)
+
+
 @router.get("/intelligence")
 async def get_intelligence(
   limit: int = 50,
