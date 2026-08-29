@@ -365,6 +365,7 @@ COMMODITIES_GOLD_PROXY_PREFERRED = "XAUUSDT"
 COMMODITIES_WEEKEND_SPOT_COOLDOWN_MULTIPLIER = 0.55
 COMMODITIES_WEEKEND_SPOT_GATE_SKIP_COMPOSITE_FLOOR = 0.40
 COMMODITIES_WEEKEND_GRADUATION_CAP_BONUS = 1
+COMMODITIES_WEEKEND_SPOT_PROFIT_LOCK_USD = 1.0
 COMMODITIES_CAP_PRESSURE_LOSER_WIND_DOWN_USD = 0.35
 COMMODITIES_MONDAY_CAP_PRESSURE_FLAT_BAND_USD = 0.15
 STOCKS_SESSION_CLOSE_WIND_DOWN_MINUTES = 30
@@ -922,6 +923,14 @@ def shadow_graduation_profit_lock(
     and symbol in proven_winners
   ):
     threshold = min(threshold, COMMODITIES_PROVEN_WINNER_PROFIT_LOCK_USD)
+  if (
+    not shadow_mode
+    and bot_type == "commodities"
+    and graduation_nudge
+    and symbol in COMMODITIES_WEEKEND_SPOT_SYMBOLS
+    and commodities_futures_weekend_closed()
+  ):
+    threshold = min(threshold, COMMODITIES_WEEKEND_SPOT_PROFIT_LOCK_USD)
   return unrealized >= threshold
 
 

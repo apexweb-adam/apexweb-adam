@@ -1098,6 +1098,35 @@ def test_commodities_proven_winner_profit_lock_eases_threshold():
   ) is False
 
 
+def test_commodities_weekend_spot_profit_lock_eases_threshold():
+  from datetime import datetime
+  from unittest.mock import patch
+
+  from app.engines.gate_entry_guard import shadow_graduation_profit_lock
+
+  base = dict(
+    graduation_nudge=True,
+    shadow_mode=False,
+    bot_type="commodities",
+    held_seconds=600,
+    min_hold_seconds=600,
+    bot_win_rate=0.5,
+    profit_factor=1.19,
+    total_pnl=19.0,
+    symbol="XAUUSDT",
+    proven_winners=frozenset({"XAUUSDT"}),
+  )
+  with patch("app.engines.gate_entry_guard.datetime") as mock_dt:
+    mock_dt.utcnow.return_value = datetime(2026, 8, 29, 14, 0, 0)
+    mock_dt.side_effect = lambda *a, **k: datetime(*a, **k)
+    assert shadow_graduation_profit_lock(unrealized=1.1, **base) is True
+    assert shadow_graduation_profit_lock(unrealized=0.8, **base) is False
+  with patch("app.engines.gate_entry_guard.datetime") as mock_dt:
+    mock_dt.utcnow.return_value = datetime(2026, 8, 31, 14, 0, 0)
+    mock_dt.side_effect = lambda *a, **k: datetime(*a, **k)
+    assert shadow_graduation_profit_lock(unrealized=1.5, **base) is False
+
+
 def test_early_verification_macd_ok():
   from app.engines.gate_entry_guard import early_verification_macd_ok
 
