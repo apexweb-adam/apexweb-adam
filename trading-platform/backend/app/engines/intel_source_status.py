@@ -1,6 +1,6 @@
 """Shared intelligence source health for REST and WebSocket APIs."""
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
 from sqlalchemy import select
@@ -31,6 +31,7 @@ def _source_status(
   source: str,
   *,
   source_counts: dict[str, int],
+  source_latest: dict[str, datetime],
   configured: dict[str, bool],
 ) -> str:
   has_items = source_counts.get(source, 0) > 0
@@ -44,6 +45,11 @@ def _source_status(
       return "degraded"
     return "active"
   if source == "tiktok" and (is_configured or has_items):
+    latest = source_latest.get(source)
+    if latest and has_items:
+      age = datetime.utcnow() - latest
+      if age <= timedelta(hours=12):
+        return "active"
     return "degraded"
   if is_configured or has_items:
     return "active"
@@ -82,7 +88,12 @@ async def build_intel_sources(session: AsyncSession) -> list[dict[str, Any]]:
   return [
     {
       "source": source,
-      "status": _source_status(source, source_counts=source_counts, configured=configured),
+      "status": _source_status(
+        source,
+        source_counts=source_counts,
+        source_latest=source_latest,
+        configured=configured,
+      ),
       "items_collected": source_counts.get(source, 0),
       "last_fetched": source_latest.get(source).isoformat() if source in source_latest else None,
     }

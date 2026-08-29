@@ -94,10 +94,16 @@ async def crm_landing():
     gate = await gate_engine.evaluate()
     per_bot = await gate_engine.evaluate_per_bot()
     from app.engines.scan_preview import build_monday_recovery_summary
-    from app.engines.learning_engine import build_crm_learning_highlights
+    from app.engines.learning_engine import (
+      build_crm_content_study_highlights,
+      build_crm_learning_highlights,
+    )
+    from app.engines.intel_source_status import build_intel_sources
 
     monday_recovery = await build_monday_recovery_summary(session)
     learning = await build_crm_learning_highlights(session)
+    content_study = await build_crm_content_study_highlights(session)
+    intel_sources = await build_intel_sources(session)
 
   day = gate.get("verification_day", 0)
   trades = gate.get("total_trades", 0)
@@ -177,6 +183,31 @@ async def crm_landing():
     f"{learning.get('pending_insights', 0)} pending insights · "
     f"review date {learning.get('review_date', '')}"
   )
+
+  content_rows = ""
+  for row in content_study.get("recent") or []:
+    source_type = row.get("source_type", "")
+    title = row.get("title", "")
+    impact = row.get("impact") or "—"
+    confidence = row.get("confidence") or 0
+    applied = "applied" if row.get("applied") else "pending"
+    content_rows += (
+      f"<div class='learning-item'><strong>{source_type}</strong> — {title}<br>"
+      f"<span class='muted'>Impact: {impact}</span><br>"
+      f"<span class='muted'>Confidence {confidence:.0%} · {applied}</span></div>"
+    )
+
+  content_summary = (
+    f"{content_study.get('insights_applied', 0)} insights applied to strategy · "
+    "content study every 2h"
+  )
+
+  intel_active = sum(1 for s in intel_sources if s.get("status") in ("active", "degraded"))
+  intel_total = len(intel_sources)
+  intel_degraded = [s["source"] for s in intel_sources if s.get("status") == "degraded"]
+  intel_footer = f"intel {intel_active}/{intel_total} sources"
+  if intel_degraded:
+    intel_footer += f" ({', '.join(intel_degraded)} degraded)"
 
   if stale and url == deploy.get("verified_dashboard_url"):
     bundle_label = deploy.get("verified_bundle_revision") or EXPECTED_DASHBOARD_BUNDLE
@@ -264,10 +295,15 @@ async def crm_landing():
     <p class="muted" style="margin-top:0;">{learning_summary}</p>
     {learning_rows if learning_rows else "<p class='muted'>No losing-trade patterns today — bots scanning.</p>"}
   </div>""" if learning else ""}
+  {f"""<div class="card learning">
+    <h2>External content study</h2>
+    <p class="muted" style="margin-top:0;">{content_summary}</p>
+    {content_rows if content_rows else "<p class='muted'>No recent insights — next study cycle within 2 hours.</p>"}
+  </div>""" if content_study else ""}
   <p><a href="{url}">Open live dashboard →</a> <span class="muted">(redirecting in {redirect_seconds}s)</span></p>
   <p class="muted">{deploy_note}</p>
   {backend_note}
-  <p class="muted ok">● Platform running — intel 10/10 sources · learning active</p>
+  <p class="muted ok">● Platform running — {intel_footer} · learning active</p>
 </body>
 </html>"""
   return HTMLResponse(content=html, status_code=200, headers={"Refresh": f"{redirect_seconds}; url={url}"})
