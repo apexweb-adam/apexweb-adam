@@ -224,6 +224,7 @@ class PaperTradingEngine:
       "pnl": pnl,
       "pnl_pct": pnl_pct,
       "is_winner": is_winner,
+      "reason": reason,
     }
 
   async def update_positions(self, prices: dict[str, float]) -> list[dict[str, Any]]:
