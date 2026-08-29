@@ -95,6 +95,8 @@ CRYPTO_GRADUATION_BULLISH_SIGNAL_FLOOR = 0.24
 CRYPTO_SHADOW_REVIEW_BYPASS_COMPOSITE = 0.32
 CRYPTO_SHADOW_COMPOSITE_SENTIMENT_MARGIN = 0.01
 CRYPTO_SHADOW_BULLISH_SENTIMENT_COMPOSITE_FLOOR = 0.26
+CRYPTO_NEAR_GRADUATION_PNL_FLOOR_USD = 10.0
+CRYPTO_NEAR_GRADUATION_WR_FLOOR = 0.405
 
 
 def shadow_min_signal_boost(
@@ -239,6 +241,16 @@ def in_shadow_graduation_nudge(
     and bot_win_rate >= PROFITABLE_SHADOW_NUDGE_MIN_WR
   ):
     floor = min(floor, PROFITABLE_SHADOW_NUDGE_MIN_WR)
+  if (
+    bot_type == "crypto"
+    and profit_factor is not None
+    and profit_factor >= PROFITABLE_SHADOW_MIN_PF
+    and total_pnl is not None
+    and total_pnl > -CRYPTO_NEAR_GRADUATION_PNL_FLOOR_USD
+    and bot_win_rate is not None
+    and bot_win_rate >= CRYPTO_NEAR_GRADUATION_WR_FLOOR
+  ):
+    floor = min(floor, CRYPTO_NEAR_GRADUATION_WR_FLOOR)
   return (
     bot_type in ("commodities", "crypto")
     and floor <= bot_win_rate < ProfitabilityGate.GRADUATION_MIN_WIN_RATE
