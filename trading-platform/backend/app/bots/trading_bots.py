@@ -53,6 +53,7 @@ from app.engines.gate_entry_guard import (
   shadow_requires_macd,
   stocks_proven_winner_sentiment_gate_ok,
   stocks_negative_pf_blocks_entry,
+  stocks_trade_count_entry_min_signal,
   stocks_trade_count_graduation_nudge,
   whale_memecoin_aligned,
   stocks_in_us_session,
@@ -754,6 +755,15 @@ class BaseBot(ABC):
           shadow_mode=shadow_mode,
           signal_direction=signal.direction,
           macd_signal=signal.macd_signal,
+        )
+        entry_min_signal = stocks_trade_count_entry_min_signal(
+          entry_min_signal,
+          bot_type=self.bot_type,
+          shadow_mode=shadow_mode,
+          symbol=symbol,
+          proven_winners=proven_winners,
+          bot_win_rate=per_bot_stats.get("win_rate"),
+          total_trades=int(per_bot_stats.get("total_trades") or 0),
         )
 
         intel_override = shadow_intel_composite_override(
