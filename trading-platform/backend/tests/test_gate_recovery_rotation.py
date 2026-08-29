@@ -25,11 +25,22 @@ def test_shadow_max_open_for_bot_stays_at_one_when_nudge_not_profitable():
   cap = shadow_max_open_for_bot(
     "crypto",
     shadow_mode=True,
-    bot_win_rate=0.43,
-    profit_factor=1.06,
+    bot_win_rate=0.40,
+    profit_factor=0.90,
     total_pnl=-1.0,
   )
   assert cap == 1
+
+
+def test_shadow_max_open_for_bot_raises_cap_during_near_graduation_crypto():
+  cap = shadow_max_open_for_bot(
+    "crypto",
+    shadow_mode=True,
+    bot_win_rate=0.406,
+    profit_factor=0.96,
+    total_pnl=-4.88,
+  )
+  assert cap == 2
 
 
 def test_shadow_max_open_for_bot_default_when_not_in_nudge():
