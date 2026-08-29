@@ -94,6 +94,41 @@ def test_symbol_cooldown_remaining_seconds_stocks_large_loss_triples():
   assert 4500 <= remaining <= 5500
 
 
+def test_symbol_cooldown_crypto_retreat_bypass_with_cap_room():
+  from app.engines.gate_entry_guard import symbol_cooldown_remaining_seconds
+
+  session = AsyncMock()
+  executed = datetime.utcnow() - timedelta(minutes=5)
+  session.execute = AsyncMock(
+    return_value=MagicMock(
+      first=lambda: (
+        False,
+        executed,
+        "Shadow cap-pressure loser wind-down (uPnL $-1.72)",
+        -1.72,
+      )
+    )
+  )
+  remaining = asyncio.run(
+    symbol_cooldown_remaining_seconds(
+      session,
+      "crypto",
+      "SHIBUSDT",
+      graduation_nudge=True,
+      shadow_mode=True,
+      signal_direction="buy",
+      macd_signal="bullish",
+      composite=0.49,
+      bot_win_rate=0.468,
+      profit_factor=1.07,
+      total_pnl=9.85,
+      open_count=1,
+      shadow_open_cap=2,
+    )
+  )
+  assert remaining == 0
+
+
 def test_is_symbol_in_trade_cooldown_after_win():
   session = AsyncMock()
   executed = datetime.utcnow() - timedelta(minutes=5)
