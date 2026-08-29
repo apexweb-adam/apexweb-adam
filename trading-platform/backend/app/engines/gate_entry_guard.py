@@ -112,6 +112,7 @@ CRYPTO_GRADUATION_ENTRY_EASE_MIN_WR = 0.47
 CRYPTO_GRADUATION_ENTRY_EASE_MIN_PF = 1.10
 CRYPTO_MOMENTUM_RETREAT_MIN_SIGNAL = 0.48
 CRYPTO_MOMENTUM_RETREAT_PROFIT_LOCK_USD = 1.25
+CRYPTO_MOMENTUM_RETREAT_MAX_OPEN = 2
 CRYPTO_PRE_GRADUATION_CAP_PRESSURE_LOSER_USD = 1.5
 CRYPTO_STRONG_MOMENTUM_CAP_PRESSURE_LOSER_USD = 1.0
 CRYPTO_CAP_PRESSURE_MODERATE_LOSER_USD = 2.0
@@ -362,8 +363,8 @@ def shadow_max_open_for_bot(
     profit_factor,
     total_pnl,
   ):
-    return max(base, SHADOW_STRONG_MOMENTUM_MAX_OPEN)
-  if (
+    cap = max(base, SHADOW_STRONG_MOMENTUM_MAX_OPEN)
+  elif (
     bot_type in ("crypto", "commodities")
     and is_profitable_graduation_nudge(
       bot_type,
@@ -372,8 +373,8 @@ def shadow_max_open_for_bot(
       total_pnl=total_pnl,
     )
   ):
-    return max(base, SHADOW_PROFITABLE_GRADUATION_NUDGE_MAX_OPEN)
-  if (
+    cap = max(base, SHADOW_PROFITABLE_GRADUATION_NUDGE_MAX_OPEN)
+  elif (
     crypto_near_graduation_nudge(
       bot_type,
       shadow_mode,
@@ -382,15 +383,32 @@ def shadow_max_open_for_bot(
       total_pnl,
     )
   ):
-    return max(base, SHADOW_PROFITABLE_GRADUATION_NUDGE_MAX_OPEN)
-  if in_shadow_graduation_nudge(
+    cap = max(base, SHADOW_PROFITABLE_GRADUATION_NUDGE_MAX_OPEN)
+  elif in_shadow_graduation_nudge(
     bot_type,
     bot_win_rate,
     profit_factor=profit_factor,
     total_pnl=total_pnl,
   ):
-    return max(base, SHADOW_GRADUATION_NUDGE_MAX_OPEN)
-  return base
+    cap = max(base, SHADOW_GRADUATION_NUDGE_MAX_OPEN)
+  else:
+    cap = base
+  graduation_nudge = in_shadow_graduation_nudge(
+    bot_type,
+    bot_win_rate,
+    profit_factor=profit_factor,
+    total_pnl=total_pnl,
+  )
+  if crypto_momentum_retreat_active(
+    bot_type,
+    shadow_mode,
+    graduation_nudge,
+    bot_win_rate,
+    profit_factor,
+    total_pnl,
+  ):
+    cap = min(cap, CRYPTO_MOMENTUM_RETREAT_MAX_OPEN)
+  return cap
 
 
 def commodities_effective_open_cap(

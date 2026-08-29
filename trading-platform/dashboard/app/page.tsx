@@ -1750,7 +1750,17 @@ function BotScanPreview({ botType }: { botType: string }) {
             {" "}
             · momentum retreat
             {preview.crypto_momentum_retreat_min_signal != null && (
-              <span> (floor {preview.crypto_momentum_retreat_min_signal})</span>
+              <span> (floor {preview.crypto_momentum_retreat_min_signal}</span>
+            )}
+            {preview.crypto_momentum_retreat_max_open != null && (
+              <span>
+                {preview.crypto_momentum_retreat_min_signal != null ? ", " : " ("}
+                cap {preview.crypto_momentum_retreat_max_open}
+              </span>
+            )}
+            {(preview.crypto_momentum_retreat_min_signal != null
+              || preview.crypto_momentum_retreat_max_open != null) && (
+              <span>)</span>
             )}
             {" "}
             · profit lock $1.25
