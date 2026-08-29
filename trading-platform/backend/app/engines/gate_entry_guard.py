@@ -82,6 +82,8 @@ GRADUATION_NUDGE_SENTIMENT_EASE_BY_BOT = {
 }
 COMMODITIES_GRADUATION_BULLISH_SIGNAL_EASE = 0.09
 COMMODITIES_GRADUATION_BULLISH_SIGNAL_FLOOR = 0.20
+COMMODITIES_PROVEN_WINNER_SIGNAL_FLOOR = 0.12
+COMMODITIES_PROVEN_WINNER_SIGNAL_EASE = 0.05
 CRYPTO_GRADUATION_BULLISH_SIGNAL_EASE = 0.06
 CRYPTO_GRADUATION_BULLISH_SIGNAL_FLOOR = 0.24
 CRYPTO_SHADOW_REVIEW_BYPASS_COMPOSITE = 0.32
@@ -439,6 +441,11 @@ def commodities_graduation_entry_min_signal(
       COMMODITIES_GRADUATION_BULLISH_SIGNAL_FLOOR,
       eased - 0.03,
     )
+    if not shadow_mode:
+      eased = max(
+        COMMODITIES_PROVEN_WINNER_SIGNAL_FLOOR,
+        eased - COMMODITIES_PROVEN_WINNER_SIGNAL_EASE,
+      )
   return eased
 
 
@@ -474,6 +481,8 @@ def graduation_nudge_sentiment_ok(
   entry_min_signal: float,
   signal_direction: str = "buy",
   macd_signal: str = "bullish",
+  symbol: str | None = None,
+  proven_winners: frozenset[str] | None = None,
 ) -> bool:
   """Allow strong-composite shadow crypto entries during graduation nudge despite weak sentiment."""
   if sentiment + integration_boost >= min_sentiment:
@@ -492,6 +501,18 @@ def graduation_nudge_sentiment_ok(
     and signal_direction == "buy"
     and macd_signal == "bullish"
     and composite >= CRYPTO_SHADOW_BULLISH_SENTIMENT_COMPOSITE_FLOOR
+  ):
+    return True
+  if (
+    graduation_nudge
+    and not shadow_mode
+    and bot_type == "commodities"
+    and symbol
+    and proven_winners
+    and symbol in proven_winners
+    and signal_direction == "buy"
+    and macd_signal == "bullish"
+    and composite >= COMMODITIES_PROVEN_WINNER_SIGNAL_FLOOR
   ):
     return True
   return False

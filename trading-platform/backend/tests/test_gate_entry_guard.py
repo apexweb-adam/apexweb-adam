@@ -679,6 +679,55 @@ def test_commodities_graduation_entry_min_signal_bullish_ease():
   assert eased == 0.22
 
 
+def test_commodities_graduation_entry_min_signal_proven_winner_active_gate():
+  from app.engines.gate_entry_guard import commodities_graduation_entry_min_signal
+
+  eased = commodities_graduation_entry_min_signal(
+    0.31,
+    bot_type="commodities",
+    graduation_nudge=True,
+    shadow_mode=False,
+    signal_direction="buy",
+    macd_signal="bullish",
+    symbol="CL=F",
+    proven_winners=frozenset({"CL=F"}),
+  )
+  assert eased == pytest.approx(0.15)
+
+
+def test_graduation_nudge_sentiment_ok_commodities_proven_winner_active_gate():
+  from app.engines.gate_entry_guard import graduation_nudge_sentiment_ok
+
+  assert graduation_nudge_sentiment_ok(
+    "commodities",
+    graduation_nudge=True,
+    shadow_mode=False,
+    sentiment=0.02,
+    integration_boost=0.0,
+    min_sentiment=0.06,
+    composite=0.136,
+    entry_min_signal=0.12,
+    signal_direction="buy",
+    macd_signal="bullish",
+    symbol="CL=F",
+    proven_winners=frozenset({"CL=F"}),
+  ) is True
+  assert graduation_nudge_sentiment_ok(
+    "commodities",
+    graduation_nudge=True,
+    shadow_mode=False,
+    sentiment=0.02,
+    integration_boost=0.0,
+    min_sentiment=0.06,
+    composite=0.10,
+    entry_min_signal=0.12,
+    signal_direction="buy",
+    macd_signal="bullish",
+    symbol="CL=F",
+    proven_winners=frozenset({"CL=F"}),
+  ) is False
+
+
 def test_crypto_graduation_entry_min_signal_bullish_ease():
   from app.engines.gate_entry_guard import crypto_graduation_entry_min_signal
 
