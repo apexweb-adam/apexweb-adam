@@ -83,8 +83,29 @@ def test_stocks_bot_default_scan_outside_session():
   bot = StocksFuturesBot()
 
   async def _run():
-    with patch("app.bots.trading_bots.stocks_in_us_session", return_value=False):
-      assert await bot._effective_scan_interval() == 30
+    mock_session = AsyncMock()
+    mock_cm = AsyncMock()
+    mock_cm.__aenter__.return_value = mock_session
+    mock_cm.__aexit__.return_value = None
+
+    with patch("app.bots.trading_bots.SessionLocal", return_value=mock_cm):
+      with patch("app.bots.trading_bots.stocks_in_us_session", return_value=False):
+        with patch(
+          "app.engines.profitability_gate.ProfitabilityGate",
+        ) as MockGate:
+          MockGate.MIN_TRADES = 100
+          MockGate.GRADUATION_MIN_WIN_RATE = 0.55
+          MockGate.return_value.evaluate = AsyncMock(
+            return_value={"total_trades": 100, "shadow_mode": True}
+          )
+          MockGate.return_value.evaluate_per_bot = AsyncMock(
+            return_value={"stocks_futures": {"total_trades": 15, "win_rate": 0.4}}
+          )
+          with patch(
+            "app.engines.gate_entry_guard.stocks_gate_fast_scan_active",
+            return_value=False,
+          ):
+            assert await bot._effective_scan_interval() == 30
 
   import asyncio
 
