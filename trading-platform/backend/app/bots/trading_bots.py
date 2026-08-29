@@ -647,8 +647,12 @@ class BaseBot(ABC):
                   self._register_symbol_cooldown(symbol, after_loss=False)
               continue
 
-          # Wind down all legacy positions on bots blocked from new entries during gate.
-          if gate_tightening.active and self.bot_type in gate_tightening.blocked_new_entries:
+          # Wind down legacy positions on bots blocked from gate — but not shadow graduation recovery.
+          if (
+            gate_tightening.active
+            and self.bot_type in gate_tightening.blocked_new_entries
+            and not (shadow_mode and graduation_nudge)
+          ):
             unrealized = (price - position.entry_price) * position.quantity
             if position.side == "short":
               unrealized = (position.entry_price - price) * position.quantity
