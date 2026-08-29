@@ -76,6 +76,7 @@ PROFITABLE_SHADOW_LOSS_WIND_DOWN_USD = 5.0
 SHADOW_GRADUATION_LOSS_EXPOSURE_MIN_LOSERS = 2
 SHADOW_GRADUATION_LOSS_EXPOSURE_PER_POSITION_USD = 2.5
 SHADOW_GRADUATION_LOSS_EXPOSURE_AGGREGATE_USD = 6.0
+SHADOW_GRADUATION_LOSS_EXPOSURE_SINGLE_POSITION_USD = 4.0
 GRADUATION_NUDGE_PROFIT_LOCK_USD = 3.0
 PROFITABLE_SHADOW_PROFIT_LOCK_USD = 4.0
 SHADOW_GRADUATION_LOSS_COOLDOWN_MULTIPLIER = 2
@@ -643,6 +644,11 @@ def shadow_graduation_loss_exposure_blocks_entry(
     p for p in open_positions
     if float(getattr(p, "unrealized_pnl", 0) or 0) <= -SHADOW_GRADUATION_LOSS_EXPOSURE_PER_POSITION_USD
   ]
+  if any(
+    float(getattr(p, "unrealized_pnl", 0) or 0) <= -SHADOW_GRADUATION_LOSS_EXPOSURE_SINGLE_POSITION_USD
+    for p in open_positions
+  ):
+    return True
   if len(losers) >= SHADOW_GRADUATION_LOSS_EXPOSURE_MIN_LOSERS:
     return True
   aggregate = sum(float(getattr(p, "unrealized_pnl", 0) or 0) for p in open_positions)

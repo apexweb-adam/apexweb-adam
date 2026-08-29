@@ -363,6 +363,9 @@ def test_shadow_graduation_loss_exposure_blocks_entry():
   assert shadow_graduation_loss_exposure_blocks_entry(
     [SimpleNamespace(unrealized_pnl=-1.0)], graduation_nudge=True, shadow_mode=True
   ) is False
+  assert shadow_graduation_loss_exposure_blocks_entry(
+    [SimpleNamespace(unrealized_pnl=-4.2)], graduation_nudge=True, shadow_mode=True
+  ) is True
 
 
 def test_shadow_graduation_loss_wind_down():

@@ -430,12 +430,15 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
       total_pnl=per_bot_stats.get("total_pnl"),
     ) and signal.macd_signal != "bullish":
       blockers.append("macd")
-    if open_position_cap_blocks_entry(
+    if (
+      symbol not in held_symbols
+      and open_position_cap_blocks_entry(
       bot_type,
       shadow_mode=shadow_mode,
       open_count=open_count,
       gate_tightening=gate_tightening,
       shadow_open_cap=shadow_cap,
+    )
     ):
       blockers.append("open_cap")
     if loss_exposure_block:
