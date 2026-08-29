@@ -527,8 +527,23 @@ export default function Dashboard() {
                                   rel="noopener noreferrer"
                                   className="text-apex-gold hover:underline break-all"
                                 >
-                                  Install userscript (Tampermonkey)
+                                  Install userscript (Tampermonkey v1.1 — auto-syncs bearer)
                                 </a>
+                              </p>
+                            )}
+                            {platformStatus.integrations.fomo_bearer_configured && (
+                              <p
+                                className={cn(
+                                  "mt-1 text-[10px]",
+                                  platformStatus.integrations.fomo_bearer_polling_active
+                                    ? "text-green-400"
+                                    : "text-amber-400"
+                                )}
+                              >
+                                Server poll:{" "}
+                                {platformStatus.integrations.fomo_bearer_polling_active
+                                  ? `active (${platformStatus.integrations.fomo_bearer_minutes_remaining ?? "?"} min left)`
+                                  : "bearer expired — keep fomo.family open in Tampermonkey or refresh token"}
                               </p>
                             )}
                             {platformStatus.integrations.fomo_setup && (

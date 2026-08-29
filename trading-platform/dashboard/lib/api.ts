@@ -405,6 +405,11 @@ export type PlatformStatus = {
     fomo_webhook?: boolean;
     fomo_webhook_url?: string | null;
     fomo_userscript_url?: string | null;
+    fomo_bearer_configured?: boolean;
+    fomo_bearer_polling_active?: boolean;
+    fomo_bearer_expires_at?: string | null;
+    fomo_bearer_minutes_remaining?: number | null;
+    fomo_bearer_refresh_hint?: string | null;
     fomo_setup?: string | null;
     fomo_example_payload?: Record<string, unknown> | null;
     fomo_bridge_scripts?: {
