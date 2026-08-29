@@ -1758,8 +1758,18 @@ function BotScanPreview({ botType }: { botType: string }) {
                 cap {preview.crypto_momentum_retreat_max_open}
               </span>
             )}
+            {preview.crypto_momentum_retreat_min_raw_signal != null && (
+              <span>
+                {(preview.crypto_momentum_retreat_min_signal != null
+                  || preview.crypto_momentum_retreat_max_open != null)
+                  ? ", "
+                  : " ("}
+                raw {preview.crypto_momentum_retreat_min_raw_signal}
+              </span>
+            )}
             {(preview.crypto_momentum_retreat_min_signal != null
-              || preview.crypto_momentum_retreat_max_open != null) && (
+              || preview.crypto_momentum_retreat_max_open != null
+              || preview.crypto_momentum_retreat_min_raw_signal != null) && (
               <span>)</span>
             )}
             {" "}
