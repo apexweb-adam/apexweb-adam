@@ -1158,7 +1158,13 @@ function BotCard({
   };
   session?: {
     in_session: boolean;
-    mode: "entries" | "winddown_only" | "pre_session" | "outside_session";
+    mode:
+      | "entries"
+      | "winddown"
+      | "winddown_only"
+      | "pre_session"
+      | "outside_session"
+      | "weekend_closed";
     minutes_until_open?: number;
     minutes_until_close?: number | null;
   };
@@ -1179,7 +1185,9 @@ function BotCard({
       ? `Opens in ${Math.floor(session.minutes_until_open / 60)}h ${session.minutes_until_open % 60}m`
       : session && bot.bot_type === "stocks_futures" && session.in_session && session.minutes_until_close
         ? `Closes in ${Math.floor(session.minutes_until_close / 60)}h ${session.minutes_until_close % 60}m`
-        : null;
+        : session && bot.bot_type === "commodities" && !session.in_session && session.minutes_until_open
+          ? `CME reopens in ${Math.floor(session.minutes_until_open / 60)}h ${session.minutes_until_open % 60}m`
+          : null;
   const preSessionPrep =
     session &&
     bot.bot_type === "stocks_futures" &&
@@ -1187,7 +1195,13 @@ function BotCard({
     session.minutes_until_open != null &&
     session.minutes_until_open <= 90
       ? "TV prep active"
-      : null;
+      : session &&
+          bot.bot_type === "commodities" &&
+          !session.in_session &&
+          session.minutes_until_open != null &&
+          session.minutes_until_open <= 90
+        ? "Futures reopen prep"
+        : null;
   return (
     <div className="p-4 rounded-lg bg-apex-dark border border-apex-border">
       <div className="flex items-center gap-2 mb-3 flex-wrap">
@@ -1211,6 +1225,18 @@ function BotCard({
         {gate?.provenWinners && gate.provenWinners.length > 0 && (
           <span className="text-[10px] px-2 py-0.5 rounded-full font-medium bg-emerald-500/10 text-emerald-400">
             {gate.provenWinners.join(", ")}
+          </span>
+        )}
+        {session && bot.bot_type === "commodities" && (
+          <span
+            className={cn(
+              "text-[10px] px-2 py-0.5 rounded-full font-medium",
+              session.in_session
+                ? "bg-apex-green/10 text-apex-green"
+                : "bg-apex-purple/10 text-apex-purple"
+            )}
+          >
+            {session.in_session ? "CME open" : "Weekend · stale feeds"}
           </span>
         )}
         {session && bot.bot_type === "stocks_futures" && (

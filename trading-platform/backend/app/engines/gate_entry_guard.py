@@ -1696,6 +1696,34 @@ def commodities_weekend_futures_entry_blocked(symbol: str) -> bool:
   return is_commodities_futures_symbol(symbol) and commodities_futures_weekend_closed()
 
 
+def commodities_session_info() -> dict[str, Any]:
+  """UTC schedule for CME futures — weekend stale-feed guard aligns with session closed."""
+  now = datetime.utcnow()
+  if not commodities_futures_weekend_closed():
+    return {
+      "in_session": True,
+      "mode": "entries",
+      "session_open_utc": now.replace(hour=0, minute=0, second=0, microsecond=0).isoformat(),
+      "minutes_until_open": 0,
+      "minutes_until_close": None,
+    }
+
+  weekday = now.weekday()
+  days_until_monday = (7 - weekday) % 7 or 1
+  open_at = (now + timedelta(days=days_until_monday)).replace(
+    hour=0, minute=0, second=0, microsecond=0
+  )
+  minutes_until_open = max(0, int((open_at - now).total_seconds() // 60))
+  mode = "pre_session" if minutes_until_open <= 90 else "weekend_closed"
+  return {
+    "in_session": False,
+    "mode": mode,
+    "session_open_utc": open_at.isoformat(),
+    "minutes_until_open": minutes_until_open,
+    "minutes_until_close": None,
+  }
+
+
 def stocks_session_info() -> dict[str, Any]:
   """UTC schedule for US cash session — used by CRM status and pre-session prep."""
   now = datetime.utcnow()
@@ -1889,6 +1917,7 @@ async def build_gate_ws_payload(session: AsyncSession) -> dict[str, Any]:
 
   in_session = stocks_in_us_session()
   session_info = stocks_session_info()
+  commodities_session = commodities_session_info()
   per_bot = await ProfitabilityGate(session).evaluate_per_bot()
   return {
     "profitability_gate": profitability,
@@ -1913,5 +1942,6 @@ async def build_gate_ws_payload(session: AsyncSession) -> dict[str, Any]:
     },
     "bot_sessions": {
       "stocks_futures": session_info,
+      "commodities": commodities_session,
     },
   }
