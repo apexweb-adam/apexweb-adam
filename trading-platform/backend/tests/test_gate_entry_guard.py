@@ -1697,6 +1697,21 @@ def test_crypto_momentum_retreat_entry_min_signal_floor():
   assert crypto_momentum_retreat_entry_min_signal(0.34, **strong) == pytest.approx(0.34)
 
 
+def test_shadow_max_open_reduced_during_crypto_momentum_retreat():
+  from app.engines.gate_entry_guard import shadow_max_open_for_bot
+
+  retreat = dict(
+    bot_type="crypto",
+    shadow_mode=True,
+    bot_win_rate=0.461,
+    profit_factor=1.1,
+    total_pnl=14.0,
+  )
+  assert shadow_max_open_for_bot(**retreat) == 2
+  strong = {**retreat, "bot_win_rate": 0.50, "profit_factor": 1.25, "total_pnl": 31.0}
+  assert shadow_max_open_for_bot(**strong) == 4
+
+
 def test_crypto_momentum_retreat_profit_lock_threshold():
   from app.engines.gate_entry_guard import shadow_graduation_profit_lock
 

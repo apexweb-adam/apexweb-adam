@@ -741,6 +741,9 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
     "crypto_momentum_retreat_min_signal": (
       round(effective_min_signal, 3) if crypto_momentum_retreat else None
     ),
+    "crypto_momentum_retreat_max_open": (
+      shadow_cap if crypto_momentum_retreat else None
+    ),
     "early_verification_boost": early_verification_boost,
     "shadow_bot_wr": bot_wr if bot_wr is not None else shadow_bot_wr,
     "proven_winners": sorted(proven_winners),
