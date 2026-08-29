@@ -1095,11 +1095,23 @@ def test_shadow_graduation_loss_wind_down():
 def test_shadow_graduation_loss_wind_down_profitable_nudge_threshold():
   from app.engines.gate_entry_guard import shadow_graduation_loss_wind_down
 
+  # WR 45% is below ease tier — retreat loss wind-down at $1.50, not $4 profitable tier.
   assert shadow_graduation_loss_wind_down(
     graduation_nudge=True,
     shadow_mode=True,
     bot_type="crypto",
     unrealized=-1.5,
+    held_seconds=900,
+    min_hold_seconds=900,
+    bot_win_rate=0.45,
+    profit_factor=1.11,
+    total_pnl=10.0,
+  ) is True
+  assert shadow_graduation_loss_wind_down(
+    graduation_nudge=True,
+    shadow_mode=True,
+    bot_type="crypto",
+    unrealized=-1.4,
     held_seconds=900,
     min_hold_seconds=900,
     bot_win_rate=0.45,
@@ -1125,6 +1137,18 @@ def test_shadow_graduation_loss_wind_down_profitable_nudge_threshold():
     held_seconds=900,
     min_hold_seconds=900,
     bot_win_rate=0.45,
+    profit_factor=1.11,
+    total_pnl=10.0,
+  ) is True
+  # Ease tier (WR 48%) uses profitable nudge $4 threshold — -$3.50 holds.
+  assert shadow_graduation_loss_wind_down(
+    graduation_nudge=True,
+    shadow_mode=True,
+    bot_type="crypto",
+    unrealized=-3.5,
+    held_seconds=900,
+    min_hold_seconds=900,
+    bot_win_rate=0.48,
     profit_factor=1.11,
     total_pnl=10.0,
   ) is False
@@ -1856,6 +1880,34 @@ def test_crypto_cap_pressure_profit_lock_eases_min_hold():
   assert CRYPTO_CAP_PRESSURE_PROFIT_LOCK_MIN_HOLD_SECONDS == 300
 
 
+def test_crypto_momentum_retreat_loss_wind_down_threshold():
+  from app.engines.gate_entry_guard import (
+    CRYPTO_MOMENTUM_RETREAT_LOSS_WIND_DOWN_USD,
+    shadow_graduation_loss_wind_down,
+  )
+
+  retreat = dict(
+    graduation_nudge=True,
+    shadow_mode=True,
+    bot_type="crypto",
+    held_seconds=900,
+    min_hold_seconds=900,
+    bot_win_rate=0.468,
+    profit_factor=1.07,
+    total_pnl=9.85,
+  )
+  assert shadow_graduation_loss_wind_down(
+    **retreat,
+    unrealized=-CRYPTO_MOMENTUM_RETREAT_LOSS_WIND_DOWN_USD - 0.1,
+  ) is True
+  assert shadow_graduation_loss_wind_down(
+    **retreat,
+    unrealized=-CRYPTO_MOMENTUM_RETREAT_LOSS_WIND_DOWN_USD + 0.1,
+  ) is False
+  # Profitable nudge tier would allow -$4; retreat tightens to $1.50.
+  assert shadow_graduation_loss_wind_down(**retreat, unrealized=-2.0) is True
+
+
 def test_crypto_momentum_retreat_active():
   from app.engines.gate_entry_guard import crypto_momentum_retreat_active
 
@@ -1874,6 +1926,11 @@ def test_crypto_momentum_retreat_active():
     bot_win_rate=0.50,
     profit_factor=1.25,
     total_pnl=31.0,
+  )
+  assert not crypto_momentum_retreat_active(
+    "crypto",
+    shadow_mode=True,
+    graduation_nudge=True,
   )
 
 

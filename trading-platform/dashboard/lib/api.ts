@@ -229,6 +229,7 @@ export type ScanPreview = {
   crypto_momentum_retreat_min_signal?: number;
   crypto_momentum_retreat_max_open?: number;
   crypto_momentum_retreat_min_raw_signal?: number;
+  crypto_momentum_retreat_loss_wind_down_usd?: number;
   crypto_shadow_raw_floor_active?: boolean;
   early_verification_boost?: boolean;
   shadow_bot_wr: number | null;

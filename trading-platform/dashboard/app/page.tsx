@@ -1782,6 +1782,12 @@ function BotScanPreview({ botType }: { botType: string }) {
             )}
             {" "}
             · profit lock $1.25
+            {preview.crypto_momentum_retreat_loss_wind_down_usd != null && (
+              <span>
+                {" "}
+                · loss wind-down ${preview.crypto_momentum_retreat_loss_wind_down_usd}
+              </span>
+            )}
           </span>
         )}
         {preview.open_ready_candidates && preview.open_ready_candidates.length > 0 && (
