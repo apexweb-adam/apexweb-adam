@@ -636,6 +636,48 @@ def apply_entry_min_signal_ease(
   return max(floor, entry_min_signal - ease)
 
 
+def gate_tightening_min_signal_boost_applies(
+  bot_type: str,
+  *,
+  gate_tightening: GateEntryTightening,
+  graduation_nudge: bool,
+  shadow_mode: bool,
+) -> bool:
+  """Active gate commodities in graduation nudge skip tightening boost — preview must match live."""
+  if not gate_tightening.active or bot_type == "stocks_futures":
+    return False
+  if (
+    graduation_nudge
+    and not shadow_mode
+    and bot_type in ACTIVE_GATE_GRADUATION_NUDGE_BOTS
+  ):
+    return False
+  return True
+
+
+def apply_gate_tightening_min_signal(
+  min_signal: float,
+  bot_type: str,
+  *,
+  gate_tightening: GateEntryTightening,
+  graduation_nudge: bool,
+  shadow_mode: bool,
+  loss_streak: int = 0,
+) -> float:
+  """Apply gate tightening composite boost to min_signal — shared by scan preview and live trading."""
+  boosted = min_signal
+  if gate_tightening_min_signal_boost_applies(
+    bot_type,
+    gate_tightening=gate_tightening,
+    graduation_nudge=graduation_nudge,
+    shadow_mode=shadow_mode,
+  ):
+    boosted = min(0.95, boosted + gate_tightening.min_composite_boost)
+  if loss_streak >= 3:
+    boosted = min(0.95, boosted + 0.08)
+  return boosted
+
+
 def early_verification_raw_signal_ok(
   signal_score: float,
   *,
@@ -990,6 +1032,8 @@ def hard_skip_blocks_shadow_entry(
   intel_override: bool,
   composite: float,
   integration_boost: float,
+  signal_direction: str = "buy",
+  macd_signal: str = "bullish",
 ) -> bool:
   """Hard gate-skip during graduation nudge — review blocks ease on strong active-gate composites."""
   if symbol in review_skip:
@@ -1013,6 +1057,15 @@ def hard_skip_blocks_shadow_entry(
       and graduation_nudge
       and intel_override
       and composite >= CRYPTO_SHADOW_REVIEW_BYPASS_COMPOSITE
+    ):
+      return False
+    if (
+      shadow_mode
+      and bot_type == "crypto"
+      and graduation_nudge
+      and composite >= CRYPTO_SHADOW_REVIEW_BYPASS_COMPOSITE
+      and signal_direction == "buy"
+      and macd_signal == "bullish"
     ):
       return False
     return True

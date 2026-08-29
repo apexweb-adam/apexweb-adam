@@ -4,6 +4,8 @@ import asyncio
 from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock
 
+import pytest
+
 from app.engines.gate_entry_guard import (
   gate_entry_guards_active,
   get_gate_skip_symbols,
@@ -355,10 +357,62 @@ def test_hard_skip_blocks_shadow_entry_review_bypass_crypto_shadow():
     review_skip=frozenset({"BTCUSDT"}),
     graduation_nudge=True,
     shadow_mode=True,
-    intel_override=True,
-    composite=0.30,
-    integration_boost=0.10,
+    intel_override=False,
+    composite=0.327,
+    integration_boost=0.0,
+    signal_direction="buy",
+    macd_signal="bullish",
+  ) is False
+  assert hard_skip_blocks_shadow_entry(
+    "BTCUSDT",
+    bot_type="crypto",
+    recent_skip=frozenset(),
+    large_skip=frozenset(),
+    review_skip=frozenset({"BTCUSDT"}),
+    graduation_nudge=True,
+    shadow_mode=True,
+    intel_override=False,
+    composite=0.327,
+    integration_boost=0.0,
+    signal_direction="sell",
+    macd_signal="bullish",
   ) is True
+
+
+def test_gate_tightening_min_signal_boost_exempts_active_commodities_nudge():
+  from app.engines.gate_entry_guard import (
+    GateEntryTightening,
+    apply_gate_tightening_min_signal,
+    gate_tightening_min_signal_boost_applies,
+  )
+
+  tightening = GateEntryTightening(
+    active=True,
+    win_rate=0.44,
+    min_sentiment=0.08,
+    require_macd_bullish=True,
+    min_composite_boost=0.042,
+  )
+  assert gate_tightening_min_signal_boost_applies(
+    "commodities",
+    gate_tightening=tightening,
+    graduation_nudge=True,
+    shadow_mode=False,
+  ) is False
+  assert apply_gate_tightening_min_signal(
+    0.31,
+    "commodities",
+    gate_tightening=tightening,
+    graduation_nudge=True,
+    shadow_mode=False,
+  ) == 0.31
+  assert apply_gate_tightening_min_signal(
+    0.31,
+    "crypto",
+    gate_tightening=tightening,
+    graduation_nudge=True,
+    shadow_mode=True,
+  ) == pytest.approx(0.352)
 
 
 def test_recent_loser_symbols_blocks_zero_win_streak():
