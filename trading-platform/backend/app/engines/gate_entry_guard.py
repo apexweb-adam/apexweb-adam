@@ -99,6 +99,8 @@ CRYPTO_NEAR_GRADUATION_PNL_FLOOR_USD = 10.0
 CRYPTO_NEAR_GRADUATION_WR_FLOOR = 0.405
 CRYPTO_NEAR_GRADUATION_PROFIT_LOCK_USD = 1.5
 CRYPTO_NEAR_GRADUATION_CAP_PRESSURE_LOSER_USD = 0.35
+CRYPTO_NEAR_GRADUATION_EARLY_PROFIT_LOCK_MULTIPLIER = 2.0
+CRYPTO_NEAR_GRADUATION_EARLY_PROFIT_LOCK_MIN_HOLD_SECONDS = 60
 
 
 def crypto_near_graduation_nudge(
@@ -966,7 +968,21 @@ def shadow_graduation_profit_lock(
     bot_win_rate=bot_win_rate,
   ):
     return False
-  if held_seconds < min_hold_seconds:
+  effective_min_hold = min_hold_seconds
+  if crypto_near_graduation_nudge(
+    bot_type,
+    shadow_mode,
+    bot_win_rate,
+    profit_factor,
+    total_pnl,
+  ) and unrealized >= CRYPTO_NEAR_GRADUATION_PROFIT_LOCK_USD * (
+    CRYPTO_NEAR_GRADUATION_EARLY_PROFIT_LOCK_MULTIPLIER
+  ):
+    effective_min_hold = min(
+      min_hold_seconds,
+      CRYPTO_NEAR_GRADUATION_EARLY_PROFIT_LOCK_MIN_HOLD_SECONDS,
+    )
+  if held_seconds < effective_min_hold:
     return False
   if (
     shadow_mode
