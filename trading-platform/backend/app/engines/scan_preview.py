@@ -37,11 +37,14 @@ from app.engines.gate_entry_guard import (
   crypto_momentum_retreat_entry_min_signal,
   crypto_momentum_retreat_active,
   crypto_momentum_retreat_raw_signal_ok,
+  crypto_momentum_retreat_raw_signal_floor,
   crypto_momentum_retreat_gate_skip_bypass,
   crypto_shadow_raw_signal_floor_active,
   CRYPTO_MOMENTUM_RETREAT_MIN_RAW_SIGNAL,
   CRYPTO_MOMENTUM_RETREAT_ALIGNED_RAW_SIGNAL,
   CRYPTO_MOMENTUM_RETREAT_ALIGNED_COMPOSITE_FLOOR,
+  CRYPTO_MOMENTUM_RETREAT_CAP_PRESSURE_LOSER_USD,
+  CRYPTO_MOMENTUM_RETREAT_CAP_FULL_MIN_HOLD_SECONDS,
   CRYPTO_MOMENTUM_RETREAT_LOSS_WIND_DOWN_USD,
   COMMODITIES_ACTIVE_GATE_LOSS_WIND_DOWN_USD,
   COMMODITIES_GRADUATION_OPEN_COMPOSITE_FLOOR,
@@ -674,7 +677,18 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
       signal_direction=signal.direction,
       macd_signal=signal.macd_signal,
     ):
-      blockers.append(f"shadow_raw<{CRYPTO_MOMENTUM_RETREAT_MIN_RAW_SIGNAL:.2f}")
+      raw_floor = crypto_momentum_retreat_raw_signal_floor(
+        bot_type=bot_type,
+        graduation_nudge=graduation_nudge,
+        shadow_mode=shadow_mode,
+        bot_win_rate=per_bot_stats.get("win_rate"),
+        profit_factor=per_bot_stats.get("profit_factor"),
+        total_pnl=per_bot_stats.get("total_pnl"),
+        composite=composite,
+        signal_direction=signal.direction,
+        macd_signal=signal.macd_signal,
+      )
+      blockers.append(f"shadow_raw<{raw_floor:.2f}")
 
     monday_gate_skip_ready = False
     crypto_retreat_gate_skip_ready = False
@@ -853,6 +867,12 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
     ),
     "crypto_momentum_retreat_loss_wind_down_usd": (
       CRYPTO_MOMENTUM_RETREAT_LOSS_WIND_DOWN_USD if crypto_momentum_retreat else None
+    ),
+    "crypto_momentum_retreat_cap_pressure_loser_usd": (
+      CRYPTO_MOMENTUM_RETREAT_CAP_PRESSURE_LOSER_USD if crypto_momentum_retreat else None
+    ),
+    "crypto_momentum_retreat_cap_full_min_hold_seconds": (
+      CRYPTO_MOMENTUM_RETREAT_CAP_FULL_MIN_HOLD_SECONDS if crypto_momentum_retreat else None
     ),
     "commodities_gate_loss_wind_down_usd": (
       COMMODITIES_ACTIVE_GATE_LOSS_WIND_DOWN_USD

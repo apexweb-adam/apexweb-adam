@@ -114,10 +114,11 @@ CRYPTO_GRADUATION_ENTRY_EASE_MIN_PF = 1.10
 CRYPTO_MOMENTUM_RETREAT_MIN_SIGNAL = 0.48
 CRYPTO_MOMENTUM_RETREAT_ALIGNED_COMPOSITE_FLOOR = 0.43
 CRYPTO_MOMENTUM_RETREAT_MIN_RAW_SIGNAL = 0.42
-CRYPTO_MOMENTUM_RETREAT_ALIGNED_RAW_SIGNAL = 0.36
+CRYPTO_MOMENTUM_RETREAT_ALIGNED_RAW_SIGNAL = 0.32
 CRYPTO_MOMENTUM_RETREAT_PROFIT_LOCK_USD = 1.25
 CRYPTO_MOMENTUM_RETREAT_LOSS_WIND_DOWN_USD = 1.5
-CRYPTO_MOMENTUM_RETREAT_CAP_PRESSURE_LOSER_USD = 1.0
+CRYPTO_MOMENTUM_RETREAT_CAP_PRESSURE_LOSER_USD = 0.35
+CRYPTO_MOMENTUM_RETREAT_CAP_FULL_MIN_HOLD_SECONDS = 300
 CRYPTO_MOMENTUM_RETREAT_LOSS_EXPOSURE_AGGREGATE_USD = 5.0
 CRYPTO_MOMENTUM_RETREAT_MAX_OPEN = 2
 CRYPTO_PRE_GRADUATION_CAP_PRESSURE_LOSER_USD = 1.5
@@ -277,6 +278,76 @@ def crypto_cap_pressure_effective_min_hold(
   if unrealized <= -CRYPTO_CAP_PRESSURE_MODERATE_LOSER_USD:
     return min(effective, CRYPTO_CAP_PRESSURE_MODERATE_LOSER_MIN_HOLD_SECONDS)
   return effective
+
+
+def crypto_retreat_cap_full_min_hold(
+  min_hold_seconds: int,
+  *,
+  bot_type: str,
+  shadow_mode: bool,
+  graduation_nudge: bool,
+  open_count: int,
+  shadow_open_cap: int | None,
+  bot_win_rate: float | None = None,
+  profit_factor: float | None = None,
+  total_pnl: float | None = None,
+) -> int:
+  """Shorten min hold when retreat shadow cap is full so losers rotate faster."""
+  if not crypto_momentum_retreat_active(
+    bot_type,
+    shadow_mode,
+    graduation_nudge,
+    bot_win_rate=bot_win_rate,
+    profit_factor=profit_factor,
+    total_pnl=total_pnl,
+  ):
+    return min_hold_seconds
+  if shadow_open_cap is None or open_count < shadow_open_cap:
+    return min_hold_seconds
+  return min(min_hold_seconds, CRYPTO_MOMENTUM_RETREAT_CAP_FULL_MIN_HOLD_SECONDS)
+
+
+def crypto_momentum_retreat_raw_signal_floor(
+  *,
+  bot_type: str,
+  graduation_nudge: bool,
+  shadow_mode: bool,
+  bot_win_rate: float | None,
+  profit_factor: float | None,
+  total_pnl: float | None,
+  composite: float,
+  signal_direction: str,
+  macd_signal: str,
+) -> float:
+  """Raw signal floor used for retreat diagnostics and entry checks."""
+  if crypto_momentum_retreat_gate_skip_bypass(
+    bot_type=bot_type,
+    shadow_mode=shadow_mode,
+    graduation_nudge=graduation_nudge,
+    bot_win_rate=bot_win_rate,
+    profit_factor=profit_factor,
+    total_pnl=total_pnl,
+    signal_direction=signal_direction,
+    macd_signal=macd_signal,
+    composite=composite,
+  ):
+    return CRYPTO_MOMENTUM_RETREAT_ALIGNED_RAW_SIGNAL
+  if crypto_momentum_retreat_active(
+    bot_type,
+    shadow_mode,
+    graduation_nudge,
+    bot_win_rate=bot_win_rate,
+    profit_factor=profit_factor,
+    total_pnl=total_pnl,
+  ) or crypto_graduation_entry_ease_active(
+    bot_type,
+    shadow_mode,
+    bot_win_rate,
+    profit_factor,
+    total_pnl,
+  ):
+    return CRYPTO_MOMENTUM_RETREAT_MIN_RAW_SIGNAL
+  return CRYPTO_MOMENTUM_RETREAT_MIN_RAW_SIGNAL
 
 
 def crypto_graduation_entry_ease_active(
