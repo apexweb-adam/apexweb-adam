@@ -1978,6 +1978,7 @@ STOCKS_MONDAY_RECOVERY_SOFT_BLOCKERS = frozenset({
   "macd",
   "volume",
   "sentiment_gate",
+  "gate_skip",
 })
 
 
