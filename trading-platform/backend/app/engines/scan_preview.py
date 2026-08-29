@@ -67,6 +67,7 @@ from app.engines.gate_entry_guard import (
   commodities_monday_recovery_ready,
   commodities_monday_open_ready,
   commodities_session_info,
+  commodities_gate_fast_scan_active,
   commodities_weekend_futures_entry_blocked,
   commodities_weekend_forex_entry_blocked,
   commodities_weekend_spot_entry_blocked,
@@ -195,6 +196,10 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
   stocks_fast_scan_active = stocks_gate_fast_scan_active(
     stocks_session_info() if bot_type == "stocks_futures" else None,
     trade_count_nudge=stocks_trade_count_nudge,
+  )
+  commodities_fast_scan_active = commodities_gate_fast_scan_active(
+    commodities_session_info() if bot_type == "commodities" else None,
+    graduation_nudge=graduation_nudge if bot_type == "commodities" else False,
   )
   crypto_strong_momentum = crypto_strong_momentum_nudge(
     bot_type,
@@ -896,6 +901,7 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
     "graduation_nudge": graduation_nudge,
     "stocks_trade_count_nudge": stocks_trade_count_nudge,
     "stocks_gate_fast_scan_active": stocks_fast_scan_active,
+    "commodities_gate_fast_scan_active": commodities_fast_scan_active,
     "crypto_strong_momentum_nudge": crypto_strong_momentum,
     "crypto_pre_graduation_nudge": crypto_pre_graduation,
     "crypto_cap_pressure_active": crypto_cap_pressure,

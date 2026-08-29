@@ -118,6 +118,7 @@ class BaseBot(ABC):
     self.running = False
     self._symbol_cooldown_until: dict[str, datetime] = {}
     self._last_exit_reason: dict[str, str] = {}
+    self._last_exit_after_loss: dict[str, bool] = {}
 
   def _cooldown_seconds(self, *, after_loss: bool) -> int | None:
     if self.bot_type == "crypto":
@@ -151,6 +152,7 @@ class BaseBot(ABC):
       return
     if reason:
       self._last_exit_reason[symbol] = reason
+    self._last_exit_after_loss[symbol] = after_loss
     seconds = self._cooldown_seconds(after_loss=after_loss)
     if seconds is None:
       return
@@ -824,6 +826,7 @@ class BaseBot(ABC):
           open_count=open_count,
           shadow_open_cap=shadow_open_cap,
           last_exit_reason=self._last_exit_reason.get(symbol),
+          last_exit_after_loss=self._last_exit_after_loss.get(symbol),
         )
         if (
           not weekend_spot_cooldown_waived
