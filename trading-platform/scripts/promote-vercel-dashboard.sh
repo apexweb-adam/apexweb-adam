@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
-# Promote verified r27 CRM preview to production -flame alias.
+# Promote verified CRM preview to production -flame alias.
+# Uses Vercel alias API (reliable on hobby tier; promote API often returns 422).
 # Requires VERCEL_TOKEN (GitHub secret or local export).
 set -euo pipefail
 
 TEAM_ID="${VERCEL_ORG_ID:-team_K7OUE7uroVXeVUf42cUAQvAl}"
 PROJECT_ID="${VERCEL_PROJECT_ID:-prj_HGbG5vHgfutHi31QfXDqSsTnTAGv}"
-DEPLOYMENT_ID="${1:-dpl_GQTTm469KGGRkiKfwrULaLieM5VE}"
-PREVIEW_URL="${2:-https://apex-trading-dashboard-4am3sz5kv-apexweb-adams-projects.vercel.app}"
+DEPLOYMENT_ID="${1:-dpl_3dNmumttz3SytQkzSaw11vFNUv2F}"
+PREVIEW_URL="${2:-https://apex-trading-dashboard-43tumxweh-apexweb-adams-projects.vercel.app}"
 PROD_URL="https://apex-trading-dashboard-flame.vercel.app"
+PROD_ALIAS="apex-trading-dashboard-flame.vercel.app"
 
 if [[ -z "${VERCEL_TOKEN:-}" ]]; then
   echo "VERCEL_TOKEN not set."
@@ -29,17 +31,27 @@ if not (cfg.get("features") or {}).get("activeGate"):
 print(f"Preview bundleRevision={rev}")
 PY
 
-echo "Promoting $DEPLOYMENT_ID to production ..."
+echo "Assigning production alias $PROD_ALIAS → $DEPLOYMENT_ID ..."
 HTTP=$(curl -fsS -o /tmp/promote.json -w "%{http_code}" -X POST \
-  "https://api.vercel.com/v10/projects/${PROJECT_ID}/promote/${DEPLOYMENT_ID}?teamId=${TEAM_ID}" \
+  "https://api.vercel.com/v2/deployments/${DEPLOYMENT_ID}/aliases?teamId=${TEAM_ID}" \
   -H "Authorization: Bearer ${VERCEL_TOKEN}" \
   -H "Content-Type: application/json" \
-  -d '{}')
-echo "Promote HTTP $HTTP"
+  -d "{\"alias\":\"${PROD_ALIAS}\"}")
+echo "Alias HTTP $HTTP"
 cat /tmp/promote.json
 if [[ "$HTTP" != "201" && "$HTTP" != "200" && "$HTTP" != "202" ]]; then
-  echo "Promote failed (Vercel free tier: 100 deploys/day limit may apply)" >&2
-  exit 1
+  echo "Alias assignment failed — trying legacy promote API ..." >&2
+  HTTP2=$(curl -fsS -o /tmp/promote2.json -w "%{http_code}" -X POST \
+    "https://api.vercel.com/v10/projects/${PROJECT_ID}/promote/${DEPLOYMENT_ID}?teamId=${TEAM_ID}" \
+    -H "Authorization: Bearer ${VERCEL_TOKEN}" \
+    -H "Content-Type: application/json" \
+    -d '{}')
+  echo "Promote API HTTP $HTTP2"
+  cat /tmp/promote2.json
+  if [[ "$HTTP2" != "201" && "$HTTP2" != "200" && "$HTTP2" != "202" ]]; then
+    echo "Promote failed (Vercel free tier: 100 deploys/day limit may apply)" >&2
+    exit 1
+  fi
 fi
 
 sleep 15

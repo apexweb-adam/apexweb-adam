@@ -68,8 +68,8 @@ jobs:
           INPUT_PREVIEW_URL: ${{ inputs.preview_url || '' }}
         run: |
           set -euo pipefail
-          FALLBACK_ID="dpl_GQTTm469KGGRkiKfwrULaLieM5VE"
-          FALLBACK_URL="https://apex-trading-dashboard-4am3sz5kv-apexweb-adams-projects.vercel.app"
+          FALLBACK_ID="dpl_3dNmumttz3SytQkzSaw11vFNUv2F"
+          FALLBACK_URL="https://apex-trading-dashboard-43tumxweh-apexweb-adams-projects.vercel.app"
           if [[ -n "$INPUT_DEPLOYMENT_ID" && -n "$INPUT_PREVIEW_URL" ]]; then
             echo "deployment_id=$INPUT_DEPLOYMENT_ID" >> "$GITHUB_OUTPUT"
             echo "preview_url=$INPUT_PREVIEW_URL" >> "$GITHUB_OUTPUT"
@@ -159,12 +159,21 @@ jobs:
               sys.exit(1)
           PY
           HTTP=$(curl -fsS -o /tmp/promote.json -w "%{http_code}" -X POST \
-            "https://api.vercel.com/v10/projects/${VERCEL_PROJECT_ID}/promote/${DEPLOYMENT_ID}?teamId=${VERCEL_ORG_ID}" \
+            "https://api.vercel.com/v2/deployments/${DEPLOYMENT_ID}/aliases?teamId=${VERCEL_ORG_ID}" \
             -H "Authorization: Bearer ${VERCEL_TOKEN}" \
             -H "Content-Type: application/json" \
-            -d '{}')
-          echo "Promote API HTTP $HTTP"
+            -d '{"alias":"apex-trading-dashboard-flame.vercel.app"}')
+          echo "Alias API HTTP $HTTP"
           cat /tmp/promote.json
+          if [[ "$HTTP" != "201" && "$HTTP" != "200" && "$HTTP" != "202" ]]; then
+            HTTP=$(curl -fsS -o /tmp/promote.json -w "%{http_code}" -X POST \
+              "https://api.vercel.com/v10/projects/${VERCEL_PROJECT_ID}/promote/${DEPLOYMENT_ID}?teamId=${VERCEL_ORG_ID}" \
+              -H "Authorization: Bearer ${VERCEL_TOKEN}" \
+              -H "Content-Type: application/json" \
+              -d '{}')
+            echo "Promote API HTTP $HTTP"
+            cat /tmp/promote.json
+          fi
           if [[ "$HTTP" != "201" && "$HTTP" != "200" && "$HTTP" != "202" ]]; then
             echo "::error::Vercel promote failed — may be rate limited (100 deploys/day on free tier)"
             exit 1
