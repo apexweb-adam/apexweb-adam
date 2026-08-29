@@ -115,6 +115,7 @@ CRYPTO_MOMENTUM_RETREAT_MIN_SIGNAL = 0.48
 CRYPTO_MOMENTUM_RETREAT_ALIGNED_COMPOSITE_FLOOR = 0.43
 CRYPTO_MOMENTUM_RETREAT_MIN_RAW_SIGNAL = 0.42
 CRYPTO_MOMENTUM_RETREAT_ALIGNED_RAW_SIGNAL = 0.32
+CRYPTO_MOMENTUM_RETREAT_CAP_ROOM_ALIGNED_RAW_SIGNAL = 0.30
 CRYPTO_MOMENTUM_RETREAT_PROFIT_LOCK_USD = 1.25
 CRYPTO_MOMENTUM_RETREAT_LOSS_WIND_DOWN_USD = 1.5
 CRYPTO_MOMENTUM_RETREAT_CAP_PRESSURE_LOSER_USD = 0.35
@@ -318,6 +319,8 @@ def crypto_momentum_retreat_raw_signal_floor(
   composite: float,
   signal_direction: str,
   macd_signal: str,
+  open_count: int | None = None,
+  shadow_open_cap: int | None = None,
 ) -> float:
   """Raw signal floor used for retreat diagnostics and entry checks."""
   if crypto_momentum_retreat_gate_skip_bypass(
@@ -331,6 +334,12 @@ def crypto_momentum_retreat_raw_signal_floor(
     macd_signal=macd_signal,
     composite=composite,
   ):
+    if (
+      open_count is not None
+      and shadow_open_cap is not None
+      and open_count < shadow_open_cap
+    ):
+      return CRYPTO_MOMENTUM_RETREAT_CAP_ROOM_ALIGNED_RAW_SIGNAL
     return CRYPTO_MOMENTUM_RETREAT_ALIGNED_RAW_SIGNAL
   if crypto_momentum_retreat_active(
     bot_type,
@@ -1091,6 +1100,8 @@ def crypto_momentum_retreat_raw_signal_ok(
   composite: float | None = None,
   signal_direction: str = "buy",
   macd_signal: str = "bullish",
+  open_count: int | None = None,
+  shadow_open_cap: int | None = None,
 ) -> bool:
   """Block TV-inflated composite entries when raw technical score is weak.
 
@@ -1129,7 +1140,20 @@ def crypto_momentum_retreat_raw_signal_ok(
     macd_signal=macd_signal,
     composite=composite,
   ):
-    return signal_score >= CRYPTO_MOMENTUM_RETREAT_ALIGNED_RAW_SIGNAL
+    floor = crypto_momentum_retreat_raw_signal_floor(
+      bot_type=bot_type,
+      graduation_nudge=graduation_nudge,
+      shadow_mode=shadow_mode,
+      bot_win_rate=bot_win_rate,
+      profit_factor=profit_factor,
+      total_pnl=total_pnl,
+      composite=composite,
+      signal_direction=signal_direction,
+      macd_signal=macd_signal,
+      open_count=open_count,
+      shadow_open_cap=shadow_open_cap,
+    )
+    return signal_score >= floor
   return signal_score >= CRYPTO_MOMENTUM_RETREAT_MIN_RAW_SIGNAL
 
 

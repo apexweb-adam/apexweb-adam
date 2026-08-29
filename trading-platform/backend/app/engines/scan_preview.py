@@ -43,6 +43,7 @@ from app.engines.gate_entry_guard import (
   crypto_shadow_raw_signal_floor_active,
   CRYPTO_MOMENTUM_RETREAT_MIN_RAW_SIGNAL,
   CRYPTO_MOMENTUM_RETREAT_ALIGNED_RAW_SIGNAL,
+  CRYPTO_MOMENTUM_RETREAT_CAP_ROOM_ALIGNED_RAW_SIGNAL,
   CRYPTO_MOMENTUM_RETREAT_ALIGNED_COMPOSITE_FLOOR,
   CRYPTO_MOMENTUM_RETREAT_CAP_PRESSURE_LOSER_USD,
   CRYPTO_MOMENTUM_RETREAT_CAP_FULL_MIN_HOLD_SECONDS,
@@ -700,6 +701,8 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
       composite=composite,
       signal_direction=signal.direction,
       macd_signal=signal.macd_signal,
+      open_count=open_count,
+      shadow_open_cap=shadow_cap,
     ):
       raw_floor = crypto_momentum_retreat_raw_signal_floor(
         bot_type=bot_type,
@@ -711,6 +714,8 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
         composite=composite,
         signal_direction=signal.direction,
         macd_signal=signal.macd_signal,
+        open_count=open_count,
+        shadow_open_cap=shadow_cap,
       )
       blockers.append(f"shadow_raw<{raw_floor:.2f}")
 
@@ -903,6 +908,11 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
     ),
     "crypto_momentum_retreat_aligned_raw_signal": (
       CRYPTO_MOMENTUM_RETREAT_ALIGNED_RAW_SIGNAL
+      if crypto_momentum_retreat and crypto_shadow_raw_floor
+      else None
+    ),
+    "crypto_momentum_retreat_cap_room_aligned_raw_signal": (
+      CRYPTO_MOMENTUM_RETREAT_CAP_ROOM_ALIGNED_RAW_SIGNAL
       if crypto_momentum_retreat and crypto_shadow_raw_floor
       else None
     ),

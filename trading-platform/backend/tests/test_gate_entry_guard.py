@@ -2089,6 +2089,7 @@ def test_crypto_retreat_cap_full_min_hold():
 def test_crypto_momentum_retreat_raw_signal_floor():
   from app.engines.gate_entry_guard import (
     CRYPTO_MOMENTUM_RETREAT_ALIGNED_RAW_SIGNAL,
+    CRYPTO_MOMENTUM_RETREAT_CAP_ROOM_ALIGNED_RAW_SIGNAL,
     crypto_momentum_retreat_raw_signal_floor,
   )
 
@@ -2106,6 +2107,9 @@ def test_crypto_momentum_retreat_raw_signal_floor():
   assert crypto_momentum_retreat_raw_signal_floor(**retreat) == (
     CRYPTO_MOMENTUM_RETREAT_ALIGNED_RAW_SIGNAL
   )
+  assert crypto_momentum_retreat_raw_signal_floor(
+    **retreat, open_count=0, shadow_open_cap=2
+  ) == CRYPTO_MOMENTUM_RETREAT_CAP_ROOM_ALIGNED_RAW_SIGNAL
   assert crypto_momentum_retreat_raw_signal_floor(
     **{**retreat, "composite": 0.40}
   ) == 0.42
@@ -2166,6 +2170,14 @@ def test_crypto_momentum_retreat_raw_signal_ok():
   ) is True
   assert crypto_momentum_retreat_raw_signal_ok(
     CRYPTO_MOMENTUM_RETREAT_ALIGNED_RAW_SIGNAL - 0.01, **aligned
+  ) is False
+  assert crypto_momentum_retreat_raw_signal_ok(
+    0.31,
+    **{**aligned, "open_count": 0, "shadow_open_cap": 2},
+  ) is True
+  assert crypto_momentum_retreat_raw_signal_ok(
+    0.29,
+    **{**aligned, "open_count": 0, "shadow_open_cap": 2},
   ) is False
   ease = {**retreat, "bot_win_rate": 0.473, "profit_factor": 1.11, "total_pnl": 15.4}
   assert crypto_momentum_retreat_raw_signal_ok(0.40, **ease) is False
