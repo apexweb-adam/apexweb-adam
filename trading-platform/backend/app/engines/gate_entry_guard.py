@@ -157,22 +157,14 @@ def shadow_max_open_for_bot(
     return None
   if (
     bot_type in ("crypto", "commodities")
-    and in_shadow_graduation_nudge(
+    and is_profitable_graduation_nudge(
       bot_type,
       bot_win_rate,
       profit_factor=profit_factor,
       total_pnl=total_pnl,
     )
   ):
-    nudge_cap = SHADOW_GRADUATION_NUDGE_MAX_OPEN
-    if is_profitable_graduation_nudge(
-      bot_type,
-      bot_win_rate,
-      profit_factor=profit_factor,
-      total_pnl=total_pnl,
-    ):
-      nudge_cap = SHADOW_PROFITABLE_GRADUATION_NUDGE_MAX_OPEN
-    return max(base, nudge_cap)
+    return max(base, SHADOW_PROFITABLE_GRADUATION_NUDGE_MAX_OPEN)
   return base
 
 
