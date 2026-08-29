@@ -1094,10 +1094,13 @@ async def fomo_userscript() -> HTMLResponse:
   """Serve Tampermonkey userscript for fomo.family → Apex webhook bridge."""
   from pathlib import Path
 
-  script_path = (
-    Path(__file__).resolve().parents[3] / "scripts" / "fomo-family-bridge.user.js"
-  )
-  if not script_path.is_file():
+  api_dir = Path(__file__).resolve().parent
+  candidates = [
+    api_dir.parents[1] / "assets" / "fomo-family-bridge.user.js",
+    api_dir.parents[3] / "scripts" / "fomo-family-bridge.user.js",
+  ]
+  script_path = next((path for path in candidates if path.is_file()), None)
+  if script_path is None:
     return HTMLResponse(
       content="fomo bridge userscript not found on server",
       status_code=404,
