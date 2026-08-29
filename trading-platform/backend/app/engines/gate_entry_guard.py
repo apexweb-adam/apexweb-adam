@@ -113,6 +113,7 @@ CRYPTO_GRADUATION_ENTRY_EASE_MIN_WR = 0.47
 CRYPTO_GRADUATION_ENTRY_EASE_MIN_PF = 1.10
 CRYPTO_MOMENTUM_RETREAT_MIN_SIGNAL = 0.48
 CRYPTO_MOMENTUM_RETREAT_MIN_RAW_SIGNAL = 0.42
+CRYPTO_MOMENTUM_RETREAT_ALIGNED_RAW_SIGNAL = 0.36
 CRYPTO_MOMENTUM_RETREAT_PROFIT_LOCK_USD = 1.25
 CRYPTO_MOMENTUM_RETREAT_LOSS_WIND_DOWN_USD = 1.5
 CRYPTO_MOMENTUM_RETREAT_CAP_PRESSURE_LOSER_USD = 1.0
@@ -998,10 +999,14 @@ def crypto_momentum_retreat_raw_signal_ok(
   bot_win_rate: float | None = None,
   profit_factor: float | None = None,
   total_pnl: float | None = None,
+  composite: float | None = None,
+  signal_direction: str = "buy",
+  macd_signal: str = "bullish",
 ) -> bool:
   """Block TV-inflated composite entries when raw technical score is weak.
 
   Applies during momentum retreat and during entry-ease tier until pre-graduation WR.
+  Aligned retreat setups with strong composite use a lower raw floor.
   """
   if not (graduation_nudge and shadow_mode and bot_type == "crypto"):
     return True
@@ -1024,6 +1029,18 @@ def crypto_momentum_retreat_raw_signal_ok(
   )
   if not retreat and not ease:
     return True
+  if composite is not None and crypto_momentum_retreat_gate_skip_bypass(
+    bot_type=bot_type,
+    shadow_mode=shadow_mode,
+    graduation_nudge=graduation_nudge,
+    bot_win_rate=bot_win_rate,
+    profit_factor=profit_factor,
+    total_pnl=total_pnl,
+    signal_direction=signal_direction,
+    macd_signal=macd_signal,
+    composite=composite,
+  ):
+    return signal_score >= CRYPTO_MOMENTUM_RETREAT_ALIGNED_RAW_SIGNAL
   return signal_score >= CRYPTO_MOMENTUM_RETREAT_MIN_RAW_SIGNAL
 
 

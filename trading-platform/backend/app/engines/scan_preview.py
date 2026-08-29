@@ -40,6 +40,7 @@ from app.engines.gate_entry_guard import (
   crypto_momentum_retreat_gate_skip_bypass,
   crypto_shadow_raw_signal_floor_active,
   CRYPTO_MOMENTUM_RETREAT_MIN_RAW_SIGNAL,
+  CRYPTO_MOMENTUM_RETREAT_ALIGNED_RAW_SIGNAL,
   CRYPTO_MOMENTUM_RETREAT_LOSS_WIND_DOWN_USD,
   COMMODITIES_ACTIVE_GATE_LOSS_WIND_DOWN_USD,
   COMMODITIES_GRADUATION_OPEN_COMPOSITE_FLOOR,
@@ -661,6 +662,9 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
       bot_win_rate=per_bot_stats.get("win_rate"),
       profit_factor=per_bot_stats.get("profit_factor"),
       total_pnl=per_bot_stats.get("total_pnl"),
+      composite=composite,
+      signal_direction=signal.direction,
+      macd_signal=signal.macd_signal,
     ):
       blockers.append(f"shadow_raw<{CRYPTO_MOMENTUM_RETREAT_MIN_RAW_SIGNAL:.2f}")
 
@@ -825,7 +829,14 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
       shadow_cap if crypto_momentum_retreat else None
     ),
     "crypto_momentum_retreat_min_raw_signal": (
-      CRYPTO_MOMENTUM_RETREAT_MIN_RAW_SIGNAL if crypto_shadow_raw_floor else None
+      CRYPTO_MOMENTUM_RETREAT_ALIGNED_RAW_SIGNAL
+      if crypto_momentum_retreat and crypto_shadow_raw_floor
+      else CRYPTO_MOMENTUM_RETREAT_MIN_RAW_SIGNAL if crypto_shadow_raw_floor else None
+    ),
+    "crypto_momentum_retreat_aligned_raw_signal": (
+      CRYPTO_MOMENTUM_RETREAT_ALIGNED_RAW_SIGNAL
+      if crypto_momentum_retreat and crypto_shadow_raw_floor
+      else None
     ),
     "crypto_momentum_retreat_loss_wind_down_usd": (
       CRYPTO_MOMENTUM_RETREAT_LOSS_WIND_DOWN_USD if crypto_momentum_retreat else None
