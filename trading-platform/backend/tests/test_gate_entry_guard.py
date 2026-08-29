@@ -981,12 +981,9 @@ def test_gate_cap_pressure_proxy_wind_down_at_cap():
     gate_tightening=tightening,
   )
   assert gate_cap_pressure_proxy_wind_down(unrealized=-0.80, **base) is True
-  assert gate_cap_pressure_proxy_wind_down(unrealized=-0.50, **base) is False
-  assert gate_cap_pressure_proxy_wind_down(
-    unrealized=-0.50,
-    signal_direction="sell",
-    **base,
-  ) is True
+  assert gate_cap_pressure_proxy_wind_down(unrealized=-0.27, **base) is True
+  assert gate_cap_pressure_proxy_wind_down(unrealized=0.0, **base) is False
+  assert gate_cap_pressure_proxy_wind_down(unrealized=0.50, **base) is False
   assert gate_cap_pressure_proxy_wind_down(
     unrealized=-0.80,
     open_count=2,

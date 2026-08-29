@@ -81,7 +81,6 @@ GRADUATION_NUDGE_PROFIT_LOCK_USD = 3.0
 PROFITABLE_SHADOW_PROFIT_LOCK_USD = 3.5
 SHADOW_GRADUATION_LOSS_COOLDOWN_MULTIPLIER = 2
 FEED_ARTIFACT_COOLDOWN_MULTIPLIER = 3
-GATE_CAP_PRESSURE_PROXY_WIND_DOWN_USD = 0.75
 GRADUATION_NUDGE_SENTIMENT_EASE_BY_BOT = {
   "crypto": 0.04,
   "commodities": 0.02,
@@ -738,9 +737,7 @@ def gate_cap_pressure_proxy_wind_down(
     return False
   if held_seconds < min_hold_seconds:
     return False
-  if unrealized <= -GATE_CAP_PRESSURE_PROXY_WIND_DOWN_USD:
-    return True
-  return unrealized < 0 and signal_direction == "sell"
+  return unrealized < 0
 
 
 def stocks_session_close_wind_down(
