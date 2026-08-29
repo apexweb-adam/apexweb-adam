@@ -770,6 +770,20 @@ def shadow_intel_composite_override(
     )
   ):
     return False
+  if (
+    bot_type == "crypto"
+    and shadow_mode
+    and crypto_shadow_raw_signal_floor_active(
+      bot_type,
+      shadow_mode,
+      graduation_nudge,
+      bot_win_rate,
+      profit_factor,
+      total_pnl,
+    )
+    and not whale_aligned
+  ):
+    return False
   composite_floor = SHADOW_INTEL_COMPOSITE_FLOOR_BY_BOT.get(
     bot_type, SHADOW_INTEL_COMPOSITE_FLOOR
   )

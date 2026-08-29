@@ -189,6 +189,33 @@ def test_shadow_intel_composite_override_crypto_blocked_during_momentum_retreat(
   ) is False
 
 
+def test_shadow_intel_composite_override_crypto_blocked_during_ease_raw_floor():
+  ease = dict(
+    bot_win_rate=0.473,
+    profit_factor=1.11,
+    total_pnl=15.4,
+  )
+  assert shadow_intel_composite_override(
+    "crypto",
+    graduation_nudge=True,
+    shadow_mode=True,
+    composite=0.65,
+    entry_min_signal=0.28,
+    integration_boost=0.14,
+    **ease,
+  ) is False
+  assert shadow_intel_composite_override(
+    "crypto",
+    graduation_nudge=True,
+    shadow_mode=True,
+    composite=0.65,
+    entry_min_signal=0.28,
+    integration_boost=0.14,
+    whale_aligned=True,
+    **ease,
+  ) is True
+
+
 def test_whale_memecoin_aligned():
   from app.engines.gate_entry_guard import whale_memecoin_aligned
 
