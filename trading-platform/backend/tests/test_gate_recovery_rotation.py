@@ -119,6 +119,35 @@ def test_crypto_strong_momentum_chronic_bypass():
   ) is False
 
 
+def test_crypto_pre_graduation_loss_wind_down():
+  from app.engines.gate_entry_guard import (
+    CRYPTO_PRE_GRADUATION_LOSS_WIND_DOWN_USD,
+    shadow_graduation_loss_wind_down,
+  )
+
+  stats = dict(
+    bot_type="crypto",
+    shadow_mode=True,
+    bot_win_rate=0.50,
+    profit_factor=1.25,
+    total_pnl=31.0,
+  )
+  assert shadow_graduation_loss_wind_down(
+    graduation_nudge=True,
+    unrealized=-CRYPTO_PRE_GRADUATION_LOSS_WIND_DOWN_USD - 0.1,
+    held_seconds=900,
+    min_hold_seconds=900,
+    **stats,
+  ) is True
+  assert shadow_graduation_loss_wind_down(
+    graduation_nudge=True,
+    unrealized=-1.5,
+    held_seconds=900,
+    min_hold_seconds=900,
+    **stats,
+  ) is False
+
+
 def test_sync_gate_recovery_rotation_pauses_stocks_and_activates_crypto():
   gate_result = {
     "total_trades": 15,

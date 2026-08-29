@@ -237,6 +237,20 @@ class ProfitabilityGate:
         blockers.append(f"profit factor ≥ {self.GRADUATION_MIN_PROFIT_FACTOR}")
       if pnl <= 0:
         blockers.append("positive PnL")
+      trades_pct = min(1.0, total / self.GRADUATION_MIN_TRADES) if self.GRADUATION_MIN_TRADES else 1.0
+      wr_pct = min(1.0, wr / self.GRADUATION_MIN_WIN_RATE) if self.GRADUATION_MIN_WIN_RATE else 1.0
+      pf_raw = pf if pf != float("inf") else self.GRADUATION_MIN_PROFIT_FACTOR
+      pf_pct = (
+        min(1.0, pf_raw / self.GRADUATION_MIN_PROFIT_FACTOR)
+        if self.GRADUATION_MIN_PROFIT_FACTOR and pf_raw
+        else 0.0
+      )
+      overall_pct = min(
+        trades_pct,
+        wr_pct,
+        pf_pct,
+        1.0 if pnl > 0 else 0.0,
+      )
       out[bot_type] = {
         "paused": bot_type in paused_set,
         "total_trades": total,
@@ -245,6 +259,13 @@ class ProfitabilityGate:
         "total_pnl": pnl,
         "graduation_ready": ready,
         "graduation_blockers": blockers,
+        "graduation_progress": {
+          "trades_pct": round(trades_pct, 3),
+          "win_rate_pct": round(wr_pct, 3),
+          "profit_factor_pct": round(pf_pct, 3),
+          "pnl_positive": pnl > 0,
+          "overall_pct": round(overall_pct, 3),
+        },
         "recommendation": (
           "Ready to unpause for gate verification"
           if ready and bot_type in paused_set

@@ -180,6 +180,14 @@ export type EquityHistoryPoint = {
   cumulative_pnl: number;
 };
 
+export type GraduationProgress = {
+  trades_pct: number;
+  win_rate_pct: number;
+  profit_factor_pct: number;
+  pnl_positive: boolean;
+  overall_pct: number;
+};
+
 export type PerBotGateStatus = {
   paused: boolean;
   total_trades: number;
@@ -188,6 +196,7 @@ export type PerBotGateStatus = {
   total_pnl: number;
   graduation_ready: boolean;
   graduation_blockers: string[];
+  graduation_progress?: GraduationProgress;
   recommendation: string;
 };
 
@@ -214,6 +223,7 @@ export type ScanPreview = {
   graduation_nudge: boolean;
   stocks_trade_count_nudge?: boolean;
   crypto_strong_momentum_nudge?: boolean;
+  crypto_pre_graduation_nudge?: boolean;
   early_verification_boost?: boolean;
   shadow_bot_wr: number | null;
   proven_winners: string[];

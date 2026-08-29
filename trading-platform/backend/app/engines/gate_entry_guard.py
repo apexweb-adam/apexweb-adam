@@ -105,6 +105,9 @@ CRYPTO_STRONG_MOMENTUM_MIN_WR = 0.47
 CRYPTO_STRONG_MOMENTUM_MIN_PF = 1.15
 CRYPTO_STRONG_MOMENTUM_CHRONIC_COMPOSITE = 0.42
 CRYPTO_STRONG_MOMENTUM_LOSS_WIND_DOWN_USD = 2.5
+CRYPTO_PRE_GRADUATION_MIN_WR = 0.50
+CRYPTO_PRE_GRADUATION_MIN_PF = 1.20
+CRYPTO_PRE_GRADUATION_LOSS_WIND_DOWN_USD = 2.0
 SHADOW_STRONG_MOMENTUM_MAX_OPEN = 4
 
 
@@ -148,6 +151,28 @@ def crypto_strong_momentum_nudge(
     total_pnl > 0
     and profit_factor >= CRYPTO_STRONG_MOMENTUM_MIN_PF
     and bot_win_rate >= CRYPTO_STRONG_MOMENTUM_MIN_WR
+    and bot_win_rate < ProfitabilityGate.GRADUATION_MIN_WIN_RATE
+  )
+
+
+def crypto_pre_graduation_nudge(
+  bot_type: str,
+  shadow_mode: bool,
+  bot_win_rate: float | None,
+  profit_factor: float | None,
+  total_pnl: float | None,
+) -> bool:
+  """Crypto shadow at 50%+ WR and 1.2+ PF — tighten loss cuts to protect graduation path."""
+  from app.engines.profitability_gate import ProfitabilityGate
+
+  if not shadow_mode or bot_type != "crypto":
+    return False
+  if bot_win_rate is None or profit_factor is None or total_pnl is None:
+    return False
+  return (
+    total_pnl > 0
+    and profit_factor >= CRYPTO_PRE_GRADUATION_MIN_PF
+    and bot_win_rate >= CRYPTO_PRE_GRADUATION_MIN_WR
     and bot_win_rate < ProfitabilityGate.GRADUATION_MIN_WIN_RATE
   )
 
@@ -940,7 +965,15 @@ def shadow_graduation_loss_wind_down(
     return False
   if held_seconds < min_hold_seconds:
     return False
-  if crypto_strong_momentum_nudge(
+  if crypto_pre_graduation_nudge(
+    bot_type,
+    shadow_mode,
+    bot_win_rate,
+    profit_factor,
+    total_pnl,
+  ):
+    threshold = CRYPTO_PRE_GRADUATION_LOSS_WIND_DOWN_USD
+  elif crypto_strong_momentum_nudge(
     bot_type,
     shadow_mode,
     bot_win_rate,
