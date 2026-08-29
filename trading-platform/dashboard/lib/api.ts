@@ -212,7 +212,9 @@ export type ScanPreviewSymbol = {
   would_enter?: boolean;
   blockers?: string[];
   recovery_ready?: boolean;
+  monday_open_ready?: boolean;
   monday_gate_skip_ready?: boolean;
+  raw_signal?: number;
   integration_boost?: number;
   skip?: string;
 };
@@ -222,6 +224,8 @@ export type ScanPreview = {
   shadow_mode: boolean;
   graduation_nudge: boolean;
   stocks_trade_count_nudge?: boolean;
+  stocks_gate_fast_scan_active?: boolean;
+  commodities_gate_fast_scan_active?: boolean;
   crypto_strong_momentum_nudge?: boolean;
   crypto_pre_graduation_nudge?: boolean;
   crypto_cap_pressure_active?: boolean;
