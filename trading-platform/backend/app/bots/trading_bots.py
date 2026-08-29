@@ -1433,6 +1433,7 @@ class StocksFuturesBot(BaseBot):
 class CommoditiesBot(BaseBot):
   bot_type = "commodities"
   scan_interval = 30
+  gate_active_scan_interval = 15
 
   async def get_symbols(self) -> list[str]:
     yf_symbols = [s.strip() for s in settings.commodity_symbols.split(",")]
@@ -1443,6 +1444,36 @@ class CommoditiesBot(BaseBot):
     if symbol.endswith("USDT"):
       return await fetch_crypto_data(symbol, "15m")
     return await fetch_yfinance_data(symbol)
+
+  async def _effective_scan_interval(self) -> int:
+    """Scan faster during CME session and pre-open prep while gate is active."""
+    from app.engines.gate_entry_guard import (
+      commodities_monday_scan_priority_active,
+      commodities_session_info,
+    )
+
+    session_info = commodities_session_info()
+    if not (
+      session_info.get("in_session")
+      or commodities_monday_scan_priority_active(session_info)
+    ):
+      return self.scan_interval
+    async with SessionLocal() as session:
+      tightening = await get_gate_entry_tightening(session)
+      if tightening.active:
+        return self.gate_active_scan_interval
+    return self.scan_interval
+
+  async def run_loop(self) -> None:
+    self.running = True
+    while self.running:
+      try:
+        await self._record_scan_heartbeat()
+        await self.scan_and_trade()
+      except Exception as e:
+        print(f"[{self.bot_type}] Error in scan: {e}")
+        await self._record_scan_failure(str(e))
+      await asyncio.sleep(await self._effective_scan_interval())
 
 
 class PolymarketBot(BaseBot):
