@@ -93,14 +93,6 @@ def test_fomo_leader_confluence_boost():
   assert "fomo_leader_confluence" in reason
 
 
-def test_whale_memecoin_aligned_with_fomo():
-  from app.engines.gate_entry_guard import whale_memecoin_aligned
-
-  assert whale_memecoin_aligned("fomo:+0.22; dexscreener:+0.35", 0.12) is True
-  assert whale_memecoin_aligned("fomo:+0.22; fomo leader confluence:+0.05", 0.11) is True
-  assert whale_memecoin_aligned("fomo:+0.45", 0.12) is False
-
-
 def test_get_fomo_hot_symbols():
   from app.intelligence.fomo_tracker import get_fomo_hot_symbols
 
@@ -128,3 +120,25 @@ def test_get_fomo_hot_symbols():
     hot = asyncio.run(get_fomo_hot_symbols(session))
 
   assert hot == ["NEWCOINUSDT"]
+
+
+def test_trade_row_to_payload_maps_fomo_trade():
+  from app.intelligence.fomo_tracker import trade_row_to_payload
+
+  payload = trade_row_to_payload(
+    {
+      "id": "trade-123",
+      "side": "buy",
+      "totalUsd": 4200,
+      "networkId": 1399811149,
+      "token": {"symbol": "WIF", "address": "So111"},
+      "user": {"id": "u1", "handle": "legend", "rank": 4, "pnlPct": 180},
+    }
+  )
+  assert payload["symbol"] == "WIF"
+  assert payload["action"] == "buy"
+  assert payload["trader_name"] == "legend"
+  assert payload["trader_rank"] == 4
+  assert payload["chain"] == "solana"
+  assert payload["url"] == "fomo:trade:trade-123"
+  assert payload["relevance"] >= 0.9

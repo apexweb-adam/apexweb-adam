@@ -975,6 +975,47 @@ async def set_vercel_deploy_hook_admin(payload: dict[str, Any], db: AsyncSession
   }
 
 
+@router.post("/admin/set-fomo-bearer")
+async def set_fomo_bearer_admin(payload: dict[str, Any], db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
+  """Store fomo.family session bearer for server-side trade polling."""
+  from app.engines.platform_settings import set_fomo_bearer_token
+
+  secret = payload.get("secret", "")
+  if not settings.tradingview_webhook_secret or secret != settings.tradingview_webhook_secret:
+    return {"status": "unauthorized"}
+
+  bearer = (payload.get("bearer_token") or payload.get("bearer") or "").strip()
+  if len(bearer) < 20:
+    return {"status": "error", "message": "bearer_token required (from fomo.family DevTools Authorization header)"}
+
+  await set_fomo_bearer_token(db, bearer)
+  return {
+    "status": "ok",
+    "fomo_bearer_configured": True,
+    "poll_endpoint": "prod-api.fomo.family/trades",
+    "timestamp": datetime.utcnow().isoformat(),
+  }
+
+
+@router.post("/admin/poll-fomo-trades")
+async def poll_fomo_trades_admin(payload: dict[str, Any], db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
+  """Immediately poll fomo.family trades feed (requires bearer token)."""
+  from app.intelligence.fomo_tracker import scan_fomo_trades
+  from app.ws_manager import push_live_update
+
+  secret = payload.get("secret", "")
+  if not settings.tradingview_webhook_secret or secret != settings.tradingview_webhook_secret:
+    return {"status": "unauthorized"}
+
+  ingested = await scan_fomo_trades(db)
+  await push_live_update()
+  return {
+    "status": "ok",
+    "ingested": ingested,
+    "timestamp": datetime.utcnow().isoformat(),
+  }
+
+
 @router.post("/admin/trigger-vercel-deploy")
 async def trigger_vercel_deploy_admin(payload: dict[str, Any], db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
   """Trigger Vercel production deploy via stored deploy hook."""

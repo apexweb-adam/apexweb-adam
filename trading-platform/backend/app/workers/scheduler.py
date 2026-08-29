@@ -502,6 +502,7 @@ async def setup_scheduler() -> None:
     id="stocks_weekend_prep",
   )
   scheduler.add_job(
+    held_positions_tv_refresh_job,
     "interval",
     minutes=30,
     id="held_positions_tv_refresh",

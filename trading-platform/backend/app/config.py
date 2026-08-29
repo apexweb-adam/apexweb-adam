@@ -33,6 +33,8 @@ class Settings(BaseSettings):
     fomo_hot_symbols_enabled: bool = True
     fomo_hot_symbols_max: int = 8
     fomo_hot_symbol_min_relevance: float = 0.80
+    fomo_bearer_token: str = ""
+    fomo_poll_limit: int = 25
 
     # Integrations
     tradingview_webhook_secret: str = ""

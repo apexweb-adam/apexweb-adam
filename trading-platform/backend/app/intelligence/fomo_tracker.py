@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 
+import httpx
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,6 +17,16 @@ from app.intelligence.scanner import categorize
 from app.models.entities import IntelligenceItem
 
 FOMO_SOURCE = "fomo"
+FOMO_API_BASE = "https://prod-api.fomo.family"
+FOMO_SUPPORTED_CHAINS = "56,143,4663,8453,1399811149"
+NETWORK_ID_TO_CHAIN = {
+  1399811149: "solana",
+  8453: "base",
+  56: "bnb",
+  143: "monad",
+  4663: "robinhood",
+  1: "ethereum",
+}
 KNOWN_MEME_ALIASES: dict[str, str] = {
   "DOGE": "DOGEUSDT",
   "DOGECOIN": "DOGEUSDT",
@@ -39,6 +50,8 @@ KNOWN_MEME_ALIASES: dict[str, str] = {
 
 
 def fomo_configured() -> bool:
+  if settings.fomo_bearer_token:
+    return settings.fomo_enabled
   return bool(settings.fomo_enabled and settings.tradingview_webhook_secret)
 
 
@@ -208,3 +221,145 @@ async def get_fomo_hot_symbols(session: AsyncSession, *, max_age_hours: int = 48
     if len(hot) >= settings.fomo_hot_symbols_max:
       break
   return hot
+
+
+def _network_chain(network_id: int | None) -> str:
+  if network_id is None:
+    return "multichain"
+  return NETWORK_ID_TO_CHAIN.get(int(network_id), f"chain_{network_id}")
+
+
+def trade_row_to_payload(trade: dict) -> dict:
+  """Map prod-api.fomo.family trade JSON to webhook ingest payload."""
+  token = trade.get("token") if isinstance(trade.get("token"), dict) else {}
+  user = trade.get("user") if isinstance(trade.get("user"), dict) else {}
+  if not user and isinstance(trade.get("trader"), dict):
+    user = trade["trader"]
+
+  symbol = (
+    trade.get("symbol")
+    or token.get("symbol")
+    or trade.get("tokenSymbol")
+    or "UNKNOWN"
+  )
+  action = str(
+    trade.get("side")
+    or trade.get("action")
+    or trade.get("type")
+    or trade.get("tradeType")
+    or "buy"
+  ).lower()
+
+  network_id = trade.get("networkId") or token.get("networkId") or trade.get("chainId")
+  amount_usd = (
+    trade.get("totalUsd")
+    or trade.get("amountUsd")
+    or trade.get("usdValue")
+    or trade.get("notionalUsd")
+    or trade.get("totalUsdc")
+    or 0
+  )
+
+  trade_id = str(trade.get("id") or trade.get("tradeId") or trade.get("uuid") or "")
+  trader_id = str(user.get("id") or user.get("userId") or trade.get("userId") or "")
+  trader_name = str(
+    user.get("handle")
+    or user.get("username")
+    or user.get("displayName")
+    or user.get("name")
+    or trade.get("userHandle")
+    or trader_id
+    or "fomo_trader"
+  )
+
+  rank_raw = user.get("rank") or user.get("leaderboardRank") or trade.get("userRank")
+  rank_int: int | None = None
+  if rank_raw is not None:
+    try:
+      rank_int = int(rank_raw)
+    except (TypeError, ValueError):
+      rank_int = None
+
+  pnl_raw = user.get("pnlPct") or user.get("pnl") or trade.get("pnlPct")
+  pnl_float: float | None = None
+  if pnl_raw is not None:
+    try:
+      pnl_float = float(pnl_raw)
+    except (TypeError, ValueError):
+      pnl_float = None
+
+  token_address = str(
+    trade.get("tokenAddress")
+    or trade.get("mint")
+    or token.get("address")
+    or token.get("tokenAddress")
+    or ""
+  ).strip()
+
+  return {
+    "event_type": "trade",
+    "symbol": symbol,
+    "action": action,
+    "trader_id": trader_id,
+    "trader_name": trader_name,
+    "trader_rank": rank_int,
+    "trader_pnl_pct": pnl_float,
+    "chain": _network_chain(int(network_id) if network_id is not None else None),
+    "amount_usd": float(amount_usd or 0),
+    "token_address": token_address,
+    "url": f"fomo:trade:{trade_id}" if trade_id else None,
+    "alert_id": trade_id or None,
+    "relevance": trader_relevance(rank_int, pnl_float),
+  }
+
+
+def normalize_trades_response(payload: object) -> list[dict]:
+  if isinstance(payload, list):
+    return [row for row in payload if isinstance(row, dict)]
+  if isinstance(payload, dict):
+    for key in ("trades", "items", "data", "results", "feed", "activity"):
+      rows = payload.get(key)
+      if isinstance(rows, list):
+        return [row for row in rows if isinstance(row, dict)]
+  return []
+
+
+async def scan_fomo_trades(session: AsyncSession) -> int:
+  """Poll fomo.family authenticated trades feed when bearer token is configured."""
+  if not settings.fomo_enabled:
+    return 0
+
+  from app.engines.platform_settings import get_fomo_bearer_token
+
+  bearer = await get_fomo_bearer_token(session)
+  if not bearer:
+    return 0
+
+  url = f"{FOMO_API_BASE}/trades?limit={settings.fomo_poll_limit}"
+  headers = {
+    "Accept": "application/json",
+    "Authorization": f"Bearer {bearer}",
+    "X-Supported-Chains": FOMO_SUPPORTED_CHAINS,
+    "Origin": "https://fomo.family",
+    "Referer": "https://fomo.family/",
+    "User-Agent": "ApexTradingPlatform/1.0",
+  }
+
+  try:
+    async with httpx.AsyncClient(timeout=25) as client:
+      response = await client.get(url, headers=headers)
+      if response.status_code == 401:
+        print("[fomo] bearer token expired — update FOMO_BEARER_TOKEN or POST /api/admin/set-fomo-bearer")
+        return 0
+      response.raise_for_status()
+      payload = response.json()
+  except Exception as exc:
+    print(f"[fomo] trade poll error: {exc}")
+    return 0
+
+  ingested = 0
+  for trade in normalize_trades_response(payload):
+    result = await ingest_fomo_webhook(session, trade_row_to_payload(trade))
+    if result.get("status") == "received":
+      ingested += 1
+  return ingested
