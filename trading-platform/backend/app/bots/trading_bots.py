@@ -71,6 +71,7 @@ from app.engines.gate_entry_guard import (
   commodities_weekend_stale_signal_exit_blocked,
   commodities_weekend_futures_entry_blocked,
   commodities_weekend_forex_entry_blocked,
+  commodities_weekend_spot_entry_blocked,
   commodities_gold_proxy_duplicate_entry_blocked,
   commodities_gold_proxy_duplicate_wind_down,
   commodities_weekend_spot_post_profit_lock_entry_blocked,
@@ -1127,6 +1128,14 @@ class BaseBot(ABC):
           continue
 
         if commodities_weekend_forex_entry_blocked(
+          bot_type=self.bot_type,
+          shadow_mode=shadow_mode,
+          symbol=symbol,
+          graduation_nudge=graduation_nudge,
+        ):
+          continue
+
+        if commodities_weekend_spot_entry_blocked(
           bot_type=self.bot_type,
           shadow_mode=shadow_mode,
           symbol=symbol,
