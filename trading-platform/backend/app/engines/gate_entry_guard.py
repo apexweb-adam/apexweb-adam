@@ -262,6 +262,26 @@ def graduation_nudge_easing_active(
   return bot_type in ACTIVE_GATE_GRADUATION_NUDGE_BOTS
 
 
+def shadow_graduation_exits_active(
+  bot_type: str,
+  *,
+  graduation_nudge: bool,
+  shadow_mode: bool,
+  bot_win_rate: float | None = None,
+) -> bool:
+  """Keep shadow profit lock / wind-down active when WR dips just below nudge floor."""
+  if graduation_nudge_easing_active(
+    bot_type, graduation_nudge=graduation_nudge, shadow_mode=shadow_mode
+  ):
+    return True
+  if not shadow_mode or bot_type not in ("crypto", "commodities"):
+    return False
+  if bot_win_rate is None:
+    return False
+  floor = GRADUATION_NUDGE_MIN_WR_BY_BOT.get(bot_type, GRADUATION_NUDGE_MIN_WR)
+  return bot_win_rate >= floor - 0.03
+
+
 SHADOW_INTEL_COMPOSITE_FLOOR = 0.50
 SHADOW_INTEL_COMPOSITE_FLOOR_BY_BOT = {
   "crypto": 0.32,
@@ -613,8 +633,11 @@ def shadow_graduation_loss_wind_down(
   total_pnl: float | None = None,
 ) -> bool:
   """Exit losing positions during graduation nudge after min hold to cut churn."""
-  if not graduation_nudge_easing_active(
-    bot_type, graduation_nudge=graduation_nudge, shadow_mode=shadow_mode
+  if not shadow_graduation_exits_active(
+    bot_type,
+    graduation_nudge=graduation_nudge,
+    shadow_mode=shadow_mode,
+    bot_win_rate=bot_win_rate,
   ):
     return False
   if held_seconds < min_hold_seconds:
@@ -668,8 +691,11 @@ def shadow_graduation_profit_lock(
   total_pnl: float | None = None,
 ) -> bool:
   """Bank winners during graduation nudge instead of round-tripping gains."""
-  if not graduation_nudge_easing_active(
-    bot_type, graduation_nudge=graduation_nudge, shadow_mode=shadow_mode
+  if not shadow_graduation_exits_active(
+    bot_type,
+    graduation_nudge=graduation_nudge,
+    shadow_mode=shadow_mode,
+    bot_win_rate=bot_win_rate,
   ):
     return False
   if held_seconds < min_hold_seconds:

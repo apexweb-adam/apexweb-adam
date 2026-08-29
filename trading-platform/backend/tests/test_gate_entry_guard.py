@@ -345,6 +345,23 @@ def test_bot_win_rate_for_graduation_nudge_active_commodities():
   )
 
 
+def test_shadow_graduation_exits_active_wr_buffer():
+  from app.engines.gate_entry_guard import shadow_graduation_exits_active
+
+  assert shadow_graduation_exits_active(
+    "crypto",
+    graduation_nudge=False,
+    shadow_mode=True,
+    bot_win_rate=0.418,
+  ) is True
+  assert shadow_graduation_exits_active(
+    "crypto",
+    graduation_nudge=False,
+    shadow_mode=True,
+    bot_win_rate=0.38,
+  ) is False
+
+
 def test_shadow_graduation_loss_exposure_blocks_entry():
   from types import SimpleNamespace
 
