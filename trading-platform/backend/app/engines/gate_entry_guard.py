@@ -1649,6 +1649,11 @@ def commodities_weekend_stale_signal_exit_blocked(
   return abs(unrealized) < COMMODITIES_FUTURES_WEEKEND_FLAT_EXIT_BAND_USD
 
 
+def commodities_weekend_futures_entry_blocked(symbol: str) -> bool:
+  """Block new CME futures entries on stale weekend Yahoo feeds."""
+  return is_commodities_futures_symbol(symbol) and commodities_futures_weekend_closed()
+
+
 def stocks_session_info() -> dict[str, Any]:
   """UTC schedule for US cash session — used by CRM status and pre-session prep."""
   now = datetime.utcnow()

@@ -41,6 +41,7 @@ from app.engines.gate_entry_guard import (
   is_symbol_in_trade_cooldown,
   open_position_cap_blocks_entry,
   symbol_cooldown_remaining_seconds,
+  commodities_weekend_futures_entry_blocked,
   shadow_entry_min_signal,
   shadow_graduation_min_composite,
   shadow_graduation_loss_exposure_blocks_entry,
@@ -333,6 +334,8 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
     blockers: list[str] = []
     if symbol in held_symbols:
       blockers.append("already_held")
+    if commodities_weekend_futures_entry_blocked(symbol):
+      blockers.append("weekend_futures_closed")
     if stocks_negative_pf_blocks_entry(
       bot_type=bot_type,
       symbol=symbol,

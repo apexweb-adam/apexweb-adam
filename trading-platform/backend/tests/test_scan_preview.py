@@ -91,7 +91,11 @@ def test_build_scan_preview_commodities_structure():
                           "app.engines.scan_preview.symbol_cooldown_remaining_seconds",
                           new=AsyncMock(return_value=0),
                         ):
-                          return await build_scan_preview(session, "commodities")
+                          with patch(
+                            "app.engines.scan_preview.commodities_weekend_futures_entry_blocked",
+                            return_value=False,
+                          ):
+                            return await build_scan_preview(session, "commodities")
 
   import asyncio
 
@@ -177,7 +181,11 @@ def test_build_scan_preview_commodities_intel_override_on_sell_signal():
                           "app.engines.scan_preview.symbol_cooldown_remaining_seconds",
                           new=AsyncMock(return_value=0),
                         ):
-                          return await build_scan_preview(session, "commodities")
+                          with patch(
+                            "app.engines.scan_preview.commodities_weekend_futures_entry_blocked",
+                            return_value=False,
+                          ):
+                            return await build_scan_preview(session, "commodities")
 
   import asyncio
 
@@ -263,7 +271,11 @@ def test_build_scan_preview_commodities_chronic_loser_intel_bypass():
                           "app.engines.scan_preview.symbol_cooldown_remaining_seconds",
                           new=AsyncMock(return_value=0),
                         ):
-                          return await build_scan_preview(session, "commodities")
+                          with patch(
+                            "app.engines.scan_preview.commodities_weekend_futures_entry_blocked",
+                            return_value=False,
+                          ):
+                            return await build_scan_preview(session, "commodities")
 
   import asyncio
 
