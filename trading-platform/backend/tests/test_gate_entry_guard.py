@@ -677,6 +677,41 @@ def test_stocks_monday_gate_skip_bypass():
     ) is False
 
 
+def test_prioritize_commodities_monday_scan_futures_before_spot():
+  from app.engines.gate_entry_guard import prioritize_commodities_monday_scan
+
+  symbols = ["XAUUSDT", "NG=F", "CL=F"]
+  session = {"in_session": False, "minutes_until_open": 45, "minutes_since_open": 0}
+  ordered = prioritize_commodities_monday_scan(
+    symbols,
+    chronic_losers=frozenset(),
+    proven_winners=frozenset(),
+    session_info=session,
+  )
+  assert ordered.index("NG=F") < ordered.index("XAUUSDT")
+  assert ordered.index("CL=F") < ordered.index("XAUUSDT")
+
+
+def test_commodities_monday_open_ready():
+  from app.engines.gate_entry_guard import commodities_monday_open_ready
+
+  base = dict(
+    bot_type="commodities",
+    shadow_mode=False,
+    symbol="NG=F",
+    composite=0.62,
+    signal_direction="buy",
+    macd_signal="bullish",
+  )
+  assert commodities_monday_open_ready(**base, blockers=["weekend_futures_closed"]) is True
+  assert commodities_monday_open_ready(**base, blockers=["weekend_futures_closed", "signal_sell"]) is False
+  assert commodities_monday_open_ready(**base, blockers=[]) is False
+  assert commodities_monday_open_ready(
+    **{**base, "signal_direction": "sell"},
+    blockers=["weekend_futures_closed"],
+  ) is False
+
+
 def test_prioritize_commodities_monday_scan_pre_session():
   from app.engines.gate_entry_guard import prioritize_commodities_monday_scan
 
