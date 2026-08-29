@@ -191,7 +191,7 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
     int(per_bot_stats.get("total_trades") or 0),
   )
   stocks_fast_scan_active = stocks_gate_fast_scan_active(
-    session,
+    stocks_session_info() if bot_type == "stocks_futures" else None,
     trade_count_nudge=stocks_trade_count_nudge,
   )
   crypto_strong_momentum = crypto_strong_momentum_nudge(

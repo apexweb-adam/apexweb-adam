@@ -873,3 +873,5 @@ def test_build_scan_preview_stocks_monday_gate_skip_ready():
   aapl = next(row for row in result["symbols"] if row["symbol"] == "AAPL")
   assert aapl["monday_gate_skip_ready"] is True
   assert "gate_skip" in aapl["blockers"]
+  assert result.get("stocks_trade_count_nudge") is True
+  assert result.get("stocks_gate_fast_scan_active") is True
