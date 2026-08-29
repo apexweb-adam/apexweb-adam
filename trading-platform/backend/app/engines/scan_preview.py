@@ -40,6 +40,7 @@ from app.engines.gate_entry_guard import (
   crypto_shadow_raw_signal_floor_active,
   CRYPTO_MOMENTUM_RETREAT_MIN_RAW_SIGNAL,
   CRYPTO_MOMENTUM_RETREAT_LOSS_WIND_DOWN_USD,
+  COMMODITIES_ACTIVE_GATE_LOSS_WIND_DOWN_USD,
   crypto_graduation_entry_ease_active,
   crypto_strong_momentum_nudge,
   crypto_pre_graduation_nudge,
@@ -791,6 +792,11 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
     ),
     "crypto_momentum_retreat_loss_wind_down_usd": (
       CRYPTO_MOMENTUM_RETREAT_LOSS_WIND_DOWN_USD if crypto_momentum_retreat else None
+    ),
+    "commodities_gate_loss_wind_down_usd": (
+      COMMODITIES_ACTIVE_GATE_LOSS_WIND_DOWN_USD
+      if bot_type == "commodities" and not shadow_mode and graduation_nudge
+      else None
     ),
     "crypto_shadow_raw_floor_active": crypto_shadow_raw_floor,
     "early_verification_boost": early_verification_boost,

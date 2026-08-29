@@ -1796,6 +1796,12 @@ function BotScanPreview({ botType }: { botType: string }) {
             · CME open ready: {preview.open_ready_candidates.join(", ")}
           </span>
         )}
+        {preview.commodities_gate_loss_wind_down_usd != null && (
+          <span className="text-amber-300/90" title="Active gate commodities graduation loss wind-down">
+            {" "}
+            · gate loss wind-down ${preview.commodities_gate_loss_wind_down_usd}
+          </span>
+        )}
         {preview.recovery_candidates && preview.recovery_candidates.length > 0 && (
           <span className="text-emerald-400/90">
             {" "}
