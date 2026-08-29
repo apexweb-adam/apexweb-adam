@@ -9,6 +9,16 @@ POST https://apex-trading-backend.onrender.com/api/webhooks/fomo
 Content-Type: application/json
 ```
 
+**One-click userscript (preferred for real-time)**
+
+Install Tampermonkey, then open:
+
+```
+https://apex-trading-backend.onrender.com/api/fomo/userscript
+```
+
+Configure your `TRADINGVIEW_WEBHOOK_SECRET` from the Tampermonkey menu while on fomo.family.
+
 **Body template** (replace `YOUR_SECRET`):
 
 ```json
