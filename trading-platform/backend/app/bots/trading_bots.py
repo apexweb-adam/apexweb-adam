@@ -39,6 +39,7 @@ from app.engines.gate_entry_guard import (
   shadow_graduation_min_hold_seconds,
   shadow_graduation_min_composite,
   shadow_graduation_loss_wind_down,
+  shadow_graduation_loss_exposure_blocks_entry,
   shadow_graduation_profit_lock,
   EARLY_VERIFICATION_LOSS_WIND_DOWN_SECONDS,
   EARLY_VERIFICATION_LOSS_WIND_DOWN_USD,
@@ -292,6 +293,12 @@ class BaseBot(ABC):
         bot_win_rate=bot_wr,
         profit_factor=per_bot_stats.get("profit_factor"),
         total_pnl=per_bot_stats.get("total_pnl"),
+      )
+      open_positions = await engine.get_open_positions()
+      loss_exposure_block = shadow_graduation_loss_exposure_blocks_entry(
+        open_positions,
+        graduation_nudge=graduation_nudge,
+        shadow_mode=shadow_mode,
       )
       strategy_params = {
         "rsi_oversold": strategy.rsi_oversold,
@@ -802,6 +809,7 @@ class BaseBot(ABC):
             proven_winners=proven_winners,
           )
           and (shadow_mode or self.bot_type not in gate_tightening.blocked_new_entries)
+          and not loss_exposure_block
         ):
           reason = f"Signal:{signal.score:.2f} Sentiment:{sentiment:.2f}"
           if shadow_mode:

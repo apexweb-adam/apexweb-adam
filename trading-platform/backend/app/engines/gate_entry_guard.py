@@ -73,6 +73,9 @@ SHADOW_GRADUATION_MIN_COMPOSITE_BY_BOT = {
 }
 GRADUATION_NUDGE_LOSS_WIND_DOWN_USD = 3.5
 PROFITABLE_SHADOW_LOSS_WIND_DOWN_USD = 5.0
+SHADOW_GRADUATION_LOSS_EXPOSURE_MIN_LOSERS = 2
+SHADOW_GRADUATION_LOSS_EXPOSURE_PER_POSITION_USD = 2.5
+SHADOW_GRADUATION_LOSS_EXPOSURE_AGGREGATE_USD = 6.0
 GRADUATION_NUDGE_PROFIT_LOCK_USD = 3.0
 PROFITABLE_SHADOW_PROFIT_LOCK_USD = 4.0
 SHADOW_GRADUATION_LOSS_COOLDOWN_MULTIPLIER = 2
@@ -625,6 +628,25 @@ def shadow_graduation_loss_wind_down(
   else:
     threshold = GRADUATION_NUDGE_LOSS_WIND_DOWN_USD
   return unrealized <= -threshold
+
+
+def shadow_graduation_loss_exposure_blocks_entry(
+  open_positions: list[Any],
+  *,
+  graduation_nudge: bool,
+  shadow_mode: bool,
+) -> bool:
+  """Block new shadow entries when multiple open positions are already losing."""
+  if not (graduation_nudge and shadow_mode):
+    return False
+  losers = [
+    p for p in open_positions
+    if float(getattr(p, "unrealized_pnl", 0) or 0) <= -SHADOW_GRADUATION_LOSS_EXPOSURE_PER_POSITION_USD
+  ]
+  if len(losers) >= SHADOW_GRADUATION_LOSS_EXPOSURE_MIN_LOSERS:
+    return True
+  aggregate = sum(float(getattr(p, "unrealized_pnl", 0) or 0) for p in open_positions)
+  return aggregate <= -SHADOW_GRADUATION_LOSS_EXPOSURE_AGGREGATE_USD
 
 
 def shadow_graduation_profit_lock(
