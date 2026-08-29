@@ -5,8 +5,8 @@ set -euo pipefail
 
 TEAM_ID="${VERCEL_ORG_ID:-team_K7OUE7uroVXeVUf42cUAQvAl}"
 PROJECT_ID="${VERCEL_PROJECT_ID:-prj_HGbG5vHgfutHi31QfXDqSsTnTAGv}"
-DEPLOYMENT_ID="${1:-dpl_9cVRxRBgcHVStS2A35ZmPFbwrZTS}"
-PREVIEW_URL="${2:-https://apex-trading-dashboard-fh95xdpz2-apexweb-adams-projects.vercel.app}"
+DEPLOYMENT_ID="${1:-dpl_GQTTm469KGGRkiKfwrULaLieM5VE}"
+PREVIEW_URL="${2:-https://apex-trading-dashboard-4am3sz5kv-apexweb-adams-projects.vercel.app}"
 PROD_URL="https://apex-trading-dashboard-flame.vercel.app"
 
 if [[ -z "${VERCEL_TOKEN:-}" ]]; then
