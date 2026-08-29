@@ -435,6 +435,9 @@ export type PlatformStatus = {
     phantom_wallet?: boolean;
     phantom_webhook?: boolean;
     phantom_webhook_url?: string | null;
+    phantom_userscript_url?: string | null;
+    phantom_portfolio_poll?: boolean;
+    phantom_setup?: string | null;
     phantom_example_payload?: Record<string, unknown> | null;
     reddit_oauth?: boolean;
     twitter_x?: boolean;

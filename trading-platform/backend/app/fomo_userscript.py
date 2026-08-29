@@ -5,6 +5,8 @@ from app.intel_userscript import (
   fomo_userscript_available,
   load_axiom_userscript_bytes,
   load_fomo_userscript_bytes,
+  load_phantom_userscript_bytes,
+  phantom_userscript_available,
 )
 
 __all__ = [
@@ -12,4 +14,6 @@ __all__ = [
   "fomo_userscript_available",
   "load_axiom_userscript_bytes",
   "load_fomo_userscript_bytes",
+  "load_phantom_userscript_bytes",
+  "phantom_userscript_available",
 ]

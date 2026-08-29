@@ -466,6 +466,7 @@ async def crm_landing():
     <p class="muted" style="margin-top:0;">axiom webhook: <code>{axiom.get('webhook_url', '')}</code></p>
     <p class="muted" style="margin-top:0;">axiom userscript: <a href="{axiom.get('userscript_url', '')}">{axiom.get('userscript_url', '')}</a> · min {axiom.get('min_wallets_required', 8)} wallets</p>
     <p class="muted" style="margin-top:0;">Phantom webhook: <code>{phantom.get('webhook_url', '')}</code> — {phantom.get('note', 'forward portfolio via webhook')}</p>
+    <p class="muted" style="margin-top:0;">Phantom userscript: <a href="{phantom.get('userscript_url', '')}">{phantom.get('userscript_url', '')}</a> · Helius poll: {'on' if phantom.get('portfolio_poll') else 'set PHANTOM_WALLET_ADDRESSES + HELIUS_API_KEY'}</p>
     {pm_profile_link}
   </div>
   <p><a href="{url}">Open live dashboard →</a> <span class="muted">(redirecting in {redirect_seconds}s)</span></p>

@@ -1094,17 +1094,22 @@ class CryptoBot(BaseBot):
 
   async def get_symbols(self) -> list[str]:
     base = [s.strip() for s in settings.crypto_symbols.split(",") if s.strip()]
-    if not settings.fomo_hot_symbols_enabled and not settings.axiom_hot_symbols_enabled:
+    if not settings.fomo_hot_symbols_enabled and not settings.axiom_hot_symbols_enabled and not settings.phantom_hot_symbols_enabled:
       return base
     async with SessionLocal() as session:
       from app.intelligence.axiom_tracker import get_axiom_hot_symbols
       from app.intelligence.fomo_tracker import get_fomo_hot_symbols
+      from app.intelligence.phantom_tracker import get_phantom_watch_symbols
 
       hot: list[str] = []
       if settings.fomo_hot_symbols_enabled:
         hot.extend(await get_fomo_hot_symbols(session))
       if settings.axiom_hot_symbols_enabled:
         for sym in await get_axiom_hot_symbols(session):
+          if sym not in hot:
+            hot.append(sym)
+      if settings.phantom_hot_symbols_enabled:
+        for sym in await get_phantom_watch_symbols(session):
           if sym not in hot:
             hot.append(sym)
     if not hot:

@@ -49,6 +49,10 @@ class Settings(BaseSettings):
     # Phantom wallet bridge (webhook — MCP is docs-only in Cursor)
     phantom_enabled: bool = True
     phantom_wallet_addresses: str = ""
+    phantom_portfolio_poll_enabled: bool = True
+    phantom_hot_symbols_enabled: bool = True
+    phantom_hot_symbols_max: int = 6
+    phantom_min_holding_usd: float = 250.0
 
     # Integrations
     tradingview_webhook_secret: str = ""

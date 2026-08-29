@@ -128,12 +128,82 @@ async def get_phantom_watch_symbols(session: AsyncSession, *, max_age_hours: int
   )
   symbols: list[str] = []
   seen: set[str] = set()
+  max_symbols = settings.phantom_hot_symbols_max
   for item in result.scalars().all():
     sym = normalize_fomo_symbol(item.symbols_mentioned or "")
     if sym in seen:
       continue
     seen.add(sym)
     symbols.append(sym)
-    if len(symbols) >= 8:
+    if len(symbols) >= max_symbols:
       break
   return symbols
+
+
+async def scan_phantom_portfolios(session: AsyncSession) -> int:
+  """Poll Helius token balances for configured Phantom wallets (24/7 server-side)."""
+  if not settings.phantom_enabled or not settings.phantom_portfolio_poll_enabled:
+    return 0
+  if not settings.helius_api_key:
+    return 0
+
+  addresses = parse_phantom_wallet_addresses()
+  if not addresses:
+    return 0
+
+  import httpx
+
+  ingested = 0
+  hour_bucket = datetime.utcnow().strftime("%Y%m%d%H")
+  async with httpx.AsyncClient(timeout=25) as client:
+    for address in addresses:
+      try:
+        response = await client.get(
+          f"https://api.helius.xyz/v0/addresses/{address}/balances",
+          params={"api-key": settings.helius_api_key},
+        )
+        if response.status_code != 200:
+          continue
+        payload = response.json()
+      except Exception as exc:
+        print(f"[phantom] balance poll error for {address[:8]}…: {exc}")
+        continue
+
+      tokens = payload.get("tokens") if isinstance(payload, dict) else None
+      if not isinstance(tokens, list):
+        continue
+
+      for token in tokens[:20]:
+        if not isinstance(token, dict):
+          continue
+        symbol = str(token.get("symbol") or token.get("ticker") or "").strip().upper()
+        if not symbol or symbol in ("USDC", "USDT"):
+          continue
+        amount = float(token.get("amount") or token.get("uiAmount") or 0)
+        if amount <= 0:
+          continue
+        price_usd = float(token.get("priceUsd") or token.get("price_usd") or 0)
+        balance_usd = float(token.get("valueUsd") or token.get("value_usd") or price_usd * amount or 0)
+        if balance_usd and balance_usd < settings.phantom_min_holding_usd:
+          continue
+
+        mint = str(token.get("mint") or token.get("address") or "")
+        result = await ingest_phantom_webhook(
+          session,
+          {
+            "event_type": "holdings",
+            "symbol": symbol,
+            "wallet_address": address,
+            "chain": "solana",
+            "balance_usd": balance_usd,
+            "message": f"Phantom portfolio holding {symbol} ({amount:.4f})",
+            "url": f"phantom:holdings:{address}:{symbol}:{hour_bucket}",
+            "relevance": 0.78 if balance_usd >= settings.phantom_min_holding_usd * 2 else 0.72,
+            "token_address": mint,
+          },
+        )
+        if result.get("status") == "received":
+          ingested += 1
+
+  return ingested
+

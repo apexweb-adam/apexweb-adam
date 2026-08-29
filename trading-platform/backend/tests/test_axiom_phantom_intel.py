@@ -122,3 +122,37 @@ def test_phantom_configured_with_addresses():
     mock_settings.phantom_wallet_addresses = "wallet1,wallet2"
     mock_settings.tradingview_webhook_secret = ""
     assert phantom_configured() is True
+
+
+def test_scan_phantom_portfolios_ingests_holdings():
+  from app.intelligence.phantom_tracker import scan_phantom_portfolios
+
+  session = AsyncMock()
+  session.execute = AsyncMock(return_value=MagicMock(scalar_one_or_none=MagicMock(return_value=None)))
+  session.commit = AsyncMock()
+
+  mock_response = MagicMock()
+  mock_response.status_code = 200
+  mock_response.json.return_value = {
+    "tokens": [
+      {"symbol": "BONK", "amount": 1000000, "valueUsd": 500, "mint": "mint1"},
+      {"symbol": "USDC", "amount": 100, "valueUsd": 100, "mint": "usdc"},
+    ]
+  }
+
+  mock_client = MagicMock()
+  mock_client.get = AsyncMock(return_value=mock_response)
+  mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+  mock_client.__aexit__ = AsyncMock(return_value=None)
+
+  with patch("app.intelligence.phantom_tracker.settings") as mock_settings, patch(
+    "app.intelligence.phantom_tracker.parse_phantom_wallet_addresses",
+    return_value=["wallet1234567890123456789012345678901234"],
+  ), patch("httpx.AsyncClient", return_value=mock_client):
+    mock_settings.phantom_enabled = True
+    mock_settings.phantom_portfolio_poll_enabled = True
+    mock_settings.helius_api_key = "test-key"
+    mock_settings.phantom_min_holding_usd = 250
+    count = asyncio.run(scan_phantom_portfolios(session))
+
+  assert count == 1

@@ -688,6 +688,23 @@ async def get_platform_status(db: AsyncSession = Depends(get_db)) -> dict[str, A
         if settings.phantom_enabled and settings.tradingview_webhook_secret
         else None
       ),
+      "phantom_userscript_url": (
+        "https://apex-trading-backend.onrender.com/api/phantom/userscript"
+        if settings.phantom_enabled
+        else None
+      ),
+      "phantom_portfolio_poll": bool(
+        settings.phantom_enabled
+        and settings.phantom_portfolio_poll_enabled
+        and bool(settings.phantom_wallet_addresses)
+        and bool(settings.helius_api_key)
+      ),
+      "phantom_setup": (
+        "Set PHANTOM_WALLET_ADDRESSES + HELIUS_API_KEY for 24/7 server portfolio poll, "
+        "or install Phantom userscript for browser forwarding."
+        if settings.phantom_enabled
+        else None
+      ),
       "phantom_example_payload": (
         {
           "secret": "<TRADINGVIEW_WEBHOOK_SECRET>",
@@ -1215,6 +1232,22 @@ async def axiom_userscript() -> Response:
   except FileNotFoundError:
     return Response(
       content=b"axiom bridge userscript not found on server",
+      status_code=404,
+      media_type="text/plain",
+    )
+  return Response(content=body, media_type="application/javascript")
+
+
+@router.get("/phantom/userscript")
+async def phantom_userscript() -> Response:
+  """Serve Tampermonkey userscript for Phantom → Apex webhook bridge."""
+  from app.fomo_userscript import load_phantom_userscript_bytes
+
+  try:
+    body = load_phantom_userscript_bytes()
+  except FileNotFoundError:
+    return Response(
+      content=b"phantom bridge userscript not found on server",
       status_code=404,
       media_type="text/plain",
     )
