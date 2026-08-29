@@ -932,6 +932,12 @@ export default function Dashboard() {
                             <span className="text-gray-500 shrink-0">
                               {stats.total_trades} trades · {formatPct(stats.win_rate)} WR · $
                               {stats.total_pnl.toFixed(0)}
+                              {stats.graduation_progress && (
+                                <span className="text-gray-600">
+                                  {" "}
+                                  · {Math.round(stats.graduation_progress.overall_pct * 100)}% grad
+                                </span>
+                              )}
                             </span>
                             <span
                               className={cn(
@@ -1641,6 +1647,9 @@ function BotScanPreview({ botType }: { botType: string }) {
         )}
         {preview.crypto_strong_momentum_nudge && (
           <span className="text-emerald-400/90"> · strong momentum (cap 4 / loss cut $2.50)</span>
+        )}
+        {preview.crypto_pre_graduation_nudge && (
+          <span className="text-sky-400/90"> · pre-graduation (loss cut $2.00)</span>
         )}
         {preview.recovery_candidates && preview.recovery_candidates.length > 0 && (
           <span className="text-emerald-400/90">
