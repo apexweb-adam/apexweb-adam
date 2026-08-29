@@ -113,6 +113,7 @@ CRYPTO_GRADUATION_ENTRY_EASE_MIN_PF = 1.10
 CRYPTO_MOMENTUM_RETREAT_MIN_SIGNAL = 0.48
 CRYPTO_MOMENTUM_RETREAT_MIN_RAW_SIGNAL = 0.42
 CRYPTO_MOMENTUM_RETREAT_PROFIT_LOCK_USD = 1.25
+CRYPTO_MOMENTUM_RETREAT_LOSS_WIND_DOWN_USD = 1.5
 CRYPTO_MOMENTUM_RETREAT_MAX_OPEN = 2
 CRYPTO_PRE_GRADUATION_CAP_PRESSURE_LOSER_USD = 1.5
 CRYPTO_STRONG_MOMENTUM_CAP_PRESSURE_LOSER_USD = 1.0
@@ -1259,7 +1260,16 @@ def shadow_graduation_loss_wind_down(
     return False
   if held_seconds < min_hold_seconds:
     return False
-  if crypto_pre_graduation_nudge(
+  if crypto_momentum_retreat_active(
+    bot_type,
+    shadow_mode,
+    graduation_nudge,
+    bot_win_rate=bot_win_rate,
+    profit_factor=profit_factor,
+    total_pnl=total_pnl,
+  ):
+    threshold = CRYPTO_MOMENTUM_RETREAT_LOSS_WIND_DOWN_USD
+  elif crypto_pre_graduation_nudge(
     bot_type,
     shadow_mode,
     bot_win_rate,
