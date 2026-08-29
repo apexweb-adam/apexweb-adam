@@ -3253,10 +3253,38 @@ def commodities_monday_futures_gate_skip_bypass(
 
 
 def commodities_recovery_composite_floor(graduation_nudge: bool = False) -> float:
-  """Eased composite floor for gate commodities during CME prep/open window."""
-  if graduation_nudge and commodities_monday_scan_priority_active(commodities_session_info()):
+  """Eased composite floor for gate commodities during graduation prep/open window."""
+  if commodities_graduation_prep_active(graduation_nudge):
     return COMMODITIES_GRADUATION_OPEN_COMPOSITE_FLOOR
   return COMMODITIES_HIGH_COMPOSITE_RECOVERY_FLOOR
+
+
+def commodities_graduation_prep_active(graduation_nudge: bool = False) -> bool:
+  """Whether gate commodities graduation prep easings apply (72h pre-open + first hour)."""
+  if not graduation_nudge:
+    return False
+  session = commodities_session_info()
+  if session.get("in_session"):
+    since = session.get("minutes_since_open")
+    return since is not None and since <= COMMODITIES_MONDAY_SCAN_OPEN_HOUR_MINUTES
+  minutes_until = session.get("minutes_until_open")
+  if minutes_until is None:
+    return False
+  return minutes_until <= COMMODITIES_GRADUATION_PREP_MINUTES
+
+
+def commodities_gate_fast_scan_active(
+  session_info: dict[str, Any] | None = None,
+  *,
+  graduation_nudge: bool = False,
+) -> bool:
+  """Whether active-gate commodities should scan at gate_active_scan_interval."""
+  session = session_info or commodities_session_info()
+  if session.get("in_session"):
+    return True
+  if commodities_monday_scan_priority_active(session):
+    return True
+  return commodities_graduation_prep_active(graduation_nudge)
 
 
 def stocks_monday_gate_skip_bypass(
