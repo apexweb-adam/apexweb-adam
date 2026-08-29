@@ -122,6 +122,7 @@ CRYPTO_CAP_PRESSURE_LARGE_LOSER_USD = 4.0
 CRYPTO_CAP_PRESSURE_LARGE_LOSER_MIN_HOLD_SECONDS = 180
 CRYPTO_CAP_PRESSURE_SEVERE_LOSER_USD = 6.0
 CRYPTO_CAP_PRESSURE_SEVERE_LOSER_MIN_HOLD_SECONDS = 60
+CRYPTO_CAP_PRESSURE_PROFIT_LOCK_MIN_HOLD_SECONDS = 300
 SHADOW_STRONG_MOMENTUM_MAX_OPEN = 4
 
 
@@ -1366,6 +1367,8 @@ def shadow_graduation_profit_lock(
   total_pnl: float | None = None,
   symbol: str | None = None,
   proven_winners: frozenset[str] | None = None,
+  open_count: int = 0,
+  shadow_open_cap: int | None = None,
 ) -> bool:
   """Bank winners during graduation nudge instead of round-tripping gains."""
   if not shadow_graduation_exits_active(
@@ -1388,6 +1391,23 @@ def shadow_graduation_profit_lock(
     effective_min_hold = min(
       min_hold_seconds,
       CRYPTO_NEAR_GRADUATION_EARLY_PROFIT_LOCK_MIN_HOLD_SECONDS,
+    )
+  if (
+    bot_type == "crypto"
+    and shadow_mode
+    and shadow_open_cap is not None
+    and open_count >= shadow_open_cap
+    and crypto_cap_pressure_nudge(
+      bot_type,
+      shadow_mode,
+      bot_win_rate,
+      profit_factor,
+      total_pnl,
+    )
+  ):
+    effective_min_hold = min(
+      effective_min_hold,
+      CRYPTO_CAP_PRESSURE_PROFIT_LOCK_MIN_HOLD_SECONDS,
     )
   if held_seconds < effective_min_hold:
     return False

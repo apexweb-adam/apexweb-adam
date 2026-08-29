@@ -1833,6 +1833,29 @@ def test_crypto_momentum_retreat_profit_lock_threshold():
   assert shadow_graduation_profit_lock(**{**retreat, "unrealized": 1.10}) is False
 
 
+def test_crypto_cap_pressure_profit_lock_eases_min_hold():
+  from app.engines.gate_entry_guard import (
+    CRYPTO_CAP_PRESSURE_PROFIT_LOCK_MIN_HOLD_SECONDS,
+    shadow_graduation_profit_lock,
+  )
+
+  base = dict(
+    graduation_nudge=True,
+    shadow_mode=True,
+    bot_type="crypto",
+    unrealized=1.65,
+    min_hold_seconds=900,
+    bot_win_rate=0.473,
+    profit_factor=1.11,
+    total_pnl=15.4,
+    open_count=3,
+    shadow_open_cap=3,
+  )
+  assert shadow_graduation_profit_lock(**base, held_seconds=250) is False
+  assert shadow_graduation_profit_lock(**base, held_seconds=320) is True
+  assert CRYPTO_CAP_PRESSURE_PROFIT_LOCK_MIN_HOLD_SECONDS == 300
+
+
 def test_crypto_momentum_retreat_active():
   from app.engines.gate_entry_guard import crypto_momentum_retreat_active
 

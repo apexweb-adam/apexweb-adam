@@ -470,6 +470,8 @@ class BaseBot(ABC):
             total_pnl=per_bot_stats.get("total_pnl"),
             symbol=symbol,
             proven_winners=proven_winners,
+            open_count=open_count,
+            shadow_open_cap=shadow_open_cap,
           ):
             unrealized = (price - position.entry_price) * position.quantity
             label = "Shadow" if shadow_mode else "Gate"
