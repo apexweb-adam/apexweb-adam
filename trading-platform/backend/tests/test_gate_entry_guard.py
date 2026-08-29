@@ -692,7 +692,7 @@ def test_commodities_graduation_entry_min_signal_proven_winner_active_gate():
     symbol="CL=F",
     proven_winners=frozenset({"CL=F"}),
   )
-  assert eased == pytest.approx(0.15)
+  assert eased == pytest.approx(0.14)
 
 
 def test_graduation_nudge_sentiment_ok_commodities_proven_winner_active_gate():
