@@ -608,6 +608,9 @@ async def get_platform_status(db: AsyncSession = Depends(get_db)) -> dict[str, A
         if fomo_bearer.get("configured") and not fomo_bearer.get("polling_active")
         else None
       ),
+      "fomo_webhook_fallback_active": bool(
+        fomo_bearer.get("configured") and not fomo_bearer.get("polling_active")
+      ),
       "fomo_webhook_url": (
         "https://apex-trading-backend.onrender.com/api/webhooks/fomo"
         if settings.fomo_enabled and settings.tradingview_webhook_secret

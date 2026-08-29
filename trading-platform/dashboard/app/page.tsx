@@ -552,6 +552,11 @@ export default function Dashboard() {
                                   : "bearer expired — keep fomo.family open in Tampermonkey or refresh token"}
                               </p>
                             )}
+                            {platformStatus.integrations.fomo_webhook_fallback_active && (
+                              <p className="mt-1 text-[10px] text-blue-400">
+                                Webhook fallback active — Tampermonkey bridge still ingests trades
+                              </p>
+                            )}
                             {platformStatus.integrations.fomo_setup && (
                               <p className="mt-1 text-[10px] text-gray-500">
                                 {platformStatus.integrations.fomo_setup}
@@ -612,6 +617,25 @@ export default function Dashboard() {
                                 </a>
                               </p>
                             )}
+                            {platformStatus.integrations.axiom_trade && (
+                              <p className="mt-1 text-[10px] text-gray-400">
+                                Poll mode:{" "}
+                                <span
+                                  className={cn(
+                                    platformStatus.integrations.axiom_poll_mode === "session"
+                                      ? "text-green-400"
+                                      : platformStatus.integrations.axiom_poll_mode === "mirror"
+                                        ? "text-blue-400"
+                                        : "text-amber-400"
+                                  )}
+                                >
+                                  {platformStatus.integrations.axiom_poll_mode ?? "off"}
+                                </span>
+                                {platformStatus.integrations.axiom_poll_mode === "mirror"
+                                  ? " — mirroring wallet_tracker + phantom holdings"
+                                  : ""}
+                              </p>
+                            )}
                             {platformStatus.integrations.axiom_session_configured && (
                               <p
                                 className={cn(
@@ -669,14 +693,22 @@ export default function Dashboard() {
                             )}
                             {platformStatus.integrations.phantom_portfolio_poll ? (
                               <p className="mt-1 text-[10px] text-green-400">
-                                Server-side Helius portfolio poll active
+                                Server portfolio poll active
+                                {platformStatus.integrations.phantom_portfolio_poll_mode
+                                  ? ` (${platformStatus.integrations.phantom_portfolio_poll_mode})`
+                                  : ""}
                                 {platformStatus.integrations.phantom_tracked_wallets
-                                  ? ` (${platformStatus.integrations.phantom_tracked_wallets} wallets)`
+                                  ? ` — ${platformStatus.integrations.phantom_tracked_wallets} wallets`
                                   : ""}
                               </p>
                             ) : (
                               <p className="mt-1 text-[10px] text-amber-400">
-                                Helius poll inactive — set HELIUS_API_KEY or install Phantom userscript
+                                Portfolio poll inactive
+                                {platformStatus.integrations.phantom_portfolio_poll_mode
+                                  ? ` (${platformStatus.integrations.phantom_portfolio_poll_mode})`
+                                  : ""}
+                                {" — "}
+                                set HELIUS_API_KEY or install Phantom userscript
                               </p>
                             )}
                             {platformStatus.integrations.phantom_setup && (

@@ -247,7 +247,7 @@ async def _ingest_phantom_holding(
       "chain": "solana",
       "balance_usd": balance_usd,
       "message": f"Phantom portfolio holding {symbol} ({amount:,.4f})",
-      "url": f"phantom:holdings:{address}:{symbol}:{hour_bucket}",
+      "url": f"phantom:holdings:{address}:{mint or symbol}:{hour_bucket}",
       "relevance": 0.78 if balance_usd >= settings.phantom_min_holding_usd else 0.74,
       "token_address": mint,
     },

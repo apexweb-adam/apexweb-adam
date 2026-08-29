@@ -319,6 +319,7 @@ COMMODITIES_HIGH_COMPOSITE_RECOVERY_FLOOR = 0.48
 COMMODITIES_FUTURES_WEEKEND_FLAT_EXIT_BAND_USD = 1.0
 COMMODITIES_WEEKEND_SPOT_SYMBOLS = frozenset({"XAUUSDT", "PAXGUSDT"})
 COMMODITIES_WEEKEND_SPOT_COOLDOWN_MULTIPLIER = 0.55
+COMMODITIES_WEEKEND_SPOT_GATE_SKIP_COMPOSITE_FLOOR = 0.42
 STOCKS_SESSION_CLOSE_WIND_DOWN_MINUTES = 30
 STOCKS_SESSION_CLOSE_FORCE_MINUTES = 15
 DEFAULT_ENTRY_MIN_SIGNAL_FLOOR = 0.08
@@ -1338,6 +1339,10 @@ async def is_symbol_in_trade_cooldown(
   chronic_symbols: frozenset[str] = frozenset(),
   large_loss_symbols: frozenset[str] = frozenset(),
   graduation_nudge: bool = False,
+  shadow_mode: bool = True,
+  signal_direction: str = "buy",
+  macd_signal: str = "bullish",
+  composite: float = 0.0,
 ) -> bool:
   """DB-backed re-entry cooldown — survives deploy restarts."""
   remaining = await symbol_cooldown_remaining_seconds(
@@ -1347,6 +1352,10 @@ async def is_symbol_in_trade_cooldown(
     chronic_symbols=chronic_symbols,
     large_loss_symbols=large_loss_symbols,
     graduation_nudge=graduation_nudge,
+    shadow_mode=shadow_mode,
+    signal_direction=signal_direction,
+    macd_signal=macd_signal,
+    composite=composite,
   )
   return remaining > 0
 
@@ -1359,8 +1368,22 @@ async def symbol_cooldown_remaining_seconds(
   chronic_symbols: frozenset[str] = frozenset(),
   large_loss_symbols: frozenset[str] = frozenset(),
   graduation_nudge: bool = False,
+  shadow_mode: bool = True,
+  signal_direction: str = "buy",
+  macd_signal: str = "bullish",
+  composite: float = 0.0,
 ) -> int:
   """Seconds until symbol re-entry is allowed after last sell."""
+  if commodities_weekend_spot_gate_skip_bypass(
+    bot_type=bot_type,
+    shadow_mode=shadow_mode,
+    symbol=symbol,
+    graduation_nudge=graduation_nudge,
+    signal_direction=signal_direction,
+    macd_signal=macd_signal,
+    composite=composite,
+  ):
+    return 0
   from app.models.entities import Trade
 
   result = await session.execute(
@@ -1518,6 +1541,16 @@ def hard_skip_blocks_shadow_entry(
   if symbol in large_skip:
     if recovery_ok:
       return False
+    if commodities_weekend_spot_gate_skip_bypass(
+      bot_type=bot_type,
+      shadow_mode=shadow_mode,
+      symbol=symbol,
+      graduation_nudge=graduation_nudge,
+      signal_direction=signal_direction,
+      macd_signal=macd_signal,
+      composite=composite,
+    ):
+      return False
     if graduation_nudge_easing_active(
       bot_type,
       graduation_nudge=graduation_nudge,
@@ -1531,6 +1564,16 @@ def hard_skip_blocks_shadow_entry(
     return True
   if symbol in recent_skip:
     if recovery_ok:
+      return False
+    if commodities_weekend_spot_gate_skip_bypass(
+      bot_type=bot_type,
+      shadow_mode=shadow_mode,
+      symbol=symbol,
+      graduation_nudge=graduation_nudge,
+      signal_direction=signal_direction,
+      macd_signal=macd_signal,
+      composite=composite,
+    ):
       return False
     if graduation_nudge_easing_active(
       bot_type,
@@ -2148,6 +2191,30 @@ def stocks_proven_winner_recovery_entry_ok(
   ):
     min_composite = STOCKS_TRADE_COUNT_RECOVERY_MIN_COMPOSITE
   return composite >= min_composite
+
+
+def commodities_weekend_spot_gate_skip_bypass(
+  *,
+  bot_type: str,
+  shadow_mode: bool,
+  symbol: str,
+  graduation_nudge: bool,
+  signal_direction: str,
+  macd_signal: str,
+  composite: float,
+) -> bool:
+  """Weekend spot gold proxies can bypass recent/large gate_skip during graduation nudge."""
+  if shadow_mode or bot_type != "commodities":
+    return False
+  if not graduation_nudge:
+    return False
+  if symbol not in COMMODITIES_WEEKEND_SPOT_SYMBOLS:
+    return False
+  if not commodities_futures_weekend_closed():
+    return False
+  if signal_direction != "buy" or macd_signal != "bullish":
+    return False
+  return composite >= COMMODITIES_WEEKEND_SPOT_GATE_SKIP_COMPOSITE_FLOOR
 
 
 def commodities_high_composite_recovery_entry_ok(

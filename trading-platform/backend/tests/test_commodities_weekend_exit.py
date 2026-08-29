@@ -126,3 +126,59 @@ def test_commodities_weekend_spot_cooldown_eased():
     )
   expected = int(base * COMMODITIES_WEEKEND_SPOT_COOLDOWN_MULTIPLIER) - 3600
   assert remaining == max(0, expected)
+
+
+def test_commodities_weekend_spot_gate_skip_bypass():
+  from app.engines.gate_entry_guard import (
+    COMMODITIES_WEEKEND_SPOT_GATE_SKIP_COMPOSITE_FLOOR,
+    commodities_weekend_spot_gate_skip_bypass,
+    hard_skip_blocks_shadow_entry,
+    symbol_cooldown_remaining_seconds,
+  )
+
+  base = dict(
+    bot_type="commodities",
+    shadow_mode=False,
+    symbol="XAUUSDT",
+    graduation_nudge=True,
+    signal_direction="buy",
+    macd_signal="bullish",
+    composite=COMMODITIES_WEEKEND_SPOT_GATE_SKIP_COMPOSITE_FLOOR + 0.01,
+  )
+  with patch("app.engines.gate_entry_guard.datetime") as mock_dt:
+    mock_dt.utcnow.return_value = datetime(2026, 8, 29, 14, 0, 0)
+    mock_dt.side_effect = lambda *a, **k: datetime(*a, **k)
+    assert commodities_weekend_spot_gate_skip_bypass(**base) is True
+    assert commodities_weekend_spot_gate_skip_bypass(
+      **{**base, "composite": COMMODITIES_WEEKEND_SPOT_GATE_SKIP_COMPOSITE_FLOOR - 0.01}
+    ) is False
+    assert commodities_weekend_spot_gate_skip_bypass(
+      **{**base, "signal_direction": "sell"}
+    ) is False
+    assert hard_skip_blocks_shadow_entry(
+      "XAUUSDT",
+      bot_type="commodities",
+      recent_skip=frozenset({"XAUUSDT"}),
+      large_skip=frozenset(),
+      review_skip=frozenset(),
+      graduation_nudge=True,
+      shadow_mode=False,
+      intel_override=False,
+      composite=0.434,
+      integration_boost=0.067,
+      signal_direction="buy",
+      macd_signal="bullish",
+    ) is False
+    remaining = asyncio.run(
+      symbol_cooldown_remaining_seconds(
+        AsyncMock(),
+        "commodities",
+        "XAUUSDT",
+        graduation_nudge=True,
+        shadow_mode=False,
+        signal_direction="buy",
+        macd_signal="bullish",
+        composite=0.434,
+      )
+    )
+    assert remaining == 0
