@@ -34,6 +34,7 @@ from app.engines.gate_entry_guard import (
   bot_win_rate_for_graduation_nudge,
   commodities_graduation_entry_min_signal,
   crypto_graduation_entry_min_signal,
+  crypto_graduation_entry_ease_active,
   crypto_strong_momentum_nudge,
   crypto_pre_graduation_nudge,
   crypto_cap_pressure_nudge,
@@ -310,6 +311,9 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
       shadow_mode=shadow_mode,
       signal_direction=signal.direction,
       macd_signal=signal.macd_signal,
+      bot_win_rate=bot_wr,
+      profit_factor=per_bot_stats.get("profit_factor"),
+      total_pnl=per_bot_stats.get("total_pnl"),
     )
     entry_min_signal = stocks_trade_count_entry_min_signal(
       entry_min_signal,
@@ -582,6 +586,9 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
       macd_signal=signal.macd_signal,
       symbol=symbol,
       proven_winners=proven_winners,
+      bot_win_rate=bot_wr,
+      profit_factor=per_bot_stats.get("profit_factor"),
+      total_pnl=per_bot_stats.get("total_pnl"),
     ):
       blockers.append(f"sentiment<{symbol_min_sentiment:.2f}")
     if (
@@ -683,6 +690,18 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
       per_bot_stats.get("total_pnl"),
     )
   )
+  crypto_momentum_retreat = (
+    bot_type == "crypto"
+    and shadow_mode
+    and graduation_nudge
+    and not crypto_graduation_entry_ease_active(
+      bot_type,
+      shadow_mode,
+      bot_wr,
+      per_bot_stats.get("profit_factor"),
+      per_bot_stats.get("total_pnl"),
+    )
+  )
   return {
     "bot_type": bot_type,
     "shadow_mode": shadow_mode,
@@ -691,6 +710,7 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
     "crypto_strong_momentum_nudge": crypto_strong_momentum,
     "crypto_pre_graduation_nudge": crypto_pre_graduation,
     "crypto_cap_pressure_active": crypto_cap_pressure,
+    "crypto_momentum_retreat": crypto_momentum_retreat,
     "early_verification_boost": early_verification_boost,
     "shadow_bot_wr": bot_wr if bot_wr is not None else shadow_bot_wr,
     "proven_winners": sorted(proven_winners),

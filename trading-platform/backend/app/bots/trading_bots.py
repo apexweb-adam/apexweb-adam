@@ -924,6 +924,9 @@ class BaseBot(ABC):
           shadow_mode=shadow_mode,
           signal_direction=signal.direction,
           macd_signal=signal.macd_signal,
+          bot_win_rate=per_bot_stats.get("win_rate"),
+          profit_factor=per_bot_stats.get("profit_factor"),
+          total_pnl=per_bot_stats.get("total_pnl"),
         )
         entry_min_signal = stocks_trade_count_entry_min_signal(
           entry_min_signal,
@@ -1139,6 +1142,9 @@ class BaseBot(ABC):
             macd_signal=signal.macd_signal,
             symbol=symbol,
             proven_winners=proven_winners,
+            bot_win_rate=per_bot_stats.get("win_rate"),
+            profit_factor=per_bot_stats.get("profit_factor"),
+            total_pnl=per_bot_stats.get("total_pnl"),
           )
           and (shadow_mode or self.bot_type not in gate_tightening.blocked_new_entries)
           and not loss_exposure_block

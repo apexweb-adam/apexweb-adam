@@ -225,6 +225,7 @@ export type ScanPreview = {
   crypto_strong_momentum_nudge?: boolean;
   crypto_pre_graduation_nudge?: boolean;
   crypto_cap_pressure_active?: boolean;
+  crypto_momentum_retreat?: boolean;
   early_verification_boost?: boolean;
   shadow_bot_wr: number | null;
   proven_winners: string[];
@@ -330,6 +331,19 @@ export type VerificationSnapshot = {
   performance_checks_passed: boolean;
   live_trading_ready: boolean;
   created_at: string | null;
+};
+
+export type ContentStudyHighlight = {
+  source_type: string;
+  title: string;
+  impact: string;
+  confidence: number;
+  applied: boolean;
+};
+
+export type ContentStudySummary = {
+  insights_applied: number;
+  recent: ContentStudyHighlight[];
 };
 
 export type IntelligenceSource = {

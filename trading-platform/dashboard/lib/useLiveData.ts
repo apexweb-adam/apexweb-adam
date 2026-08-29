@@ -23,6 +23,7 @@ import {
   type MondayRecoverySummary,
   type SessionPrepStatus,
   type SessionPrepEntry,
+  type ContentStudySummary,
 } from "./api";
 
 type LiveData = {
@@ -43,6 +44,7 @@ type LiveData = {
   botSessions: BotSessions | null;
   mondayRecovery: MondayRecoverySummary | null;
   sessionPrep: SessionPrepStatus | null;
+  contentStudy: ContentStudySummary | null;
   connected: boolean;
   lastUpdate: string | null;
   lastTrade: Record<string, unknown> | null;
@@ -66,6 +68,7 @@ export function useLiveData(): LiveData {
   const [botSessions, setBotSessions] = useState<BotSessions | null>(null);
   const [mondayRecovery, setMondayRecovery] = useState<MondayRecoverySummary | null>(null);
   const [sessionPrep, setSessionPrep] = useState<SessionPrepStatus | null>(null);
+  const [contentStudy, setContentStudy] = useState<ContentStudySummary | null>(null);
   const [connected, setConnected] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<string | null>(null);
   const [lastTrade, setLastTrade] = useState<Record<string, unknown> | null>(null);
@@ -134,6 +137,7 @@ export function useLiveData(): LiveData {
     if (data.bot_sessions) setBotSessions(data.bot_sessions as BotSessions);
     if (data.monday_recovery) setMondayRecovery(data.monday_recovery as MondayRecoverySummary);
     if (data.session_prep) setSessionPrep(data.session_prep as SessionPrepStatus);
+    if (data.content_study) setContentStudy(data.content_study as ContentStudySummary);
     if (data.timestamp) setLastUpdate(String(data.timestamp));
   }, []);
 
@@ -205,6 +209,7 @@ export function useLiveData(): LiveData {
     botSessions,
     mondayRecovery,
     sessionPrep,
+    contentStudy,
     connected,
     lastUpdate,
     lastTrade,

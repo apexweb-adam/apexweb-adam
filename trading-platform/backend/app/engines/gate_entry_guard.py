@@ -108,6 +108,8 @@ CRYPTO_STRONG_MOMENTUM_LOSS_WIND_DOWN_USD = 2.5
 CRYPTO_PRE_GRADUATION_MIN_WR = 0.50
 CRYPTO_PRE_GRADUATION_MIN_PF = 1.20
 CRYPTO_PRE_GRADUATION_LOSS_WIND_DOWN_USD = 2.0
+CRYPTO_GRADUATION_ENTRY_EASE_MIN_WR = 0.47
+CRYPTO_GRADUATION_ENTRY_EASE_MIN_PF = 1.10
 CRYPTO_PRE_GRADUATION_CAP_PRESSURE_LOSER_USD = 1.5
 CRYPTO_STRONG_MOMENTUM_CAP_PRESSURE_LOSER_USD = 1.0
 CRYPTO_CAP_PRESSURE_MODERATE_LOSER_USD = 2.0
@@ -238,6 +240,37 @@ def crypto_cap_pressure_effective_min_hold(
   if unrealized <= -CRYPTO_CAP_PRESSURE_MODERATE_LOSER_USD:
     return min(effective, CRYPTO_CAP_PRESSURE_MODERATE_LOSER_MIN_HOLD_SECONDS)
   return effective
+
+
+def crypto_graduation_entry_ease_active(
+  bot_type: str,
+  shadow_mode: bool,
+  bot_win_rate: float | None,
+  profit_factor: float | None,
+  total_pnl: float | None,
+) -> bool:
+  """Crypto shadow only eases entry filters while momentum tiers are intact."""
+  if not shadow_mode or bot_type != "crypto":
+    return False
+  if crypto_pre_graduation_nudge(
+    bot_type, shadow_mode, bot_win_rate, profit_factor, total_pnl
+  ):
+    return True
+  if crypto_strong_momentum_nudge(
+    bot_type, shadow_mode, bot_win_rate, profit_factor, total_pnl
+  ):
+    return True
+  if not crypto_near_graduation_nudge(
+    bot_type, shadow_mode, bot_win_rate, profit_factor, total_pnl
+  ):
+    return False
+  if bot_win_rate is None or profit_factor is None or total_pnl is None:
+    return False
+  return (
+    total_pnl > 0
+    and profit_factor >= CRYPTO_GRADUATION_ENTRY_EASE_MIN_PF
+    and bot_win_rate >= CRYPTO_GRADUATION_ENTRY_EASE_MIN_WR
+  )
 
 
 def shadow_min_signal_boost(
@@ -793,9 +826,20 @@ def crypto_graduation_entry_min_signal(
   shadow_mode: bool,
   signal_direction: str,
   macd_signal: str,
+  bot_win_rate: float | None = None,
+  profit_factor: float | None = None,
+  total_pnl: float | None = None,
 ) -> float:
   """Ease entry threshold for aligned bullish shadow crypto during graduation nudge."""
   if not (graduation_nudge and shadow_mode and bot_type == "crypto"):
+    return entry_min_signal
+  if not crypto_graduation_entry_ease_active(
+    bot_type,
+    shadow_mode,
+    bot_win_rate,
+    profit_factor,
+    total_pnl,
+  ):
     return entry_min_signal
   if signal_direction == "buy" and macd_signal == "bullish":
     return max(
@@ -819,14 +863,25 @@ def graduation_nudge_sentiment_ok(
   macd_signal: str = "bullish",
   symbol: str | None = None,
   proven_winners: frozenset[str] | None = None,
+  bot_win_rate: float | None = None,
+  profit_factor: float | None = None,
+  total_pnl: float | None = None,
 ) -> bool:
   """Allow strong-composite shadow crypto entries during graduation nudge despite weak sentiment."""
   if sentiment + integration_boost >= min_sentiment:
     return True
+  crypto_ease = crypto_graduation_entry_ease_active(
+    bot_type,
+    shadow_mode,
+    bot_win_rate,
+    profit_factor,
+    total_pnl,
+  )
   if (
     graduation_nudge
     and shadow_mode
     and bot_type == "crypto"
+    and crypto_ease
     and composite >= entry_min_signal + CRYPTO_SHADOW_COMPOSITE_SENTIMENT_MARGIN
   ):
     return True
@@ -834,6 +889,7 @@ def graduation_nudge_sentiment_ok(
     graduation_nudge
     and shadow_mode
     and bot_type == "crypto"
+    and crypto_ease
     and signal_direction == "buy"
     and macd_signal == "bullish"
     and composite >= CRYPTO_SHADOW_BULLISH_SENTIMENT_COMPOSITE_FLOOR
@@ -1500,7 +1556,14 @@ def shadow_entry_min_signal(
     )
     and bot_type in ("commodities", "crypto")
   ):
-    base = max(0.16, base - 0.06)
+    if bot_type != "crypto" or crypto_graduation_entry_ease_active(
+      bot_type,
+      True,
+      bot_win_rate,
+      profit_factor,
+      total_pnl,
+    ):
+      base = max(0.16, base - 0.06)
   boost = shadow_min_signal_boost(
     bot_type,
     bot_win_rate=bot_win_rate,
@@ -1526,6 +1589,18 @@ def shadow_requires_macd(
       profit_factor=profit_factor,
       total_pnl=total_pnl,
     ):
+      if (
+        bot_type == "crypto"
+        and shadow_mode
+        and not crypto_graduation_entry_ease_active(
+          bot_type,
+          shadow_mode,
+          bot_win_rate,
+          profit_factor,
+          total_pnl,
+        )
+      ):
+        return True
       return False
     if bot_type == "crypto" and shadow_mode:
       return True
