@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -1090,7 +1090,7 @@ async def wallet_webhook(payload: dict[str, Any], db: AsyncSession = Depends(get
 
 
 @router.get("/fomo/userscript")
-async def fomo_userscript() -> HTMLResponse:
+async def fomo_userscript() -> Response:
   """Serve Tampermonkey userscript for fomo.family → Apex webhook bridge."""
   from pathlib import Path
 
@@ -1101,12 +1101,9 @@ async def fomo_userscript() -> HTMLResponse:
   ]
   script_path = next((path for path in candidates if path.is_file()), None)
   if script_path is None:
-    return HTMLResponse(
-      content="fomo bridge userscript not found on server",
-      status_code=404,
-    )
+    return Response(content="fomo bridge userscript not found on server", status_code=404)
   body = script_path.read_text(encoding="utf-8")
-  return HTMLResponse(
+  return Response(
     content=body,
     media_type="application/javascript; charset=utf-8",
     headers={"Content-Disposition": 'inline; filename="apex-fomo-bridge.user.js"'},
