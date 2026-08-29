@@ -61,7 +61,7 @@ import { IntelRoutingPanel } from "@/components/IntelRoutingPanel";
 type Tab = "overview" | "trades" | "positions" | "intelligence" | "learning" | "strategy";
 
 export default function Dashboard() {
-  const { stats, portfolios, bots, positions: livePositions, trades: liveTrades, recentIntel, analyses: liveAnalyses, reviews: liveReviews, insights: liveInsights, strategies: liveStrategies, intelSources: liveIntelSources, verificationHistory: liveVerificationHistory, connected, lastUpdate, lastTrade, profitabilityGate: liveProfitability, gateEntryTightening, botSessions, mondayRecovery, sessionPrep } = useLiveData();
+  const { stats, portfolios, bots, positions: livePositions, trades: liveTrades, recentIntel, analyses: liveAnalyses, reviews: liveReviews, insights: liveInsights, strategies: liveStrategies, intelSources: liveIntelSources, verificationHistory: liveVerificationHistory, connected, lastUpdate, lastTrade, profitabilityGate: liveProfitability, gateEntryTightening, botSessions, mondayRecovery, sessionPrep, contentStudy } = useLiveData();
   const { data: tradesRest } = useAPI<Trade[]>("/trades?limit=50", 30000);
   const { data: gateTradesRest } = useAPI<Trade[]>("/trades?limit=200", 30000);
   const { data: positionsRest } = useAPI<Position[]>("/positions", 30000);
@@ -1300,6 +1300,46 @@ export default function Dashboard() {
                 )}
               </div>
             </Card>
+            <Card title="External Content Study">
+              <div className="space-y-3 max-h-[320px] overflow-y-auto">
+                {(contentStudy?.recent ?? []).length === 0 ? (
+                  <p className="text-sm text-gray-500 py-4">
+                    No content-study highlights yet — runs hourly from YouTube, Reddit, and live intel.
+                  </p>
+                ) : (
+                  (contentStudy?.recent ?? []).map((row, idx) => (
+                    <div
+                      key={`${row.source_type}-${idx}`}
+                      className="p-3 rounded-lg bg-apex-dark border border-apex-border"
+                    >
+                      <div className="flex justify-between gap-2 mb-1">
+                        <span className="text-xs uppercase text-gray-500">{row.source_type}</span>
+                        <span
+                          className={cn(
+                            "text-[10px] px-2 py-0.5 rounded-full",
+                            row.applied
+                              ? "bg-apex-green/10 text-apex-green"
+                              : "bg-apex-gold/10 text-apex-gold"
+                          )}
+                        >
+                          {row.applied ? "applied" : "pending"}
+                        </span>
+                      </div>
+                      <p className="text-sm text-white font-medium">{row.title}</p>
+                      <p className="text-xs text-gray-400 mt-1">{row.impact}</p>
+                      <p className="text-[10px] text-gray-600 mt-1">
+                        confidence {Math.round(row.confidence * 100)}%
+                      </p>
+                    </div>
+                  ))
+                )}
+              </div>
+              {contentStudy && (
+                <p className="text-[10px] text-gray-500 mt-3">
+                  {contentStudy.insights_applied} insights applied to strategy parameters
+                </p>
+              )}
+            </Card>
             <Card title="External Knowledge Applied">
               <div className="space-y-3 max-h-[500px] overflow-y-auto lg:col-span-2">
                 {(insights ?? []).map((i) => (
@@ -1703,6 +1743,12 @@ function BotScanPreview({ botType }: { botType: string }) {
           <span className="text-rose-400/90" title="At shadow cap — fast loser exits active (60s@-$6, 180s@-$4, 300s@-$2)">
             {" "}
             · cap pressure
+          </span>
+        )}
+        {preview.crypto_momentum_retreat && (
+          <span className="text-amber-400/90" title="WR/PF below momentum tier — entry filters tightened">
+            {" "}
+            · momentum retreat
           </span>
         )}
         {preview.recovery_candidates && preview.recovery_candidates.length > 0 && (

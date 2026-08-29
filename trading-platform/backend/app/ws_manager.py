@@ -54,8 +54,10 @@ async def build_live_payload(session: AsyncSession) -> dict:
     serialize_intel_item,
     serialize_strategy_config,
   )
+  from app.engines.learning_engine import build_crm_content_study_highlights
   from app.engines.verification_snapshot import serialize_verification_snapshot
 
+  content_study = await build_crm_content_study_highlights(session)
   gate_payload = await build_gate_ws_payload(session)
   from app.engines.scan_preview import build_monday_recovery_summary
 
@@ -236,6 +238,7 @@ async def build_live_payload(session: AsyncSession) -> dict:
     "verification_history": [serialize_verification_snapshot(s) for s in verification_history],
     "monday_recovery": monday_recovery,
     "session_prep": session_prep,
+    "content_study": content_study,
     **gate_payload,
   }
 

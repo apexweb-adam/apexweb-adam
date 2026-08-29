@@ -1580,6 +1580,11 @@ def test_graduation_nudge_sentiment_ok_commodities_proven_winner_active_gate():
 def test_crypto_graduation_entry_min_signal_bullish_ease():
   from app.engines.gate_entry_guard import crypto_graduation_entry_min_signal
 
+  stats = dict(
+    bot_win_rate=0.50,
+    profit_factor=1.25,
+    total_pnl=31.0,
+  )
   eased = crypto_graduation_entry_min_signal(
     0.302,
     bot_type="crypto",
@@ -1587,8 +1592,71 @@ def test_crypto_graduation_entry_min_signal_bullish_ease():
     shadow_mode=True,
     signal_direction="buy",
     macd_signal="bullish",
+    **stats,
   )
   assert eased == 0.242
+  strict = crypto_graduation_entry_min_signal(
+    0.302,
+    bot_type="crypto",
+    graduation_nudge=True,
+    shadow_mode=True,
+    signal_direction="buy",
+    macd_signal="bullish",
+    bot_win_rate=0.46,
+    profit_factor=1.1,
+    total_pnl=14.0,
+  )
+  assert strict == 0.302
+
+
+def test_crypto_graduation_entry_ease_active_requires_momentum_tier():
+  from app.engines.gate_entry_guard import crypto_graduation_entry_ease_active
+
+  strong = dict(
+    bot_type="crypto",
+    shadow_mode=True,
+    bot_win_rate=0.50,
+    profit_factor=1.25,
+    total_pnl=31.0,
+  )
+  retreat = dict(
+    bot_type="crypto",
+    shadow_mode=True,
+    bot_win_rate=0.464,
+    profit_factor=1.1,
+    total_pnl=14.0,
+  )
+  assert crypto_graduation_entry_ease_active(**strong) is True
+  assert crypto_graduation_entry_ease_active(**retreat) is False
+
+
+def test_shadow_requires_macd_when_crypto_momentum_retreat():
+  from app.engines.gate_entry_guard import GateEntryTightening, shadow_requires_macd
+
+  gate = GateEntryTightening(
+    active=True,
+    win_rate=0.46,
+    min_sentiment=0.04,
+    require_macd_bullish=True,
+    min_composite_boost=0.0,
+    blocked_new_entries=frozenset(),
+  )
+  assert shadow_requires_macd(
+    "crypto",
+    bot_win_rate=0.464,
+    gate_tightening=gate,
+    shadow_mode=True,
+    profit_factor=1.1,
+    total_pnl=14.0,
+  ) is True
+  assert shadow_requires_macd(
+    "crypto",
+    bot_win_rate=0.50,
+    gate_tightening=gate,
+    shadow_mode=True,
+    profit_factor=1.25,
+    total_pnl=31.0,
+  ) is False
 
 
 def test_graduation_nudge_sentiment_ok_shadow_crypto_composite_bypass():
@@ -1603,7 +1671,23 @@ def test_graduation_nudge_sentiment_ok_shadow_crypto_composite_bypass():
     min_sentiment=0.06,
     composite=0.311,
     entry_min_signal=0.30,
+    bot_win_rate=0.50,
+    profit_factor=1.25,
+    total_pnl=31.0,
   ) is True
+  assert graduation_nudge_sentiment_ok(
+    "crypto",
+    graduation_nudge=True,
+    shadow_mode=True,
+    sentiment=-0.5,
+    integration_boost=0.0,
+    min_sentiment=0.06,
+    composite=0.311,
+    entry_min_signal=0.30,
+    bot_win_rate=0.46,
+    profit_factor=1.1,
+    total_pnl=14.0,
+  ) is False
   assert graduation_nudge_sentiment_ok(
     "crypto",
     graduation_nudge=True,
@@ -1627,6 +1711,9 @@ def test_graduation_nudge_sentiment_ok_shadow_crypto_composite_bypass():
     entry_min_signal=0.26,
     signal_direction="buy",
     macd_signal="bullish",
+    bot_win_rate=0.50,
+    profit_factor=1.25,
+    total_pnl=31.0,
   ) is True
 
 
