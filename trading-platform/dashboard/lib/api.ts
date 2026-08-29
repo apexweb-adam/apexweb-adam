@@ -203,6 +203,7 @@ export type ScanPreviewSymbol = {
   would_enter?: boolean;
   blockers?: string[];
   recovery_ready?: boolean;
+  monday_gate_skip_ready?: boolean;
   integration_boost?: number;
   skip?: string;
 };
@@ -216,6 +217,9 @@ export type ScanPreview = {
   shadow_bot_wr: number | null;
   proven_winners: string[];
   min_signal: number;
+  open_count?: number;
+  shadow_open_cap?: number | null;
+  held_symbols?: string[];
   recovery_candidates?: string[];
   session?: {
     in_session: boolean;

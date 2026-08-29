@@ -53,6 +53,7 @@ from app.engines.gate_entry_guard import (
   shadow_graduation_loss_exposure_blocks_entry,
   shadow_intel_composite_override,
   shadow_requires_macd,
+  stocks_monday_gate_skip_bypass,
   stocks_monday_recovery_ready,
   stocks_trade_count_entry_min_signal,
   stocks_trade_count_graduation_nudge,
@@ -589,6 +590,20 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
     ):
       blockers.append(f"raw_signal<{EARLY_VERIFICATION_MIN_RAW_SIGNAL_SCORE:.2f}")
 
+    monday_gate_skip_ready = False
+    if bot_type == "stocks_futures":
+      monday_gate_skip_ready = stocks_monday_gate_skip_bypass(
+        bot_type=bot_type,
+        shadow_mode=shadow_mode,
+        symbol=symbol,
+        proven_winners=proven_winners,
+        bot_win_rate=per_bot_stats.get("win_rate"),
+        total_trades=int(per_bot_stats.get("total_trades") or 0),
+        signal_direction="buy",
+        macd_signal="bullish",
+        composite=composite,
+      )
+
     previews.append(
       {
         "symbol": symbol,
@@ -620,6 +635,7 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
             total_trades=int(per_bot_stats.get("total_trades") or 0),
           )
         ),
+        "monday_gate_skip_ready": monday_gate_skip_ready,
         "integration_boost": round(integration_boost, 3),
         "intel_override": intel_override,
         "cooldown_seconds": cooldown_remaining or None,
@@ -644,6 +660,9 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
     "shadow_bot_wr": bot_wr if bot_wr is not None else shadow_bot_wr,
     "proven_winners": sorted(proven_winners),
     "min_signal": round(min_signal, 3),
+    "open_count": open_count,
+    "shadow_open_cap": shadow_cap,
+    "held_symbols": sorted(held_symbols),
     "session": session,
     "recovery_candidates": recovery_candidates,
     "symbols": previews,
