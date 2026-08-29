@@ -657,12 +657,23 @@ def test_stocks_monday_open_ready():
   )
   assert stocks_monday_open_ready(**base, blockers=["gate_skip"]) is True
   assert stocks_monday_open_ready(
+    **base, blockers=["gate_skip", "stocks_session_closed"]
+  ) is True
+  assert stocks_monday_open_ready(
     **base, blockers=["gate_skip", "signal_sell"]
   ) is False
   assert stocks_monday_open_ready(**base, blockers=[]) is False
   assert stocks_monday_open_ready(
     **{**base, "signal_direction": "sell"}, blockers=["gate_skip"]
   ) is False
+
+
+def test_stocks_session_entry_blocked():
+  from app.engines.gate_entry_guard import stocks_session_entry_blocked
+
+  assert stocks_session_entry_blocked("stocks_futures", {"in_session": False}) is True
+  assert stocks_session_entry_blocked("stocks_futures", {"in_session": True}) is False
+  assert stocks_session_entry_blocked("crypto", {"in_session": False}) is False
 
 
 def test_crypto_momentum_retreat_cooldown_bypass():
