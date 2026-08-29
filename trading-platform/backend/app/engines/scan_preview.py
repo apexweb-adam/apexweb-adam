@@ -1077,6 +1077,8 @@ async def build_monday_recovery_summary(session: AsyncSession) -> dict[str, Any]
       "stocks_trade_count_nudge": preview.get("stocks_trade_count_nudge"),
       "graduation_nudge": preview.get("graduation_nudge"),
     }
+    session_info = preview.get("session") or {}
+    minutes_until_open = session_info.get("minutes_until_open")
     for row in open_ready_symbols:
       open_ready_rows.append(
         {
@@ -1084,6 +1086,7 @@ async def build_monday_recovery_summary(session: AsyncSession) -> dict[str, Any]
           "symbol": row["symbol"],
           "composite": row.get("composite"),
           "blockers": row.get("blockers") or [],
+          "minutes_until_open": minutes_until_open,
         }
       )
     if candidates:

@@ -29,6 +29,7 @@ import {
   formatCurrency,
   formatPct,
   formatScanBlockers,
+  formatSessionCountdown,
   formatTime,
   pnlColor,
   sentimentColor,
@@ -1676,13 +1677,18 @@ function MondayRecoveryBanner({ summary }: { summary: MondayRecoverySummary | nu
             Session open ready — will enter when market opens
           </p>
           <ul className="space-y-1">
-            {openReady.map((row) => (
+            {openReady.map((row) => {
+              const countdown = formatSessionCountdown(row.minutes_until_open);
+              return (
               <li
                 key={`open-${row.bot_type}-${row.symbol}`}
                 className="flex items-center justify-between gap-3 text-xs"
               >
                 <span className="text-gray-100 font-medium">
                   {botLabel(row.bot_type)} · {row.symbol}
+                  {countdown ? (
+                    <span className="text-gray-500 font-normal"> · {countdown}</span>
+                  ) : null}
                 </span>
                 <span className="text-lime-400/90 text-right">
                   {(row.composite ?? 0).toFixed(3)}
@@ -1694,7 +1700,8 @@ function MondayRecoveryBanner({ summary }: { summary: MondayRecoverySummary | nu
                   )}
                 </span>
               </li>
-            ))}
+            );
+            })}
           </ul>
         </div>
       )}
