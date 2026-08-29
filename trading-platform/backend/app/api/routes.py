@@ -1092,22 +1092,17 @@ async def wallet_webhook(payload: dict[str, Any], db: AsyncSession = Depends(get
 @router.get("/fomo/userscript")
 async def fomo_userscript() -> Response:
   """Serve Tampermonkey userscript for fomo.family → Apex webhook bridge."""
-  from pathlib import Path
+  from app.fomo_userscript import load_fomo_userscript_bytes
 
-  api_dir = Path(__file__).resolve().parent
-  candidates = [
-    api_dir.parents[1] / "assets" / "fomo-family-bridge.user.js",
-    api_dir.parents[3] / "scripts" / "fomo-family-bridge.user.js",
-  ]
-  script_path = next((path for path in candidates if path.is_file()), None)
-  if script_path is None:
-    return Response(content="fomo bridge userscript not found on server", status_code=404)
-  body = script_path.read_text(encoding="utf-8")
-  return Response(
-    content=body,
-    media_type="application/javascript; charset=utf-8",
-    headers={"Content-Disposition": 'inline; filename="apex-fomo-bridge.user.js"'},
-  )
+  try:
+    body = load_fomo_userscript_bytes()
+  except FileNotFoundError:
+    return Response(
+      content=b"fomo bridge userscript not found on server",
+      status_code=404,
+      media_type="text/plain",
+    )
+  return Response(content=body, media_type="application/javascript")
 
 
 @router.post("/webhooks/fomo")
