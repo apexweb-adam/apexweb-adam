@@ -97,6 +97,29 @@ CRYPTO_SHADOW_COMPOSITE_SENTIMENT_MARGIN = 0.01
 CRYPTO_SHADOW_BULLISH_SENTIMENT_COMPOSITE_FLOOR = 0.26
 CRYPTO_NEAR_GRADUATION_PNL_FLOOR_USD = 10.0
 CRYPTO_NEAR_GRADUATION_WR_FLOOR = 0.405
+CRYPTO_NEAR_GRADUATION_PROFIT_LOCK_USD = 1.5
+
+
+def crypto_near_graduation_nudge(
+  bot_type: str,
+  shadow_mode: bool,
+  bot_win_rate: float | None,
+  profit_factor: float | None,
+  total_pnl: float | None,
+) -> bool:
+  """Crypto shadow is near graduation WR with acceptable PF — rotate winners faster."""
+  from app.engines.profitability_gate import ProfitabilityGate
+
+  if not shadow_mode or bot_type != "crypto":
+    return False
+  if bot_win_rate is None or profit_factor is None or total_pnl is None:
+    return False
+  return (
+    profit_factor >= PROFITABLE_SHADOW_MIN_PF
+    and total_pnl > -CRYPTO_NEAR_GRADUATION_PNL_FLOOR_USD
+    and bot_win_rate >= CRYPTO_NEAR_GRADUATION_WR_FLOOR
+    and bot_win_rate < ProfitabilityGate.GRADUATION_MIN_WIN_RATE
+  )
 
 
 def shadow_min_signal_boost(
@@ -933,6 +956,14 @@ def shadow_graduation_profit_lock(
     and commodities_futures_weekend_closed()
   ):
     threshold = min(threshold, COMMODITIES_WEEKEND_SPOT_PROFIT_LOCK_USD)
+  if crypto_near_graduation_nudge(
+    bot_type,
+    shadow_mode,
+    bot_win_rate,
+    profit_factor,
+    total_pnl,
+  ):
+    threshold = min(threshold, CRYPTO_NEAR_GRADUATION_PROFIT_LOCK_USD)
   return unrealized >= threshold
 
 

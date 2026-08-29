@@ -1031,6 +1031,17 @@ def test_shadow_graduation_profit_lock():
     bot_win_rate=0.45,
     profit_factor=0.98,
     total_pnl=10.0,
+  ) is True
+  assert shadow_graduation_profit_lock(
+    graduation_nudge=True,
+    shadow_mode=True,
+    bot_type="crypto",
+    unrealized=1.0,
+    held_seconds=900,
+    min_hold_seconds=900,
+    bot_win_rate=0.45,
+    profit_factor=0.98,
+    total_pnl=10.0,
   ) is False
   assert shadow_graduation_profit_lock(
     graduation_nudge=True,
@@ -1053,6 +1064,28 @@ def test_shadow_graduation_profit_lock():
     bot_win_rate=0.423,
     profit_factor=0.98,
     total_pnl=-1.89,
+  ) is True
+  assert shadow_graduation_profit_lock(
+    graduation_nudge=True,
+    shadow_mode=True,
+    bot_type="crypto",
+    unrealized=1.6,
+    held_seconds=900,
+    min_hold_seconds=900,
+    bot_win_rate=0.416,
+    profit_factor=0.96,
+    total_pnl=-4.85,
+  ) is True
+  assert shadow_graduation_profit_lock(
+    graduation_nudge=True,
+    shadow_mode=True,
+    bot_type="crypto",
+    unrealized=1.2,
+    held_seconds=900,
+    min_hold_seconds=900,
+    bot_win_rate=0.416,
+    profit_factor=0.96,
+    total_pnl=-4.85,
   ) is False
   assert shadow_graduation_profit_lock(
     graduation_nudge=True,
