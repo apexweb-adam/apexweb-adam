@@ -706,12 +706,27 @@ def shadow_intel_composite_override(
   entry_min_signal: float,
   integration_boost: float,
   whale_aligned: bool = False,
+  bot_win_rate: float | None = None,
+  profit_factor: float | None = None,
+  total_pnl: float | None = None,
 ) -> bool:
   """Allow shadow long when intel composite is strong despite technical sell/hold."""
   if not graduation_nudge_easing_active(
     bot_type,
     graduation_nudge=graduation_nudge,
     shadow_mode=shadow_mode,
+  ):
+    return False
+  if (
+    bot_type == "crypto"
+    and shadow_mode
+    and not crypto_graduation_entry_ease_active(
+      bot_type,
+      shadow_mode,
+      bot_win_rate,
+      profit_factor,
+      total_pnl,
+    )
   ):
     return False
   composite_floor = SHADOW_INTEL_COMPOSITE_FLOOR_BY_BOT.get(
@@ -767,6 +782,9 @@ def graduation_nudge_min_sentiment(
   *,
   graduation_nudge: bool,
   shadow_mode: bool,
+  bot_win_rate: float | None = None,
+  profit_factor: float | None = None,
+  total_pnl: float | None = None,
 ) -> float:
   """Ease sentiment floor during graduation nudge for shadow and active gate bots."""
   if not graduation_nudge:
@@ -774,7 +792,17 @@ def graduation_nudge_min_sentiment(
   ease = GRADUATION_NUDGE_SENTIMENT_EASE_BY_BOT.get(bot_type, 0.0)
   if ease <= 0:
     return base_min_sentiment
-  if shadow_mode and bot_type in ("crypto", "commodities"):
+  if shadow_mode and bot_type == "crypto":
+    if not crypto_graduation_entry_ease_active(
+      bot_type,
+      shadow_mode,
+      bot_win_rate,
+      profit_factor,
+      total_pnl,
+    ):
+      return base_min_sentiment
+    return max(0.0, base_min_sentiment - ease)
+  if shadow_mode and bot_type == "commodities":
     return max(0.0, base_min_sentiment - ease)
   if not shadow_mode and bot_type in ACTIVE_GATE_GRADUATION_NUDGE_BOTS:
     return max(0.0, base_min_sentiment - ease)

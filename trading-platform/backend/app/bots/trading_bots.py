@@ -334,6 +334,9 @@ class BaseBot(ABC):
         min_sentiment,
         graduation_nudge=graduation_nudge,
         shadow_mode=shadow_mode,
+        bot_win_rate=bot_wr,
+        profit_factor=per_bot_stats.get("profit_factor"),
+        total_pnl=per_bot_stats.get("total_pnl"),
       )
       from app.engines.gate_entry_guard import shadow_max_open_for_bot
 
@@ -956,6 +959,9 @@ class BaseBot(ABC):
           entry_min_signal=entry_min_signal,
           integration_boost=integration_boost,
           whale_aligned=whale_memecoin_aligned(integration_reason, integration_boost),
+          bot_win_rate=per_bot_stats.get("win_rate"),
+          profit_factor=per_bot_stats.get("profit_factor"),
+          total_pnl=per_bot_stats.get("total_pnl"),
         )
 
         if stocks_negative_pf_blocks_entry(

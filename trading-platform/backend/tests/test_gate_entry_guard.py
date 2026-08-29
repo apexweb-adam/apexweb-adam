@@ -128,6 +128,11 @@ def test_shadow_intel_composite_override_commodities_nudge():
 
 
 def test_shadow_intel_composite_override_crypto_high_composite_only():
+  strong_momentum = dict(
+    bot_win_rate=0.50,
+    profit_factor=1.25,
+    total_pnl=31.0,
+  )
   assert shadow_intel_composite_override(
     "crypto",
     graduation_nudge=True,
@@ -135,6 +140,7 @@ def test_shadow_intel_composite_override_crypto_high_composite_only():
     composite=0.48,
     entry_min_signal=0.26,
     integration_boost=0.0,
+    **strong_momentum,
   ) is True
   assert shadow_intel_composite_override(
     "crypto",
@@ -143,6 +149,7 @@ def test_shadow_intel_composite_override_crypto_high_composite_only():
     composite=0.44,
     entry_min_signal=0.26,
     integration_boost=0.0,
+    **strong_momentum,
   ) is False
   assert shadow_intel_composite_override(
     "crypto",
@@ -151,6 +158,7 @@ def test_shadow_intel_composite_override_crypto_high_composite_only():
     composite=0.33,
     entry_min_signal=0.26,
     integration_boost=0.14,
+    **strong_momentum,
   ) is True
   assert shadow_intel_composite_override(
     "crypto",
@@ -159,6 +167,25 @@ def test_shadow_intel_composite_override_crypto_high_composite_only():
     composite=0.30,
     entry_min_signal=0.26,
     integration_boost=0.14,
+    **strong_momentum,
+  ) is False
+
+
+def test_shadow_intel_composite_override_crypto_blocked_during_momentum_retreat():
+  retreat = dict(
+    bot_win_rate=0.464,
+    profit_factor=1.1,
+    total_pnl=14.0,
+  )
+  assert shadow_intel_composite_override(
+    "crypto",
+    graduation_nudge=True,
+    shadow_mode=True,
+    composite=0.48,
+    entry_min_signal=0.26,
+    integration_boost=0.14,
+    whale_aligned=True,
+    **retreat,
   ) is False
 
 
@@ -183,6 +210,9 @@ def test_shadow_intel_composite_override_whale_aligned_crypto():
     entry_min_signal=0.26,
     integration_boost=0.14,
     whale_aligned=True,
+    bot_win_rate=0.50,
+    profit_factor=1.25,
+    total_pnl=31.0,
   ) is True
 
 
@@ -1510,8 +1540,26 @@ def test_graduation_nudge_min_sentiment_eases_shadow_crypto():
     0.10,
     graduation_nudge=True,
     shadow_mode=True,
+    bot_win_rate=0.50,
+    profit_factor=1.25,
+    total_pnl=31.0,
   )
   assert eased == pytest.approx(0.06)
+
+
+def test_graduation_nudge_min_sentiment_unchanged_during_crypto_momentum_retreat():
+  from app.engines.gate_entry_guard import graduation_nudge_min_sentiment
+
+  unchanged = graduation_nudge_min_sentiment(
+    "crypto",
+    0.10,
+    graduation_nudge=True,
+    shadow_mode=True,
+    bot_win_rate=0.464,
+    profit_factor=1.1,
+    total_pnl=14.0,
+  )
+  assert unchanged == pytest.approx(0.10)
 
 
 def test_commodities_graduation_entry_min_signal_bullish_ease():
