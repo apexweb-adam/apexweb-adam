@@ -15,6 +15,8 @@ INTEGRATION_SOURCES = (
   "hyperliquid",
   "dexscreener",
   "fomo",
+  "axiom",
+  "phantom",
 )
 MAX_AGE_HOURS = 24
 
@@ -78,6 +80,10 @@ async def get_integration_boost(session: AsyncSession, symbol: str) -> tuple[flo
       weight = 0.14
     if item.source == "fomo":
       weight = 0.24 if item.relevance_score >= 0.88 else 0.18
+    if item.source == "axiom":
+      weight = 0.26 if item.relevance_score >= 0.88 else 0.20
+    if item.source == "phantom":
+      weight = 0.18
     fetched = item.fetched_at
     if fetched and fetched.tzinfo is not None:
       fetched = fetched.replace(tzinfo=None)
@@ -90,12 +96,16 @@ async def get_integration_boost(session: AsyncSession, symbol: str) -> tuple[flo
   dex_bullish = any(i.source == "dexscreener" and i.sentiment > 0.1 for i in items)
   hl_bullish = any(i.source == "hyperliquid" and i.sentiment > 0.1 for i in items)
   fomo_bullish = any(i.source == "fomo" and i.sentiment > 0.1 for i in items)
+  axiom_bullish = any(i.source == "axiom" and i.sentiment > 0.1 for i in items)
   if dex_bullish and hl_bullish:
     boost += 0.06
     reasons.append("memecoin_confluence:+0.06")
   if fomo_bullish and (dex_bullish or hl_bullish):
     boost += 0.05
     reasons.append("fomo_leader_confluence:+0.05")
+  if axiom_bullish and (dex_bullish or fomo_bullish):
+    boost += 0.05
+    reasons.append("axiom_wallet_confluence:+0.05")
 
   boost = max(-0.25, min(0.25, boost))
   return boost, "; ".join(reasons[:3])

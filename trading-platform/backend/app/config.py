@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     etherscan_api_key: str = ""
     wallet_tracker_min_usd: float = 5_000.0
     wallet_tracker_use_blockscout_fallback: bool = True
+    wallet_tracker_min_wallets: int = 8
     solana_rpc_url: str = "https://api.mainnet-beta.solana.com"
     memecoin_min_liquidity_usd: float = 25_000.0
     hyperliquid_enabled: bool = True
@@ -35,6 +36,19 @@ class Settings(BaseSettings):
     fomo_hot_symbol_min_relevance: float = 0.80
     fomo_bearer_token: str = ""
     fomo_poll_limit: int = 25
+
+    # axiom.trade memecoin terminal (webhook + optional session polling)
+    axiom_enabled: bool = True
+    axiom_session_token: str = ""
+    axiom_wallet_addresses: str = ""
+    axiom_hot_symbols_enabled: bool = True
+    axiom_hot_symbols_max: int = 10
+    axiom_hot_symbol_min_relevance: float = 0.78
+    axiom_poll_limit: int = 30
+
+    # Phantom wallet bridge (webhook — MCP is docs-only in Cursor)
+    phantom_enabled: bool = True
+    phantom_wallet_addresses: str = ""
 
     # Integrations
     tradingview_webhook_secret: str = ""

@@ -137,6 +137,8 @@ def _is_trading_relevant_intel(title: str, content: str, source: str) -> bool:
 
 LIVE_INTEL_SOURCES = (
   "fomo",
+  "axiom",
+  "phantom",
   "dexscreener",
   "hyperliquid",
   "wallet_tracker",
@@ -162,6 +164,32 @@ def _extract_live_intel_impact(source: str, title: str, content: str, symbols: s
       return (
         f"fomo.family sell signal on {sym} — crypto bot: tighten stop-loss and avoid chasing leaderboard exits",
         min(0.8, relevance * 0.8 + abs(sentiment) * 0.2),
+      )
+    return None
+
+  if source == "axiom":
+    if sentiment > 0.15:
+      return (
+        f"axiom.trade multi-wallet buy on {sym} — crypto bot: require liquidity + volume before mirroring smart-money entries",
+        min(0.87, relevance * 0.88 + abs(sentiment) * 0.2),
+      )
+    if sentiment < -0.15:
+      return (
+        f"axiom.trade wallet distribution on {sym} — crypto bot: tighten stop-loss; avoid chasing wallet exits",
+        min(0.82, relevance * 0.85),
+      )
+    return None
+
+  if source == "phantom":
+    if sentiment > 0.1 or "accumul" in text or "buy" in text:
+      return (
+        f"Phantom wallet accumulation on {sym} — crypto bot: treat portfolio moves as sentiment input with TA confirmation",
+        min(0.8, relevance * 0.86),
+      )
+    if sentiment < -0.1 or "sell" in text or "dump" in text:
+      return (
+        f"Phantom wallet distribution on {sym} — crypto bot: reduce size on wallet-led exits",
+        min(0.78, relevance * 0.82),
       )
     return None
 

@@ -264,7 +264,7 @@ async def ingest_wallet_webhook(session: AsyncSession, payload: dict) -> dict:
   chain = str(payload.get("chain", "ethereum"))
   tx_hash = str(payload.get("tx_hash", payload.get("hash", ""))).strip()
   source = str(payload.get("source", "wallet_tracker"))
-  if source not in ("wallet_tracker", "x", "reddit"):
+  if source not in ("wallet_tracker", "x", "reddit", "axiom", "phantom"):
     source = "wallet_tracker"
 
   if action in ("buy", "in", "accumulate", "deposit"):

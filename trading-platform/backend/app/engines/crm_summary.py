@@ -9,7 +9,9 @@ from app.config import settings
 from app.config import BOT_TYPES
 from app.engines.gate_entry_guard import build_gate_ws_payload
 from app.engines.platform_settings import get_paused_bot_types
+from app.intelligence.axiom_tracker import axiom_configured, get_axiom_session_status
 from app.intelligence.fomo_tracker import fomo_configured, get_fomo_bearer_status
+from app.intelligence.phantom_tracker import phantom_configured
 from app.intelligence.wallet_tracker import wallet_tracker_configured
 from app.models.entities import IntelligenceItem, Position
 
@@ -41,6 +43,7 @@ async def build_crm_integration_hooks(session: AsyncSession) -> dict[str, Any]:
   pm_wallet = bool(settings.polymarket_wallet_address or settings.polymarket_deposit_address)
   pm_api = bool(settings.polymarket_api_key)
   fomo_bearer = await get_fomo_bearer_status(session)
+  axiom_session = await get_axiom_session_status(session)
 
   return {
     "tradingview": {
@@ -68,6 +71,21 @@ async def build_crm_integration_hooks(session: AsyncSession) -> dict[str, Any]:
       "bearer_polling_active": bool(fomo_bearer.get("polling_active")),
       "bearer_expires_at": fomo_bearer.get("expires_at"),
       "bearer_minutes_remaining": fomo_bearer.get("minutes_remaining"),
+    },
+    "axiom": {
+      "configured": axiom_configured(),
+      "webhook_url": "https://apex-trading-backend.onrender.com/api/webhooks/axiom",
+      "userscript_url": "https://apex-trading-backend.onrender.com/api/axiom/userscript",
+      "session_configured": bool(axiom_session.get("configured")),
+      "session_polling_active": bool(axiom_session.get("polling_active")),
+      "multi_wallet_ready": bool(axiom_session.get("multi_wallet_ready")),
+      "tracked_wallets": axiom_session.get("tracked_wallets"),
+      "min_wallets_required": settings.wallet_tracker_min_wallets,
+    },
+    "phantom": {
+      "configured": phantom_configured(),
+      "webhook_url": "https://apex-trading-backend.onrender.com/api/webhooks/phantom",
+      "note": "Phantom MCP in Cursor is docs-only — forward wallet events via webhook bridge",
     },
   }
 

@@ -25,6 +25,8 @@ BOT_SOURCE_WEIGHTS: dict[str, dict[str, float]] = {
     "dexscreener": 1.55,
     "hyperliquid": 1.35,
     "fomo": 1.65,
+    "axiom": 1.7,
+    "phantom": 1.4,
   },
   "stocks_futures": {
     "news": 1.25,

@@ -472,7 +472,7 @@ async def setup_scheduler() -> None:
     if synced:
       print(f"[Strategy] Synced strategy version on {synced} bot(s)")
   scheduler.add_job(intelligence_job, "interval", minutes=5, id="intelligence_scan")
-  scheduler.add_job(content_study_job, "interval", hours=2, id="content_study")
+  scheduler.add_job(content_study_job, "interval", hours=1, id="content_study")
   scheduler.add_job(risk_migration_job, "interval", minutes=15, id="risk_migration")
   scheduler.add_job(redeploy_check_job, "interval", hours=6, id="redeploy_check")
   scheduler.add_job(

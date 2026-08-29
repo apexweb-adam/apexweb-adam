@@ -20,6 +20,8 @@ def _target_bot_types_from_impact(impact: str) -> set[str] | None:
       "crypto entries",
       "memecoin",
       "fomo",
+      "axiom",
+      "phantom",
       "dexscreener",
       "hyperliquid",
       "whale",
@@ -92,7 +94,9 @@ class LearningEngine:
       lessons.append("Use smaller positions during high-volatility periods")
 
     reason_lower = (trade.reason or "").lower()
-    fomo_driven = "fomo" in reason_lower or await self._had_fomo_intel(trade.symbol, trade.executed_at)
+    fomo_driven = "fomo" in reason_lower or await self._had_source_intel(trade.symbol, trade.executed_at, "fomo")
+    axiom_driven = "axiom" in reason_lower or await self._had_source_intel(trade.symbol, trade.executed_at, "axiom")
+    phantom_driven = "phantom" in reason_lower or await self._had_source_intel(trade.symbol, trade.executed_at, "phantom")
     if fomo_driven:
       root_causes.append("Entry aligned with fomo.family leaderboard copy-trade signal")
       if trade.signal_score < 0.55:
@@ -103,6 +107,20 @@ class LearningEngine:
         root_causes.append("fomo signal present but aggregate sentiment was weak")
         adjustments.append("Require higher sentiment floor for fomo-driven crypto entries")
         lessons.append("Cross-check fomo copy signals with news/social sentiment before entry")
+
+    if axiom_driven:
+      root_causes.append("Entry aligned with axiom.trade multi-wallet smart-money signal")
+      if trade.signal_score < 0.55:
+        adjustments.append("Require stronger technical score when mirroring axiom wallet trades")
+        lessons.append("Treat axiom wallet buys as intel — confirm liquidity and volume before entry")
+      elif trade.sentiment_score < 0.45:
+        adjustments.append("Require higher sentiment floor for axiom-driven memecoin entries")
+        lessons.append("Cross-check axiom wallet signals with DexScreener/Hyperliquid before entry")
+
+    if phantom_driven:
+      root_causes.append("Entry influenced by Phantom wallet portfolio / watchlist intel")
+      adjustments.append("Require TA confirmation when acting on Phantom portfolio moves")
+      lessons.append("Phantom wallet changes are sentiment input — not a standalone entry trigger")
 
     if trade.bot_type == "stocks_futures":
       if "macd" in reason_lower and "bearish" in reason_lower:
@@ -297,8 +315,8 @@ class LearningEngine:
       await self.session.commit()
     return dismissed
 
-  async def _had_fomo_intel(self, symbol: str, at_time: datetime | None) -> bool:
-    """True when recent fomo.family intel mentioned this symbol near trade time."""
+  async def _had_source_intel(self, symbol: str, at_time: datetime | None, source: str) -> bool:
+    """True when recent intel from a source mentioned this symbol near trade time."""
     from datetime import timedelta
 
     base = at_time or datetime.utcnow()
@@ -307,7 +325,7 @@ class LearningEngine:
     result = await self.session.execute(
       select(IntelligenceItem)
       .where(
-        IntelligenceItem.source == "fomo",
+        IntelligenceItem.source == source,
         IntelligenceItem.fetched_at >= cutoff,
       )
       .order_by(IntelligenceItem.fetched_at.desc())
@@ -318,6 +336,9 @@ class LearningEngine:
       if needle in mentioned or symbol.upper() in mentioned:
         return True
     return False
+
+  async def _had_fomo_intel(self, symbol: str, at_time: datetime | None) -> bool:
+    return await self._had_source_intel(symbol, at_time, "fomo")
 
   async def _get_market_context(self, symbol: str, at_time: datetime) -> str:
     needle = symbol.replace("USDT", "").replace("=F", "").upper()
@@ -330,12 +351,16 @@ class LearningEngine:
     items = list(result.scalars().all())
     if not items:
       return "No recent intelligence data for this symbol"
-    fomo_first = sorted(items, key=lambda i: (0 if i.source == "fomo" else 1, -i.fetched_at.timestamp()))
+    priority_sources = {"fomo", "axiom", "phantom"}
+    ordered = sorted(
+      items,
+      key=lambda i: (0 if i.source in priority_sources else 1, -i.fetched_at.timestamp()),
+    )
     parts: list[str] = []
-    for item in fomo_first[:5]:
+    for item in ordered[:5]:
       tag = item.source
-      if item.source == "fomo" and item.title:
-        tag = f"fomo:{item.title[:48]}"
+      if item.source in priority_sources and item.title:
+        tag = f"{item.source}:{item.title[:48]}"
       parts.append(f"[{tag}] {item.title}")
     return " | ".join(parts)
 

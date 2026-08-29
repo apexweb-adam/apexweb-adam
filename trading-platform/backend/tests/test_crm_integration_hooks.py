@@ -18,6 +18,9 @@ def test_build_crm_integration_hooks_reports_tv_and_polymarket():
     mock_settings.polymarket_api_key = "pm-key"
     mock_settings.polymarket_profile_url = "https://polymarket.com/@apexweb"
     mock_settings.fomo_enabled = True
+    mock_settings.axiom_enabled = True
+    mock_settings.phantom_enabled = True
+    mock_settings.wallet_tracker_min_wallets = 8
     with patch(
       "app.engines.crm_summary.wallet_tracker_configured",
       return_value=True,
@@ -37,7 +40,26 @@ def test_build_crm_integration_hooks_reports_tv_and_polymarket():
             }
           ),
         ):
-          result = asyncio.run(build_crm_integration_hooks(session))
+          with patch(
+            "app.engines.crm_summary.axiom_configured",
+            return_value=True,
+          ):
+            with patch(
+              "app.engines.crm_summary.phantom_configured",
+              return_value=True,
+            ):
+              with patch(
+                "app.engines.crm_summary.get_axiom_session_status",
+                AsyncMock(
+                  return_value={
+                    "configured": False,
+                    "polling_active": False,
+                    "multi_wallet_ready": True,
+                    "tracked_wallets": 8,
+                  }
+                ),
+              ):
+                result = asyncio.run(build_crm_integration_hooks(session))
 
   assert result["tradingview"]["configured"] is True
   assert result["tradingview"]["items"] == 12
@@ -47,6 +69,9 @@ def test_build_crm_integration_hooks_reports_tv_and_polymarket():
   assert result["wallet_tracker"]["configured"] is True
   assert result["fomo"]["configured"] is True
   assert "webhooks/fomo" in result["fomo"]["webhook_url"]
+  assert result["axiom"]["configured"] is True
+  assert result["axiom"]["multi_wallet_ready"] is True
+  assert result["phantom"]["configured"] is True
 
 
 def test_crm_landing_includes_integration_hooks():

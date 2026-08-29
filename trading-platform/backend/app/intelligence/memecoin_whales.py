@@ -19,9 +19,17 @@ DEFAULT_ETH_WHALE_ADDRESSES: tuple[str, ...] = (
 )
 
 # Solana exchange / MM wallets — memecoin flow often routes through these.
+# Minimum 8 wallets for multi-wallet memecoin intel (axiom-style tracking).
 DEFAULT_SOLANA_WHALE_ADDRESSES: tuple[str, ...] = (
   "5tzFkiKscXHK5ZXCGbXZxdw7gTjjD1mBwuoFbhUvuAi9",  # Binance hot wallet (SOL)
   "H6ARHf6YXhGYeQfUzQNGk6rDNnLBQKrenN712K4AQJEG",  # Wintermute (SOL)
   "AC5RDfqfM4Si9JDM1GmKnd6oc6o56a25GSv6uQJBATqN",  # Jump Crypto (SOL)
   "2AQdpHJ2JpcEgPiATMGQUBpUjJdkvT35nocSx8dH1kE",  # Coinbase hot (SOL)
+  "9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM",  # Binance SOL wallet 2
+  "GThUX1AtNjJpZxNjBwxZC5vFiSfN8qsFZk7t1R9EjLed",  # Jupiter team treasury
+  "FWrfYn6T6QdKhQx18GRnTR28N5SZn2jzoWYNWs9oqxx5",  # High-activity SOL MM
+  "CuieVDEDcL17Pmn5CrM83MunMzHKtGQuj9BXUp2ee4Sc",  # Ecosystem whale router
 )
+
+# Curated smart-money wallets often tracked on axiom.trade (override via AXIOM_WALLET_ADDRESSES).
+DEFAULT_AXIOM_TRACKED_WALLETS: tuple[str, ...] = DEFAULT_SOLANA_WHALE_ADDRESSES
