@@ -1648,3 +1648,58 @@ def test_commodities_weekend_flat_forex_wind_down_near_cap():
     assert commodities_monday_cap_pressure_flat_wind_down(
       unrealized=0.0, **{**base, "open_count": 2}
     ) is False
+
+
+def test_commodities_flat_wind_down_skips_spot_gold_proxies():
+  from datetime import datetime
+
+  from app.engines.gate_entry_guard import commodities_monday_cap_pressure_flat_wind_down
+
+  tightening = GateEntryTightening(
+    active=False,
+    win_rate=0.45,
+    min_sentiment=0.0,
+    require_macd_bullish=False,
+    min_composite_boost=0.0,
+    max_commodities_open_positions=3,
+  )
+  base = dict(
+    bot_type="commodities",
+    shadow_mode=False,
+    graduation_nudge=True,
+    held_seconds=600,
+    min_hold_seconds=180,
+    open_count=3,
+    gate_tightening=tightening,
+  )
+  with patch("app.engines.gate_entry_guard.datetime") as mock_dt:
+    mock_dt.utcnow.return_value = datetime(2026, 8, 29, 14, 0, 0)
+    mock_dt.side_effect = lambda *a, **k: datetime(*a, **k)
+    assert commodities_monday_cap_pressure_flat_wind_down(
+      unrealized=0.08, **{**base, "symbol": "PAXGUSDT"}
+    ) is False
+    assert commodities_monday_cap_pressure_flat_wind_down(
+      unrealized=0.0, **{**base, "symbol": "XAUUSDT"}
+    ) is False
+
+
+def test_commodities_weekend_forex_entry_blocked():
+  from datetime import datetime
+
+  from app.engines.gate_entry_guard import commodities_weekend_forex_entry_blocked
+
+  base = dict(
+    bot_type="commodities",
+    shadow_mode=False,
+    graduation_nudge=True,
+  )
+  with patch("app.engines.gate_entry_guard.datetime") as mock_dt:
+    mock_dt.utcnow.return_value = datetime(2026, 8, 29, 14, 0, 0)
+    mock_dt.side_effect = lambda *a, **k: datetime(*a, **k)
+    assert commodities_weekend_forex_entry_blocked(**base, symbol="EURUSD=X") is True
+    assert commodities_weekend_forex_entry_blocked(**base, symbol="NG=F") is False
+    assert commodities_weekend_forex_entry_blocked(**base, symbol="PAXGUSDT") is False
+  with patch("app.engines.gate_entry_guard.datetime") as mock_dt:
+    mock_dt.utcnow.return_value = datetime(2026, 8, 31, 14, 0, 0)
+    mock_dt.side_effect = lambda *a, **k: datetime(*a, **k)
+    assert commodities_weekend_forex_entry_blocked(**base, symbol="EURUSD=X") is False

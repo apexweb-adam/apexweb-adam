@@ -980,9 +980,7 @@ def commodities_cap_pressure_loser_wind_down(
   """Free gate slots by exiting small futures/forex losers when commodities is at open cap."""
   if shadow_mode or bot_type not in ACTIVE_GATE_GRADUATION_NUDGE_BOTS or not graduation_nudge:
     return False
-  from app.engines.market_data import CRYPTO_LIVE_PRICE_PROXY
-
-  if symbol in CRYPTO_LIVE_PRICE_PROXY:
+  if symbol in COMMODITIES_WEEKEND_SPOT_SYMBOLS:
     return False
   cap = commodities_effective_open_cap(
     gate_tightening.max_commodities_open_positions,
@@ -1014,9 +1012,7 @@ def commodities_monday_cap_pressure_flat_wind_down(
     return False
   if is_commodities_futures_symbol(symbol):
     return False
-  from app.engines.market_data import CRYPTO_LIVE_PRICE_PROXY
-
-  if symbol in CRYPTO_LIVE_PRICE_PROXY:
+  if symbol in COMMODITIES_WEEKEND_SPOT_SYMBOLS:
     return False
   cap = commodities_effective_open_cap(
     gate_tightening.max_commodities_open_positions,
@@ -2026,6 +2022,23 @@ def commodities_weekend_stale_signal_exit_blocked(
 def commodities_weekend_futures_entry_blocked(symbol: str) -> bool:
   """Block new CME futures entries on stale weekend Yahoo feeds."""
   return is_commodities_futures_symbol(symbol) and commodities_futures_weekend_closed()
+
+
+def commodities_weekend_forex_entry_blocked(
+  *,
+  bot_type: str,
+  shadow_mode: bool,
+  symbol: str,
+  graduation_nudge: bool,
+) -> bool:
+  """Block idle forex re-entry during weekend prep — reserve slots for CME recovery futures."""
+  if shadow_mode or bot_type != "commodities" or not graduation_nudge:
+    return False
+  if not commodities_futures_weekend_closed():
+    return False
+  if is_commodities_futures_symbol(symbol) or symbol in COMMODITIES_WEEKEND_SPOT_SYMBOLS:
+    return False
+  return symbol.endswith("=X")
 
 
 def commodities_session_info() -> dict[str, Any]:

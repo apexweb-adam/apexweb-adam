@@ -66,6 +66,7 @@ from app.engines.gate_entry_guard import (
   stocks_session_info,
   commodities_weekend_stale_signal_exit_blocked,
   commodities_weekend_futures_entry_blocked,
+  commodities_weekend_forex_entry_blocked,
   GATE_INDEX_ETF_SYMBOLS,
   HardGateSkipSets,
 )
@@ -989,6 +990,14 @@ class BaseBot(ABC):
         )
 
         if commodities_weekend_futures_entry_blocked(symbol):
+          continue
+
+        if commodities_weekend_forex_entry_blocked(
+          bot_type=self.bot_type,
+          shadow_mode=shadow_mode,
+          symbol=symbol,
+          graduation_nudge=graduation_nudge,
+        ):
           continue
 
         if gate_cap_pressure_proxy_entry_blocked(

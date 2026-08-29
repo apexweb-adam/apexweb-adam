@@ -70,14 +70,17 @@ def select_commodities_excess_trim_targets(
 
 def _commodities_graduation_excess_trim_rank(pos: Position) -> tuple[int, float]:
   """During graduation nudge, free slots for recovery futures — trim flat/losers before spot profits."""
-  from app.engines.gate_entry_guard import is_commodities_futures_symbol
+  from app.engines.gate_entry_guard import (
+    is_commodities_futures_symbol,
+    COMMODITIES_WEEKEND_SPOT_SYMBOLS,
+  )
   from app.engines.market_data import CRYPTO_LIVE_PRICE_PROXY
 
   u = _commodities_position_unrealized(pos)
   symbol = pos.symbol
   if u <= -COMMODITIES_EXCESS_TRIM_MAX_LOSS_USD:
     return (9, u)
-  if symbol in CRYPTO_LIVE_PRICE_PROXY:
+  if symbol in COMMODITIES_WEEKEND_SPOT_SYMBOLS or symbol in CRYPTO_LIVE_PRICE_PROXY:
     if u >= 0:
       return (4, -u)
     return (3, u)
