@@ -1010,6 +1010,22 @@ def test_prioritize_commodities_monday_scan_graduation_nudge():
   assert "SI=F" in ordered
 
 
+def test_prioritize_commodities_monday_scan_reopen_imminent_futures_first():
+  from app.engines.gate_entry_guard import prioritize_commodities_monday_scan
+
+  symbols = ["CL=F", "SI=F", "NG=F", "HG=F", "XAUUSDT"]
+  session = {"in_session": False, "minutes_until_open": 20, "minutes_since_open": 0}
+  ordered = prioritize_commodities_monday_scan(
+    symbols,
+    chronic_losers=frozenset({"SI=F"}),
+    proven_winners=frozenset({"CL=F"}),
+    session_info=session,
+    graduation_nudge=True,
+  )
+  assert ordered[0] == "NG=F"
+  assert ordered.index("CL=F") < ordered.index("SI=F")
+
+
 def test_prioritize_stocks_monday_scan_pre_session():
   from app.engines.gate_entry_guard import prioritize_stocks_monday_scan
 

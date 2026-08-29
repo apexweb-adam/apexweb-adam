@@ -3449,7 +3449,26 @@ def prioritize_commodities_monday_scan(
   session_info: dict[str, Any],
   graduation_nudge: bool = False,
 ) -> list[str]:
-  """Scan chronic CME futures first ahead of Monday reopen / open hour."""
+  """Scan chronic CME futures first ahead of Monday reopen / open hour.
+
+  During the imminent reopen window, futures leaders (NG=F first) scan before
+  chronic-loser recovery so open-ready symbols enter as soon as CME reopens.
+  """
+  if (
+    graduation_nudge
+    and commodities_reopen_imminent_scan_active(
+      session_info,
+      graduation_nudge=graduation_nudge,
+    )
+  ):
+    futures_ordered = _apply_commodities_monday_futures_order(
+      [s for s in symbols if is_commodities_futures_symbol(s)]
+    )
+    non_futures = [s for s in symbols if not is_commodities_futures_symbol(s)]
+    winners = [s for s in non_futures if s in proven_winners]
+    rest = [s for s in non_futures if s not in winners]
+    return futures_ordered + winners + rest
+
   recovery = [
     s for s in symbols
     if s in chronic_losers and is_commodities_futures_symbol(s)
