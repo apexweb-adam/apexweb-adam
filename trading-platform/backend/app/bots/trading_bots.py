@@ -27,6 +27,7 @@ from app.engines.gate_entry_guard import (
   hard_skip_blocks_shadow_entry,
   bot_win_rate_for_graduation_nudge,
   commodities_graduation_entry_min_signal,
+  crypto_graduation_entry_min_signal,
   graduation_nudge_min_sentiment,
   graduation_nudge_sentiment_ok,
   in_shadow_graduation_nudge,
@@ -643,6 +644,14 @@ class BaseBot(ABC):
           symbol=symbol,
           proven_winners=proven_winners,
         )
+        entry_min_signal = crypto_graduation_entry_min_signal(
+          entry_min_signal,
+          bot_type=self.bot_type,
+          graduation_nudge=graduation_nudge,
+          shadow_mode=shadow_mode,
+          signal_direction=signal.direction,
+          macd_signal=signal.macd_signal,
+        )
 
         intel_override = shadow_intel_composite_override(
           self.bot_type,
@@ -763,6 +772,8 @@ class BaseBot(ABC):
             min_sentiment=min_sentiment,
             composite=composite,
             entry_min_signal=entry_min_signal,
+            signal_direction=signal.direction,
+            macd_signal=signal.macd_signal,
           )
           and (shadow_mode or self.bot_type not in gate_tightening.blocked_new_entries)
         ):
