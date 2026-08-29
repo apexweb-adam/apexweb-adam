@@ -112,6 +112,7 @@ async def stocks_pre_session_prep_job() -> None:
   from app.engines.gate_entry_guard import (
     get_chronic_loser_symbols,
     get_proven_winner_symbols,
+    stocks_pre_session_prep_window_minutes,
     stocks_session_info,
     stocks_trade_count_graduation_nudge,
   )
@@ -124,23 +125,27 @@ async def stocks_pre_session_prep_job() -> None:
     return
 
   minutes_until_open = session_info.get("minutes_until_open")
-  if minutes_until_open is None or minutes_until_open > 90:
+  if minutes_until_open is None:
     return
 
   async with SessionLocal() as session:
     shadow_mode = await is_bot_paused(session, "stocks_futures")
     per_bot = (await ProfitabilityGate(session).evaluate_per_bot()).get("stocks_futures") or {}
-    winners = await get_proven_winner_symbols(session, "stocks_futures")
-    chronic = await get_chronic_loser_symbols(session, "stocks_futures")
     trade_count_nudge = stocks_trade_count_graduation_nudge(
       "stocks_futures",
       shadow_mode,
       per_bot.get("win_rate"),
       int(per_bot.get("total_trades") or 0),
     )
+    prep_window = stocks_pre_session_prep_window_minutes(trade_count_nudge)
+    if minutes_until_open > prep_window:
+      return
+
+    winners = await get_proven_winner_symbols(session, "stocks_futures")
+    chronic = await get_chronic_loser_symbols(session, "stocks_futures")
     base_symbols = set(winners) | set(chronic) | {"NVDA"}
     if trade_count_nudge and winners:
-      symbols = list(winners) + sorted(base_symbols - set(winners))
+      symbols = sorted(winners) + sorted(base_symbols - set(winners))
     else:
       symbols = sorted(base_symbols)
     refreshed = await refresh_tradingview_signals(
@@ -197,6 +202,7 @@ COMMODITIES_PREP_SYMBOLS = ("CL=F", "SI=F", "NG=F", "GC=F", "HG=F")
 async def commodities_pre_session_prep_job() -> None:
   """90 min before CME futures reopen: refresh TradingView boosts for key commodities."""
   from app.engines.gate_entry_guard import (
+    commodities_pre_session_prep_window_minutes,
     commodities_session_info,
     get_chronic_loser_symbols,
     get_proven_winner_symbols,
@@ -211,7 +217,7 @@ async def commodities_pre_session_prep_job() -> None:
     return
 
   minutes_until_open = session_info.get("minutes_until_open")
-  if minutes_until_open is None or minutes_until_open > 90:
+  if minutes_until_open is None:
     return
 
   async with SessionLocal() as session:
@@ -223,6 +229,10 @@ async def commodities_pre_session_prep_job() -> None:
       profit_factor=per_bot.get("profit_factor"),
       total_pnl=per_bot.get("total_pnl"),
     )
+    prep_window = commodities_pre_session_prep_window_minutes(graduation_nudge)
+    if minutes_until_open > prep_window:
+      return
+
     winners = await get_proven_winner_symbols(session, "commodities")
     chronic = await get_chronic_loser_symbols(session, "commodities")
     recovery_futures = sorted(s for s in chronic if is_commodities_futures_symbol(s))
