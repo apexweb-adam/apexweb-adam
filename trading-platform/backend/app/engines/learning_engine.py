@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import func, select
+from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.entities import DailyReview, IntelligenceItem, LearningInsight, StrategyConfig, Trade, TradeAnalysis
@@ -398,45 +398,44 @@ async def build_crm_learning_highlights(session: AsyncSession) -> dict[str, Any]
   }
 
 
-async def build_crm_learning_highlights(session: AsyncSession) -> dict[str, Any]:
-  """Summarize today's learning loop for the /crm landing page."""
-  today = datetime.utcnow().strftime("%Y-%m-%d")
-  reviews_result = await session.execute(
-    select(DailyReview)
-    .where(DailyReview.review_date == today)
-    .order_by(DailyReview.bot_type)
+async def build_crm_content_study_highlights(
+  session: AsyncSession,
+  *,
+  limit: int = 5,
+) -> dict[str, Any]:
+  """Summarize recent external content-study insights for the /crm landing page."""
+  result = await session.execute(
+    select(LearningInsight)
+    .order_by(desc(LearningInsight.created_at))
+    .limit(limit)
   )
-  reviews = list(reviews_result.scalars().all())
-  analysis_count = int(
-    await session.scalar(select(func.count(TradeAnalysis.id))) or 0
-  )
-  pending_insights = int(
+  insights = list(result.scalars().all())
+  applied_total = int(
     await session.scalar(
-      select(func.count(LearningInsight.id)).where(LearningInsight.applied.is_(False))
+      select(func.count(LearningInsight.id)).where(LearningInsight.applied.is_(True))
     )
     or 0
   )
 
-  active_reviews: list[dict[str, Any]] = []
-  for review in reviews:
-    if review.total_trades <= 0 and not (review.patterns_found or "").strip():
-      continue
-    active_reviews.append(
+  recent: list[dict[str, Any]] = []
+  for insight in insights:
+    title = insight.source_title or "Untitled"
+    if len(title) > 72:
+      title = f"{title[:69]}…"
+    impact = insight.strategy_impact or ""
+    if len(impact) > 120:
+      impact = f"{impact[:117]}…"
+    recent.append(
       {
-        "bot_type": review.bot_type,
-        "total_trades": review.total_trades,
-        "losing_trades": review.losing_trades,
-        "win_rate": review.win_rate,
-        "net_pnl": review.net_pnl,
-        "patterns_found": review.patterns_found or "",
-        "strategy_changes": review.strategy_changes or "",
-        "conclusions": review.conclusions or "",
+        "source_type": insight.source_type,
+        "title": title,
+        "impact": impact,
+        "confidence": insight.confidence,
+        "applied": bool(insight.applied),
       }
     )
 
   return {
-    "review_date": today,
-    "trade_analyses": analysis_count,
-    "pending_insights": pending_insights,
-    "reviews": active_reviews,
+    "insights_applied": applied_total,
+    "recent": recent,
   }

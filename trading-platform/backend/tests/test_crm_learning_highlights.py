@@ -106,7 +106,17 @@ def test_crm_landing_includes_learning_section():
               new_callable=AsyncMock,
               return_value=learning,
             ):
-              response = client.get("/crm")
+              with patch(
+                "app.engines.learning_engine.build_crm_content_study_highlights",
+                new_callable=AsyncMock,
+                return_value={"insights_applied": 0, "recent": []},
+              ):
+                with patch(
+                  "app.engines.intel_source_status.build_intel_sources",
+                  new_callable=AsyncMock,
+                  return_value=[{"source": "news", "status": "active"}],
+                ):
+                  response = client.get("/crm")
 
   assert response.status_code == 200
   body = response.text

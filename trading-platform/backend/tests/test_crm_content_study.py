@@ -1,4 +1,4 @@
-"""Tests for /crm landing page."""
+"""Tests for CRM content study highlights."""
 
 from unittest.mock import AsyncMock, patch
 
@@ -7,25 +7,50 @@ from fastapi.testclient import TestClient
 from app.main import app
 
 
-def test_crm_landing_includes_monday_recovery_when_candidates():
+def test_build_crm_content_study_highlights_truncates_long_fields():
+  from app.engines.learning_engine import build_crm_content_study_highlights
+
+  insight = type(
+    "Insight",
+    (),
+    {
+      "source_type": "polymarket",
+      "source_title": "A" * 90,
+      "strategy_impact": "B" * 150,
+      "confidence": 0.73,
+      "applied": True,
+    },
+  )()
+
+  session = AsyncMock()
+  session.execute = AsyncMock(
+    return_value=type("Result", (), {"scalars": lambda self: type("S", (), {"all": lambda self: [insight]})()})()
+  )
+  session.scalar = AsyncMock(return_value=42)
+
+  import asyncio
+
+  result = asyncio.run(build_crm_content_study_highlights(session))
+
+  assert result["insights_applied"] == 42
+  assert len(result["recent"]) == 1
+  assert result["recent"][0]["title"].endswith("…")
+  assert result["recent"][0]["impact"].endswith("…")
+
+
+def test_crm_landing_includes_content_study_section():
   client = TestClient(app)
-  recovery = {
-    "recovery_candidates": ["SI=F", "NVDA"],
-    "all": [
+  content_study = {
+    "insights_applied": 88,
+    "recent": [
       {
-        "bot_type": "commodities",
-        "symbol": "SI=F",
-        "composite": 0.502,
-        "blockers": ["weekend_futures_closed", "signal_sell"],
-      },
-      {
-        "bot_type": "stocks_futures",
-        "symbol": "NVDA",
-        "composite": 0.418,
-        "blockers": ["gate_skip"],
-      },
+        "source_type": "youtube",
+        "title": "Risk Management - Never Risk More Than 2%",
+        "impact": "Tighten stop-loss to 1.5-2% max.",
+        "confidence": 0.9,
+        "applied": True,
+      }
     ],
-    "bots": {},
   }
 
   with patch("app.main.recommended_dashboard_url", new_callable=AsyncMock, return_value="https://example.com"):
@@ -52,7 +77,7 @@ def test_crm_landing_includes_monday_recovery_when_candidates():
           with patch(
             "app.engines.scan_preview.build_monday_recovery_summary",
             new_callable=AsyncMock,
-            return_value=recovery,
+            return_value={"recovery_candidates": [], "all": [], "bots": {}},
           ):
             with patch(
               "app.engines.learning_engine.build_crm_learning_highlights",
@@ -67,7 +92,7 @@ def test_crm_landing_includes_monday_recovery_when_candidates():
               with patch(
                 "app.engines.learning_engine.build_crm_content_study_highlights",
                 new_callable=AsyncMock,
-                return_value={"insights_applied": 0, "recent": []},
+                return_value=content_study,
               ):
                 with patch(
                   "app.engines.intel_source_status.build_intel_sources",
@@ -78,7 +103,7 @@ def test_crm_landing_includes_monday_recovery_when_candidates():
 
   assert response.status_code == 200
   body = response.text
-  assert "Monday recovery watchlist" in body
-  assert "SI=F" in body
-  assert "NVDA" in body
-  assert "weekend_futures_closed" in body
+  assert "External content study" in body
+  assert "88 insights applied" in body
+  assert "Risk Management" in body
+  assert "intel 1/1 sources" in body
