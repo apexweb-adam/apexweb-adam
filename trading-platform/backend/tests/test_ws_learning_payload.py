@@ -7,7 +7,11 @@ from app.ws_manager import build_live_payload
 
 
 def _empty_scalars():
-  return MagicMock(all=lambda: [], scalars=lambda: MagicMock(all=lambda: []))
+  result = MagicMock()
+  result.all = lambda: []
+  result.scalars = lambda: MagicMock(all=lambda: [])
+  result.scalar_one_or_none = lambda: None
+  return result
 
 
 def test_build_live_payload_includes_learning_fields():
@@ -21,7 +25,6 @@ def test_build_live_payload_includes_learning_fields():
       "bot_sessions": {},
     }
 
-  import app.ws_manager as ws_mod
   import app.engines.gate_entry_guard as gate_mod
   import app.engines.scan_preview as scan_mod
 
