@@ -382,6 +382,40 @@ def stocks_trade_count_min_sentiment(
   return min(base_min_sentiment, STOCKS_TRADE_COUNT_MIN_SENTIMENT)
 
 
+def stocks_trade_count_volume_required(
+  volume_required: bool,
+  *,
+  bot_type: str,
+  shadow_mode: bool,
+  symbol: str,
+  proven_winners: frozenset[str],
+  bot_win_rate: float | None,
+  total_trades: int,
+  composite: float,
+  entry_min_signal: float,
+  macd_signal: str,
+  integration_boost: float,
+  integration_reason: str,
+) -> bool:
+  """Allow strong proven-winner entries without strict volume during trade-count nudge."""
+  if volume_required:
+    return True
+  if not stocks_trade_count_graduation_nudge(
+    bot_type, shadow_mode, bot_win_rate, total_trades
+  ):
+    return volume_required
+  if symbol not in proven_winners:
+    return volume_required
+  if composite < STOCKS_TRADE_COUNT_RECOVERY_MIN_COMPOSITE:
+    return volume_required
+  return (
+    composite >= entry_min_signal + 0.02
+    or macd_signal == "bullish"
+    or integration_boost > 0.02
+    or bool(integration_reason and "tradingview" in integration_reason.lower())
+  )
+
+
 def early_verification_active(active_trades: int, active_wr: float) -> bool:
   from app.engines.profitability_gate import ProfitabilityGate
 

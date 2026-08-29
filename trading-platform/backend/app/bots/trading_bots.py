@@ -56,6 +56,7 @@ from app.engines.gate_entry_guard import (
   stocks_trade_count_entry_min_signal,
   stocks_trade_count_graduation_nudge,
   stocks_trade_count_min_sentiment,
+  stocks_trade_count_volume_required,
   whale_memecoin_aligned,
   stocks_in_us_session,
   stocks_session_close_wind_down,
@@ -867,6 +868,20 @@ class BaseBot(ABC):
             or integration_boost > 0.02
             or signal.macd_signal == "bullish"
           )
+        volume_required = stocks_trade_count_volume_required(
+          volume_required,
+          bot_type=self.bot_type,
+          shadow_mode=shadow_mode,
+          symbol=symbol,
+          proven_winners=proven_winners,
+          bot_win_rate=per_bot_stats.get("win_rate"),
+          total_trades=int(per_bot_stats.get("total_trades") or 0),
+          composite=composite,
+          entry_min_signal=entry_min_signal,
+          macd_signal=signal.macd_signal,
+          integration_boost=integration_boost,
+          integration_reason=integration_reason,
+        )
 
         if (
           gate_tightening.active
