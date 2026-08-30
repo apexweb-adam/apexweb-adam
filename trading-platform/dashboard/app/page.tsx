@@ -1227,6 +1227,14 @@ export default function Dashboard() {
                         {src.source === "x" && src.collection_mode === "newsapi" && (
                           <span className="text-apex-gold"> · NewsAPI social fallback</span>
                         )}
+                        {src.source === "tradingview" &&
+                          (src.synthetic_items_24h != null || src.webhook_items_24h != null) && (
+                          <span className="text-gray-400">
+                            {" "}
+                            · webhook {src.webhook_items_24h ?? 0}/24h
+                            {src.synthetic_items_24h ? ` · prep ${src.synthetic_items_24h} synthetic (excluded)` : ""}
+                          </span>
+                        )}
                       </p>
                     </div>
                     <span

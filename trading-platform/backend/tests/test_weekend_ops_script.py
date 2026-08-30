@@ -114,6 +114,7 @@ def test_print_deploy_window_summary_script_exists():
   assert "cme-reopen-checklist" in text
   assert "deploy_credentials_ready" in text
   assert "fomo_bearer_nudge" in text
+  assert "x_intel_collection_mode" in text
   assert "verify-cme-post-open.sh" in text
 
 

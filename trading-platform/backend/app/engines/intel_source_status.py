@@ -144,6 +144,31 @@ async def _source_has_recent_items(
   return int(result.scalar() or 0) > 0
 
 
+async def tradingview_item_breakdown(
+  session: AsyncSession,
+  *,
+  hours: float = 24,
+) -> dict[str, int]:
+  """Count TradingView webhook vs pre-session synthetic items in the last N hours."""
+  from app.engines.integration_signals import SYNTHETIC_INTEL_CATEGORY
+
+  cutoff = datetime.utcnow() - timedelta(hours=hours)
+  result = await session.execute(
+    select(IntelligenceItem.category, func.count(IntelligenceItem.id)).where(
+      IntelligenceItem.source == "tradingview",
+      IntelligenceItem.fetched_at >= cutoff,
+    ).group_by(IntelligenceItem.category)
+  )
+  synthetic = 0
+  webhook = 0
+  for category, count in result.all():
+    if (category or "").lower() == SYNTHETIC_INTEL_CATEGORY:
+      synthetic += int(count)
+    else:
+      webhook += int(count)
+  return {"synthetic_items_24h": synthetic, "webhook_items_24h": webhook}
+
+
 def clear_intel_weight_multipliers_cache() -> None:
   global _INTEL_WEIGHT_MULTIPLIERS_CACHE
   _INTEL_WEIGHT_MULTIPLIERS_CACHE = None
@@ -268,6 +293,7 @@ async def build_intel_sources(session: AsyncSession) -> list[dict[str, Any]]:
 
   fomo_bearer = await get_fomo_bearer_status(session)
   axiom_session = await get_axiom_session_status(session)
+  tv_breakdown = await tradingview_item_breakdown(session)
 
   rows: list[dict[str, Any]] = []
   for source in INTEL_SOURCE_ORDER:
@@ -305,6 +331,9 @@ async def build_intel_sources(session: AsyncSession) -> list[dict[str, Any]]:
         row["collection_mode"] = "rss"
     if source == "x":
       row["collection_mode"] = x_intel_collection_mode()
+    if source == "tradingview":
+      row.update(tv_breakdown)
+      row["scoring_excludes_synthetic"] = True
     if source == "fomo" and fomo_bearer.get("configured"):
       row["bearer_expires_at"] = fomo_bearer.get("expires_at")
       row["bearer_minutes_remaining"] = fomo_bearer.get("minutes_remaining")
