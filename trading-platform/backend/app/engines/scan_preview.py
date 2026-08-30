@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -1070,10 +1071,33 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
 
 
 MONDAY_RECOVERY_BOT_TYPES = ("commodities", "stocks_futures")
+MONDAY_RECOVERY_CACHE_TTL_SECONDS = 30
+_monday_recovery_cache: dict[str, Any] | None = None
+_monday_recovery_cached_at: float = 0.0
+
+
+def clear_monday_recovery_cache() -> None:
+  global _monday_recovery_cache, _monday_recovery_cached_at
+  _monday_recovery_cache = None
+  _monday_recovery_cached_at = 0.0
 
 
 async def build_monday_recovery_summary(session: AsyncSession) -> dict[str, Any]:
   """Aggregate recovery-ready symbols across commodities and stocks for CRM overview."""
+  global _monday_recovery_cache, _monday_recovery_cached_at
+  now = time.monotonic()
+  if (
+    _monday_recovery_cache is not None
+    and (now - _monday_recovery_cached_at) < MONDAY_RECOVERY_CACHE_TTL_SECONDS
+  ):
+    return _monday_recovery_cache
+  result = await _build_monday_recovery_summary(session)
+  _monday_recovery_cache = result
+  _monday_recovery_cached_at = now
+  return result
+
+
+async def _build_monday_recovery_summary(session: AsyncSession) -> dict[str, Any]:
   bots: dict[str, Any] = {}
   all_rows: list[dict[str, Any]] = []
   open_ready_rows: list[dict[str, Any]] = []
