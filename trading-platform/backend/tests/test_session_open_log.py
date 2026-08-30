@@ -10,6 +10,7 @@ from app.database import Base
 from app.engines.session_open_log import (
   SESSION_OPEN_EVENTS_KEY,
   get_session_open_events,
+  needs_session_open_burst_recovery,
   record_session_open_event,
 )
 from app.models.entities import PlatformSetting
@@ -24,6 +25,56 @@ async def session():
   async with factory() as db:
     yield db
   await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_needs_session_open_burst_recovery_when_missing(session: AsyncSession):
+  session_info = {
+    "in_session": True,
+    "minutes_since_open": 12,
+    "session_open_utc": "2026-08-30T22:00:00",
+  }
+  assert await needs_session_open_burst_recovery(
+    session,
+    bot_type="commodities",
+    session_info=session_info,
+  )
+
+
+@pytest.mark.asyncio
+async def test_needs_session_open_burst_recovery_false_after_logged(session: AsyncSession):
+  await record_session_open_event(
+    session,
+    bot_type="commodities",
+    event_type="burst_scan",
+    symbols=[],
+    symbol_count=8,
+    detail="Session open burst scan",
+  )
+  session_info = {
+    "in_session": True,
+    "minutes_since_open": 5,
+    "session_open_utc": "2026-08-30T22:00:00",
+  }
+  assert not await needs_session_open_burst_recovery(
+    session,
+    bot_type="commodities",
+    session_info=session_info,
+  )
+
+
+@pytest.mark.asyncio
+async def test_needs_session_open_burst_recovery_false_outside_grace(session: AsyncSession):
+  session_info = {
+    "in_session": True,
+    "minutes_since_open": 45,
+    "session_open_utc": "2026-08-30T22:00:00",
+  }
+  assert not await needs_session_open_burst_recovery(
+    session,
+    bot_type="commodities",
+    session_info=session_info,
+  )
 
 
 @pytest.mark.asyncio
