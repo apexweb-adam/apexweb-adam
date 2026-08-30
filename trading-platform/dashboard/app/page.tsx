@@ -1221,6 +1221,12 @@ export default function Dashboard() {
                         {src.source === "reddit" && src.oauth_configured === false && (
                           <span className="text-apex-gold"> · RSS fallback (OAuth not set)</span>
                         )}
+                        {src.source === "x" && src.collection_mode === "google_news_rss" && (
+                          <span className="text-gray-400"> · Google News RSS (keyless)</span>
+                        )}
+                        {src.source === "x" && src.collection_mode === "newsapi" && (
+                          <span className="text-apex-gold"> · NewsAPI social fallback</span>
+                        )}
                       </p>
                     </div>
                     <span

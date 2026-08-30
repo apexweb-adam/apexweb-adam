@@ -29,6 +29,46 @@ INTEL_WEIGHT_MULTIPLIERS_TTL_SECONDS = 60
 
 _INTEL_WEIGHT_MULTIPLIERS_CACHE: tuple[float, dict[str, float]] | None = None
 
+
+def x_intel_collection_mode() -> str:
+  """How X/social intel is collected (twitter API, NewsAPI, or keyless Google News RSS)."""
+  if settings.twitter_bearer_token:
+    return "twitter_api"
+  if settings.newsapi_key:
+    return "newsapi"
+  return "google_news_rss"
+
+
+def _x_source_status(
+  *,
+  source_counts: dict[str, int],
+  source_latest: dict[str, datetime],
+) -> str:
+  has_items = source_counts.get("x", 0) > 0
+  mode = x_intel_collection_mode()
+  if mode == "newsapi":
+    if not has_items:
+      return "degraded"
+    return "active"
+  if mode == "google_news_rss":
+    if not has_items:
+      return "pending"
+    latest = source_latest.get("x")
+    if latest is None:
+      return "degraded"
+    now = datetime.now(timezone.utc)
+    latest_utc = latest if latest.tzinfo else latest.replace(tzinfo=timezone.utc)
+    if latest_utc.tzinfo != timezone.utc:
+      latest_utc = latest_utc.astimezone(timezone.utc)
+    if now - latest_utc <= timedelta(hours=12):
+      return "active"
+    return "degraded"
+  # twitter_api
+  if not has_items:
+    return "degraded"
+  return "active"
+
+
 INTEL_SOURCE_ORDER = [
   "news",
   "reddit",
@@ -60,12 +100,8 @@ def _source_status(
   is_configured = configured.get(source, has_items)
   if source == "tradingview" and is_configured:
     return "active"
-  if source == "x" and is_configured:
-    if settings.newsapi_key and not settings.twitter_bearer_token:
-      return "degraded"
-    if not has_items:
-      return "degraded"
-    return "active"
+  if source == "x":
+    return _x_source_status(source_counts=source_counts, source_latest=source_latest)
   if source == "tiktok" and (is_configured or has_items):
     latest = source_latest.get(source)
     if latest and has_items:
@@ -226,7 +262,7 @@ async def build_intel_sources(session: AsyncSession) -> list[dict[str, Any]]:
     "axiom": axiom_configured(),
     "phantom": phantom_configured() or phantom_portfolio_poll_active(),
     "tradingview": bool(settings.tradingview_webhook_secret),
-    "x": bool(settings.twitter_bearer_token) or bool(settings.newsapi_key),
+    "x": True,
     "newsapi": bool(settings.newsapi_key),
   }
 
@@ -267,6 +303,8 @@ async def build_intel_sources(session: AsyncSession) -> list[dict[str, Any]]:
       row["oauth_configured"] = reddit_oauth
       if not reddit_oauth and source_counts.get("reddit", 0) > 0:
         row["collection_mode"] = "rss"
+    if source == "x":
+      row["collection_mode"] = x_intel_collection_mode()
     if source == "fomo" and fomo_bearer.get("configured"):
       row["bearer_expires_at"] = fomo_bearer.get("expires_at")
       row["bearer_minutes_remaining"] = fomo_bearer.get("minutes_remaining")

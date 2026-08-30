@@ -509,6 +509,7 @@ export type IntelligenceSource = {
   status: string;
   items_collected: number;
   last_fetched: string | null;
+  collection_mode?: string | null;
   bearer_expires_at?: string | null;
   bearer_minutes_remaining?: number | null;
   bearer_polling_active?: boolean | null;
