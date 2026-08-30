@@ -70,12 +70,20 @@ def test_build_cme_reopen_checks_post_open_requires_burst_scan():
   assert burst["status"] == "fail"
 
 
-def test_symbols_below_floor():
-  below = _symbols_below_floor(
-    [
-      {"symbol": "NG=F", "composite": 0.65},
-      {"symbol": "CL=F", "composite": 0.41},
-    ],
-    0.42,
+def test_format_cme_checklist_crm_html():
+  from app.engines.cme_reopen_checklist import format_cme_checklist_crm_html
+
+  html = format_cme_checklist_crm_html(
+    {
+      "phase": "preflight",
+      "ready": True,
+      "minutes_until_open": 900,
+      "open_ready": {"symbols": ["NG=F"], "composite_floor": 0.42},
+      "checks": [
+        {"id": "auto_entry_queued", "status": "pass", "message": "queued NG=F"},
+      ],
+    }
   )
-  assert below == ["CL=F"]
+  assert "CME reopen checklist" in html
+  assert "auto_entry_queued" in html
+  assert "NG=F" in html

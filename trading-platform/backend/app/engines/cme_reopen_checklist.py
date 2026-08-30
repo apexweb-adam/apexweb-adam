@@ -406,3 +406,62 @@ async def build_cme_reopen_checklist(session: AsyncSession) -> dict[str, Any]:
     },
     "checks": checks,
   }
+
+
+_CHECK_STATUS_COLORS = {
+  "pass": "#4ade80",
+  "fail": "#f87171",
+  "warn": "#fbbf24",
+  "skip": "#888",
+}
+
+
+def should_show_cme_checklist_on_crm(checklist: dict[str, Any] | None) -> bool:
+  if not checklist:
+    return False
+  if checklist.get("minutes_until_open") is not None:
+    return True
+  if checklist.get("phase") in ("open", "post_open"):
+    return True
+  open_ready = checklist.get("open_ready") or {}
+  return bool(open_ready.get("symbols"))
+
+
+def format_cme_checklist_crm_html(checklist: dict[str, Any]) -> str:
+  """Render checklist checks for the /crm landing page."""
+  phase = checklist.get("phase") or "preflight"
+  ready = bool(checklist.get("ready"))
+  checks = checklist.get("checks") or []
+  open_ready = checklist.get("open_ready") or {}
+  symbols = ", ".join(open_ready.get("symbols") or []) or "—"
+  floor = open_ready.get("composite_floor")
+  floor_label = f"{float(floor):.2f}" if floor is not None else "?"
+  mins = checklist.get("minutes_until_open")
+  countdown = f"{mins // 60}h {mins % 60}m" if mins is not None else "soon"
+  ready_color = "#4ade80" if ready else "#fbbf24"
+  ready_label = "ready" if ready else "needs attention"
+
+  rows = ""
+  for row in checks:
+    status = str(row.get("status") or "skip")
+    color = _CHECK_STATUS_COLORS.get(status, "#888")
+    rows += (
+      f"<tr><td>{row.get('id', '')}</td>"
+      f"<td style='color:{color}'>{status}</td>"
+      f"<td>{row.get('message', '')}</td></tr>"
+    )
+  if not rows:
+    rows = "<tr><td colspan='3' class='muted'>No checks for current phase.</td></tr>"
+
+  return f"""<div class="card" style="border-color:#1e3a5f;background:#0c1929;">
+    <h2 style="color:#60a5fa;">CME reopen checklist</h2>
+    <p class="muted" style="margin-top:0;">Phase <strong>{phase}</strong> ·
+      <span style="color:{ready_color};font-weight:600;">{ready_label}</span>
+      · open in {countdown}</p>
+    <p class="muted" style="margin-top:0;">Auto-entry queued: {symbols} · composite floor {floor_label}
+      · <a href="/api/gate/cme-reopen-checklist">JSON API</a></p>
+    <table>
+      <thead><tr><th>Check</th><th>Status</th><th>Detail</th></tr></thead>
+      <tbody>{rows}</tbody>
+    </table>
+  </div>"""
