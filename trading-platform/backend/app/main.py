@@ -1,6 +1,7 @@
 import asyncio
 import os
 from contextlib import asynccontextmanager
+from typing import Any
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -181,8 +182,15 @@ async def crm_landing():
   ) else 3
 
   from app.engines.gate_entry_guard import (
+    CME_REOPEN_WAKE_MINUTES_AFTER,
+    CME_REOPEN_WAKE_MINUTES_BEFORE,
+    COMMODITIES_REOPEN_IMMINENT_SCAN_MINUTES,
+    STOCKS_OPEN_IMMINENT_SCAN_MINUTES,
+    US_OPEN_WAKE_MINUTES_AFTER,
+    US_OPEN_WAKE_MINUTES_BEFORE,
     build_session_prep_status,
     commodities_session_info,
+    session_prep_phase_info,
     stocks_session_info,
   )
 
@@ -263,24 +271,61 @@ async def crm_landing():
       return "soon"
     return f"{mins // 60}h {mins % 60}m"
 
+  def _phase_note(prep: dict[str, Any], session: dict[str, Any]) -> str:
+    phase = prep.get("prep_phase")
+    if phase == "wake":
+      return " · TV wake active"
+    if phase == "imminent":
+      return " · fast scan 5s active"
+    if phase == "open":
+      return " · session open"
+    mins_imminent = prep.get("minutes_until_imminent_scan")
+    if mins_imminent is not None and not session.get("in_session"):
+      return f" · fast scan in {mins_imminent // 60}h {mins_imminent % 60}m"
+    return ""
+
   next_session_lines: list[str] = []
   if not cme_session.get("in_session"):
     cme_mins = cme_session.get("minutes_until_open")
     comm_ready = ", ".join(commodities_prep.get("open_ready_symbols") or []) or "—"
-    comm_scan = "5s" if commodities_prep.get("gate_reopen_imminent") else (
-      "15s" if commodities_prep.get("gate_fast_scan_active") else "30s"
+    comm_scan = commodities_prep.get("prep_scan_label") or (
+      "5s" if commodities_prep.get("gate_reopen_imminent") else (
+        "15s" if commodities_prep.get("gate_fast_scan_active") else "30s"
+      )
     )
+    cme_phase = session_prep_phase_info(
+      session=cme_session,
+      imminent_minutes=COMMODITIES_REOPEN_IMMINENT_SCAN_MINUTES,
+      wake_minutes_before=CME_REOPEN_WAKE_MINUTES_BEFORE,
+      wake_minutes_after=CME_REOPEN_WAKE_MINUTES_AFTER,
+      wake_active=bool(commodities_prep.get("reopen_wake_active")),
+      imminent_active=bool(commodities_prep.get("gate_reopen_imminent")),
+    )
+    commodities_prep = {**commodities_prep, **cme_phase}
     next_session_lines.append(
-      f"<strong>CME reopen</strong> in {_session_countdown(cme_mins)} · prep scan {comm_scan} · open ready: {comm_ready}"
+      f"<strong>CME reopen</strong> in {_session_countdown(cme_mins)} · prep scan {comm_scan}"
+      f"{_phase_note(commodities_prep, cme_session)} · open ready: {comm_ready}"
     )
   if not stocks_session.get("in_session"):
     us_mins = stocks_session.get("minutes_until_open")
     stocks_ready = ", ".join(stocks_prep.get("open_ready_symbols") or []) or "—"
-    stocks_scan = "5s" if stocks_prep.get("gate_reopen_imminent") else (
-      "15s" if stocks_prep.get("gate_fast_scan_active") else "30s"
+    stocks_scan = stocks_prep.get("prep_scan_label") or (
+      "5s" if stocks_prep.get("gate_reopen_imminent") else (
+        "15s" if stocks_prep.get("gate_fast_scan_active") else "30s"
+      )
     )
+    stocks_phase = session_prep_phase_info(
+      session=stocks_session,
+      imminent_minutes=STOCKS_OPEN_IMMINENT_SCAN_MINUTES,
+      wake_minutes_before=US_OPEN_WAKE_MINUTES_BEFORE,
+      wake_minutes_after=US_OPEN_WAKE_MINUTES_AFTER,
+      wake_active=bool(stocks_prep.get("reopen_wake_active")),
+      imminent_active=bool(stocks_prep.get("gate_reopen_imminent")),
+    )
+    stocks_prep = {**stocks_prep, **stocks_phase}
     next_session_lines.append(
-      f"<strong>US stocks open</strong> in {_session_countdown(us_mins)} · prep scan {stocks_scan} · open ready: {stocks_ready}"
+      f"<strong>US stocks open</strong> in {_session_countdown(us_mins)} · prep scan {stocks_scan}"
+      f"{_phase_note(stocks_prep, stocks_session)} · open ready: {stocks_ready}"
     )
   next_sessions_card = ""
   if next_session_lines:

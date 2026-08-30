@@ -3706,6 +3706,55 @@ def session_prep_scan_label(
   return default
 
 
+def session_prep_phase_info(
+  *,
+  session: dict[str, Any],
+  imminent_minutes: int,
+  wake_minutes_before: int,
+  wake_minutes_after: int,
+  wake_active: bool = False,
+  imminent_active: bool = False,
+) -> dict[str, Any]:
+  """Prep phase labels and countdowns until imminent 5s scan and TV wake windows."""
+  in_session = bool(session.get("in_session"))
+  minutes_until = session.get("minutes_until_open")
+  minutes_since = session.get("minutes_since_open")
+
+  wake_window = wake_active
+  if not wake_window and not in_session and minutes_until is not None:
+    wake_window = minutes_until <= wake_minutes_before
+  if not wake_window and in_session and minutes_since is not None:
+    wake_window = minutes_since <= wake_minutes_after
+
+  imminent_window = imminent_active
+  if not imminent_window and not in_session and minutes_until is not None:
+    imminent_window = minutes_until <= imminent_minutes
+  if not imminent_window and in_session and minutes_since is not None:
+    imminent_window = minutes_since <= imminent_minutes
+
+  if wake_window:
+    phase = "wake"
+  elif imminent_window:
+    phase = "imminent"
+  elif in_session:
+    phase = "open"
+  else:
+    phase = "extended"
+
+  mins_until_imminent = None
+  mins_until_wake = None
+  if not in_session and minutes_until is not None:
+    mins_until_imminent = max(0, int(minutes_until) - imminent_minutes)
+    mins_until_wake = max(0, int(minutes_until) - wake_minutes_before)
+
+  return {
+    "prep_phase": phase,
+    "minutes_until_imminent_scan": mins_until_imminent,
+    "minutes_until_wake": mins_until_wake,
+    "imminent_scan_minutes": imminent_minutes,
+  }
+
+
 def build_next_session_events(
   *,
   session_prep: dict[str, Any],
@@ -3730,6 +3779,22 @@ def build_next_session_events(
     if comm_prep.get("nudge_active")
     else None
   )
+  cme_phase = session_prep_phase_info(
+    session=commodities_session,
+    imminent_minutes=COMMODITIES_REOPEN_IMMINENT_SCAN_MINUTES,
+    wake_minutes_before=CME_REOPEN_WAKE_MINUTES_BEFORE,
+    wake_minutes_after=CME_REOPEN_WAKE_MINUTES_AFTER,
+    wake_active=bool(comm_prep.get("reopen_wake_active")),
+    imminent_active=bool(comm_prep.get("gate_reopen_imminent")),
+  )
+  stocks_phase = session_prep_phase_info(
+    session=stocks_session,
+    imminent_minutes=STOCKS_OPEN_IMMINENT_SCAN_MINUTES,
+    wake_minutes_before=US_OPEN_WAKE_MINUTES_BEFORE,
+    wake_minutes_after=US_OPEN_WAKE_MINUTES_AFTER,
+    wake_active=bool(stocks_prep.get("reopen_wake_active")),
+    imminent_active=bool(stocks_prep.get("gate_reopen_imminent")),
+  )
   return {
     "cme_reopen": {
       "session_open_utc": commodities_session.get("session_open_utc"),
@@ -3742,6 +3807,7 @@ def build_next_session_events(
       "auto_entry_queued": bool(comm_ready_symbols),
       "prep_scan_label": comm_scan_label,
       "composite_floor": comm_composite_floor,
+      **cme_phase,
     },
     "us_stocks_open": {
       "session_open_utc": stocks_session.get("session_open_utc"),
@@ -3752,6 +3818,7 @@ def build_next_session_events(
       "auto_gate_skip_at_open": stocks_ready_symbols,
       "auto_entry_queued": bool(stocks_ready_symbols),
       "prep_scan_label": stocks_scan_label,
+      **stocks_phase,
     },
   }
 
