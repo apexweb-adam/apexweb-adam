@@ -229,6 +229,7 @@ def test_verify_cme_reopen_uses_deploy_json_fallback():
   assert "deploy_json.py" in text
   assert "json.load(sys.stdin)" in text
   assert "STATUS_JSON" in text
+  assert "composite_floor_ok_with_sticky_margin" in text
 
 
 def test_deploy_json_lib_exists():

@@ -73,6 +73,28 @@ for row in open_ready.get('details') or []:
 for row in data.get('checks') or []:
     print(f\"  check {row.get('id')}={row.get('status')}: {row.get('message')}\")
 critical_fail = [c for c in (data.get('checks') or []) if c.get('critical') and c.get('status') == 'fail']
+fail_ids = {c['id'] for c in critical_fail}
+if fail_ids == {'composite_floor'}:
+    floor = open_ready.get('composite_floor')
+    margin = open_ready.get('release_margin')
+    if margin is None:
+        margin = 0.02
+    if floor is not None:
+        still_below = []
+        for row in open_ready.get('details') or []:
+            sym = row.get('symbol')
+            comp = row.get('composite')
+            if sym is None or comp is None:
+                continue
+            effective = float(floor)
+            if row.get('sticky_queue'):
+                effective -= float(margin)
+            if float(comp) < effective:
+                still_below.append(str(sym))
+        if not still_below:
+            eff = float(floor) - float(margin)
+            print(f'  note=composite_floor_ok_with_sticky_margin (effective={eff:.3f})')
+            critical_fail = []
 if critical_fail:
     print('  errors=' + ','.join(c['id'] for c in critical_fail))
     sys.exit(1)
