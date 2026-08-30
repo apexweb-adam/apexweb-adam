@@ -247,7 +247,17 @@ async def commodities_pre_session_prep_job() -> None:
       profit_factor=per_bot.get("profit_factor"),
       total_pnl=per_bot.get("total_pnl"),
     )
-    prep_window = commodities_pre_session_prep_window_minutes(graduation_nudge)
+    from app.engines.scan_preview import build_monday_recovery_summary
+
+    recovery = await build_monday_recovery_summary(session)
+    open_ready_symbols = [
+      row["symbol"]
+      for row in recovery.get("open_ready") or []
+      if row.get("bot_type") == "commodities" and row.get("symbol")
+    ]
+    prep_window = commodities_pre_session_prep_window_minutes(
+      graduation_nudge or bool(open_ready_symbols),
+    )
     if minutes_until_open > prep_window:
       return
 
@@ -255,18 +265,21 @@ async def commodities_pre_session_prep_job() -> None:
     chronic = await get_chronic_loser_symbols(session, "commodities")
     recovery_futures = sorted(s for s in chronic if is_commodities_futures_symbol(s))
     base_symbols = sorted(set(COMMODITIES_PREP_SYMBOLS) | set(winners) | set(recovery_futures))
+    if open_ready_symbols:
+      base_symbols = sorted(set(base_symbols) | set(open_ready_symbols))
+    prioritize_nudge = graduation_nudge or bool(open_ready_symbols)
     symbols = prioritize_commodities_monday_scan(
       base_symbols,
       chronic_losers=chronic,
       proven_winners=winners,
       session_info=session_info,
-      graduation_nudge=graduation_nudge,
+      graduation_nudge=prioritize_nudge,
     )
     refreshed = await refresh_tradingview_signals(
       session,
       symbols,
       reason_prefix="Pre-CME-session TV refresh",
-      force_refresh=graduation_nudge,
+      force_refresh=prioritize_nudge,
     )
   if refreshed:
     print(

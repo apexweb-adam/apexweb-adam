@@ -7,13 +7,22 @@ from app.workers.scheduler import commodities_pre_session_prep_job
 
 
 @contextmanager
-def _mock_scheduler_session():
+def _mock_scheduler_session(*, recovery: dict | None = None, patch_recovery: bool = True):
   mock_session = AsyncMock()
   mock_cm = AsyncMock()
   mock_cm.__aenter__.return_value = mock_session
   mock_cm.__aexit__.return_value = None
   with patch("app.workers.scheduler.SessionLocal", return_value=mock_cm):
-    yield mock_session
+    if not patch_recovery:
+      yield mock_session
+      return
+    recovery_payload = recovery if recovery is not None else {"open_ready": []}
+    with patch(
+      "app.engines.scan_preview.build_monday_recovery_summary",
+      new_callable=AsyncMock,
+      return_value=recovery_payload,
+    ):
+      yield mock_session
 
 
 def test_commodities_prep_skips_when_in_session():
@@ -162,6 +171,55 @@ def test_commodities_prep_refreshes_within_graduation_extended_window():
             assert "SI=F" in symbols
 
 
+def test_commodities_prep_refreshes_open_ready_without_graduation_nudge():
+  with patch(
+    "app.engines.gate_entry_guard.commodities_session_info",
+    return_value={
+      "in_session": False,
+      "minutes_until_open": 60,
+      "mode": "pre_session",
+    },
+  ):
+    with patch(
+      "app.engines.gate_entry_guard.get_proven_winner_symbols",
+      new_callable=AsyncMock,
+      return_value=frozenset(),
+    ):
+      with patch(
+        "app.engines.gate_entry_guard.get_chronic_loser_symbols",
+        new_callable=AsyncMock,
+        return_value=frozenset(),
+      ):
+        with patch(
+          "app.engines.integration_signals.refresh_tradingview_signals",
+          new_callable=AsyncMock,
+          return_value=["NG=F"],
+        ) as mock_refresh:
+          with patch("app.ws_manager.push_live_update", new_callable=AsyncMock):
+            with patch(
+              "app.engines.profitability_gate.ProfitabilityGate.evaluate_per_bot",
+              new_callable=AsyncMock,
+              return_value={"commodities": {"win_rate": 0.40, "profit_factor": 1.0, "total_pnl": 5}},
+            ):
+              with patch(
+                "app.engines.gate_entry_guard.in_shadow_graduation_nudge",
+                return_value=False,
+              ):
+                with _mock_scheduler_session(
+                  recovery={
+                    "open_ready": [
+                      {"bot_type": "commodities", "symbol": "NG=F", "composite": 0.42, "sticky_queue": True},
+                    ],
+                  },
+                ):
+                  import asyncio
+
+                  asyncio.run(commodities_pre_session_prep_job())
+          mock_refresh.assert_called_once()
+          assert "NG=F" in mock_refresh.call_args[0][1]
+          assert mock_refresh.call_args[1]["force_refresh"] is True
+
+
 def test_commodities_cme_reopen_wake_refreshes_pre_open():
   from app.workers.scheduler import commodities_cme_reopen_wake_job
 
@@ -207,7 +265,7 @@ def test_commodities_cme_reopen_wake_refreshes_pre_open():
                     "app.engines.gate_entry_guard.in_shadow_graduation_nudge",
                     return_value=True,
                   ):
-                    with _mock_scheduler_session():
+                    with _mock_scheduler_session(patch_recovery=False):
                       import asyncio
 
                       asyncio.run(commodities_cme_reopen_wake_job())
@@ -264,7 +322,7 @@ def test_commodities_cme_reopen_wake_runs_for_open_ready_without_graduation_nudg
                   "app.engines.gate_entry_guard.in_shadow_graduation_nudge",
                   return_value=False,
                 ):
-                  with _mock_scheduler_session():
+                  with _mock_scheduler_session(patch_recovery=False):
                     import asyncio
 
                     asyncio.run(commodities_cme_reopen_wake_job())
