@@ -213,6 +213,14 @@ def test_check_deploy_credentials_shows_revision_gap():
   assert "x_intel_collection_mode" in text or "google_news_rss activates" in text
 
 
+def test_check_deploy_credentials_treats_github_as_nudge():
+  script = SCRIPTS / "check-deploy-credentials.sh"
+  text = script.read_text(encoding="utf-8")
+  assert "deploy_credentials_nudges" in text
+  assert "non-blocking" in text
+  assert "GITHUB_TOKEN is advisory" in text or "Normalize pre-r390" in text
+
+
 def test_verify_pre_deploy_intel_readiness():
   script = SCRIPTS / "verify-pre-deploy.sh"
   text = script.read_text(encoding="utf-8")

@@ -54,20 +54,27 @@ if open_ready or mins is not None:
 
 ready = snap.get("deploy_credentials_ready")
 warnings = snap.get("deploy_credentials_warnings") or []
+nudges = snap.get("deploy_credentials_nudges") or []
 nudge = snap.get("fomo_bearer_nudge_message")
 nudge_tier = snap.get("fomo_bearer_nudge_tier")
 if ready is True:
     print("Credentials: ready")
+    for item in nudges:
+        print(f"  nudge: {item}")
     if nudge and nudge_tier in ("60", "15"):
         print(f"  note: {nudge}")
 elif warnings:
     print("Credentials: ACTION REQUIRED")
     for item in warnings:
         print(f"  - {item}")
+    for item in nudges:
+        print(f"  nudge: {item}")
     if nudge and nudge_tier == "expired":
         print(f"  note: {nudge}")
 else:
     print("Credentials: check bash trading-platform/scripts/check-deploy-credentials.sh")
+    for item in nudges:
+        print(f"  nudge: {item}")
     if nudge:
         print(f"  note: {nudge}")
 

@@ -220,17 +220,27 @@ def build_deploy_snapshot() -> dict[str, Any]:
   }
 
 
-def build_deploy_credentials_warnings(
+def build_deploy_credentials_nudges(
   *,
   github_token_configured: bool | None,
+) -> list[str]:
+  """Non-blocking deploy reminders (staleness checks, optional integrations)."""
+  nudges: list[str] = []
+  if github_token_configured is False:
+    nudges.append("GITHUB_TOKEN missing on Render — deploy staleness checks incomplete")
+  return nudges
+
+
+def build_deploy_credentials_warnings(
+  *,
+  github_token_configured: bool | None = None,
   fomo_configured: bool = False,
   fomo_polling_active: bool = False,
   fomo_minutes_remaining: int | None = None,
 ) -> list[str]:
-  """Human-readable deploy blockers for fomo bearer and GitHub token."""
+  """Blocking deploy credential issues (expired required integrations)."""
+  _ = github_token_configured  # nudges only — kept for call-site compatibility
   warnings: list[str] = []
-  if github_token_configured is False:
-    warnings.append("GITHUB_TOKEN missing on Render")
   if fomo_configured and not fomo_polling_active:
     label = f"{fomo_minutes_remaining}min" if fomo_minutes_remaining is not None else "expired"
     warnings.append(f"fomo bearer expired ({label})")
@@ -316,7 +326,11 @@ def apply_fomo_bearer_to_snapshot(
     fomo_polling_active=polling,
     fomo_minutes_remaining=merged.get("fomo_bearer_minutes_remaining"),
   )
+  nudges = build_deploy_credentials_nudges(
+    github_token_configured=merged.get("github_token_configured"),
+  )
   merged["deploy_credentials_warnings"] = warnings
+  merged["deploy_credentials_nudges"] = nudges
   merged["deploy_credentials_ready"] = len(warnings) == 0
   return merged
 
@@ -334,7 +348,7 @@ PRODUCTION_DASHBOARD_URL = "https://apex-trading-dashboard-flame.vercel.app"
 DEFAULT_VERIFIED_DASHBOARD_URL = "https://apex-trading-dashboard-o7tb7wydk-apexweb-adams-projects.vercel.app"
 DEFAULT_VERIFIED_DEPLOYMENT_ID = "dpl_Cn62LPUnD83i28cydia12AKr3uUw"
 EXPECTED_DASHBOARD_BUNDLE = "2026-08-29-r98"
-EXPECTED_PLATFORM_REVISION = "2026-08-29-r389"
+EXPECTED_PLATFORM_REVISION = "2026-08-29-r390"
 GIT_MAIN_ALIAS = "apex-trading-dashboard-git-main"
 ACCEPTABLE_DASHBOARD_BUNDLES = frozenset({
   "2026-08-27-r9", "2026-08-27-r10", "2026-08-27-r11", "2026-08-27-r12",

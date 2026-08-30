@@ -338,13 +338,21 @@ import json, sys
 d = json.load(sys.stdin)
 ready = d.get('deploy_credentials_ready')
 warnings = d.get('deploy_credentials_warnings') or []
+nudges = d.get('deploy_credentials_nudges') or []
 if ready is True:
-    print('  github_token_configured=True')
+    if nudges:
+        for item in nudges:
+            print(f'  nudge: {item}')
+    else:
+        print('  no blocking issues')
     sys.exit(0)
-if ready is False and warnings:
+if warnings:
     for item in warnings:
         print(f'  - {item}')
     sys.exit(2)
+if d.get('github_token_configured') is False:
+    print('  nudge: GITHUB_TOKEN missing (pre-r390 snapshot)')
+    sys.exit(3)
 sys.exit(1)
 " 2>&1) || CRED_RC=$?
 CRED_RC=${CRED_RC:-0}
@@ -353,7 +361,10 @@ if [[ "$CRED_RC" -eq 0 ]]; then
   ok "Deploy credentials ready"
 elif [[ "$CRED_RC" -eq 2 ]]; then
   echo "$CRED_OUT"
-  note "Deploy credentials not ready — run check-deploy-credentials.sh before deploy"
+  note "Deploy credentials blocked — run check-deploy-credentials.sh before deploy"
+elif [[ "$CRED_RC" -eq 3 ]]; then
+  echo "$CRED_OUT"
+  ok "Deploy credentials ready (GITHUB_TOKEN nudge on pre-r390 prod)"
 else
   note "Deploy credentials unknown (snapshot pre-r370)"
 fi
