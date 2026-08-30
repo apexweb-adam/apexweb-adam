@@ -374,6 +374,7 @@ export type SessionOpenChecklistSummary = {
   prep_phase?: string;
   minutes_until_open?: number | null;
   open_ready_symbols: string[];
+  near_floor_symbols?: string[];
   sticky_symbols?: string[];
   auto_entry_queued: boolean;
   composite_floor?: number | null;

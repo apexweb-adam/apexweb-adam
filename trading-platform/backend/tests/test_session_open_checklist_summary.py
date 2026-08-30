@@ -17,6 +17,9 @@ def test_summarize_session_open_checklist():
         "composite_floor": 0.42,
         "release_margin": 0.02,
       },
+      "near_floor": {
+        "symbols": ["CL=F"],
+      },
       "checks": [
         {"id": "deploy_current", "status": "fail", "critical": True},
         {"id": "auto_entry_queued", "status": "pass", "critical": True},
@@ -27,5 +30,6 @@ def test_summarize_session_open_checklist():
   assert summary["ready"] is False
   assert summary["open_ready_symbols"] == ["NG=F"]
   assert summary["sticky_symbols"] == ["CL=F"]
+  assert summary["near_floor_symbols"] == ["CL=F"]
   assert summary["release_margin"] == 0.02
   assert summary["critical_failures"] == ["deploy_current"]

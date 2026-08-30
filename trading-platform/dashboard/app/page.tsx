@@ -1923,7 +1923,12 @@ function SessionOpenChecklistsCard({
   const rows = [
     { key: "cme_reopen", label: "CME reopen", data: checklists.cme_reopen },
     { key: "us_stocks_open", label: "US stocks open", data: checklists.us_stocks_open },
-  ].filter((row) => (row.data.open_ready_symbols?.length ?? 0) > 0 || row.data.phase === "post_open");
+  ].filter(
+    (row) =>
+      (row.data.open_ready_symbols?.length ?? 0) > 0 ||
+      (row.data.near_floor_symbols?.length ?? 0) > 0 ||
+      row.data.phase === "post_open"
+  );
 
   if (rows.length === 0) return null;
 
@@ -1945,6 +1950,12 @@ function SessionOpenChecklistsCard({
             </p>
             <p className="text-gray-300 mt-1">
               Queued: {data.open_ready_symbols.join(", ") || "—"}
+              {(data.near_floor_symbols?.length ?? 0) > 0 ? (
+                <span className="text-amber-300 ml-2">
+                  · near floor {data.near_floor_symbols!.join(", ")}
+                  {data.composite_floor != null ? ` (floor ${data.composite_floor})` : ""}
+                </span>
+              ) : null}
               {(data.sticky_symbols?.length ?? 0) > 0 ? (
                 <span className="text-cyan-300 ml-2">
                   · sticky {data.sticky_symbols!.join(", ")}
