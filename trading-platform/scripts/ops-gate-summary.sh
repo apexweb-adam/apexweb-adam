@@ -32,6 +32,36 @@ parts.append(f"live_ready={ready}")
 print("Profitability gate: " + "; ".join(parts))
 PY
 
+PER_BOT=$(curl -fsS -m 25 "$BACKEND/api/gate/per-bot" 2>/dev/null || echo "{}")
+PER_BOT_JSON="$PER_BOT" python3 << 'PY'
+import json, os, sys
+data = json.loads(os.environ.get("PER_BOT_JSON") or "{}")
+bots = data.get("bots") or {}
+if not bots:
+    sys.exit(0)
+paused_rows = []
+for bot_type, stats in sorted(bots.items()):
+    if not stats.get("paused"):
+        continue
+    progress = (stats.get("graduation_progress") or {}).get("overall_pct")
+    progress_label = f"{progress:.0%}" if progress is not None else "?"
+    ready = stats.get("graduation_ready")
+    blockers = stats.get("graduation_blockers") or []
+    trades = stats.get("total_trades")
+    wr = stats.get("win_rate")
+    pf = stats.get("profit_factor")
+    line = f"  {bot_type}: graduation={progress_label} ready={ready} trades={trades}"
+    if wr is not None and pf is not None:
+        line += f" WR={wr:.0%} PF={pf}"
+    if blockers:
+        line += f" needs={blockers}"
+    paused_rows.append(line)
+if paused_rows:
+    print("Per-bot graduation (paused):")
+    for row in paused_rows:
+        print(row)
+PY
+
 STATUS=$(curl -fsS -m 45 "$BACKEND/api/status" 2>/dev/null || echo "{}")
 STATUS_JSON="$STATUS" python3 << 'PY'
 import json, os, sys
@@ -40,7 +70,12 @@ if not data:
     sys.exit(0)
 integrations = data.get("integrations") or {}
 deploy = data.get("deploy") or {}
+intel = data.get("intelligence") or {}
+sources = intel.get("sources") or []
 lines = []
+degraded = [s.get("source") for s in sources if s.get("status") == "degraded"]
+if degraded:
+    lines.append(f"WARN: intel degraded: {', '.join(degraded)}")
 if deploy.get("vercel_bundle_behind_expected"):
     exp = deploy.get("expected_dashboard_bundle") or "?"
     act = deploy.get("vercel_bundle_revision") or "?"

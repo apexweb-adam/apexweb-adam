@@ -9,7 +9,10 @@ def test_ops_gate_summary_script_exists():
   script = SCRIPTS / "ops-gate-summary.sh"
   text = script.read_text(encoding="utf-8")
   assert "/api/profitability" in text
+  assert "/api/gate/per-bot" in text
+  assert "Per-bot graduation" in text
   assert "fomo bearer" in text
+  assert "intel degraded" in text
 
 
 def test_verify_weekend_ops_includes_gate_and_revision_hints():

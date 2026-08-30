@@ -30,6 +30,9 @@ run_preflight() {
   echo "Expected revision (code): $EXPECTED_REVISION"
   echo ""
 
+  bash "$ROOT/scripts/ops-gate-summary.sh" || true
+  echo ""
+
   CHECKLIST=$(curl -fsS -m 90 "$BACKEND/api/gate/us-stocks-open-checklist" 2>/dev/null || echo "")
   if [[ -n "$CHECKLIST" && "$CHECKLIST" != "{}" ]]; then
     python3 << PY
