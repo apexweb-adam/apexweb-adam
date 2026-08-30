@@ -124,6 +124,18 @@ if window.get("window_closed"):
 
 if window.get("in_window"):
     print("")
+    ready = payload.get("deploy_credentials_ready")
+    warnings = payload.get("deploy_credentials_warnings") or []
+    if ready is False:
+        print("  credentials=ACTION REQUIRED (run check-deploy-credentials.sh --strict before deploy)")
+        for item in warnings:
+            print(f"    - {item}")
+    elif ready is True:
+        print("  credentials=ready")
+    nudge = payload.get("fomo_bearer_nudge_message")
+    if nudge:
+        print(f"  fomo_nudge={nudge}")
+    print("")
     print("*** DEPLOY WINDOW ACTIVE ***")
     run_all = payload.get("run_deploy_window_command") or window.get("run_deploy_window_command")
     if run_all:
@@ -151,7 +163,9 @@ while true; do
     if [[ "$AUTO_DEPLOY" == "true" ]]; then
       echo ""
       echo "Auto-deploy enabled — running full deploy window workflow..."
-      bash "$ROOT/scripts/run-deploy-window.sh"
+      if ! bash "$ROOT/scripts/run-deploy-window.sh"; then
+        exit 1
+      fi
     fi
     exit 0
   fi
