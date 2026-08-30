@@ -413,6 +413,7 @@ async def build_cme_reopen_checklist(session: AsyncSession) -> dict[str, Any]:
       "auto_entry_queued": bool(cme.get("auto_entry_queued")),
       "composite_floor": composite_floor,
       "release_margin": OPEN_READY_QUEUE_RELEASE_MARGIN,
+      "extended_release_margin": OPEN_READY_QUEUE_EXTENDED_MARGIN,
     },
     "near_floor": {
       "symbols": near_floor_symbols,

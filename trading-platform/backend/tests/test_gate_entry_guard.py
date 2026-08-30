@@ -1287,6 +1287,29 @@ def test_build_session_prep_status_includes_open_ready():
   assert status["open_ready_candidates"] == ["NG=F", "AAPL"]
 
 
+def test_build_session_prep_status_propagates_extended_sticky():
+  from app.engines.gate_entry_guard import build_session_prep_status
+
+  status = build_session_prep_status(
+    stocks_session={"in_session": False, "minutes_until_open": 2220, "mode": "outside_session"},
+    commodities_session={"in_session": False, "minutes_until_open": 280, "mode": "pre_session"},
+    stocks_trade_count_nudge=False,
+    commodities_graduation_nudge=True,
+    open_ready_rows=[
+      {
+        "bot_type": "commodities",
+        "symbol": "CL=F",
+        "composite": 0.363,
+        "sticky_queue": True,
+        "extended_sticky": True,
+        "blockers": ["weekend_futures_closed"],
+      },
+    ],
+  )
+  detail = status["commodities"]["open_ready_details"][0]
+  assert detail["extended_sticky"] is True
+
+
 def test_commodities_near_floor_candidate():
   from app.engines.gate_entry_guard import commodities_near_floor_candidate
 

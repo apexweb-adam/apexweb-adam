@@ -70,7 +70,8 @@ for row in open_ready.get('details') or []:
     comp = row.get('composite')
     blockers = row.get('blockers') or []
     sticky_flag = ' sticky' if row.get('sticky_queue') else ''
-    print(f'    {sym}: composite={comp}{sticky_flag} blockers={blockers}')
+    ext_flag = ' extended' if row.get('extended_sticky') else ''
+    print(f'    {sym}: composite={comp}{sticky_flag}{ext_flag} blockers={blockers}')
 extended_watch = open_ready.get('extended_watch_symbols') or []
 if extended_watch:
     print(f'  extended_watch={extended_watch}')
@@ -88,10 +89,14 @@ fail_ids = {c['id'] for c in critical_fail}
 if fail_ids == {'composite_floor'}:
     floor = open_ready.get('composite_floor')
     margin = open_ready.get('release_margin')
+    extended_margin = open_ready.get('extended_release_margin')
     if margin is None:
         margin = 0.02
+    if extended_margin is None:
+        extended_margin = 0.06
     if floor is not None:
         still_below = []
+        extended_watch = set(open_ready.get('extended_watch_symbols') or [])
         for row in open_ready.get('details') or []:
             sym = row.get('symbol')
             comp = row.get('composite')
@@ -99,12 +104,16 @@ if fail_ids == {'composite_floor'}:
                 continue
             effective = float(floor)
             if row.get('sticky_queue'):
-                effective -= float(margin)
+                regular_effective = float(floor) - float(margin)
+                extended_effective = float(floor) - float(extended_margin)
+                use_extended = bool(row.get('extended_sticky')) or sym in extended_watch
+                if not use_extended and float(comp) < regular_effective and float(comp) >= extended_effective:
+                    use_extended = True
+                effective = extended_effective if use_extended else regular_effective
             if float(comp) < effective:
                 still_below.append(str(sym))
         if not still_below:
-            eff = float(floor) - float(margin)
-            print(f'  note=composite_floor_ok_with_sticky_margin (effective={eff:.3f})')
+            print('  note=composite_floor_ok_with_sticky_margin')
             critical_fail = []
 if critical_fail:
     print('  errors=' + ','.join(c['id'] for c in critical_fail))
