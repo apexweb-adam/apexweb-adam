@@ -87,6 +87,16 @@ async def build_live_payload(session: AsyncSession) -> dict:
   from app.engines.session_open_log import get_session_open_events
 
   session_open_events = await get_session_open_events(session)
+  from app.engines.deploy_status import (
+    EXPECTED_PLATFORM_REVISION,
+    build_cme_deploy_urgency,
+  )
+  import os
+
+  platform_revision = os.environ.get("PLATFORM_REVISION", "").strip() or None
+  revision_current = (
+    platform_revision == EXPECTED_PLATFORM_REVISION if platform_revision else None
+  )
   portfolios = (await session.execute(select(Portfolio))).scalars().all()
   sell_trades = (await session.execute(select(Trade).where(Trade.action == "sell"))).scalars().all()
   positions = (
@@ -253,6 +263,16 @@ async def build_live_payload(session: AsyncSession) -> dict:
     "session_prep": session_prep,
     "next_session_events": next_session_events,
     "session_open_events": session_open_events,
+    "deploy": {
+      "platform_revision": platform_revision,
+      "expected_platform_revision": EXPECTED_PLATFORM_REVISION,
+      "platform_revision_current": revision_current,
+      "cme_deploy_urgency": build_cme_deploy_urgency(
+        platform_revision_current=revision_current,
+        cme_minutes_until_open=cme_session.get("minutes_until_open"),
+        cme_in_session=bool(cme_session.get("in_session")),
+      ),
+    },
     "content_study": content_study,
     **gate_payload,
   }

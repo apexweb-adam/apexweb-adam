@@ -65,7 +65,7 @@ import { IntelRoutingPanel } from "@/components/IntelRoutingPanel";
 type Tab = "overview" | "trades" | "positions" | "intelligence" | "learning" | "strategy";
 
 export default function Dashboard() {
-  const { stats, portfolios, bots, positions: livePositions, trades: liveTrades, recentIntel, analyses: liveAnalyses, reviews: liveReviews, insights: liveInsights, strategies: liveStrategies, intelSources: liveIntelSources, verificationHistory: liveVerificationHistory, connected, lastUpdate, lastTrade, profitabilityGate: liveProfitability, gateEntryTightening, botSessions, mondayRecovery, sessionPrep, nextSessionEvents, contentStudy } = useLiveData();
+  const { stats, portfolios, bots, positions: livePositions, trades: liveTrades, recentIntel, analyses: liveAnalyses, reviews: liveReviews, insights: liveInsights, strategies: liveStrategies, intelSources: liveIntelSources, verificationHistory: liveVerificationHistory, connected, lastUpdate, lastTrade, profitabilityGate: liveProfitability, gateEntryTightening, botSessions, mondayRecovery, sessionPrep, nextSessionEvents, contentStudy, sessionOpenEvents, cmeDeployUrgency } = useLiveData();
   const { data: tradesRest } = useAPI<Trade[]>("/trades?limit=50", 30000);
   const { data: gateTradesRest } = useAPI<Trade[]>("/trades?limit=200", 30000);
   const { data: positionsRest } = useAPI<Position[]>("/positions", 30000);
@@ -319,10 +319,18 @@ export default function Dashboard() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-6">
               <IntelAlertBanner platformStatus={platformStatus} intelSources={liveIntelSources} />
-              <CmeDeployUrgencyBanner urgency={platformStatus?.deploy?.cme_deploy_urgency} />
+              <CmeDeployUrgencyBanner
+                urgency={cmeDeployUrgency ?? platformStatus?.deploy?.cme_deploy_urgency}
+              />
               <SessionImminentBanners events={nextSessionEvents} sessionPrep={sessionPrep} />
               <NextSessionsCard events={nextSessionEvents} sessionPrep={sessionPrep} />
-              <SessionOpenLogCard events={platformStatus?.session_open_events} />
+              <SessionOpenLogCard
+                events={
+                  sessionOpenEvents.length > 0
+                    ? sessionOpenEvents
+                    : platformStatus?.session_open_events
+                }
+              />
               <MondayRecoveryBanner summary={mondayRecovery} />
               <SessionPrepBanner sessionPrep={sessionPrep} />
               <Card title="Bot Status">
