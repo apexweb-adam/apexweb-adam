@@ -2,7 +2,7 @@
 
 import asyncio
 from datetime import datetime
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from app.engines.integration_signals import get_integration_boost
 from app.models.entities import IntelligenceItem
@@ -30,6 +30,10 @@ def test_memecoin_confluence_boost_when_dex_and_hl_bullish():
   ]
   session.execute = AsyncMock(return_value=MagicMock(scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=items)))))
 
-  boost, reason = asyncio.run(get_integration_boost(session, "WIFUSDT"))
+  with patch(
+    "app.engines.integration_signals.get_intel_weight_multipliers",
+    AsyncMock(return_value={}),
+  ):
+    boost, reason = asyncio.run(get_integration_boost(session, "WIFUSDT"))
   assert boost > 0.05
   assert "memecoin_confluence" in reason

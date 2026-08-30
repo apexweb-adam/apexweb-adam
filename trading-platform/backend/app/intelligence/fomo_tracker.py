@@ -242,6 +242,11 @@ async def get_fomo_hot_symbols(session: AsyncSession, *, max_age_hours: int = 48
   if not settings.fomo_hot_symbols_enabled:
     return []
 
+  from app.engines.intel_source_status import intel_source_feed_active
+
+  if not await intel_source_feed_active(session, "fomo"):
+    return []
+
   cutoff = datetime.utcnow() - timedelta(hours=max_age_hours)
   result = await session.execute(
     select(IntelligenceItem)
@@ -395,7 +400,10 @@ async def scan_fomo_trades(session: AsyncSession) -> int:
     async with httpx.AsyncClient(timeout=25) as client:
       response = await client.get(url, headers=headers)
       if response.status_code == 401:
-        print("[fomo] bearer token expired — update FOMO_BEARER_TOKEN or POST /api/admin/set-fomo-bearer")
+        print("[fomo] bearer token expired — clearing stored token; refresh via fomo-set-bearer.sh")
+        from app.engines.platform_settings import set_fomo_bearer_token
+
+        await set_fomo_bearer_token(session, "")
         return 0
       response.raise_for_status()
       payload = response.json()

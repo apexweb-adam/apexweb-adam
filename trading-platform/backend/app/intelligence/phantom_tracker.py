@@ -159,6 +159,11 @@ async def get_phantom_watch_symbols(session: AsyncSession, *, max_age_hours: int
   if not settings.phantom_enabled:
     return []
 
+  from app.engines.intel_source_status import intel_source_feed_active
+
+  if not await intel_source_feed_active(session, "phantom"):
+    return []
+
   cutoff = datetime.utcnow() - timedelta(hours=max_age_hours)
   result = await session.execute(
     select(IntelligenceItem)

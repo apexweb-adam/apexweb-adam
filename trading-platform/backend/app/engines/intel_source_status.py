@@ -1,5 +1,8 @@
 """Shared intelligence source health for REST and WebSocket APIs."""
 
+from __future__ import annotations
+
+import time
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
@@ -19,6 +22,12 @@ from app.intelligence.phantom_tracker import (
 from app.intelligence.solana_wallet_tracker import tracked_solana_wallet_count
 from app.intelligence.wallet_tracker import wallet_tracker_configured
 from app.models.entities import IntelligenceItem
+
+DEGRADED_INTEL_WEIGHT = 0.35
+PARTIAL_INTEL_WEIGHT = 0.65
+INTEL_WEIGHT_MULTIPLIERS_TTL_SECONDS = 60
+
+_INTEL_WEIGHT_MULTIPLIERS_CACHE: tuple[float, dict[str, float]] | None = None
 
 INTEL_SOURCE_ORDER = [
   "news",
@@ -81,6 +90,105 @@ def _source_status(
   if is_configured or has_items:
     return "active"
   return "pending"
+
+
+async def _source_has_recent_items(
+  session: AsyncSession,
+  source: str,
+  *,
+  hours: float = 6,
+) -> bool:
+  cutoff = datetime.utcnow() - timedelta(hours=hours)
+  result = await session.execute(
+    select(func.count(IntelligenceItem.id)).where(
+      IntelligenceItem.source == source,
+      IntelligenceItem.fetched_at >= cutoff,
+    )
+  )
+  return int(result.scalar() or 0) > 0
+
+
+def clear_intel_weight_multipliers_cache() -> None:
+  global _INTEL_WEIGHT_MULTIPLIERS_CACHE
+  _INTEL_WEIGHT_MULTIPLIERS_CACHE = None
+
+
+async def get_intel_weight_multipliers(session: AsyncSession) -> dict[str, float]:
+  """Per-source scoring multipliers when feeds are degraded (cached ~60s)."""
+  global _INTEL_WEIGHT_MULTIPLIERS_CACHE
+  now = time.monotonic()
+  if (
+    _INTEL_WEIGHT_MULTIPLIERS_CACHE is not None
+    and now - _INTEL_WEIGHT_MULTIPLIERS_CACHE[0] < INTEL_WEIGHT_MULTIPLIERS_TTL_SECONDS
+  ):
+    return _INTEL_WEIGHT_MULTIPLIERS_CACHE[1]
+
+  multipliers: dict[str, float] = {}
+
+  fomo_bearer = await get_fomo_bearer_status(session)
+  if fomo_bearer.get("configured"):
+    if not fomo_bearer.get("polling_active"):
+      if await _source_has_recent_items(session, "fomo", hours=6):
+        multipliers["fomo"] = PARTIAL_INTEL_WEIGHT
+      else:
+        multipliers["fomo"] = DEGRADED_INTEL_WEIGHT
+
+  axiom_session = await get_axiom_session_status(session)
+  axiom_degraded = (
+    (axiom_session.get("configured") and axiom_session.get("poll_mode") == "session" and not axiom_session.get("polling_active"))
+    or axiom_session.get("poll_mode") == "off"
+    or not axiom_session.get("multi_wallet_ready")
+  )
+  if axiom_degraded:
+    if await _source_has_recent_items(session, "axiom", hours=12):
+      multipliers["axiom"] = PARTIAL_INTEL_WEIGHT
+    else:
+      multipliers["axiom"] = DEGRADED_INTEL_WEIGHT
+
+  if settings.phantom_portfolio_poll_enabled and not phantom_portfolio_poll_active():
+    if await _source_has_recent_items(session, "phantom", hours=12):
+      multipliers["phantom"] = PARTIAL_INTEL_WEIGHT
+    else:
+      multipliers["phantom"] = DEGRADED_INTEL_WEIGHT
+
+  _INTEL_WEIGHT_MULTIPLIERS_CACHE = (now, multipliers)
+  return multipliers
+
+
+async def intel_source_feed_active(session: AsyncSession, source: str) -> bool:
+  """Whether a source has live polling or recent webhook intel for scan expansion."""
+  if source == "fomo":
+    status = await get_fomo_bearer_status(session)
+    if not status.get("configured"):
+      return await _source_has_recent_items(session, "fomo", hours=6)
+    if status.get("polling_active"):
+      return True
+    return await _source_has_recent_items(session, "fomo", hours=6)
+
+  if source == "axiom":
+    axiom_session = await get_axiom_session_status(session)
+    if axiom_session.get("poll_mode") == "off":
+      return await _source_has_recent_items(session, "axiom", hours=12)
+    if (
+      axiom_session.get("configured")
+      and axiom_session.get("poll_mode") == "session"
+      and not axiom_session.get("polling_active")
+    ):
+      return await _source_has_recent_items(session, "axiom", hours=12)
+    if not axiom_session.get("multi_wallet_ready"):
+      return await _source_has_recent_items(session, "axiom", hours=12)
+    return True
+
+  if source == "phantom":
+    if settings.phantom_portfolio_poll_enabled and not phantom_portfolio_poll_active():
+      return await _source_has_recent_items(session, "phantom", hours=12)
+    return True
+
+  return True
+
+
+def intel_source_trusted_for_confluence(source: str, multipliers: dict[str, float]) -> bool:
+  return multipliers.get(source, 1.0) >= PARTIAL_INTEL_WEIGHT
 
 
 async def build_intel_sources(session: AsyncSession) -> list[dict[str, Any]]:

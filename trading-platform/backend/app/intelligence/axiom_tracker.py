@@ -187,6 +187,11 @@ async def get_axiom_hot_symbols(session: AsyncSession, *, max_age_hours: int = 4
   if not settings.axiom_hot_symbols_enabled:
     return []
 
+  from app.engines.intel_source_status import intel_source_feed_active
+
+  if not await intel_source_feed_active(session, "axiom"):
+    return []
+
   cutoff = datetime.utcnow() - timedelta(hours=max_age_hours)
   result = await session.execute(
     select(IntelligenceItem)
