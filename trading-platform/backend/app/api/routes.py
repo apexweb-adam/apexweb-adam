@@ -229,22 +229,9 @@ async def get_monday_recovery_summary(db: AsyncSession = Depends(get_db)) -> dic
 @router.get("/gate/prep-status")
 async def get_session_prep_status(db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
   """Weekend/session TV prep window status for stocks and commodities."""
-  from app.engines.gate_entry_guard import (
-    build_session_prep_status,
-    commodities_session_info,
-    stocks_session_info,
-  )
-  from app.engines.scan_preview import build_monday_recovery_summary
+  from app.engines.gate_prep_status import build_gate_prep_status
 
-  recovery = await build_monday_recovery_summary(db)
-  return build_session_prep_status(
-    stocks_session=stocks_session_info(),
-    commodities_session=commodities_session_info(),
-    stocks_trade_count_nudge=bool(recovery.get("stocks_trade_count_nudge")),
-    commodities_graduation_nudge=bool(recovery.get("commodities_graduation_nudge")),
-    open_ready_rows=recovery.get("open_ready"),
-    near_floor_rows=recovery.get("near_floor"),
-  )
+  return await build_gate_prep_status(db)
 
 
 @router.get("/intelligence")
