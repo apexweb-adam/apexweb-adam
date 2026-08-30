@@ -430,18 +430,20 @@ def should_show_cme_checklist_on_crm(checklist: dict[str, Any] | None) -> bool:
   if checklist.get("phase") in ("open", "post_open"):
     return True
   open_ready = checklist.get("open_ready") or {}
-  return bool(open_ready.get("symbols"))
+  near_floor = checklist.get("near_floor") or {}
+  return bool(open_ready.get("symbols") or near_floor.get("symbols"))
 
 
 def format_cme_checklist_crm_html(checklist: dict[str, Any]) -> str:
   """Render checklist checks for the /crm landing page."""
+  from app.engines.session_open_checklist_summary import format_checklist_queue_summary
+
   phase = checklist.get("phase") or "preflight"
   ready = bool(checklist.get("ready"))
   checks = checklist.get("checks") or []
   open_ready = checklist.get("open_ready") or {}
-  symbols = ", ".join(open_ready.get("symbols") or []) or "—"
-  floor = open_ready.get("composite_floor")
-  floor_label = f"{float(floor):.2f}" if floor is not None else "?"
+  near_floor = checklist.get("near_floor") or {}
+  queue_summary = format_checklist_queue_summary(open_ready, near_floor)
   mins = checklist.get("minutes_until_open")
   countdown = f"{mins // 60}h {mins % 60}m" if mins is not None else "soon"
   ready_color = "#4ade80" if ready else "#fbbf24"
@@ -464,7 +466,7 @@ def format_cme_checklist_crm_html(checklist: dict[str, Any]) -> str:
     <p class="muted" style="margin-top:0;">Phase <strong>{phase}</strong> ·
       <span style="color:{ready_color};font-weight:600;">{ready_label}</span>
       · open in {countdown}</p>
-    <p class="muted" style="margin-top:0;">Auto-entry queued: {symbols} · composite floor {floor_label}
+    <p class="muted" style="margin-top:0;">{queue_summary}
       · <a href="/api/gate/cme-reopen-checklist">JSON API</a></p>
     <table>
       <thead><tr><th>Check</th><th>Status</th><th>Detail</th></tr></thead>

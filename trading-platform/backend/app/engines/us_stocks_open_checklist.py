@@ -350,7 +350,8 @@ def should_show_us_stocks_checklist_on_crm(checklist: dict[str, Any] | None) -> 
   if not checklist:
     return False
   open_ready = checklist.get("open_ready") or {}
-  if not open_ready.get("symbols"):
+  near_floor = checklist.get("near_floor") or {}
+  if not open_ready.get("symbols") and not near_floor.get("symbols"):
     return False
   mins = checklist.get("minutes_until_open")
   if mins is not None and mins <= 2880:
@@ -359,13 +360,14 @@ def should_show_us_stocks_checklist_on_crm(checklist: dict[str, Any] | None) -> 
 
 
 def format_us_stocks_checklist_crm_html(checklist: dict[str, Any]) -> str:
+  from app.engines.session_open_checklist_summary import format_checklist_queue_summary
+
   phase = checklist.get("phase") or "preflight"
   ready = bool(checklist.get("ready"))
   checks = checklist.get("checks") or []
   open_ready = checklist.get("open_ready") or {}
-  symbols = ", ".join(open_ready.get("symbols") or []) or "—"
-  floor = open_ready.get("composite_floor")
-  floor_label = f"{float(floor):.2f}" if floor is not None else "?"
+  near_floor = checklist.get("near_floor") or {}
+  queue_summary = format_checklist_queue_summary(open_ready, near_floor)
   mins = checklist.get("minutes_until_open")
   countdown = f"{mins // 60}h {mins % 60}m" if mins is not None else "soon"
   ready_color = "#4ade80" if ready else "#fbbf24"
@@ -388,7 +390,7 @@ def format_us_stocks_checklist_crm_html(checklist: dict[str, Any]) -> str:
     <p class="muted" style="margin-top:0;">Phase <strong>{phase}</strong> ·
       <span style="color:{ready_color};font-weight:600;">{ready_label}</span>
       · open in {countdown}</p>
-    <p class="muted" style="margin-top:0;">Auto-entry queued: {symbols} · composite floor {floor_label}
+    <p class="muted" style="margin-top:0;">{queue_summary}
       · <a href="/api/gate/us-stocks-open-checklist">JSON API</a></p>
     <table>
       <thead><tr><th>Check</th><th>Status</th><th>Detail</th></tr></thead>

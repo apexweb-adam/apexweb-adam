@@ -79,6 +79,10 @@ def test_format_cme_checklist_crm_html():
       "ready": True,
       "minutes_until_open": 900,
       "open_ready": {"symbols": ["NG=F"], "composite_floor": 0.42},
+      "near_floor": {
+        "symbols": ["CL=F"],
+        "details": [{"symbol": "CL=F", "gap_to_floor": 0.014}],
+      },
       "checks": [
         {"id": "auto_entry_queued", "status": "pass", "message": "queued NG=F"},
       ],
@@ -87,3 +91,4 @@ def test_format_cme_checklist_crm_html():
   assert "CME reopen checklist" in html
   assert "auto_entry_queued" in html
   assert "NG=F" in html
+  assert "near floor CL=F +0.014" in html
