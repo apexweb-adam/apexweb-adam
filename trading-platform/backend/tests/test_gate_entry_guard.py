@@ -1213,6 +1213,7 @@ def test_build_session_prep_status_includes_open_ready():
         "direction": "buy",
         "macd": "bullish",
         "monday_gate_skip_ready": True,
+        "sticky_queue": True,
         "blockers": ["weekend_futures_closed"],
       },
       {
@@ -1227,6 +1228,7 @@ def test_build_session_prep_status_includes_open_ready():
   assert status["commodities"]["open_ready_symbols"] == ["NG=F"]
   assert status["stocks_futures"]["open_ready_symbols"] == ["AAPL"]
   assert status["commodities"]["open_ready_details"][0]["direction"] == "buy"
+  assert status["commodities"]["open_ready_details"][0]["sticky_queue"] is True
   assert status["open_ready_candidates"] == ["NG=F", "AAPL"]
 
 

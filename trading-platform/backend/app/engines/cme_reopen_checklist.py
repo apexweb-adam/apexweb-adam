@@ -384,8 +384,14 @@ async def build_cme_reopen_checklist(session: AsyncSession) -> dict[str, Any]:
     "open_ready": {
       "symbols": open_ready_symbols,
       "details": open_ready_details,
+      "sticky_symbols": [
+        str(row.get("symbol"))
+        for row in open_ready_details
+        if row.get("symbol") and row.get("sticky_queue")
+      ],
       "auto_entry_queued": bool(cme.get("auto_entry_queued")),
       "composite_floor": composite_floor,
+      "release_margin": 0.02,
     },
     "near_floor": {
       "symbols": near_floor_symbols,
