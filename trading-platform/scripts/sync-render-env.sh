@@ -116,14 +116,27 @@ echo "Synced $synced keys ($skipped skipped)"
 
 if [[ "${TRIGGER_DEPLOY:-false}" == "true" ]]; then
   echo "Triggering Render deploy..."
-  curl -fsS -X POST \
+  http=$(curl -sS -o /tmp/render-deploy-resp.json -w "%{http_code}" -X POST \
     -H "Authorization: Bearer $RENDER_API_KEY" \
     -H "Content-Type: application/json" \
     -d '{"clearCache":"clear"}' \
-    "https://api.render.com/v1/services/${SERVICE_ID}/deploys" | python3 -c "
+    "https://api.render.com/v1/services/${SERVICE_ID}/deploys" || echo "000")
+  if [[ "$http" == "202" && ! -s /tmp/render-deploy-resp.json ]]; then
+    echo "deploy queued (HTTP 202 — Render accepted deploy request)"
+  elif [[ "$http" =~ ^(200|201|202)$ ]]; then
+    python3 -c "
 import json,sys
-d=json.load(sys.stdin)
+raw=open('/tmp/render-deploy-resp.json').read().strip()
+if not raw:
+    print('deploy queued (HTTP $http)')
+    sys.exit(0)
+d=json.loads(raw)
 dep=d.get('deploy',d)
 print('deploy', dep.get('id','?'), 'status', dep.get('status','?'))
 "
+  else
+    echo "✗ deploy trigger failed (HTTP $http)" >&2
+    cat /tmp/render-deploy-resp.json >&2 2>/dev/null || true
+    exit 1
+  fi
 fi
