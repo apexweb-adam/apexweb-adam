@@ -63,7 +63,7 @@ def test_verify_post_deploy_includes_crm_and_learning_checks():
   assert "run_deploy_window_command" in text
   assert ".crm-load-baseline" in text
   assert "r367-r371" in text
-  assert "check-github-token.sh" in text
+  assert "check-deploy-credentials.sh" in text
   assert "fomo_bearer_configured" in text
 
 
@@ -72,7 +72,7 @@ def test_verify_pre_deploy_saves_crm_baseline():
   text = script.read_text(encoding="utf-8")
   assert ".crm-load-baseline" in text
   assert "CRM landing baseline" in text
-  assert "check-fomo-bearer.sh" in text
+  assert "check-deploy-credentials.sh" in text
 
 
 def test_check_fomo_bearer_script_exists():
@@ -84,11 +84,21 @@ def test_check_fomo_bearer_script_exists():
   assert "fomo-set-bearer.sh" in text
 
 
-def test_run_deploy_window_includes_fomo_check():
+def test_run_deploy_window_includes_credentials_check():
   script = SCRIPTS / "run-deploy-window.sh"
   text = script.read_text(encoding="utf-8")
-  assert "check-fomo-bearer.sh" in text
+  assert "check-deploy-credentials.sh" in text
   assert ".crm-load-baseline" in text
+
+
+def test_check_deploy_credentials_script_exists():
+  script = SCRIPTS / "check-deploy-credentials.sh"
+  text = script.read_text(encoding="utf-8")
+  assert "/api/deploy/snapshot" in text
+  assert "deploy_credentials_ready" in text
+  assert "ACTION REQUIRED before deploy" in text
+  assert "check-fomo-bearer.sh" in text
+  assert "check-github-token.sh" in text
 
 
 def test_verify_weekend_ops_includes_gate_and_revision_hints():
@@ -97,9 +107,8 @@ def test_verify_weekend_ops_includes_gate_and_revision_hints():
   assert "Code target:" in text
   assert "ops-gate-summary.sh" in text
   assert "Profitability gate:" not in text  # delegated to helper
-  assert "github_token_configured" in text
-  assert "fomo_bearer_polling_active" in text
-  assert "check-fomo-bearer.sh" in text
+  assert "deploy_credentials_ready" in text
+  assert "deploy_credentials_warnings" in text
   assert "deploy will advance prod expected" in text
 
 
