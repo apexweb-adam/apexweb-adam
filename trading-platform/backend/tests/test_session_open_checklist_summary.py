@@ -1,6 +1,22 @@
 """Tests for session-open checklist summaries."""
 
-from app.engines.session_open_checklist_summary import summarize_session_open_checklist
+from app.engines.session_open_checklist_summary import (
+  format_checklist_queue_summary,
+  summarize_session_open_checklist,
+)
+
+
+def test_format_checklist_queue_summary_near_floor_gap():
+  summary = format_checklist_queue_summary(
+    {"symbols": ["NG=F"], "composite_floor": 0.42, "sticky_symbols": ["CL=F"], "release_margin": 0.02},
+    {
+      "symbols": ["CL=F"],
+      "details": [{"symbol": "CL=F", "composite": 0.406, "gap_to_floor": 0.014}],
+    },
+  )
+  assert "NG=F" in summary
+  assert "sticky CL=F" in summary
+  assert "near floor CL=F +0.014" in summary
 
 
 def test_summarize_session_open_checklist():

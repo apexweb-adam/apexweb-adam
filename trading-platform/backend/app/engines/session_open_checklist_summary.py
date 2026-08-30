@@ -7,6 +7,39 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
+def format_checklist_queue_summary(
+  open_ready: dict[str, Any],
+  near_floor: dict[str, Any] | None = None,
+) -> str:
+  """Human-readable queue line for CRM cards and ops scripts."""
+  symbols = ", ".join(open_ready.get("symbols") or []) or "—"
+  floor = open_ready.get("composite_floor")
+  floor_label = f"{float(floor):.2f}" if floor is not None else "?"
+  parts = [f"Auto-entry queued: {symbols} · composite floor {floor_label}"]
+
+  sticky = open_ready.get("sticky_symbols") or []
+  if sticky:
+    margin = open_ready.get("release_margin")
+    margin_label = f" ±{margin}" if margin is not None else ""
+    parts.append(f"sticky {', '.join(sticky)}{margin_label}")
+
+  near = near_floor or {}
+  near_syms = near.get("symbols") or []
+  if near_syms:
+    gap_bits: list[str] = []
+    for row in near.get("details") or []:
+      sym = row.get("symbol")
+      gap = row.get("gap_to_floor")
+      if sym and gap is not None:
+        gap_bits.append(f"{sym} +{gap}")
+      elif sym:
+        gap_bits.append(str(sym))
+    near_label = ", ".join(gap_bits) if gap_bits else ", ".join(near_syms)
+    parts.append(f"near floor {near_label}")
+
+  return " · ".join(parts)
+
+
 def summarize_session_open_checklist(checklist: dict[str, Any]) -> dict[str, Any]:
   checks = checklist.get("checks") or []
   open_ready = checklist.get("open_ready") or {}
