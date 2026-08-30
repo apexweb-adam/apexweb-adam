@@ -1282,9 +1282,15 @@ def test_build_session_prep_status_includes_near_floor():
   )
   assert status["commodities"]["near_floor_symbols"] == ["CL=F"]
   assert status["near_floor_candidates"] == ["CL=F"]
+  assert status["commodities"]["near_floor_details"][0]["gap_to_floor"] == 0.01
 
 
-def test_build_next_session_events():
+def test_gap_to_open_composite_floor():
+  from app.engines.gate_entry_guard import gap_to_open_composite_floor
+
+  assert gap_to_open_composite_floor("commodities", 0.406, graduation_nudge=True) == 0.014
+  assert gap_to_open_composite_floor("commodities", 0.45, graduation_nudge=True) == 0.0
+  assert gap_to_open_composite_floor("commodities", 0.406, graduation_nudge=False) is None
   from app.engines.gate_entry_guard import build_next_session_events, build_session_prep_status
 
   commodities_session = {
