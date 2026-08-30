@@ -1,5 +1,6 @@
 """Tests for /crm landing page."""
 
+import asyncio
 from unittest.mock import AsyncMock, patch
 
 from fastapi.testclient import TestClient
@@ -1095,3 +1096,56 @@ def test_crm_landing_shows_cme_deploy_nudge_when_revision_behind():
   assert "CME reopen checklist" in body
   assert "auto_entry_queued" in body
   assert "NG=F" in body
+
+
+def test_crm_landing_gathers_deploy_and_context_in_parallel():
+  client = TestClient(app)
+  deploy = {"vercel_bundle_stale": False}
+  ctx = {
+    "gate": {
+      "verification_day": 1,
+      "total_trades": 0,
+      "win_rate": 0,
+      "total_pnl": 0,
+      "profit_factor": 1,
+      "recommendation": "Continue",
+      "paused_bots": [],
+    },
+    "per_bot": {},
+    "monday_recovery": {"recovery_candidates": [], "all": [], "bots": {}},
+    "learning": {"review_date": "", "trade_analyses": 0, "pending_insights": 0, "reviews": []},
+    "content_study": {"insights_applied": 0, "recent": []},
+    "intel_sources": [],
+    "live_snapshot": {
+      "active_bots": [],
+      "positions": [],
+      "gate_tightening": {},
+      "chronic_loser_symbols": {},
+      "proven_winner_symbols": {},
+    },
+    "integrations": {"tradingview": {}, "polymarket": {}, "wallet_tracker": {}},
+    "session_open_events": [],
+    "cme_checklist": None,
+    "us_stocks_checklist": None,
+  }
+  call_order: list[str] = []
+
+  async def slow_deploy():
+    call_order.append("deploy_start")
+    await asyncio.sleep(0.02)
+    call_order.append("deploy_end")
+    return deploy
+
+  async def slow_ctx():
+    call_order.append("ctx_start")
+    await asyncio.sleep(0.02)
+    call_order.append("ctx_end")
+    return ctx
+
+  with patch("app.main.resolve_crm_dashboard_url", new_callable=AsyncMock, return_value="https://example.com"):
+    with patch("app.main.build_deploy_status", side_effect=slow_deploy):
+      with patch("app.engines.crm_landing_context.build_crm_landing_context", side_effect=slow_ctx):
+        response = client.get("/crm")
+
+  assert response.status_code == 200
+  assert call_order.index("ctx_start") < call_order.index("deploy_end")
