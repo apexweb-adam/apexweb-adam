@@ -5,6 +5,8 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=lib/fetch_json.sh
+source "$ROOT/scripts/lib/fetch_json.sh"
 BACKEND="${BACKEND_URL:-https://apex-trading-backend.onrender.com}"
 EXPECTED_REVISION="${EXPECTED_PLATFORM_REVISION:-$(grep '^EXPECTED_PLATFORM_REVISION' "$ROOT/backend/app/engines/deploy_status.py" | sed -n 's/.*"\([^"]*\)".*/\1/p')}"
 MAX_WAIT="${MAX_WAIT:-600}"
@@ -43,7 +45,7 @@ attempt=0
 
 while [[ $(date +%s) -lt $deadline ]]; do
   attempt=$((attempt + 1))
-  SNAPSHOT=$(curl -fsS -m 20 "$BACKEND/api/deploy/snapshot" 2>/dev/null || echo "{}")
+  SNAPSHOT=$(fetch_json "$BACKEND/api/deploy/snapshot" 45 2)
   set +e
   READY=$(SNAPSHOT="$SNAPSHOT" EXPECTED="$EXPECTED_REVISION" python3 << 'PY'
 import json, os, sys
