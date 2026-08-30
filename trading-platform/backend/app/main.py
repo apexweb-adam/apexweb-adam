@@ -126,9 +126,24 @@ async def crm_landing():
     except Exception:
       cme_checklist = None
 
+    from app.engines.us_stocks_open_checklist import (
+      build_us_stocks_open_checklist,
+      format_us_stocks_checklist_crm_html,
+      should_show_us_stocks_checklist_on_crm,
+    )
+
+    try:
+      us_stocks_checklist = await build_us_stocks_open_checklist(session)
+    except Exception:
+      us_stocks_checklist = None
+
   cme_checklist_card = ""
   if should_show_cme_checklist_on_crm(cme_checklist):
     cme_checklist_card = format_cme_checklist_crm_html(cme_checklist)
+
+  us_stocks_checklist_card = ""
+  if should_show_us_stocks_checklist_on_crm(us_stocks_checklist):
+    us_stocks_checklist_card = format_us_stocks_checklist_crm_html(us_stocks_checklist)
 
   day = gate.get("verification_day", 0)
   trades = gate.get("total_trades", 0)
@@ -738,6 +753,7 @@ async def crm_landing():
   {cme_imminent_banner}
   {us_imminent_banner}
   {cme_checklist_card}
+  {us_stocks_checklist_card}
   <div class="card">
     <p class="label">30-day verification gate · day {day}/30</p>
     <div class="grid">

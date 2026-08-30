@@ -242,6 +242,14 @@ async def get_cme_reopen_checklist(db: AsyncSession = Depends(get_db)) -> dict[s
   return await build_cme_reopen_checklist(db)
 
 
+@router.get("/gate/us-stocks-open-checklist")
+async def get_us_stocks_open_checklist(db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
+  """Monday US stocks open preflight and post-open verification checklist."""
+  from app.engines.us_stocks_open_checklist import build_us_stocks_open_checklist
+
+  return await build_us_stocks_open_checklist(db)
+
+
 @router.get("/intelligence")
 async def get_intelligence(
   limit: int = 50,
