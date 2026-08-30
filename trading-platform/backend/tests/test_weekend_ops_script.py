@@ -47,6 +47,15 @@ def test_verify_platform_uses_ops_gate_summary():
   assert "verify-dashboard-bundle.sh" in text
 
 
+def test_verify_post_deploy_includes_crm_and_learning_checks():
+  script = SCRIPTS / "verify-post-deploy.sh"
+  text = script.read_text(encoding="utf-8")
+  assert "ops-gate-summary.sh" in text
+  assert "/crm" in text
+  assert "learning_loop" in text
+  assert "run_deploy_window_command" in text
+
+
 def test_verify_weekend_ops_includes_gate_and_revision_hints():
   script = SCRIPTS / "verify-weekend-ops.sh"
   text = script.read_text(encoding="utf-8")
