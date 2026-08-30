@@ -108,6 +108,9 @@ if not payload:
     sys.exit(3)
 
 if current is True:
+    mins = payload.get("cme_minutes_until_open")
+    if mins is not None:
+        print(f"  cme_open_in={mins}min")
     print("✓ Production revision current — no deploy window needed")
     sys.exit(0)
 
@@ -163,9 +166,44 @@ sys.exit(0)
 PY
 }
 
+print_cme_prep() {
+  local cme
+  cme=$(fetch_json "$BACKEND/api/gate/cme-reopen-checklist" 60 2 || echo "{}")
+  echo "$cme" | python3 -c "
+import json, sys
+data = json.load(sys.stdin)
+if not data:
+    raise SystemExit(0)
+open_ready = data.get('open_ready') or {}
+open_syms = open_ready.get('symbols') or []
+sticky = open_ready.get('sticky_symbols') or []
+near = (data.get('near_floor') or {}).get('symbols') or []
+auto_entry = open_ready.get('auto_entry_queued')
+mins = data.get('minutes_until_open')
+parts = [f'CME prep: open_ready={open_syms or \"none\"}']
+if sticky:
+    parts.append(f'sticky={sticky}')
+if near:
+    parts.append(f'near_floor={near}')
+parts.append(f'auto_entry={auto_entry}')
+if mins is not None:
+    parts.append(f'open_in={mins}min')
+print('  ' + ' '.join(parts))
+for row in (data.get('near_floor') or {}).get('details') or []:
+    sym = row.get('symbol')
+    gap = row.get('gap_to_floor')
+    comp = row.get('composite')
+    if sym and gap is not None:
+        print(f'    near_floor {sym}: composite={comp} need +{gap}')
+" 2>/dev/null || true
+}
+
 while true; do
   run_check
   rc=$?
+  if [[ $rc -eq 0 ]]; then
+    print_cme_prep
+  fi
   if [[ $rc -eq 10 ]]; then
     if [[ "$AUTO_DEPLOY" == "true" ]]; then
       echo ""

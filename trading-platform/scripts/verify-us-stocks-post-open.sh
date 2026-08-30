@@ -1,11 +1,17 @@
 #!/usr/bin/env bash
 # Post-open verification after Monday US stocks open (run after 13:30 UTC).
+# Usage: verify-us-stocks-post-open.sh [--watch SECONDS]
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 # shellcheck source=lib/fetch_json.sh
 source "$ROOT/scripts/lib/fetch_json.sh"
 BACKEND="${BACKEND_URL:-https://apex-trading-backend.onrender.com}"
+WATCH_INTERVAL=""
+
+if [[ "${1:-}" == "--watch" ]]; then
+  WATCH_INTERVAL="${2:-120}"
+fi
 
 pass=0
 fail=0
@@ -15,16 +21,21 @@ ok() { echo "✓ $*"; pass=$((pass + 1)); }
 bad() { echo "✗ $*"; fail=$((fail + 1)); }
 note() { echo "○ $*"; warn=$((warn + 1)); }
 
-echo "=== US Stocks Post-Open Verification — $(date -u '+%Y-%m-%d %H:%M UTC') ==="
-echo "Backend: $BACKEND"
-echo ""
+run_verification() {
+  pass=0
+  fail=0
+  warn=0
 
-TMP=$(mktemp -d)
-trap 'rm -rf "$TMP"' EXIT
-fetch_json "$BACKEND/api/gate/us-stocks-open-checklist" 90 2 > "$TMP/checklist.json" || echo "{}" > "$TMP/checklist.json"
-fetch_json "$BACKEND/api/status" 90 2 > "$TMP/status.json" || echo "{}" > "$TMP/status.json"
+  echo "=== US Stocks Post-Open Verification — $(date -u '+%Y-%m-%d %H:%M UTC') ==="
+  echo "Backend: $BACKEND"
+  echo ""
 
-CHECKLIST_FILE="$TMP/checklist.json" STATUS_FILE="$TMP/status.json" python3 << 'PY'
+  TMP=$(mktemp -d)
+  trap 'rm -rf "$TMP"' RETURN
+  fetch_json "$BACKEND/api/gate/us-stocks-open-checklist" 90 2 > "$TMP/checklist.json" || echo "{}" > "$TMP/checklist.json"
+  fetch_json "$BACKEND/api/status" 90 2 > "$TMP/status.json" || echo "{}" > "$TMP/status.json"
+
+  CHECKLIST_FILE="$TMP/checklist.json" STATUS_FILE="$TMP/status.json" python3 << 'PY'
 import json, os, sys
 from pathlib import Path
 
@@ -97,15 +108,36 @@ if errors:
 sys.exit(0)
 PY
 
-rc=$?
-if [[ $rc -eq 0 ]]; then
-  ok "US stocks post-open checklist passed"
-elif [[ $rc -eq 2 ]]; then
-  note "US stocks not open yet — rerun after 13:30 UTC"
-else
-  bad "US stocks post-open checklist failed"
-fi
+  local rc=$?
+  if [[ $rc -eq 0 ]]; then
+    ok "US stocks post-open checklist passed"
+  elif [[ $rc -eq 2 ]]; then
+    note "US stocks not open yet — rerun after 13:30 UTC"
+  else
+    bad "US stocks post-open checklist failed"
+  fi
 
-echo ""
-echo "Results: $pass passed, $fail failed, $warn notes"
-[[ "$fail" -eq 0 ]]
+  echo ""
+  echo "Results: $pass passed, $fail failed, $warn notes"
+  return "$rc"
+}
+
+if [[ -n "$WATCH_INTERVAL" ]]; then
+  while true; do
+    run_verification
+    rc=$?
+    if [[ $rc -eq 0 ]]; then
+      exit 0
+    fi
+    if [[ $rc -eq 1 ]]; then
+      exit 1
+    fi
+    echo ""
+    echo "Watching for US stocks post-open — next check in ${WATCH_INTERVAL}s (Ctrl+C to stop)"
+    sleep "$WATCH_INTERVAL"
+    echo ""
+  done
+else
+  run_verification
+  exit $?
+fi
