@@ -540,5 +540,7 @@ export type PlatformStatus = {
     insights_total: number;
     insights_pending?: number;
   };
+  session_prep?: SessionPrepStatus;
+  open_ready_candidates?: string[];
   deploy?: PlatformDeployStatus;
 };

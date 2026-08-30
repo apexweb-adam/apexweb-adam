@@ -24,6 +24,7 @@ import {
   type SessionPrepStatus,
   type SessionPrepEntry,
   type ContentStudySummary,
+  type PlatformStatus,
 } from "./api";
 
 type LiveData = {
@@ -79,14 +80,13 @@ export function useLiveData(): LiveData {
 
   const refreshFromApi = useCallback(async () => {
     try {
-      const [status, portfolios, bots, positions, trades, recovery, prep] = await Promise.all([
-        fetchAPI<{ stats: Stats; timestamp: string }>("/status"),
+      const [status, portfolios, bots, positions, trades, recovery] = await Promise.all([
+        fetchAPI<PlatformStatus & { stats: Stats; timestamp: string }>("/status"),
         fetchAPI<Portfolio[]>("/portfolios"),
         fetchAPI<Bot[]>("/bots"),
         fetchAPI<Position[]>("/positions"),
         fetchAPI<Trade[]>("/trades?limit=50"),
         fetchAPI<MondayRecoverySummary>("/gate/monday-recovery").catch(() => null),
-        fetchAPI<SessionPrepStatus>("/gate/prep-status").catch(() => null),
       ]);
       if (status.stats) setStats(status.stats);
       setPortfolios(portfolios);
@@ -94,7 +94,10 @@ export function useLiveData(): LiveData {
       setPositions(positions);
       setTrades(trades);
       if (recovery) setMondayRecovery(recovery);
-      if (prep) setSessionPrep(prep);
+      if (status.session_prep) setSessionPrep(status.session_prep);
+      else if (recovery?.open_ready?.length) {
+        setSessionPrep((prev) => prev ?? ({ open_ready: recovery.open_ready } as SessionPrepStatus));
+      }
       if (status.timestamp) setLastUpdate(status.timestamp);
     } catch {
       // keep last good snapshot
