@@ -13,6 +13,47 @@ from app.engines.platform_settings import get_platform_setting, set_platform_set
 SESSION_OPEN_EVENTS_KEY = "session_open_events"
 PREP_PHASE_STATE_KEY = "prep_phase_state"
 MAX_SESSION_OPEN_EVENTS = 30
+SESSION_OPEN_BURST_RECOVERY_GRACE_MINUTES = 30
+
+
+def _parse_iso_utc(value: str | None) -> datetime | None:
+  if not value:
+    return None
+  try:
+    return datetime.fromisoformat(value.replace("Z", "+00:00")).replace(tzinfo=None)
+  except ValueError:
+    try:
+      return datetime.fromisoformat(value)
+    except ValueError:
+      return None
+
+
+async def needs_session_open_burst_recovery(
+  session: AsyncSession,
+  *,
+  bot_type: str,
+  session_info: dict[str, Any],
+  grace_minutes_after_open: int = SESSION_OPEN_BURST_RECOVERY_GRACE_MINUTES,
+) -> bool:
+  """True when bot restarted in-session but missed logging burst_scan/auto_entry at open."""
+  if not session_info.get("in_session"):
+    return False
+  since = session_info.get("minutes_since_open")
+  if since is None or int(since) > grace_minutes_after_open:
+    return False
+  open_at = _parse_iso_utc(str(session_info.get("session_open_utc") or ""))
+  if open_at is None:
+    return False
+  events = await get_session_open_events(session)
+  for event in events:
+    if event.get("bot_type") != bot_type:
+      continue
+    if event.get("event_type") not in ("burst_scan", "auto_entry"):
+      continue
+    at = _parse_iso_utc(str(event.get("timestamp") or ""))
+    if at is not None and at >= open_at:
+      return False
+  return True
 
 
 async def _get_json_setting(session: AsyncSession, key: str) -> Any:

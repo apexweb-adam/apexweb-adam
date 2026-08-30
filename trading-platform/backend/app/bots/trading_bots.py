@@ -1620,6 +1620,15 @@ class StocksFuturesBot(BaseBot):
       session_info = stocks_session_info()
       in_session = bool(session_info.get("in_session"))
       burst = self._prev_session_in_market is False and in_session
+      if not burst and self._prev_session_in_market is None and in_session:
+        from app.engines.session_open_log import needs_session_open_burst_recovery
+
+        async with SessionLocal() as session:
+          burst = await needs_session_open_burst_recovery(
+            session,
+            bot_type=self.bot_type,
+            session_info=session_info,
+          )
       self._prev_session_in_market = in_session
       self._session_open_burst = burst
       try:
@@ -1733,6 +1742,15 @@ class CommoditiesBot(BaseBot):
       session_info = commodities_session_info()
       in_session = bool(session_info.get("in_session"))
       burst = self._prev_session_in_market is False and in_session
+      if not burst and self._prev_session_in_market is None and in_session:
+        from app.engines.session_open_log import needs_session_open_burst_recovery
+
+        async with SessionLocal() as session:
+          burst = await needs_session_open_burst_recovery(
+            session,
+            bot_type=self.bot_type,
+            session_info=session_info,
+          )
       self._prev_session_in_market = in_session
       self._session_open_burst = burst
       try:
