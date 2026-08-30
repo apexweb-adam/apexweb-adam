@@ -525,6 +525,17 @@ async def ensure_verification_period_on_startup() -> None:
       print(f"[Verification] Started profitability window at {started.isoformat()}")
 
 
+async def warm_status_caches_job() -> None:
+  """Pre-build expensive /api/status and /api/gate/prep-status caches after deploy."""
+  from app.engines.gate_prep_status import build_gate_prep_status
+  from app.engines.platform_status import build_platform_status
+
+  async with SessionLocal() as session:
+    await build_platform_status(session)
+    await build_gate_prep_status(session)
+  print("[Startup] Warmed platform status and gate prep caches")
+
+
 async def _deferred_startup_jobs() -> None:
   """Heavy intel/learning jobs — run in background so /api/health is ready quickly on Render."""
   try:
@@ -552,6 +563,7 @@ async def _deferred_startup_jobs() -> None:
 
       await monitor_session_prep_transitions(session)
       await monitor_open_ready_queue(session)
+    await warm_status_caches_job()
   except Exception as exc:
     print(f"[Startup] Deferred jobs error: {exc}")
 
