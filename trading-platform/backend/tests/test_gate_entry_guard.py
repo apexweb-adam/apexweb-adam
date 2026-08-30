@@ -910,6 +910,15 @@ def test_stocks_monday_gate_skip_bypass():
     ) is False
 
 
+def test_prioritize_open_ready_first_moves_symbols_to_front():
+  from app.engines.gate_entry_guard import prioritize_open_ready_first
+
+  symbols = ["CL=F", "XAUUSDT", "NG=F", "GC=F"]
+  ordered = prioritize_open_ready_first(symbols, ["NG=F", "CL=F"])
+  assert ordered[:2] == ["NG=F", "CL=F"]
+  assert ordered[2:] == ["XAUUSDT", "GC=F"]
+
+
 def test_prioritize_commodities_monday_scan_futures_before_spot():
   from app.engines.gate_entry_guard import prioritize_commodities_monday_scan
 
