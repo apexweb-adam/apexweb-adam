@@ -142,6 +142,7 @@ print('deploy', dep.get('id','?'), 'status', dep.get('status','?'))
   fi
   echo ""
   echo "After deploy completes (~3-5 min):"
+  echo "  bash trading-platform/scripts/wait-for-render-deploy.sh --verify"
   echo "  bash trading-platform/scripts/verify-post-deploy.sh"
   echo "  bash trading-platform/scripts/verify-dashboard-bundle.sh"
 fi
