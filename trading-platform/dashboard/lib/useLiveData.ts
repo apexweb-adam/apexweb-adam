@@ -26,6 +26,7 @@ import {
   type NextSessionEvents,
   type ContentStudySummary,
   type PlatformStatus,
+  type SessionOpenEvent,
 } from "./api";
 
 type LiveData = {
@@ -48,6 +49,13 @@ type LiveData = {
   sessionPrep: SessionPrepStatus | null;
   nextSessionEvents: NextSessionEvents | null;
   contentStudy: ContentStudySummary | null;
+  sessionOpenEvents: SessionOpenEvent[];
+  cmeDeployUrgency: {
+    active: boolean;
+    minutes_until_open: number;
+    message: string;
+    deploy_command: string;
+  } | null;
   connected: boolean;
   lastUpdate: string | null;
   lastTrade: Record<string, unknown> | null;
@@ -73,6 +81,8 @@ export function useLiveData(): LiveData {
   const [sessionPrep, setSessionPrep] = useState<SessionPrepStatus | null>(null);
   const [nextSessionEvents, setNextSessionEvents] = useState<NextSessionEvents | null>(null);
   const [contentStudy, setContentStudy] = useState<ContentStudySummary | null>(null);
+  const [sessionOpenEvents, setSessionOpenEvents] = useState<SessionOpenEvent[]>([]);
+  const [cmeDeployUrgency, setCmeDeployUrgency] = useState<LiveData["cmeDeployUrgency"]>(null);
   const [connected, setConnected] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<string | null>(null);
   const [lastTrade, setLastTrade] = useState<Record<string, unknown> | null>(null);
@@ -120,6 +130,14 @@ export function useLiveData(): LiveData {
       }
       if (status.bot_sessions) setBotSessions(status.bot_sessions as BotSessions);
       if (status.content_study) setContentStudy(status.content_study as ContentStudySummary);
+      if (status.session_open_events) {
+        setSessionOpenEvents(status.session_open_events as SessionOpenEvent[]);
+      }
+      const deployUrgency = status.deploy?.cme_deploy_urgency;
+      if (deployUrgency) setCmeDeployUrgency(deployUrgency);
+      else if (status.deploy?.platform_revision_current !== false) {
+        setCmeDeployUrgency(null);
+      }
       if (status.timestamp) setLastUpdate(status.timestamp);
     } catch {
       // keep last good snapshot
@@ -164,6 +182,12 @@ export function useLiveData(): LiveData {
     if (data.session_prep) setSessionPrep(data.session_prep as SessionPrepStatus);
     if (data.next_session_events) setNextSessionEvents(data.next_session_events as NextSessionEvents);
     if (data.content_study) setContentStudy(data.content_study as ContentStudySummary);
+    if (data.session_open_events) {
+      setSessionOpenEvents(data.session_open_events as SessionOpenEvent[]);
+    }
+    const deploy = data.deploy as PlatformStatus["deploy"] | undefined;
+    if (deploy?.cme_deploy_urgency) setCmeDeployUrgency(deploy.cme_deploy_urgency);
+    else if (deploy?.platform_revision_current !== false) setCmeDeployUrgency(null);
     if (data.timestamp) setLastUpdate(String(data.timestamp));
   }, []);
 
@@ -237,6 +261,8 @@ export function useLiveData(): LiveData {
     sessionPrep,
     nextSessionEvents,
     contentStudy,
+    sessionOpenEvents,
+    cmeDeployUrgency,
     connected,
     lastUpdate,
     lastTrade,
