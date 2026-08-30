@@ -88,6 +88,10 @@ print(f"  platform_revision={rev} expected={expected} current={current}")
 if expected and "$CODE_REV" and expected != "$CODE_REV":
     print(f"  deploy will advance prod expected {expected} → $CODE_REV")
 
+x_mode = payload.get("x_intel_collection_mode")
+if x_mode:
+    print(f"  x_intel_collection_mode={x_mode}")
+
 bundle = payload.get("expected_dashboard_bundle")
 if bundle:
     print(f"  expected_dashboard_bundle={bundle}")

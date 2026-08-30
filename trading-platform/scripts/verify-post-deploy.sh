@@ -112,6 +112,11 @@ if prod_rev == expected:
             errors.append("snapshot_missing_fomo_bearer_nudge_tier")
     if snapshot.get("github_token_configured") is False:
         print("  note: GITHUB_TOKEN missing on Render — deploy staleness checks incomplete")
+    x_mode = snapshot.get("x_intel_collection_mode")
+    if x_mode:
+        print(f"  x_intel_collection_mode={x_mode}")
+    elif prod_rev == expected:
+        errors.append("snapshot_missing_x_intel_collection_mode")
 
 learning = status.get("learning") or {}
 if learning:
@@ -152,6 +157,31 @@ if [[ "$PROD_REV_CHECK" == "$EXPECTED_REVISION" ]]; then
     ok "Learning apply endpoint registered (r380+)"
   else
     note "Learning apply endpoint not in OpenAPI — confirm r380+ revision live"
+  fi
+
+  INTEL_SOURCES=$(curl -fsS -m 25 "$BACKEND/api/intelligence/sources" 2>/dev/null || echo "[]")
+  if echo "$INTEL_SOURCES" | python3 -c "
+import json, sys
+raw = json.load(sys.stdin)
+sources = raw.get('sources', raw) if isinstance(raw, dict) else raw
+if not isinstance(sources, list):
+    sys.exit(1)
+by = {s.get('source'): s for s in sources if isinstance(s, dict)}
+x = by.get('x') or {}
+tv = by.get('tradingview') or {}
+if not x.get('collection_mode'):
+    sys.exit(1)
+if tv.get('scoring_excludes_synthetic') is not True:
+    sys.exit(1)
+print(
+    f\"x_mode={x.get('collection_mode')} \"
+    f\"tv_webhook_24h={tv.get('webhook_items_24h')} \"
+    f\"tv_synthetic_24h={tv.get('synthetic_items_24h')}\"
+)
+" 2>/dev/null; then
+    ok "Intel source health fields (r385+)"
+  else
+    note "Intel source r385 fields missing — confirm revision live"
   fi
 fi
 
