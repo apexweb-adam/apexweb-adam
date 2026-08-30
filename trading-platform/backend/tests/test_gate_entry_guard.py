@@ -1233,7 +1233,9 @@ def test_build_next_session_events():
   assert events["cme_reopen"]["reopen_imminent"] is True
   assert events["cme_reopen"]["open_ready_symbols"] == ["NG=F"]
   assert events["cme_reopen"]["auto_gate_skip_at_open"] == ["NG=F"]
+  assert events["cme_reopen"]["auto_entry_queued"] is True
   assert events["us_stocks_open"]["minutes_until_open"] == 2000
+  assert events["us_stocks_open"]["auto_entry_queued"] is False
 
 
 def test_commodities_reopen_wake_active():

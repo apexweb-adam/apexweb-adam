@@ -392,6 +392,7 @@ def test_crm_landing_shows_cme_imminent_banner():
   assert "CME reopen imminent" in body
   assert "45m until open" in body
   assert "NG=F" in body
+  assert "Gate-skip auto-entry queued" in body
 
 
 def test_crm_landing_shows_next_sessions_card():

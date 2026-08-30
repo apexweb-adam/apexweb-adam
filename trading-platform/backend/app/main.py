@@ -292,22 +292,38 @@ async def crm_landing():
   cme_imminent_banner = ""
   if not cme_session.get("in_session") and cme_mins is not None and cme_mins <= 60:
     ready = ", ".join(commodities_prep.get("open_ready_symbols") or []) or "—"
+    auto_entry = ", ".join(commodities_prep.get("open_ready_symbols") or [])
     scan_label = "5s" if commodities_prep.get("gate_reopen_imminent") else "15s"
     wake_note = " · TV wake active" if commodities_prep.get("reopen_wake_active") else ""
+    auto_entry_note = (
+      f"<p class='muted' style='margin-top:0.35rem;color:#86efac;'>"
+      f"Gate-skip auto-entry queued: {auto_entry}</p>"
+      if auto_entry
+      else ""
+    )
     cme_imminent_banner = f"""<div class="card" style="border-color:#b45309;background:#451a03;">
     <p style="color:#fbbf24;font-weight:600;margin:0;">CME reopen imminent — {cme_mins}m until open{wake_note}</p>
     <p class="muted" style="margin-top:0.5rem;">Fast scan {scan_label} · open ready: {ready}</p>
+    {auto_entry_note}
   </div>"""
 
   us_mins = stocks_session.get("minutes_until_open")
   us_imminent_banner = ""
   if not stocks_session.get("in_session") and us_mins is not None and us_mins <= 60:
     ready = ", ".join(stocks_prep.get("open_ready_symbols") or []) or "—"
+    auto_entry = ", ".join(stocks_prep.get("open_ready_symbols") or [])
     scan_label = "5s" if stocks_prep.get("gate_reopen_imminent") else "15s"
     wake_note = " · TV wake active" if stocks_prep.get("reopen_wake_active") else ""
+    auto_entry_note = (
+      f"<p class='muted' style='margin-top:0.35rem;color:#86efac;'>"
+      f"Gate-skip auto-entry queued: {auto_entry}</p>"
+      if auto_entry
+      else ""
+    )
     us_imminent_banner = f"""<div class="card" style="border-color:#b45309;background:#451a03;">
     <p style="color:#fbbf24;font-weight:600;margin:0;">US stocks open imminent — {us_mins}m until open{wake_note}</p>
     <p class="muted" style="margin-top:0.5rem;">Fast scan {scan_label} · open ready: {ready}</p>
+    {auto_entry_note}
   </div>"""
 
   learning_rows = ""
