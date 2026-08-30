@@ -276,6 +276,32 @@ async def commodities_pre_session_prep_job() -> None:
     await push_live_update()
 
 
+async def session_prep_phase_monitor_job() -> None:
+  """Log CME/US prep phase transitions (extended → imminent → wake → open)."""
+  from app.engines.session_open_log import monitor_session_prep_transitions
+
+  async with SessionLocal() as session:
+    logged = await monitor_session_prep_transitions(session)
+  if logged:
+    print(f"[SessionPrepPhase] logged {len(logged)} transition(s)")
+    from app.ws_manager import push_live_update
+
+    await push_live_update()
+
+
+async def session_prep_queue_monitor_job() -> None:
+  """Log open-ready and near-floor queue changes from scan preview."""
+  from app.engines.session_open_log import monitor_open_ready_queue
+
+  async with SessionLocal() as session:
+    logged = await monitor_open_ready_queue(session)
+  if logged:
+    print(f"[SessionPrepQueue] logged {len(logged)} queue change(s)")
+    from app.ws_manager import push_live_update
+
+    await push_live_update()
+
+
 async def commodities_cme_reopen_wake_job() -> None:
   """Force-refresh TV signals right before/after CME reopen so open-ready futures enter fast."""
   from app.engines.gate_entry_guard import (
@@ -635,6 +661,18 @@ async def setup_scheduler() -> None:
     "interval",
     minutes=1,
     id="commodities_cme_reopen_wake",
+  )
+  scheduler.add_job(
+    session_prep_phase_monitor_job,
+    "interval",
+    minutes=1,
+    id="session_prep_phase_monitor",
+  )
+  scheduler.add_job(
+    session_prep_queue_monitor_job,
+    "interval",
+    minutes=15,
+    id="session_prep_queue_monitor",
   )
   scheduler.add_job(
     stocks_us_open_wake_job,

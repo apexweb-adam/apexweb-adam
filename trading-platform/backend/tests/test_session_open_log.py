@@ -55,3 +55,14 @@ async def test_record_and_get_session_open_events(session: AsyncSession):
   stored = json.loads(row.value)
   assert isinstance(stored, list)
   assert stored[0]["bot_type"] == "commodities"
+
+
+def test_queue_delta():
+  from app.engines.session_open_log import _queue_delta
+
+  added, removed = _queue_delta(["NG=F"], ["NG=F", "CL=F"])
+  assert added == ["CL=F"]
+  assert removed == []
+  added, removed = _queue_delta(["NG=F", "CL=F"], ["NG=F"])
+  assert added == []
+  assert removed == ["CL=F"]
