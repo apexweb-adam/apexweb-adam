@@ -112,9 +112,11 @@ fi
 if [[ "$rc" -eq 10 ]]; then
   echo ""
   echo "*** Deploy window is ACTIVE — run:"
+  echo "  bash trading-platform/scripts/run-deploy-window.sh"
+  echo "  # or step-by-step:"
   echo "  bash trading-platform/scripts/verify-pre-deploy.sh"
   echo "  TRIGGER_DEPLOY=true bash trading-platform/scripts/sync-render-env.sh"
-  echo "  bash trading-platform/scripts/verify-post-deploy.sh"
+  echo "  bash trading-platform/scripts/wait-for-render-deploy.sh --verify"
   exit 10
 fi
 
