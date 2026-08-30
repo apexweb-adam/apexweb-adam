@@ -43,6 +43,36 @@ echo ""
 deadline=$(( $(date +%s) + MAX_WAIT ))
 attempt=0
 
+wait_for_status_revision() {
+  local settle_deadline=$(( $(date +%s) + 90 ))
+  local tries=0
+  while [[ $(date +%s) -lt $settle_deadline ]]; do
+    tries=$((tries + 1))
+    STATUS=$(fetch_json "$BACKEND/api/status" 60 2)
+    set +e
+    SYNCED=$(STATUS="$STATUS" EXPECTED="$EXPECTED_REVISION" python3 << 'PY'
+import json, os, sys
+status = json.loads(os.environ.get("STATUS") or "{}")
+expected = os.environ.get("EXPECTED") or ""
+deploy = status.get("deploy") or {}
+rev = deploy.get("platform_revision") or "?"
+print(f"status_revision={rev}")
+if expected and rev == expected:
+    sys.exit(0)
+sys.exit(1)
+PY
+    )
+    rc=$?
+    set -e
+    echo "  [status-sync $tries] $SYNCED"
+    if [[ $rc -eq 0 ]]; then
+      return 0
+    fi
+    sleep 10
+  done
+  return 1
+}
+
 while [[ $(date +%s) -lt $deadline ]]; do
   attempt=$((attempt + 1))
   SNAPSHOT=$(fetch_json "$BACKEND/api/deploy/snapshot" 45 2)
@@ -69,6 +99,9 @@ PY
     echo "✓ Production revision live ($EXPECTED_REVISION)"
     if [[ "$VERIFY" == "true" ]]; then
       echo ""
+      if ! wait_for_status_revision; then
+        echo "○ /api/status revision still settling — continuing post-deploy verify" >&2
+      fi
       SNAPSHOT_JSON="$SNAPSHOT" python3 << 'PY'
 import json, os
 snap = json.loads(os.environ.get("SNAPSHOT_JSON") or "{}")

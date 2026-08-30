@@ -152,6 +152,14 @@ def test_verify_cme_post_open_supports_watch_mode():
   assert "run_verification" in text
 
 
+def test_wait_for_render_deploy_waits_for_status_revision():
+  script = SCRIPTS / "wait-for-render-deploy.sh"
+  text = script.read_text(encoding="utf-8")
+  assert "wait_for_status_revision" in text
+  assert "/api/status" in text
+  assert "status-sync" in text
+
+
 def test_watch_deploy_window_shows_cme_prep_when_current():
   script = SCRIPTS / "watch-deploy-window.sh"
   text = script.read_text(encoding="utf-8")
