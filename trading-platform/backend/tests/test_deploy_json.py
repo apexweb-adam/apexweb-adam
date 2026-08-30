@@ -94,6 +94,31 @@ def test_intel_readiness_ok_when_revision_matches_and_snapshot_fields_present():
   )
 
 
+def test_post_deploy_ok_when_revision_current_without_deploy_window():
+  status = {
+    "deploy": {
+      "platform_revision": "2026-08-29-r390",
+      "platform_revision_current": True,
+    },
+    "session_open_checklists": {"cme_reopen": {"ready": True, "phase": "preflight"}},
+    "learning": {"trade_analyses": 1, "daily_reviews": 1},
+  }
+  checklist = {"open_ready": {"sticky_symbols": []}}
+  snapshot = {
+    "platform_revision": "2026-08-29-r390",
+    "platform_revision_current": True,
+    "run_deploy_window_command": "x",
+    "wait_for_deploy_command": "y",
+    "github_token_configured": False,
+    "fomo_bearer_configured": False,
+    "fomo_bearer_nudge_tier": "expired",
+    "x_intel_collection_mode": "twitter_api",
+    "deploy_credentials_nudges": ["GITHUB_TOKEN missing on Render — deploy staleness checks incomplete"],
+  }
+  errors = evaluate_post_deploy(status, checklist, snapshot, expected="2026-08-29-r390")
+  assert errors == []
+
+
 def test_post_deploy_check_flags_revision_mismatch():
   status = {"deploy": {"platform_revision": "2026-08-29-r336"}, "learning": {}}
   checklist = {"open_ready": {"sticky_symbols": []}}
