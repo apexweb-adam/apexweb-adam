@@ -3,6 +3,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+LIB="$ROOT/scripts/lib/deploy_json.py"
 BACKEND="${BACKEND_URL:-https://apex-trading-backend.onrender.com}"
 EXPECTED_REVISION="${EXPECTED_PLATFORM_REVISION:-$(grep '^EXPECTED_PLATFORM_REVISION' "$ROOT/backend/app/engines/deploy_status.py" | sed -n 's/.*"\([^"]*\)".*/\1/p')}"
 MIN_HOURS_BEFORE_CME="${MIN_HOURS_BEFORE_CME:-4}"
@@ -26,15 +27,10 @@ bash "$ROOT/scripts/check-deploy-credentials.sh" || true
 echo ""
 
 PREP=$(curl -fsS -m 45 "$BACKEND/api/gate/prep-status" 2>/dev/null || echo "{}")
-CME_MINS=$(python3 << PY
-import json
-prep = json.loads('''$PREP''')
-comm = prep.get("commodities") or {}
-cme = (prep.get("next_session_events") or {}).get("cme_reopen") or {}
-mins = comm.get("minutes_until_open") or cme.get("minutes_until_open")
-print(mins if mins is not None else "")
-PY
-)
+if [[ -z "$PREP" || "$PREP" == "{}" ]]; then
+  PREP=$(curl -fsS -m 45 "$BACKEND/api/gate/prep-status" 2>/dev/null || echo "{}")
+fi
+CME_MINS=$(echo "$PREP" | python3 "$LIB" prep-mins)
 
 if [[ -n "$CME_MINS" ]]; then
   MIN_MINS=$((MIN_HOURS_BEFORE_CME * 60))
@@ -47,24 +43,24 @@ if [[ -n "$CME_MINS" ]]; then
   else
     ok "Deploy timing within ${MIN_HOURS_BEFORE_CME}-${MAX_HOURS_BEFORE_CME}h window (${CME_MINS}min to CME)"
   fi
-  python3 << PY
-import json
+  echo "$PREP" | python3 -c "
+import json, sys
 from datetime import datetime, timedelta
-prep = json.loads('''$PREP''')
-comm = prep.get("commodities") or {}
-cme = (prep.get("next_session_events") or {}).get("cme_reopen") or {}
-mins = comm.get("minutes_until_open") or cme.get("minutes_until_open")
+from pathlib import Path
+sys.path.insert(0, str(Path('$LIB').parent))
+from deploy_json import minutes_until_open
+prep = json.load(sys.stdin)
+mins = minutes_until_open(prep)
 if mins is None:
     raise SystemExit(0)
-mins = int(mins)
-start = int("$MAX_HOURS_BEFORE_CME") * 60
-end = int("$MIN_HOURS_BEFORE_CME") * 60
+start = int('$MAX_HOURS_BEFORE_CME') * 60
+end = int('$MIN_HOURS_BEFORE_CME') * 60
 now = datetime.utcnow()
 opens = now + timedelta(minutes=max(0, mins - start))
 closes = now + timedelta(minutes=max(0, mins - end))
-print(f"  deploy_window_opens_utc={opens.strftime('%Y-%m-%d %H:%M')}")
-print(f"  deploy_window_closes_utc={closes.strftime('%Y-%m-%d %H:%M')}")
-PY
+print(f\"  deploy_window_opens_utc={opens.strftime('%Y-%m-%d %H:%M')}\")
+print(f\"  deploy_window_closes_utc={closes.strftime('%Y-%m-%d %H:%M')}\")
+"
 fi
 
 CODE_REV=$(grep '^EXPECTED_PLATFORM_REVISION' "$ROOT/backend/app/engines/deploy_status.py" | sed -n 's/.*"\([^"]*\)".*/\1/p')
@@ -111,7 +107,8 @@ if [[ -n "$US_NOTE" ]]; then
   fi
 fi
 
-PROD_REV=$(curl -fsS -m 15 "$BACKEND/api/deploy/snapshot" 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('platform_revision') or '')" 2>/dev/null || echo "")
+SNAPSHOT=$(curl -fsS -m 15 "$BACKEND/api/deploy/snapshot" 2>/dev/null || echo "{}")
+PROD_REV=$(echo "$SNAPSHOT" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('platform_revision') or '')" 2>/dev/null || echo "")
 if [[ -z "$PROD_REV" ]]; then
   PROD_REV=$(curl -fsS -m 45 "$BACKEND/api/status" 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print((d.get('deploy') or {}).get('platform_revision') or '?')" 2>/dev/null || echo "?")
 fi
@@ -129,23 +126,24 @@ else
 fi
 
 INTEL_SOURCES=$(curl -fsS -m 25 "$BACKEND/api/intelligence/sources" 2>/dev/null || echo "[]")
-INTEL_STATUS=$(echo "$INTEL_SOURCES" | python3 -c "
-import json, sys
-raw = json.load(sys.stdin)
-sources = raw.get('sources', raw) if isinstance(raw, dict) else raw
-if not isinstance(sources, list):
-    print('missing')
-    sys.exit(0)
-by = {s.get('source'): s for s in sources if isinstance(s, dict)}
-x = by.get('x') or {}
-tv = by.get('tradingview') or {}
-if x.get('collection_mode') and tv.get('scoring_excludes_synthetic') is True:
-    print('ok')
-else:
-    print('missing')
-" 2>/dev/null || echo "missing")
+TMP_SOURCES=$(mktemp)
+TMP_SNAPSHOT=$(mktemp)
+trap 'rm -f "$TMP_SOURCES" "$TMP_SNAPSHOT"' EXIT
+echo "$INTEL_SOURCES" > "$TMP_SOURCES"
+echo "$SNAPSHOT" > "$TMP_SNAPSHOT"
+INTEL_STATUS=$(python3 "$LIB" intel-readiness \
+  --sources-file "$TMP_SOURCES" \
+  --snapshot-file "$TMP_SNAPSHOT" \
+  --prod-rev "$PROD_REV" \
+  --code-rev "$CODE_REV" 2>/dev/null || echo "missing")
 if [[ "$INTEL_STATUS" == "ok" ]]; then
   ok "Intel source health fields live (r385+)"
+elif [[ "$INTEL_STATUS" == "partial" ]]; then
+  if [[ "$PROD_REV" != "$CODE_REV" ]]; then
+    note "Intel sources API ready; deploy snapshot r385 fields activate after $CODE_REV deploy"
+  else
+    note "Intel sources API ready but deploy snapshot r385 fields missing — confirm revision"
+  fi
 elif [[ "$PROD_REV" != "$CODE_REV" ]]; then
   note "Intel r385 fields not on production yet — activates after deploy"
 else
