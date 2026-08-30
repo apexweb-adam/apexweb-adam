@@ -102,3 +102,27 @@ def test_discover_verified_dashboard_uses_cache():
 
   assert result == cached
   probe.assert_not_called()
+
+
+def test_dashboard_url_from_deploy_prefers_verified_when_stale():
+  deploy = {
+    "vercel_bundle_stale": True,
+    "verified_dashboard_url": "https://verified.example",
+    "dashboard_url": "https://prod.example",
+  }
+  assert deploy_status.dashboard_url_from_deploy(deploy) == "https://verified.example"
+
+
+def test_resolve_crm_dashboard_url_reuses_deploy_snapshot():
+  deploy = {
+    "vercel_bundle_stale": True,
+    "verified_dashboard_url": "https://verified.example",
+    "dashboard_url": "https://prod.example",
+  }
+
+  with patch.object(deploy_status, "build_deploy_status", AsyncMock()) as build:
+    with patch.object(deploy_status, "configured_public_dashboard_url", return_value=None):
+      url = asyncio.run(deploy_status.resolve_crm_dashboard_url(deploy))
+
+  assert url == "https://verified.example"
+  build.assert_not_called()

@@ -34,7 +34,7 @@ def test_crm_landing_includes_monday_recovery_when_candidates():
     },
   }
 
-  with patch("app.main.recommended_dashboard_url", new_callable=AsyncMock, return_value="https://example.com"):
+  with patch("app.main.resolve_crm_dashboard_url", new_callable=AsyncMock, return_value="https://example.com"):
     with patch("app.main.build_deploy_status", new_callable=AsyncMock, return_value={"vercel_bundle_stale": False}):
       with patch("app.database.SessionLocal") as mock_session_local:
         mock_session = AsyncMock()
@@ -136,7 +136,7 @@ def test_crm_landing_shows_nudge_without_recovery_rows():
     },
   }
 
-  with patch("app.main.recommended_dashboard_url", new_callable=AsyncMock, return_value="https://example.com"):
+  with patch("app.main.resolve_crm_dashboard_url", new_callable=AsyncMock, return_value="https://example.com"):
     with patch("app.main.build_deploy_status", new_callable=AsyncMock, return_value={"vercel_bundle_stale": False}):
       with patch("app.database.SessionLocal") as mock_session_local:
         mock_session = AsyncMock()
@@ -241,7 +241,7 @@ def test_crm_landing_shows_open_ready_card():
     "bots": {"commodities": {"recovery_candidates": ["NG=F"], "graduation_nudge": True}},
   }
 
-  with patch("app.main.recommended_dashboard_url", new_callable=AsyncMock, return_value="https://example.com"):
+  with patch("app.main.resolve_crm_dashboard_url", new_callable=AsyncMock, return_value="https://example.com"):
     with patch("app.main.build_deploy_status", new_callable=AsyncMock, return_value={"vercel_bundle_stale": False}):
       with patch("app.database.SessionLocal") as mock_session_local:
         mock_session = AsyncMock()
@@ -336,7 +336,7 @@ def test_crm_landing_shows_cme_imminent_banner():
     "mode": "weekend_closed",
   }
 
-  with patch("app.main.recommended_dashboard_url", new_callable=AsyncMock, return_value="https://example.com"):
+  with patch("app.main.resolve_crm_dashboard_url", new_callable=AsyncMock, return_value="https://example.com"):
     with patch("app.main.build_deploy_status", new_callable=AsyncMock, return_value={"vercel_bundle_stale": False}):
       with patch("app.engines.gate_entry_guard.commodities_session_info", return_value=imminent_cme):
         with patch("app.engines.gate_entry_guard.stocks_session_info", return_value=stocks_session):
@@ -446,7 +446,7 @@ def test_crm_landing_shows_next_sessions_card():
     "mode": "weekend_closed",
   }
 
-  with patch("app.main.recommended_dashboard_url", new_callable=AsyncMock, return_value="https://example.com"):
+  with patch("app.main.resolve_crm_dashboard_url", new_callable=AsyncMock, return_value="https://example.com"):
     with patch("app.main.build_deploy_status", new_callable=AsyncMock, return_value={"vercel_bundle_stale": False}):
       with patch("app.engines.gate_entry_guard.commodities_session_info", return_value=cme_session):
         with patch("app.engines.gate_entry_guard.stocks_session_info", return_value=stocks_session):
@@ -516,7 +516,7 @@ def test_crm_landing_shows_next_sessions_card():
 
 def test_crm_landing_auto_refreshes():
   client = TestClient(app)
-  with patch("app.main.recommended_dashboard_url", new_callable=AsyncMock, return_value="https://example.com"):
+  with patch("app.main.resolve_crm_dashboard_url", new_callable=AsyncMock, return_value="https://example.com"):
     with patch("app.main.build_deploy_status", new_callable=AsyncMock, return_value={"vercel_bundle_stale": False}):
       with patch("app.database.SessionLocal") as mock_session_local:
         mock_session = AsyncMock()
@@ -577,7 +577,7 @@ def test_crm_landing_auto_refreshes():
 
 def test_crm_landing_shows_fomo_bearer_alert():
   client = TestClient(app)
-  with patch("app.main.recommended_dashboard_url", new_callable=AsyncMock, return_value="https://example.com"):
+  with patch("app.main.resolve_crm_dashboard_url", new_callable=AsyncMock, return_value="https://example.com"):
     with patch("app.main.build_deploy_status", new_callable=AsyncMock, return_value={"vercel_bundle_stale": False}):
       with patch("app.database.SessionLocal") as mock_session_local:
         mock_session = AsyncMock()
@@ -676,7 +676,7 @@ def test_crm_landing_shows_us_stocks_imminent_banner():
     "mode": "outside_session",
   }
 
-  with patch("app.main.recommended_dashboard_url", new_callable=AsyncMock, return_value="https://example.com"):
+  with patch("app.main.resolve_crm_dashboard_url", new_callable=AsyncMock, return_value="https://example.com"):
     with patch("app.main.build_deploy_status", new_callable=AsyncMock, return_value={"vercel_bundle_stale": False}):
       with patch("app.engines.gate_entry_guard.commodities_session_info", return_value=cme_session):
         with patch("app.engines.gate_entry_guard.stocks_session_info", return_value=stocks_session):
@@ -761,7 +761,7 @@ def test_crm_landing_shows_cme_deploy_nudge_when_revision_behind():
     "platform_revision_current": False,
   }
 
-  with patch("app.main.recommended_dashboard_url", new_callable=AsyncMock, return_value="https://example.com"):
+  with patch("app.main.resolve_crm_dashboard_url", new_callable=AsyncMock, return_value="https://example.com"):
     with patch("app.main.build_deploy_status", new_callable=AsyncMock, return_value=deploy_status):
       with patch("app.engines.gate_entry_guard.commodities_session_info", return_value=imminent_cme):
         with patch("app.engines.gate_entry_guard.stocks_session_info", return_value=stocks_session):
@@ -846,7 +846,7 @@ def test_crm_landing_shows_deploy_window_countdown_when_revision_behind():
     "platform_revision_current": False,
   }
 
-  with patch("app.main.recommended_dashboard_url", new_callable=AsyncMock, return_value="https://example.com"):
+  with patch("app.main.resolve_crm_dashboard_url", new_callable=AsyncMock, return_value="https://example.com"):
     with patch("app.main.build_deploy_status", new_callable=AsyncMock, return_value=deploy_status):
       with patch("app.engines.gate_entry_guard.commodities_session_info", return_value=far_cme):
         with patch("app.engines.gate_entry_guard.stocks_session_info", return_value=stocks_session):
@@ -936,7 +936,7 @@ def test_crm_landing_shows_dashboard_bundle_behind_expected():
     "platform_revision_current": False,
   }
 
-  with patch("app.main.recommended_dashboard_url", new_callable=AsyncMock, return_value="https://example.com"):
+  with patch("app.main.resolve_crm_dashboard_url", new_callable=AsyncMock, return_value="https://example.com"):
     with patch("app.main.build_deploy_status", new_callable=AsyncMock, return_value=deploy_status):
       with patch("app.engines.gate_entry_guard.commodities_session_info", return_value=cme_session):
         with patch("app.engines.gate_entry_guard.stocks_session_info", return_value=stocks_session):
@@ -1025,7 +1025,7 @@ def test_crm_landing_shows_cme_deploy_nudge_when_revision_behind():
     "mode": "weekend_closed",
   }
 
-  with patch("app.main.recommended_dashboard_url", new_callable=AsyncMock, return_value="https://example.com"):
+  with patch("app.main.resolve_crm_dashboard_url", new_callable=AsyncMock, return_value="https://example.com"):
     with patch("app.main.build_deploy_status", new_callable=AsyncMock, return_value={"vercel_bundle_stale": False}):
       with patch("app.engines.gate_entry_guard.commodities_session_info", return_value=cme_session):
         with patch("app.engines.gate_entry_guard.stocks_session_info", return_value=stocks_session):

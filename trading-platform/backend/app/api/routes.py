@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings, BOT_TYPES
 from app.database import SessionLocal, get_db, is_postgres
 from app.intelligence.wallet_tracker import wallet_tracker_configured
-from app.engines.deploy_status import build_deploy_status, recommended_dashboard_url
+from app.engines.deploy_status import build_deploy_status, resolve_crm_dashboard_url
 from app.engines.profitability_gate import ProfitabilityGate
 from app.engines.trade_stats import aggregate_win_rate
 from app.engines.verification_snapshot import serialize_verification_snapshot
@@ -72,7 +72,7 @@ async def get_platform_urls() -> dict[str, Any]:
 async def get_dashboard_url() -> dict[str, Any]:
   """Canonical CRM dashboard URL — verified preview when Vercel production bundle is stale."""
   deploy = await build_deploy_status()
-  recommended = await recommended_dashboard_url()
+  recommended = await resolve_crm_dashboard_url(deploy)
   return {
     "recommended_url": recommended,
     "production_url": "https://apex-trading-dashboard-flame.vercel.app",
@@ -91,7 +91,7 @@ async def get_dashboard_url() -> dict[str, Any]:
 @router.api_route("/dashboard", methods=["GET", "HEAD"], include_in_schema=False)
 async def redirect_dashboard():
   """Redirect browsers to the recommended CRM dashboard."""
-  url = await recommended_dashboard_url()
+  url = await resolve_crm_dashboard_url()
   return RedirectResponse(url=url, status_code=302)
 
 

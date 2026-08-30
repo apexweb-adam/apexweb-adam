@@ -15,7 +15,7 @@ from app.engines.deploy_status import (
   build_deploy_status,
   format_cme_deploy_window_crm_html,
   format_dashboard_bundle_crm_html,
-  recommended_dashboard_url,
+  resolve_crm_dashboard_url,
 )
 from app.workers.scheduler import setup_scheduler, stop_bots
 
@@ -78,7 +78,7 @@ async def root():
 
 @app.api_route("/dashboard", methods=["GET", "HEAD"], include_in_schema=False)
 async def root_dashboard_redirect():
-  url = await recommended_dashboard_url()
+  url = await resolve_crm_dashboard_url()
   return RedirectResponse(url=url, status_code=302)
 
 
@@ -87,8 +87,8 @@ async def crm_landing():
   from app.database import SessionLocal
   from app.engines.profitability_gate import ProfitabilityGate
 
-  url = await recommended_dashboard_url()
   deploy = await build_deploy_status()
+  url = await resolve_crm_dashboard_url(deploy)
   stale = deploy.get("vercel_bundle_stale")
   behind_expected = deploy.get("vercel_bundle_behind_expected")
   proxy_ok = deploy.get("production_proxy_operational")
