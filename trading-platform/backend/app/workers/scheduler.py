@@ -291,7 +291,11 @@ async def session_prep_phase_monitor_job() -> None:
 
 async def session_prep_queue_monitor_job() -> None:
   """Log open-ready and near-floor queue changes from scan preview."""
+  from app.engines.gate_entry_guard import commodities_futures_weekend_closed
   from app.engines.session_open_log import monitor_open_ready_queue
+
+  if not commodities_futures_weekend_closed():
+    return
 
   async with SessionLocal() as session:
     logged = await monitor_open_ready_queue(session)
@@ -581,12 +585,19 @@ async def _deferred_startup_jobs() -> None:
     await commodities_pre_session_prep_job()
     async with SessionLocal() as session:
       from app.engines.session_open_log import (
+        backfill_open_ready_queue_events,
         monitor_open_ready_queue,
         monitor_session_prep_transitions,
       )
 
       await monitor_session_prep_transitions(session)
       await monitor_open_ready_queue(session)
+      backfilled = await backfill_open_ready_queue_events(session)
+      if backfilled:
+        print(
+          "[SessionPrepQueue] backfilled "
+          f"{len(backfilled)} open-ready queue event(s) on startup"
+        )
     await warm_status_caches_job()
   except Exception as exc:
     print(f"[Startup] Deferred jobs error: {exc}")
@@ -715,7 +726,7 @@ async def setup_scheduler() -> None:
   scheduler.add_job(
     session_prep_queue_monitor_job,
     "interval",
-    minutes=15,
+    minutes=5,
     id="session_prep_queue_monitor",
   )
   scheduler.add_job(
