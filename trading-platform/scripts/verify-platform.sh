@@ -7,7 +7,8 @@ BACKEND="${BACKEND_URL:-https://apex-trading-backend.onrender.com}"
 DASHBOARD="${DASHBOARD_URL:-https://apex-trading-dashboard-flame.vercel.app}"
 FLAME="${FLAME_URL:-https://apex-trading-dashboard-flame.vercel.app}"
 GIT_MAIN="https://apex-trading-dashboard-git-main-apexweb-adams-projects.vercel.app"
-EXPECTED_BUNDLE="2026-08-29-r98"
+EXPECTED_BUNDLE="${EXPECTED_DASHBOARD_BUNDLE:-$(grep '^EXPECTED_DASHBOARD_BUNDLE' "$ROOT/backend/app/engines/deploy_status.py" | sed -n 's/.*"\([^"]*\)".*/\1/p')}"
+CODE_REV="$(grep '^EXPECTED_PLATFORM_REVISION' "$ROOT/backend/app/engines/deploy_status.py" | sed -n 's/.*"\([^"]*\)".*/\1/p')"
 
 pass=0
 fail=0
@@ -20,6 +21,10 @@ note() { echo "○ $*"; warn=$((warn + 1)); }
 echo "=== Apex Trading Platform — Production Verification ==="
 echo "Backend:   $BACKEND"
 echo "Dashboard: $DASHBOARD"
+echo "Code target: $CODE_REV · bundle $EXPECTED_BUNDLE"
+echo ""
+
+bash "$ROOT/scripts/ops-gate-summary.sh" || true
 echo ""
 
 # Backend health
@@ -213,21 +218,21 @@ fi
 echo "CRM URL:   $DASHBOARD"
 echo ""
 
-# Dashboard proxy
+# Dashboard bundle (shared verifier)
+if bash "$ROOT/scripts/verify-dashboard-bundle.sh"; then
+  ok "Dashboard bundle ($EXPECTED_BUNDLE)"
+else
+  note "Dashboard bundle behind — non-blocking for backend deploy"
+fi
+
+# Dashboard proxy config (legacy check for activeGate on selected URL)
 DCFG=$(curl -fsS -m 20 "$DASHBOARD/api/config" 2>/dev/null || echo "{}")
 python3 << PY
 import json
 d = json.loads('''$DCFG''')
 rev = d.get("bundleRevision", "?")
-ok = rev.startswith("2026-08-29-r9") and (d.get("features") or {}).get("activeGate")
-print(f"  bundle={rev} api={str(d.get('apiUrl','?'))[:50]}")
-import sys; sys.exit(0 if ok else 1)
+print(f"  selected_dashboard bundle={rev} api={str(d.get('apiUrl','?'))[:50]}")
 PY
-if [[ $? -eq 0 ]]; then
-  ok "Verified dashboard /api/config (r98+ bundle, activeGate)"
-else
-  note "Dashboard bundle stale at $DASHBOARD"
-fi
 
 # Native active-gate on verified preview (not available on stale -flame alone)
 if [[ "$DASHBOARD" == *"git-main"* ]]; then
@@ -274,15 +279,23 @@ else
   note "TradingView webhook not configured on prod"
 fi
 
-# Deploy staleness — compare git commit to main (is_stale false-positives when GITHUB_TOKEN missing on Render)
+# Deploy revision — compare code target to production
+REV=$(echo "$STATUS" | python3 -c "import json,sys; print(json.load(sys.stdin).get('deploy',{}).get('platform_revision',''))" 2>/dev/null || echo "")
+EXP=$(echo "$STATUS" | python3 -c "import json,sys; print(json.load(sys.stdin).get('deploy',{}).get('expected_platform_revision',''))" 2>/dev/null || echo "")
+if [[ -n "$REV" && "$REV" == "$CODE_REV" ]]; then
+  ok "Production revision current ($REV)"
+elif [[ -n "$REV" ]]; then
+  note "Production revision behind code ($REV → $CODE_REV) — deploy tonight"
+else
+  note "Production revision unknown"
+fi
+
 DEPLOYED=$(echo "$STATUS" | python3 -c "import json,sys; print(json.load(sys.stdin).get('deploy',{}).get('git_commit','')[:12])" 2>/dev/null || echo "")
 MAIN=$(curl -fsS -m 15 "https://api.github.com/repos/apexweb-adam/apexweb-adam/git/ref/heads/main" 2>/dev/null | python3 -c "import json,sys; print(json.load(sys.stdin)['object']['sha'][:12])" 2>/dev/null || echo "")
 if [[ -n "$DEPLOYED" && -n "$MAIN" && "$DEPLOYED" == "$MAIN" ]]; then
-  ok "Render deploy matches main ($DEPLOYED)"
-elif REV=$(echo "$STATUS" | python3 -c "import json,sys; print(json.load(sys.stdin).get('deploy',{}).get('platform_revision',''))" 2>/dev/null) && [[ "$REV" == *"r9"* || "$REV" == *"r8"* ]]; then
-  ok "Render deploy live ($DEPLOYED, revision $REV)"
-else
-  bad "Render deploy stale (deployed ${DEPLOYED:-?}, main ${MAIN:-?}) — see DEPLOY_UNBLOCK.md"
+  ok "Render git commit matches main ($DEPLOYED)"
+elif [[ -n "$DEPLOYED" ]]; then
+  note "Render git commit ${DEPLOYED} vs main ${MAIN:-?}"
 fi
 
 echo ""

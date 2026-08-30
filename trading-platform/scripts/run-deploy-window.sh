@@ -1,12 +1,30 @@
 #!/usr/bin/env bash
 # Full CME deploy-window workflow: preflight → sync env → wait → post-verify.
+# Usage: run-deploy-window.sh [--dry-run]
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BACKEND="${BACKEND_URL:-https://apex-trading-backend.onrender.com}"
+DRY_RUN=false
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --dry-run)
+      DRY_RUN=true
+      shift
+      ;;
+    *)
+      echo "Unknown arg: $1" >&2
+      exit 2
+      ;;
+  esac
+done
 
 echo "=== CME Deploy Window — $(date -u '+%Y-%m-%d %H:%M UTC') ==="
 echo "Backend: $BACKEND"
+if [[ "$DRY_RUN" == "true" ]]; then
+  echo "Mode: dry-run (preflight only — no deploy)"
+fi
 echo ""
 
 bash "$ROOT/scripts/ops-gate-summary.sh" || true
@@ -16,6 +34,20 @@ if ! bash "$ROOT/scripts/verify-pre-deploy.sh"; then
   echo ""
   echo "Preflight failed — deploy not started." >&2
   exit 1
+fi
+
+if [[ "$DRY_RUN" == "true" ]]; then
+  echo ""
+  if bash "$ROOT/scripts/verify-cme-reopen.sh"; then
+    echo "✓ Dry-run complete — ready for deploy window"
+  else
+    echo "○ CME preflight has warnings — review before deploy" >&2
+    exit 1
+  fi
+  echo ""
+  echo "When window opens:"
+  echo "  bash trading-platform/scripts/run-deploy-window.sh"
+  exit 0
 fi
 
 echo ""

@@ -36,6 +36,15 @@ def test_run_deploy_window_script_exists():
   assert "verify-pre-deploy.sh" in text
   assert "wait-for-render-deploy.sh" in text
   assert "sync-render-env.sh" in text
+  assert "--dry-run" in text
+
+
+def test_verify_platform_uses_ops_gate_summary():
+  script = SCRIPTS / "verify-platform.sh"
+  text = script.read_text(encoding="utf-8")
+  assert "ops-gate-summary.sh" in text
+  assert "EXPECTED_DASHBOARD_BUNDLE" in text
+  assert "verify-dashboard-bundle.sh" in text
 
 
 def test_verify_weekend_ops_includes_gate_and_revision_hints():
