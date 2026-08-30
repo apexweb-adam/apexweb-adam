@@ -3699,19 +3699,23 @@ def build_next_session_events(
   """Countdown + open-ready symbols for the next CME reopen and US stocks open."""
   comm_prep = session_prep.get("commodities") or {}
   stocks_prep = session_prep.get("stocks_futures") or {}
+  comm_ready_symbols = comm_prep.get("open_ready_symbols") or []
+  stocks_ready_symbols = stocks_prep.get("open_ready_symbols") or []
   return {
     "cme_reopen": {
       "session_open_utc": commodities_session.get("session_open_utc"),
       "minutes_until_open": commodities_session.get("minutes_until_open"),
       "reopen_imminent": comm_prep.get("gate_reopen_imminent"),
       "reopen_wake_active": comm_prep.get("reopen_wake_active"),
-      "open_ready_symbols": comm_prep.get("open_ready_symbols") or [],
+      "open_ready_symbols": comm_ready_symbols,
+      "auto_gate_skip_at_open": comm_ready_symbols,
     },
     "us_stocks_open": {
       "session_open_utc": stocks_session.get("session_open_utc"),
       "minutes_until_open": stocks_session.get("minutes_until_open"),
       "reopen_wake_active": stocks_prep.get("reopen_wake_active"),
-      "open_ready_symbols": stocks_prep.get("open_ready_symbols") or [],
+      "open_ready_symbols": stocks_ready_symbols,
+      "auto_gate_skip_at_open": stocks_ready_symbols,
     },
   }
 

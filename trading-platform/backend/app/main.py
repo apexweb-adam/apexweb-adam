@@ -276,9 +276,16 @@ async def crm_landing():
   next_sessions_card = ""
   if next_session_lines:
     body = "".join(f"<p class='muted' style='margin:0.35rem 0 0;'>{line}</p>" for line in next_session_lines)
+    auto_entry_note = ""
+    if commodities_prep.get("open_ready_symbols") or stocks_prep.get("open_ready_symbols"):
+      auto_entry_note = (
+        "<p class='muted' style='margin:0.5rem 0 0;color:#86efac;'>"
+        "Gate-skip eligible — bots auto-enter when session opens.</p>"
+      )
     next_sessions_card = f"""<div class="card" style="border-color:#1e3a5f;background:#0c1929;">
     <h2 style="color:#60a5fa;font-size:1rem;margin:0 0 0.35rem;">Next sessions</h2>
     {body}
+    {auto_entry_note}
   </div>"""
 
   cme_mins = cme_session.get("minutes_until_open")
@@ -385,6 +392,19 @@ async def crm_landing():
   fomo = integrations.get("fomo") or {}
   axiom = integrations.get("axiom") or {}
   phantom = integrations.get("phantom") or {}
+
+  intel_alert_banner = ""
+  if fomo.get("bearer_configured") and not fomo.get("bearer_polling_active"):
+    intel_alert_banner = f"""<div class="card" style="border-color:#b45309;background:#451a03;">
+    <p style="color:#fbbf24;font-weight:600;margin:0;">fomo.family bearer expired — memecoin intel paused</p>
+    <p class="muted" style="margin-top:0.5rem;">Open fomo.family with Tampermonkey bridge or run <code>./trading-platform/scripts/fomo-set-bearer.sh 'eyJ...'</code></p>
+  </div>"""
+  elif intel_degraded:
+    intel_alert_banner = f"""<div class="card" style="border-color:#854d0e;background:#292524;">
+    <p style="color:#fbbf24;font-weight:600;margin:0;">Intel degraded: {', '.join(intel_degraded)}</p>
+    <p class="muted" style="margin-top:0.5rem;">Check integrations below — trading continues on active sources.</p>
+  </div>"""
+
   tv_status = "configured" if tv.get("configured") else "not configured"
   pm_status = "wallet + API" if pm.get("wallet_configured") and pm.get("api_configured") else (
     "wallet only" if pm.get("wallet_configured") else "API only" if pm.get("api_configured") else "not configured"
@@ -517,6 +537,7 @@ async def crm_landing():
   <p>Paper trading · 4 autonomous bots · Real-time WebSocket</p>
   <p class="muted" style="margin-top:0;">{session_summary}</p>
   {f"<p class='muted' style='margin-top:0;color:#fbbf24;'>{prep_summary}</p>" if prep_summary else ""}
+  {intel_alert_banner}
   {next_sessions_card}
   {cme_imminent_banner}
   {us_imminent_banner}

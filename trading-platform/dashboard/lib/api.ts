@@ -295,6 +295,7 @@ export type NextSessionEvent = {
   reopen_imminent?: boolean;
   reopen_wake_active?: boolean;
   open_ready_symbols?: string[];
+  auto_gate_skip_at_open?: string[];
 };
 
 export type NextSessionEvents = {
