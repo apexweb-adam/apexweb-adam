@@ -1,15 +1,31 @@
 #!/usr/bin/env bash
-# Unified deploy credential check: fomo bearer + GITHUB_TOKEN (non-blocking).
+# Unified deploy credential check: fomo bearer + GITHUB_TOKEN (non-blocking by default).
+# Usage: check-deploy-credentials.sh [--strict]  # --strict exits 1 when not ready
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BACKEND="${BACKEND_URL:-https://apex-trading-backend.onrender.com}"
 ENV_FILE="${ENV_FILE:-$ROOT/.env}"
+STRICT=false
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --strict)
+      STRICT=true
+      shift
+      ;;
+    *)
+      echo "Unknown arg: $1" >&2
+      exit 2
+      ;;
+  esac
+done
 
 SNAPSHOT=$(curl -fsS -m 15 "$BACKEND/api/deploy/snapshot" 2>/dev/null || echo "{}")
-SNAPSHOT_JSON="$SNAPSHOT" ENV_FILE="$ENV_FILE" python3 << 'PY'
+STRICT_FLAG="$STRICT" SNAPSHOT_JSON="$SNAPSHOT" ENV_FILE="$ENV_FILE" python3 << 'PY'
 import json, os, sys
 
+strict = os.environ.get("STRICT_FLAG") == "true"
 snap = json.loads(os.environ.get("SNAPSHOT_JSON") or "{}")
 env_file = os.environ.get("ENV_FILE") or ""
 
@@ -73,7 +89,10 @@ else:
         print(f"  fomo refresh: {hint}")
     if any("GITHUB" in w for w in warnings):
         print("  github: add GITHUB_TOKEN to .env then bash trading-platform/scripts/sync-render-env.sh")
+    if strict:
+        sys.exit(1)
 PY
+CRED_EXIT=$?
 
 # Backward compat when production is pre-r371/r370 snapshot fields.
 if ! echo "$SNAPSHOT" | python3 -c "import json,sys; d=json.load(sys.stdin); sys.exit(0 if d.get('fomo_bearer_configured') is not None else 1)" 2>/dev/null; then
@@ -83,3 +102,5 @@ fi
 if ! echo "$SNAPSHOT" | python3 -c "import json,sys; d=json.load(sys.stdin); sys.exit(0 if d.get('github_token_configured') is not None else 1)" 2>/dev/null; then
   bash "$ROOT/scripts/check-github-token.sh" || true
 fi
+
+exit "$CRED_EXIT"
