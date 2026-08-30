@@ -134,7 +134,7 @@ CRM_TIME=$(curl -sS -o /dev/null -m 120 -w "%{time_total}" "$BACKEND/crm" 2>/dev
 if [[ -n "$CRM_TIME" ]]; then
   CRM_SEC=$(python3 -c "print(f'{float('$CRM_TIME'):.1f}')")
   echo "$CRM_SEC" > "$ROOT/.crm-load-baseline"
-  note "CRM landing baseline ${CRM_SEC}s saved (target <30s after r367-r369 deploy)"
+  note "CRM landing baseline ${CRM_SEC}s saved (target <30s after r367-r371 deploy)"
 fi
 
 echo ""

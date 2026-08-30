@@ -67,6 +67,14 @@ PY
     echo "✓ Production revision live ($EXPECTED_REVISION)"
     if [[ "$VERIFY" == "true" ]]; then
       echo ""
+      SNAPSHOT_JSON="$SNAPSHOT" python3 << 'PY'
+import json, os
+snap = json.loads(os.environ.get("SNAPSHOT_JSON") or "{}")
+fomo = snap.get("fomo_bearer_configured")
+github = snap.get("github_token_configured")
+if fomo is not None or github is not None:
+    print(f"  snapshot integrations: fomo_bearer={fomo} github_token={github}")
+PY
       bash "$ROOT/scripts/verify-post-deploy.sh"
       bash "$ROOT/scripts/verify-dashboard-bundle.sh" || true
     fi
