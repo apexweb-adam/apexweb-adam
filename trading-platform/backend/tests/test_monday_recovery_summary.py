@@ -18,6 +18,15 @@ def _reset_monday_recovery_cache():
   clear_monday_recovery_cache()
 
 
+@pytest.fixture(autouse=True)
+def _mock_prep_phase_state():
+  with patch(
+    "app.engines.session_open_log.get_prep_phase_state",
+    new=AsyncMock(return_value={}),
+  ):
+    yield
+
+
 def test_build_monday_recovery_summary_aggregates_bots():
   async def _run():
     session = AsyncMock()
@@ -102,6 +111,68 @@ def test_build_monday_recovery_summary_aggregates_bots():
   assert result["open_ready"][0]["macd"] == "bullish"
   assert result["open_ready"][1]["minutes_until_open"] == 3000
   assert result["open_ready"][1]["monday_gate_skip_ready"] is True
+
+
+def test_build_monday_recovery_summary_keeps_sticky_open_ready():
+  async def _run():
+    session = AsyncMock()
+
+    async def fake_preview(_session, bot_type):
+      if bot_type == "commodities":
+        return {
+          "recovery_candidates": [],
+          "graduation_nudge": True,
+          "shadow_mode": False,
+          "session": {"mode": "weekend_closed", "minutes_until_open": 900},
+          "symbols": [
+            {
+              "symbol": "NG=F",
+              "composite": 0.64,
+              "monday_open_ready": True,
+              "monday_gate_skip_ready": True,
+              "direction": "buy",
+              "macd": "bullish",
+              "blockers": ["weekend_futures_closed"],
+            },
+            {
+              "symbol": "CL=F",
+              "composite": 0.41,
+              "monday_open_ready": False,
+              "monday_gate_skip_ready": True,
+              "direction": "buy",
+              "macd": "bullish",
+              "blockers": ["weekend_futures_closed"],
+            },
+          ],
+          "open_ready_candidates": ["NG=F"],
+        }
+      return {
+        "recovery_candidates": [],
+        "stocks_trade_count_nudge": False,
+        "symbols": [],
+      }
+
+    with patch(
+      "app.engines.scan_preview.build_scan_preview",
+      side_effect=fake_preview,
+    ):
+      with patch(
+        "app.engines.session_open_log.get_prep_phase_state",
+        new=AsyncMock(
+          return_value={
+            "cme_reopen": {"open_ready_symbols": ["NG=F", "CL=F"]},
+          }
+        ),
+      ):
+        return await build_monday_recovery_summary(session)
+
+  import asyncio
+
+  result = asyncio.run(_run())
+  symbols = [row["symbol"] for row in result["open_ready"] if row["bot_type"] == "commodities"]
+  assert symbols == ["NG=F", "CL=F"]
+  clf = next(row for row in result["open_ready"] if row["symbol"] == "CL=F")
+  assert clf.get("sticky_queue") is True
 
 
 def test_build_monday_recovery_summary_nudge_without_recovery_candidates():

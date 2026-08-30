@@ -718,6 +718,7 @@ STOCKS_TRADE_COUNT_PROFIT_LOCK_USD = 2.5
 COMMODITIES_HIGH_COMPOSITE_RECOVERY_FLOOR = 0.48
 COMMODITIES_GRADUATION_OPEN_COMPOSITE_FLOOR = 0.42
 OPEN_READY_NEAR_FLOOR_MARGIN = 0.05
+OPEN_READY_QUEUE_RELEASE_MARGIN = 0.02
 COMMODITIES_FUTURES_WEEKEND_FLAT_EXIT_BAND_USD = 1.0
 COMMODITIES_WEEKEND_SPOT_SYMBOLS = frozenset({"XAUUSDT", "PAXGUSDT"})
 COMMODITIES_GOLD_PROXY_PREFERRED = "XAUUSDT"
@@ -4329,6 +4330,7 @@ def commodities_high_composite_recovery_entry_ok(
   signal_direction: str,
   macd_signal: str,
   graduation_nudge: bool = False,
+  floor_release_margin: float = 0.0,
 ) -> bool:
   """Active-gate commodities can re-enter chronic futures with strong aligned composites."""
   from app.engines.market_data import CRYPTO_LIVE_PRICE_PROXY
@@ -4339,7 +4341,8 @@ def commodities_high_composite_recovery_entry_ok(
     return False
   if signal_direction != "buy" or macd_signal != "bullish":
     return False
-  return composite >= commodities_recovery_composite_floor(graduation_nudge)
+  floor = commodities_recovery_composite_floor(graduation_nudge) - floor_release_margin
+  return composite >= floor
 
 
 def stocks_proven_winner_sentiment_gate_ok(
@@ -4398,8 +4401,10 @@ def commodities_monday_open_ready(
   macd_signal: str,
   blockers: list[str],
   graduation_nudge: bool = False,
+  sticky_queue: bool = False,
 ) -> bool:
   """Bullish high-composite futures that will enter as soon as CME reopens."""
+  release_margin = OPEN_READY_QUEUE_RELEASE_MARGIN if sticky_queue else 0.0
   if not commodities_high_composite_recovery_entry_ok(
     bot_type=bot_type,
     shadow_mode=shadow_mode,
@@ -4408,6 +4413,7 @@ def commodities_monday_open_ready(
     signal_direction=signal_direction,
     macd_signal=macd_signal,
     graduation_nudge=graduation_nudge,
+    floor_release_margin=release_margin,
   ):
     return False
   if not blockers:

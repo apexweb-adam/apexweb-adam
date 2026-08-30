@@ -1199,6 +1199,63 @@ async def _build_monday_recovery_summary(session: AsyncSession) -> dict[str, Any
     elif bot_type == "commodities" and commodities_graduation_nudge:
       bots[bot_type] = bot_entry
 
+  from app.engines.gate_entry_guard import commodities_monday_open_ready
+  from app.engines.session_open_log import get_prep_phase_state
+
+  state = await get_prep_phase_state(session)
+  existing_open_ready = {(row["bot_type"], row["symbol"]) for row in open_ready_rows}
+  sticky_session_keys = {
+    "commodities": "cme_reopen",
+  }
+  for bot_type, preview in preview_results:
+    if preview.get("error") or bot_type not in sticky_session_keys:
+      continue
+    session_key = sticky_session_keys[bot_type]
+    prev_ready = (state.get(session_key) or {}).get("open_ready_symbols") or []
+    if not prev_ready:
+      continue
+    graduation_nudge = bool(preview.get("graduation_nudge"))
+    shadow_mode = bool(preview.get("shadow_mode"))
+    session_info = preview.get("session") or {}
+    minutes_until_open = session_info.get("minutes_until_open")
+    symbol_rows = {row["symbol"]: row for row in preview.get("symbols", []) if row.get("symbol")}
+    for symbol in prev_ready:
+      if (bot_type, symbol) in existing_open_ready:
+        continue
+      row = symbol_rows.get(symbol)
+      if not row:
+        continue
+      blockers = row.get("blockers") or []
+      composite = row.get("composite")
+      if composite is None:
+        continue
+      if not commodities_monday_open_ready(
+        bot_type=bot_type,
+        shadow_mode=shadow_mode,
+        symbol=symbol,
+        composite=float(composite),
+        signal_direction=str(row.get("direction") or ""),
+        macd_signal=str(row.get("macd") or ""),
+        blockers=blockers,
+        graduation_nudge=graduation_nudge,
+        sticky_queue=True,
+      ):
+        continue
+      open_ready_rows.append(
+        {
+          "bot_type": bot_type,
+          "symbol": symbol,
+          "composite": composite,
+          "direction": row.get("direction"),
+          "macd": row.get("macd"),
+          "blockers": blockers,
+          "minutes_until_open": minutes_until_open,
+          "monday_gate_skip_ready": bool(row.get("monday_gate_skip_ready")),
+          "sticky_queue": True,
+        }
+      )
+      existing_open_ready.add((bot_type, symbol))
+
   return {
     "bots": bots,
     "all": all_rows,
