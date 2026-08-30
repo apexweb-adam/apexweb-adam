@@ -65,6 +65,9 @@ mins = data.get('minutes_until_open')
 if stocks.get('status') == 'fail':
     syms = ', '.join(open_ready) if open_ready else 'none'
     print(f'US stocks: bot paused — Monday auto-entry for {syms} blocked until profitability gate clears (open in {mins}min)')
+elif stocks.get('status') == 'warn':
+    syms = ', '.join(open_ready) if open_ready else 'none'
+    print(f'US stocks: shadow mode — Monday gate-skip armed for {syms} (open in {mins}min)')
 elif open_ready:
     print(f'US stocks: open_ready={open_ready} (opens in {mins}min)')
 " 2>/dev/null || true)

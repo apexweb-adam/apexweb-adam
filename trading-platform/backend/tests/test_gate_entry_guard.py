@@ -969,7 +969,7 @@ def test_commodities_monday_open_ready():
     ) is True
 
 
-def test_commodities_monday_open_ready_extended_sticky_margin():
+def test_commodities_monday_open_ready_extended_sticky_margin(weekend_commodities_session):
   from app.engines.gate_entry_guard import (
     COMMODITIES_GRADUATION_OPEN_COMPOSITE_FLOOR,
     commodities_monday_open_ready,
@@ -998,7 +998,7 @@ def test_commodities_monday_open_ready_extended_sticky_margin():
   )
 
 
-def test_commodities_monday_open_ready_sticky_queue():
+def test_commodities_monday_open_ready_sticky_queue(weekend_commodities_session):
   from app.engines.gate_entry_guard import (
     COMMODITIES_GRADUATION_OPEN_COMPOSITE_FLOOR,
     commodities_monday_open_ready,
@@ -1082,7 +1082,7 @@ def test_prioritize_commodities_monday_scan_pre_session():
   assert ordered[1] == "CL=F"
 
 
-def test_commodities_monday_scan_priority_graduation_prep_window():
+def test_commodities_monday_scan_priority_graduation_prep_window(weekend_commodities_session):
   from app.engines.gate_entry_guard import commodities_monday_scan_priority_active
 
   session = {"in_session": False, "minutes_until_open": 200, "minutes_since_open": 0}
@@ -1104,7 +1104,7 @@ def test_prioritize_commodities_monday_scan_outside_prep_window():
   assert ordered[0] == "CL=F"
 
 
-def test_prioritize_commodities_monday_scan_graduation_nudge():
+def test_prioritize_commodities_monday_scan_graduation_nudge(weekend_commodities_session):
   from app.engines.gate_entry_guard import prioritize_commodities_monday_scan
 
   symbols = ["CL=F", "SI=F", "NG=F", "HG=F"]
@@ -1137,7 +1137,7 @@ def test_prioritize_commodities_monday_scan_reopen_imminent_futures_first():
   assert ordered.index("CL=F") < ordered.index("SI=F")
 
 
-def test_prioritize_commodities_monday_scan_graduation_prep_futures_first():
+def test_prioritize_commodities_monday_scan_graduation_prep_futures_first(weekend_commodities_session):
   from app.engines.gate_entry_guard import prioritize_commodities_monday_scan
 
   symbols = ["CL=F", "SI=F", "NG=F", "HG=F", "XAUUSDT"]
@@ -1182,7 +1182,7 @@ def test_prioritize_stocks_monday_scan_outside_prep_window():
   assert ordered[0] == "AAPL"
 
 
-def test_build_session_prep_status_extended_weekend():
+def test_build_session_prep_status_extended_weekend(weekend_commodities_session):
   from app.engines.gate_entry_guard import build_session_prep_status
 
   status = build_session_prep_status(
@@ -1310,7 +1310,7 @@ def test_build_session_prep_status_propagates_extended_sticky():
   assert detail["extended_sticky"] is True
 
 
-def test_commodities_near_floor_candidate():
+def test_commodities_near_floor_candidate(weekend_commodities_session):
   from app.engines.gate_entry_guard import commodities_near_floor_candidate
 
   assert commodities_near_floor_candidate(
@@ -1339,7 +1339,7 @@ def test_commodities_near_floor_candidate():
   )
 
 
-def test_build_session_prep_status_includes_near_floor():
+def test_build_session_prep_status_includes_near_floor(weekend_commodities_session):
   from app.engines.gate_entry_guard import build_session_prep_status
 
   status = build_session_prep_status(
@@ -1405,7 +1405,7 @@ def test_build_session_prep_status_skips_near_floor_when_already_open_ready():
   assert "NG=F" not in status["near_floor_candidates"]
 
 
-def test_gap_to_open_composite_floor():
+def test_gap_to_open_composite_floor(weekend_commodities_session):
   from app.engines.gate_entry_guard import gap_to_open_composite_floor
 
   assert gap_to_open_composite_floor("commodities", 0.406, graduation_nudge=True) == 0.014

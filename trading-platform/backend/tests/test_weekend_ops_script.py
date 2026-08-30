@@ -293,6 +293,7 @@ def test_verify_cme_reopen_uses_deploy_json_fallback():
   assert "composite_floor_ok_with_sticky_margin" in text
   assert "queue_dropped" in text
   assert "queue_dropped_in_prep_window" in text
+  assert "prep_window_active" in text
   assert "extended_watch=" in text
   assert "CME_WATCH" in text
   assert "wake_backend" in text
