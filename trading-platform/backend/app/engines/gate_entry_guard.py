@@ -3695,6 +3695,7 @@ def build_session_prep_status(
           "direction": row.get("direction"),
           "macd": row.get("macd"),
           "monday_gate_skip_ready": bool(row.get("monday_gate_skip_ready")),
+          "sticky_queue": bool(row.get("sticky_queue")),
           "blockers": row.get("blockers") or [],
         }
       )

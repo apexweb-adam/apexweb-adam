@@ -4,7 +4,7 @@
 set -euo pipefail
 
 BACKEND="${BACKEND_URL:-https://apex-trading-backend.onrender.com}"
-EXPECTED_REVISION="${EXPECTED_PLATFORM_REVISION:-2026-08-29-r344}"
+EXPECTED_REVISION="${EXPECTED_PLATFORM_REVISION:-2026-08-29-r347}"
 WATCH_INTERVAL=""
 
 if [[ "${1:-}" == "--watch" ]]; then
@@ -45,12 +45,16 @@ if urgency:
 print(f"  cme_phase={data.get('prep_phase')} minutes_until_open={data.get('minutes_until_open')}")
 print(f"  auto_entry_queued={open_ready.get('auto_entry_queued')} composite_floor={open_ready.get('composite_floor')}")
 print(f"  open_ready={open_ready.get('symbols')}")
+sticky = open_ready.get("sticky_symbols") or []
+if sticky:
+    print(f"  sticky_queue={sticky} (release_margin={open_ready.get('release_margin')})")
 print(f"  near_floor={near.get('symbols')}")
 for row in open_ready.get("details") or []:
     sym = row.get("symbol")
     comp = row.get("composite")
     blockers = row.get("blockers") or []
-    print(f"    {sym}: composite={comp} blockers={blockers}")
+    sticky_flag = " sticky" if row.get("sticky_queue") else ""
+    print(f"    {sym}: composite={comp}{sticky_flag} blockers={blockers}")
 for row in data.get("checks") or []:
     print(f"  check {row.get('id')}={row.get('status')}: {row.get('message')}")
 critical_fail = [c for c in (data.get("checks") or []) if c.get("critical") and c.get("status") == "fail"]
