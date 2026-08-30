@@ -22,6 +22,7 @@ out/
 .tunnel-url
 .dashboard-tunnel-url
 .platform-urls.json
+.crm-load-baseline
 .bin/
 .vercel
 .env*

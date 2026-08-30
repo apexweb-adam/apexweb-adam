@@ -54,6 +54,15 @@ def test_verify_post_deploy_includes_crm_and_learning_checks():
   assert "/crm" in text
   assert "learning_loop" in text
   assert "run_deploy_window_command" in text
+  assert ".crm-load-baseline" in text
+  assert "r367-r369" in text
+
+
+def test_verify_pre_deploy_saves_crm_baseline():
+  script = SCRIPTS / "verify-pre-deploy.sh"
+  text = script.read_text(encoding="utf-8")
+  assert ".crm-load-baseline" in text
+  assert "CRM landing baseline" in text
 
 
 def test_verify_weekend_ops_includes_gate_and_revision_hints():

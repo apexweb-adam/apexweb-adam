@@ -126,6 +126,13 @@ else
   note "Post-deploy contract (cme_deploy_window, sticky_symbols) will verify after deploy"
 fi
 
+CRM_TIME=$(curl -sS -o /dev/null -m 120 -w "%{time_total}" "$BACKEND/crm" 2>/dev/null || echo "")
+if [[ -n "$CRM_TIME" ]]; then
+  CRM_SEC=$(python3 -c "print(f'{float('$CRM_TIME'):.1f}')")
+  echo "$CRM_SEC" > "$ROOT/.crm-load-baseline"
+  note "CRM landing baseline ${CRM_SEC}s saved (target <30s after r367-r369 deploy)"
+fi
+
 echo ""
 echo "Results: $pass passed, $fail failed, $warn notes"
 if [[ "$fail" -gt 0 ]]; then

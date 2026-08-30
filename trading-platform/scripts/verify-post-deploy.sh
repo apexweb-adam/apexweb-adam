@@ -141,12 +141,26 @@ else
 fi
 
 CRM_TIME=$(curl -sS -o /dev/null -m 120 -w "%{time_total}" "$BACKEND/crm" 2>/dev/null || echo "")
+BASELINE_FILE="$ROOT/.crm-load-baseline"
 if [[ -n "$CRM_TIME" ]]; then
   CRM_SEC=$(python3 -c "print(f'{float('$CRM_TIME'):.1f}')")
+  BASELINE_SEC=""
+  if [[ -f "$BASELINE_FILE" ]]; then
+    BASELINE_SEC=$(tr -d '[:space:]' < "$BASELINE_FILE")
+  fi
   if python3 -c "import sys; sys.exit(0 if float('$CRM_TIME') < 30 else 1)"; then
-    ok "CRM landing loaded in ${CRM_SEC}s"
+    if [[ -n "$BASELINE_SEC" ]]; then
+      ok "CRM landing loaded in ${CRM_SEC}s (baseline ${BASELINE_SEC}s — r367-r369 stack)"
+    else
+      ok "CRM landing loaded in ${CRM_SEC}s"
+    fi
   else
-    note "CRM landing slow (${CRM_SEC}s) — expect faster after r367+ parallel load deploy"
+    if [[ -n "$BASELINE_SEC" ]]; then
+      CRM_NOTE=$(python3 -c "now=float('$CRM_TIME'); base=float('$BASELINE_SEC'); delta=base-now; msg=f'CRM landing {now:.1f}s vs baseline {base:.1f}s ({delta:+.1f}s)'; msg += ' — improved but still >30s' if delta >= 5 else (' — slower than baseline; check cold start' if delta <= -5 else ' — similar to baseline; confirm r369 live'); print(msg)")
+      note "$CRM_NOTE"
+    else
+      note "CRM landing slow (${CRM_SEC}s) — confirm r369 revision live; target <30s after r367-r369 stack"
+    fi
   fi
 else
   note "CRM landing timing unavailable"
