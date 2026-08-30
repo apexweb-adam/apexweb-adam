@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 def summarize_session_open_checklist(checklist: dict[str, Any]) -> dict[str, Any]:
   checks = checklist.get("checks") or []
   open_ready = checklist.get("open_ready") or {}
+  near_floor = checklist.get("near_floor") or {}
   events = checklist.get("session_open_events") or {}
   return {
     "ready": bool(checklist.get("ready")),
@@ -17,6 +18,7 @@ def summarize_session_open_checklist(checklist: dict[str, Any]) -> dict[str, Any
     "prep_phase": checklist.get("prep_phase"),
     "minutes_until_open": checklist.get("minutes_until_open"),
     "open_ready_symbols": list(open_ready.get("symbols") or []),
+    "near_floor_symbols": list(near_floor.get("symbols") or []),
     "sticky_symbols": list(open_ready.get("sticky_symbols") or []),
     "auto_entry_queued": bool(open_ready.get("auto_entry_queued")),
     "composite_floor": open_ready.get("composite_floor"),
