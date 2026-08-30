@@ -27,6 +27,7 @@ import {
   type ContentStudySummary,
   type PlatformStatus,
   type SessionOpenEvent,
+  type SessionOpenChecklists,
 } from "./api";
 
 type LiveData = {
@@ -50,6 +51,7 @@ type LiveData = {
   nextSessionEvents: NextSessionEvents | null;
   contentStudy: ContentStudySummary | null;
   sessionOpenEvents: SessionOpenEvent[];
+  sessionOpenChecklists: SessionOpenChecklists | null;
   cmeDeployUrgency: {
     active: boolean;
     minutes_until_open: number;
@@ -82,6 +84,7 @@ export function useLiveData(): LiveData {
   const [nextSessionEvents, setNextSessionEvents] = useState<NextSessionEvents | null>(null);
   const [contentStudy, setContentStudy] = useState<ContentStudySummary | null>(null);
   const [sessionOpenEvents, setSessionOpenEvents] = useState<SessionOpenEvent[]>([]);
+  const [sessionOpenChecklists, setSessionOpenChecklists] = useState<SessionOpenChecklists | null>(null);
   const [cmeDeployUrgency, setCmeDeployUrgency] = useState<LiveData["cmeDeployUrgency"]>(null);
   const [connected, setConnected] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<string | null>(null);
@@ -132,6 +135,9 @@ export function useLiveData(): LiveData {
       if (status.content_study) setContentStudy(status.content_study as ContentStudySummary);
       if (status.session_open_events) {
         setSessionOpenEvents(status.session_open_events as SessionOpenEvent[]);
+      }
+      if (status.session_open_checklists) {
+        setSessionOpenChecklists(status.session_open_checklists as SessionOpenChecklists);
       }
       const deployUrgency = status.deploy?.cme_deploy_urgency;
       if (deployUrgency) setCmeDeployUrgency(deployUrgency);
@@ -184,6 +190,9 @@ export function useLiveData(): LiveData {
     if (data.content_study) setContentStudy(data.content_study as ContentStudySummary);
     if (data.session_open_events) {
       setSessionOpenEvents(data.session_open_events as SessionOpenEvent[]);
+    }
+    if (data.session_open_checklists) {
+      setSessionOpenChecklists(data.session_open_checklists as SessionOpenChecklists);
     }
     const deploy = data.deploy as PlatformStatus["deploy"] | undefined;
     if (deploy?.cme_deploy_urgency) setCmeDeployUrgency(deploy.cme_deploy_urgency);
@@ -262,6 +271,7 @@ export function useLiveData(): LiveData {
     nextSessionEvents,
     contentStudy,
     sessionOpenEvents,
+    sessionOpenChecklists,
     cmeDeployUrgency,
     connected,
     lastUpdate,

@@ -57,6 +57,28 @@ def test_platform_status_cache_ttl_extended_during_cme_weekend():
     assert platform_status._platform_status_cache_ttl_seconds() == 60
 
 
+_CHECKLIST_SUMMARIES = {
+  "cme_reopen": {
+    "ready": True,
+    "phase": "preflight",
+    "open_ready_symbols": [],
+    "auto_entry_queued": False,
+    "critical_failures": [],
+    "has_burst_scan": False,
+    "has_auto_entry": False,
+  },
+  "us_stocks_open": {
+    "ready": True,
+    "phase": "preflight",
+    "open_ready_symbols": [],
+    "auto_entry_queued": False,
+    "critical_failures": [],
+    "has_burst_scan": False,
+    "has_auto_entry": False,
+  },
+}
+
+
 def test_platform_status_cache_ttl_short_outside_cme_weekend():
   with patch(
     "app.engines.gate_entry_guard.commodities_futures_weekend_closed",
@@ -114,20 +136,24 @@ def test_build_platform_status_includes_per_bot_gate():
                       new=AsyncMock(return_value=[]),
                     ):
                       with patch(
-                        "app.engines.platform_status.get_fomo_bearer_status",
-                        new=AsyncMock(return_value={}),
+                        "app.engines.session_open_checklist_summary.build_session_open_checklist_summaries",
+                        new=AsyncMock(return_value=_CHECKLIST_SUMMARIES),
                       ):
                         with patch(
-                          "app.engines.platform_status.get_axiom_session_status",
+                          "app.engines.platform_status.get_fomo_bearer_status",
                           new=AsyncMock(return_value={}),
                         ):
                           with patch(
-                            "app.engines.platform_status.build_crm_content_study_highlights",
-                            new=AsyncMock(
-                              return_value={"insights_applied": 10, "recent": []}
-                            ),
+                            "app.engines.platform_status.get_axiom_session_status",
+                            new=AsyncMock(return_value={}),
                           ):
-                            result = await platform_status.build_platform_status(session)
+                            with patch(
+                              "app.engines.platform_status.build_crm_content_study_highlights",
+                              new=AsyncMock(
+                                return_value={"insights_applied": 10, "recent": []}
+                              ),
+                            ):
+                              result = await platform_status.build_platform_status(session)
     assert result["per_bot_gate"]["commodities"]["total_trades"] == 40
     assert result["per_bot_gate"]["crypto"]["paused"] is True
     assert result["content_study"]["insights_applied"] == 10
@@ -180,18 +206,22 @@ def test_build_platform_status_includes_content_study():
                       new=AsyncMock(return_value=[]),
                     ):
                       with patch(
-                        "app.engines.platform_status.get_fomo_bearer_status",
-                        new=AsyncMock(return_value={}),
+                        "app.engines.session_open_checklist_summary.build_session_open_checklist_summaries",
+                        new=AsyncMock(return_value=_CHECKLIST_SUMMARIES),
                       ):
                         with patch(
-                          "app.engines.platform_status.get_axiom_session_status",
+                          "app.engines.platform_status.get_fomo_bearer_status",
                           new=AsyncMock(return_value={}),
                         ):
                           with patch(
-                            "app.engines.platform_status.build_crm_content_study_highlights",
-                            new=AsyncMock(return_value=highlights),
+                            "app.engines.platform_status.get_axiom_session_status",
+                            new=AsyncMock(return_value={}),
                           ):
-                            result = await platform_status.build_platform_status(session)
+                            with patch(
+                              "app.engines.platform_status.build_crm_content_study_highlights",
+                              new=AsyncMock(return_value=highlights),
+                            ):
+                              result = await platform_status.build_platform_status(session)
     assert result["content_study"] == highlights
 
   asyncio.run(run())

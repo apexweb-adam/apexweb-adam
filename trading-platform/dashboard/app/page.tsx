@@ -57,6 +57,7 @@ import type {
   EquityHistoryPoint,
   BotSessions,
   SessionOpenEvent,
+  SessionOpenChecklists,
 } from "@/lib/api";
 import { enrichProfitabilityStatus, activeGateToProfitability, buildEquityHistoryFromTrades } from "@/lib/profitability";
 import { VerificationPnLChart } from "@/components/VerificationPnLChart";
@@ -65,7 +66,7 @@ import { IntelRoutingPanel } from "@/components/IntelRoutingPanel";
 type Tab = "overview" | "trades" | "positions" | "intelligence" | "learning" | "strategy";
 
 export default function Dashboard() {
-  const { stats, portfolios, bots, positions: livePositions, trades: liveTrades, recentIntel, analyses: liveAnalyses, reviews: liveReviews, insights: liveInsights, strategies: liveStrategies, intelSources: liveIntelSources, verificationHistory: liveVerificationHistory, connected, lastUpdate, lastTrade, profitabilityGate: liveProfitability, gateEntryTightening, botSessions, mondayRecovery, sessionPrep, nextSessionEvents, contentStudy, sessionOpenEvents, cmeDeployUrgency } = useLiveData();
+  const { stats, portfolios, bots, positions: livePositions, trades: liveTrades, recentIntel, analyses: liveAnalyses, reviews: liveReviews, insights: liveInsights, strategies: liveStrategies, intelSources: liveIntelSources, verificationHistory: liveVerificationHistory, connected, lastUpdate, lastTrade, profitabilityGate: liveProfitability, gateEntryTightening, botSessions, mondayRecovery, sessionPrep, nextSessionEvents, contentStudy, sessionOpenEvents, sessionOpenChecklists, cmeDeployUrgency } = useLiveData();
   const { data: tradesRest } = useAPI<Trade[]>("/trades?limit=50", 30000);
   const { data: gateTradesRest } = useAPI<Trade[]>("/trades?limit=200", 30000);
   const { data: positionsRest } = useAPI<Position[]>("/positions", 30000);
@@ -321,6 +322,11 @@ export default function Dashboard() {
               <IntelAlertBanner platformStatus={platformStatus} intelSources={liveIntelSources} />
               <CmeDeployUrgencyBanner
                 urgency={cmeDeployUrgency ?? platformStatus?.deploy?.cme_deploy_urgency}
+              />
+              <SessionOpenChecklistsCard
+                checklists={
+                  sessionOpenChecklists ?? platformStatus?.session_open_checklists ?? null
+                }
               />
               <SessionImminentBanners events={nextSessionEvents} sessionPrep={sessionPrep} />
               <NextSessionsCard events={nextSessionEvents} sessionPrep={sessionPrep} />
@@ -1903,6 +1909,55 @@ function CmeDeployUrgencyBanner({
       <p className="text-sm font-semibold text-red-300">Deploy before CME reopen</p>
       <p className="text-xs text-red-200/80 mt-1">{urgency.message}</p>
       <p className="text-[11px] font-mono text-gray-400 mt-2 break-all">{urgency.deploy_command}</p>
+    </div>
+  );
+}
+
+function SessionOpenChecklistsCard({
+  checklists,
+}: {
+  checklists: SessionOpenChecklists | null;
+}) {
+  if (!checklists) return null;
+
+  const rows = [
+    { key: "cme_reopen", label: "CME reopen", data: checklists.cme_reopen },
+    { key: "us_stocks_open", label: "US stocks open", data: checklists.us_stocks_open },
+  ].filter((row) => (row.data.open_ready_symbols?.length ?? 0) > 0 || row.data.phase === "post_open");
+
+  if (rows.length === 0) return null;
+
+  return (
+    <div className="rounded-lg border border-blue-500/30 bg-blue-950/20 p-4 space-y-3">
+      <p className="text-sm font-semibold text-blue-200">Session open checklists</p>
+      {rows.map(({ key, label, data }) => {
+        const ready = data.ready;
+        const mins = data.minutes_until_open;
+        const countdown = mins != null ? `${Math.floor(mins / 60)}h ${mins % 60}m` : "soon";
+        return (
+          <div key={key} className="text-xs border-t border-blue-500/20 pt-2 first:border-t-0 first:pt-0">
+            <p className="font-medium text-blue-100">
+              {label}{" "}
+              <span className={ready ? "text-lime-400" : "text-amber-300"}>
+                {ready ? "ready" : "needs attention"}
+              </span>
+              <span className="text-gray-400 font-normal"> · {data.phase} · open in {countdown}</span>
+            </p>
+            <p className="text-gray-300 mt-1">
+              Queued: {data.open_ready_symbols.join(", ") || "—"}
+              {data.has_auto_entry ? (
+                <span className="text-lime-400 ml-2">· auto-entry logged</span>
+              ) : null}
+              {data.has_burst_scan ? (
+                <span className="text-lime-400 ml-2">· burst scan logged</span>
+              ) : null}
+            </p>
+            {data.critical_failures.length > 0 ? (
+              <p className="text-red-300 mt-1">Failed: {data.critical_failures.join(", ")}</p>
+            ) : null}
+          </div>
+        );
+      })}
     </div>
   );
 }

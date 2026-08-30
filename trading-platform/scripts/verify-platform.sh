@@ -156,6 +156,26 @@ else
   note "CME prep-status unavailable (run verify-cme-reopen.sh)"
 fi
 
+CME_CHECK=$(curl -fsS -m 45 "$BACKEND/api/gate/cme-reopen-checklist" 2>/dev/null || echo "")
+if [[ -n "$CME_CHECK" && "$CME_CHECK" != "{}" ]]; then
+  python3 << PY
+import json, sys
+d = json.loads('''$CME_CHECK''')
+print(f"  cme_checklist_ready={d.get('ready')} phase={d.get('phase')}")
+sys.exit(0)
+PY
+  ok "CME reopen checklist API"
+else
+  note "CME checklist API unavailable until r344+ deploy"
+fi
+
+US_CHECK=$(curl -fsS -m 45 "$BACKEND/api/gate/us-stocks-open-checklist" 2>/dev/null || echo "")
+if [[ -n "$US_CHECK" && "$US_CHECK" != "{}" ]]; then
+  ok "US stocks open checklist API"
+else
+  note "US stocks checklist API unavailable until r345+ deploy"
+fi
+
 # CRM landing
 CRM=$(curl -fsS -m 35 "$BACKEND/crm" 2>/dev/null || echo "")
 if echo "$CRM" | grep -q "Apex Trading CRM"; then
