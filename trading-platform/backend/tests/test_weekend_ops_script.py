@@ -282,3 +282,15 @@ def test_verify_pre_deploy_us_stocks_uses_fetch_json():
   assert "us-stocks-open-checklist" in text
   assert "fetch_json" in text
   assert "'''$US_CHECKLIST'''" not in text
+
+
+def test_session_open_scripts_use_fetch_json_not_heredoc():
+  for name in (
+    "verify-cme-post-open.sh",
+    "verify-us-stocks-open.sh",
+    "verify-us-stocks-post-open.sh",
+  ):
+    text = (SCRIPTS / name).read_text(encoding="utf-8")
+    assert "fetch_json.sh" in text
+    assert "'''$CHECKLIST'''" not in text
+    assert "'''$STATUS'''" not in text

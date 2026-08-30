@@ -4,6 +4,8 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+# shellcheck source=lib/fetch_json.sh
+source "$ROOT/scripts/lib/fetch_json.sh"
 BACKEND="${BACKEND_URL:-https://apex-trading-backend.onrender.com}"
 EXPECTED_REVISION="${EXPECTED_PLATFORM_REVISION:-$(grep '^EXPECTED_PLATFORM_REVISION' "$ROOT/backend/app/engines/deploy_status.py" | sed -n 's/.*"\([^"]*\)".*/\1/p')}"
 WATCH_INTERVAL=""
@@ -33,11 +35,17 @@ run_preflight() {
   bash "$ROOT/scripts/ops-gate-summary.sh" || true
   echo ""
 
-  CHECKLIST=$(curl -fsS -m 90 "$BACKEND/api/gate/us-stocks-open-checklist" 2>/dev/null || echo "")
+  TMP=$(mktemp -d)
+  trap 'rm -rf "$TMP"' RETURN
+  CHECKLIST=$(fetch_json "$BACKEND/api/gate/us-stocks-open-checklist" 90 2 || echo "")
+  echo "$CHECKLIST" > "$TMP/checklist.json"
+
   if [[ -n "$CHECKLIST" && "$CHECKLIST" != "{}" ]]; then
-    python3 << PY
-import json, sys
-data = json.loads('''$CHECKLIST''')
+    CHECKLIST_FILE="$TMP/checklist.json" python3 << 'PY'
+import json, os, sys
+from pathlib import Path
+
+data = json.loads(Path(os.environ["CHECKLIST_FILE"]).read_text(encoding="utf-8"))
 deploy = data.get("deploy") or {}
 open_ready = data.get("open_ready") or {}
 near = data.get("near_floor") or {}
@@ -77,18 +85,18 @@ PY
     fi
   else
     note "Checklist endpoint unavailable — using prep-status fallback"
-    PREP=$(curl -fsS -m 45 "$BACKEND/api/gate/prep-status" 2>/dev/null || echo "{}")
-    python3 << PY
+    PREP=$(fetch_json "$BACKEND/api/gate/prep-status" 45 2 || echo "{}")
+    echo "$PREP" | python3 -c "
 import json, sys
-prep = json.loads('''$PREP''')
-stocks = prep.get("stocks_futures") or {}
-us = (prep.get("next_session_events") or {}).get("us_stocks_open") or {}
-open_ready = stocks.get("open_ready_symbols") or us.get("open_ready_symbols") or []
-auto_entry = stocks.get("auto_entry_queued") or us.get("auto_entry_queued")
-print(f"  minutes_until_open={stocks.get('minutes_until_open') or us.get('minutes_until_open')}")
-print(f"  auto_entry_queued={auto_entry} open_ready={open_ready}")
+prep = json.load(sys.stdin)
+stocks = prep.get('stocks_futures') or {}
+us = (prep.get('next_session_events') or {}).get('us_stocks_open') or {}
+open_ready = stocks.get('open_ready_symbols') or us.get('open_ready_symbols') or []
+auto_entry = stocks.get('auto_entry_queued') or us.get('auto_entry_queued')
+print(f\"  minutes_until_open={stocks.get('minutes_until_open') or us.get('minutes_until_open')}\")
+print(f\"  auto_entry_queued={auto_entry} open_ready={open_ready}\")
 sys.exit(0 if auto_entry or not open_ready else 1)
-PY
+"
     if [[ $? -eq 0 ]]; then
       ok "US stocks prep-status looks ready"
     else
@@ -102,11 +110,22 @@ PY
     bad "Backend health unreachable"
   fi
 
-  STATUS=$(curl -fsS -m 90 "$BACKEND/api/status" 2>/dev/null || echo "{}")
-  python3 << PY
-import json, sys
+  fetch_json "$BACKEND/api/status" 90 2 > "$TMP/status.json" || echo "{}" > "$TMP/status.json"
+  CHECKLIST_FILE="$TMP/checklist.json" STATUS_FILE="$TMP/status.json" python3 << 'PY'
+import json, os, sys
+from pathlib import Path
 
-status = json.loads('''$STATUS''')
+def load(name: str) -> dict:
+    path = Path(os.environ[f"{name}_FILE"])
+    if not path.is_file():
+        return {}
+    try:
+        return json.loads(path.read_text(encoding="utf-8") or "{}")
+    except json.JSONDecodeError:
+        return {}
+
+status = load("STATUS")
+checklist = load("CHECKLIST")
 deploy = status.get("deploy") or {}
 rev_current = deploy.get("platform_revision_current")
 errors = []
@@ -125,8 +144,8 @@ else:
     if composites:
         print(f"  open_ready_composites={composites}")
 
-open_ready = json.loads('''$CHECKLIST''').get("open_ready") or {} if '''$CHECKLIST''' else {}
-if '''$CHECKLIST''' and "sticky_symbols" not in open_ready:
+open_ready = checklist.get("open_ready") or {}
+if checklist and "sticky_symbols" not in open_ready:
     (errors if rev_current is True else notes).append("sticky_symbols_field_missing")
 
 for note in notes:

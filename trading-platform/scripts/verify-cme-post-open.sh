@@ -2,7 +2,11 @@
 # Post-open verification after CME Sunday reopen (run after 22:00 UTC).
 set -euo pipefail
 
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+# shellcheck source=lib/fetch_json.sh
+source "$ROOT/scripts/lib/fetch_json.sh"
 BACKEND="${BACKEND_URL:-https://apex-trading-backend.onrender.com}"
+CODE_REV="$(grep '^EXPECTED_PLATFORM_REVISION' "$ROOT/backend/app/engines/deploy_status.py" | sed -n 's/.*"\([^"]*\)".*/\1/p')"
 
 pass=0
 fail=0
@@ -16,18 +20,27 @@ echo "=== CME Post-Open Verification — $(date -u '+%Y-%m-%d %H:%M UTC') ==="
 echo "Backend: $BACKEND"
 echo ""
 
-CHECKLIST=$(curl -fsS -m 90 "$BACKEND/api/gate/cme-reopen-checklist" 2>/dev/null || echo "{}")
-STATUS=$(curl -fsS -m 90 "$BACKEND/api/status" 2>/dev/null || echo "{}")
-SNAPSHOT=$(curl -fsS -m 20 "$BACKEND/api/deploy/snapshot" 2>/dev/null || echo "{}")
-CODE_REV="$(grep '^EXPECTED_PLATFORM_REVISION' "$(cd "$(dirname "$0")/.." && pwd)/backend/app/engines/deploy_status.py" | sed -n 's/.*"\([^"]*\)".*/\1/p')"
+TMP=$(mktemp -d)
+trap 'rm -rf "$TMP"' EXIT
+fetch_json "$BACKEND/api/gate/cme-reopen-checklist" 90 2 > "$TMP/checklist.json" || echo "{}" > "$TMP/checklist.json"
+fetch_json "$BACKEND/api/status" 90 2 > "$TMP/status.json" || echo "{}" > "$TMP/status.json"
+fetch_json "$BACKEND/api/deploy/snapshot" 45 2 > "$TMP/snapshot.json" || echo "{}" > "$TMP/snapshot.json"
 
-python3 << PY
-import json, sys
+CHECKLIST_FILE="$TMP/checklist.json" STATUS_FILE="$TMP/status.json" SNAPSHOT_FILE="$TMP/snapshot.json" CODE_REV="$CODE_REV" python3 << 'PY'
+import json, os, sys
+from pathlib import Path
 
-checklist = json.loads('''$CHECKLIST''')
-status = json.loads('''$STATUS''')
-snapshot = json.loads('''$SNAPSHOT''')
-code_rev = "$CODE_REV"
+def load(name: str) -> dict:
+    path = Path(os.environ[f"{name}_FILE"])
+    try:
+        return json.loads(path.read_text(encoding="utf-8") or "{}")
+    except json.JSONDecodeError:
+        return {}
+
+checklist = load("CHECKLIST")
+status = load("STATUS")
+snapshot = load("SNAPSHOT")
+code_rev = os.environ.get("CODE_REV") or ""
 if not checklist:
     print("  error=checklist_unreachable")
     sys.exit(1)
@@ -36,7 +49,7 @@ phase = checklist.get("phase")
 ready = checklist.get("ready")
 checks = checklist.get("checks") or []
 events = checklist.get("session_open_events") or {}
-open_ready = (checklist.get("open_ready") or {}) or {}
+open_ready = checklist.get("open_ready") or {}
 open_symbols = open_ready.get("symbols") or []
 sticky = open_ready.get("sticky_symbols") or []
 release_margin = open_ready.get("release_margin")
@@ -62,7 +75,6 @@ for row in near_floor.get("details") or []:
     if sym:
         print(f"    near_floor {sym}: composite={comp} gap_to_floor={gap}")
 
-# After open, near-floor symbols should promote to sticky or open_ready when composite clears floor.
 if phase in ("post_open", "open") and near_symbols:
     still_near = [s for s in near_symbols if s not in sticky and s not in open_symbols]
     if still_near:
