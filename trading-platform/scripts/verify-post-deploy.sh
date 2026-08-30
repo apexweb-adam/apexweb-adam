@@ -62,6 +62,16 @@ for row in near.get("details") or []:
     if sym and gap is not None:
         print(f"    near_floor {sym}: composite={comp} gap_to_floor={gap}")
 
+deploy_window = (status.get("deploy") or {}).get("cme_deploy_window")
+if deploy_window:
+    print(
+        "  cme_deploy_window "
+        f"in_window={deploy_window.get('in_window')} "
+        f"opens={deploy_window.get('window_opens_at_utc')}"
+    )
+else:
+    errors.append("cme_deploy_window_missing")
+
 if errors:
     print("  errors=" + ",".join(errors))
     sys.exit(1)

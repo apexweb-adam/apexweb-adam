@@ -74,6 +74,28 @@ def build_cme_deploy_window(
   }
 
 
+def format_cme_deploy_window_crm_html(window: dict[str, Any]) -> str:
+  """Render deploy window countdown for the /crm landing page."""
+  if window.get("window_closed"):
+    title = "Deploy window closed"
+    color = "#f87171"
+  elif window.get("in_window"):
+    title = "Deploy window active"
+    color = "#f87171"
+  else:
+    title = "CME deploy window countdown"
+    color = "#fbbf24"
+
+  verify_cmd = window.get("verify_command") or ""
+  deploy_cmd = window.get("deploy_command") or ""
+  return f"""<div class="card" style="border-color:#854d0e;background:#1c1408;">
+    <h2 style="color:{color};">{title}</h2>
+    <p class="muted" style="margin-top:0;">{window.get("message", "")}</p>
+    <p class="muted" style="margin-top:0;font-family:monospace;font-size:0.8rem;">{verify_cmd}</p>
+    <p class="muted" style="margin-top:0;font-family:monospace;font-size:0.8rem;">{deploy_cmd}</p>
+  </div>"""
+
+
 def build_cme_deploy_urgency(
   *,
   platform_revision_current: bool | None,
@@ -132,7 +154,7 @@ PRODUCTION_DASHBOARD_URL = "https://apex-trading-dashboard-flame.vercel.app"
 DEFAULT_VERIFIED_DASHBOARD_URL = "https://apex-trading-dashboard-o7tb7wydk-apexweb-adams-projects.vercel.app"
 DEFAULT_VERIFIED_DEPLOYMENT_ID = "dpl_Cn62LPUnD83i28cydia12AKr3uUw"
 EXPECTED_DASHBOARD_BUNDLE = "2026-08-29-r97"
-EXPECTED_PLATFORM_REVISION = "2026-08-29-r353"
+EXPECTED_PLATFORM_REVISION = "2026-08-29-r354"
 GIT_MAIN_ALIAS = "apex-trading-dashboard-git-main"
 ACCEPTABLE_DASHBOARD_BUNDLES = frozenset({
   "2026-08-27-r9", "2026-08-27-r10", "2026-08-27-r11", "2026-08-27-r12",

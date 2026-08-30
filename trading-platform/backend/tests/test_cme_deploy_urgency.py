@@ -3,7 +3,21 @@
 from app.engines.deploy_status import build_cme_deploy_urgency, build_cme_deploy_window
 
 
-def test_build_cme_deploy_urgency_none_when_revision_current():
+def test_format_cme_deploy_window_crm_html():
+  from app.engines.deploy_status import format_cme_deploy_window_crm_html
+
+  html = format_cme_deploy_window_crm_html(
+    {
+      "in_window": False,
+      "window_closed": False,
+      "message": "Deploy window opens in 8h 20m (2026-08-30 16:00 UTC)",
+      "verify_command": "bash trading-platform/scripts/verify-pre-deploy.sh",
+      "deploy_command": "TRIGGER_DEPLOY=true bash trading-platform/scripts/sync-render-env.sh",
+    }
+  )
+  assert "CME deploy window countdown" in html
+  assert "16:00 UTC" in html
+  assert "verify-pre-deploy.sh" in html
   assert (
     build_cme_deploy_urgency(
       platform_revision_current=True,
