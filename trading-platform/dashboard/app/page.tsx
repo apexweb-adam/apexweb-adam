@@ -66,7 +66,7 @@ import { IntelRoutingPanel } from "@/components/IntelRoutingPanel";
 type Tab = "overview" | "trades" | "positions" | "intelligence" | "learning" | "strategy";
 
 export default function Dashboard() {
-  const { stats, portfolios, bots, positions: livePositions, trades: liveTrades, recentIntel, analyses: liveAnalyses, reviews: liveReviews, insights: liveInsights, strategies: liveStrategies, intelSources: liveIntelSources, verificationHistory: liveVerificationHistory, connected, lastUpdate, lastTrade, profitabilityGate: liveProfitability, gateEntryTightening, botSessions, mondayRecovery, sessionPrep, nextSessionEvents, contentStudy, sessionOpenEvents, sessionOpenChecklists, cmeDeployUrgency, cmeDeployWindow } = useLiveData();
+  const { stats, portfolios, bots, positions: livePositions, trades: liveTrades, recentIntel, analyses: liveAnalyses, reviews: liveReviews, insights: liveInsights, strategies: liveStrategies, intelSources: liveIntelSources, verificationHistory: liveVerificationHistory, connected, lastUpdate, lastTrade, profitabilityGate: liveProfitability, gateEntryTightening, botSessions, mondayRecovery, sessionPrep, nextSessionEvents, contentStudy, sessionOpenEvents, sessionOpenChecklists, cmeDeployUrgency, cmeDeployWindow, liveDeploy } = useLiveData();
   const { data: tradesRest } = useAPI<Trade[]>("/trades?limit=50", 30000);
   const { data: gateTradesRest } = useAPI<Trade[]>("/trades?limit=200", 30000);
   const { data: positionsRest } = useAPI<Position[]>("/positions", 30000);
@@ -323,7 +323,7 @@ export default function Dashboard() {
               <CmeDeployUrgencyBanner
                 urgency={cmeDeployUrgency ?? platformStatus?.deploy?.cme_deploy_urgency}
               />
-              <DeployCredentialsBanner deploy={platformStatus?.deploy} />
+              <DeployCredentialsBanner deploy={liveDeploy ?? platformStatus?.deploy} />
               <CmeDeployWindowBanner
                 window={
                   cmeDeployWindow ??

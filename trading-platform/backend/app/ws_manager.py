@@ -94,12 +94,21 @@ async def build_live_payload(session: AsyncSession) -> dict:
     EXPECTED_PLATFORM_REVISION,
     build_cme_deploy_urgency,
     build_cme_deploy_window,
+    build_deploy_credentials_warnings,
   )
+  from app.intelligence.fomo_tracker import get_fomo_bearer_status
   import os
 
   platform_revision = os.environ.get("PLATFORM_REVISION", "").strip() or None
   revision_current = (
     platform_revision == EXPECTED_PLATFORM_REVISION if platform_revision else None
+  )
+  fomo_bearer = await get_fomo_bearer_status(session)
+  deploy_credentials_warnings = build_deploy_credentials_warnings(
+    github_token_configured=bool(os.environ.get("GITHUB_TOKEN", "").strip()),
+    fomo_configured=bool(fomo_bearer.get("configured")),
+    fomo_polling_active=bool(fomo_bearer.get("polling_active")),
+    fomo_minutes_remaining=fomo_bearer.get("minutes_remaining"),
   )
   portfolios = (await session.execute(select(Portfolio))).scalars().all()
   sell_trades = (await session.execute(select(Trade).where(Trade.action == "sell"))).scalars().all()
@@ -282,6 +291,8 @@ async def build_live_payload(session: AsyncSession) -> dict:
         cme_minutes_until_open=cme_session.get("minutes_until_open"),
         cme_in_session=bool(cme_session.get("in_session")),
       ),
+      "deploy_credentials_warnings": deploy_credentials_warnings,
+      "deploy_credentials_ready": len(deploy_credentials_warnings) == 0,
     },
     "content_study": content_study,
     **gate_payload,

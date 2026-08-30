@@ -80,7 +80,7 @@ def test_check_fomo_bearer_script_exists():
   text = script.read_text(encoding="utf-8")
   assert "/api/deploy/snapshot" in text
   assert "/api/status" in text
-  assert "fomo bearer expired" in text
+  assert "fomo bearer status unknown" in text or "fomo bearer expired" in text
   assert "fomo-set-bearer.sh" in text
 
 

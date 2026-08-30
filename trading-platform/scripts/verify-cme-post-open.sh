@@ -18,12 +18,16 @@ echo ""
 
 CHECKLIST=$(curl -fsS -m 90 "$BACKEND/api/gate/cme-reopen-checklist" 2>/dev/null || echo "{}")
 STATUS=$(curl -fsS -m 90 "$BACKEND/api/status" 2>/dev/null || echo "{}")
+SNAPSHOT=$(curl -fsS -m 20 "$BACKEND/api/deploy/snapshot" 2>/dev/null || echo "{}")
+CODE_REV="$(grep '^EXPECTED_PLATFORM_REVISION' "$(cd "$(dirname "$0")/.." && pwd)/backend/app/engines/deploy_status.py" | sed -n 's/.*"\([^"]*\)".*/\1/p')"
 
 python3 << PY
 import json, sys
 
 checklist = json.loads('''$CHECKLIST''')
 status = json.loads('''$STATUS''')
+snapshot = json.loads('''$SNAPSHOT''')
+code_rev = "$CODE_REV"
 if not checklist:
     print("  error=checklist_unreachable")
     sys.exit(1)
@@ -38,6 +42,12 @@ sticky = open_ready.get("sticky_symbols") or []
 release_margin = open_ready.get("release_margin")
 
 print(f"  phase={phase} ready={ready}")
+prod_rev = snapshot.get("platform_revision") or (status.get("deploy") or {}).get("platform_revision")
+if prod_rev and code_rev and prod_rev != code_rev:
+    print(f"  warn=revision_behind running={prod_rev} code={code_rev}")
+if snapshot.get("deploy_credentials_ready") is False:
+    for item in snapshot.get("deploy_credentials_warnings") or []:
+        print(f"  warn=credentials {item}")
 print(f"  prep_phase={checklist.get('prep_phase')} in_session={checklist.get('in_session')}")
 print(f"  open_ready={open_symbols} sticky={sticky} release_margin={release_margin}")
 
