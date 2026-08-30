@@ -646,6 +646,86 @@ def test_crm_landing_shows_fomo_bearer_alert():
   assert "fomo-set-bearer.sh" in body
 
 
+def test_crm_landing_shows_deploy_credentials_card():
+  client = TestClient(app)
+  with patch("app.main.resolve_crm_dashboard_url", new_callable=AsyncMock, return_value="https://example.com"):
+    with patch(
+      "app.main.build_deploy_status",
+      new_callable=AsyncMock,
+      return_value={
+        "vercel_bundle_stale": False,
+        "platform_revision_current": False,
+        "platform_revision": "2026-08-29-r336",
+        "expected_platform_revision": "2026-08-29-r374",
+      },
+    ):
+      with patch("app.database.SessionLocal") as mock_session_local:
+        mock_session = AsyncMock()
+        mock_cm = AsyncMock()
+        mock_cm.__aenter__.return_value = mock_session
+        mock_cm.__aexit__.return_value = None
+        mock_session_local.return_value = mock_cm
+        with patch("app.engines.profitability_gate.ProfitabilityGate") as MockGate:
+          MockGate.return_value.evaluate = AsyncMock(
+            return_value={
+              "verification_day": 1,
+              "total_trades": 10,
+              "win_rate": 0.5,
+              "total_pnl": 0.0,
+              "profit_factor": 1.0,
+              "recommendation": "Continue",
+              "paused_bots": [],
+            }
+          )
+          MockGate.return_value.evaluate_per_bot = AsyncMock(return_value={})
+          with patch(
+            "app.engines.scan_preview.build_monday_recovery_summary",
+            new_callable=AsyncMock,
+            return_value={"recovery_candidates": [], "all": [], "bots": {}},
+          ):
+            with patch(
+              "app.engines.learning_engine.build_crm_learning_highlights",
+              new_callable=AsyncMock,
+              return_value={"review_date": "", "trade_analyses": 0, "pending_insights": 0, "reviews": []},
+            ):
+              with patch(
+                "app.engines.learning_engine.build_crm_content_study_highlights",
+                new_callable=AsyncMock,
+                return_value={"insights_applied": 0, "recent": []},
+              ):
+                with patch(
+                  "app.engines.intel_source_status.build_intel_sources",
+                  new_callable=AsyncMock,
+                  return_value=[],
+                ):
+                  with patch(
+                    "app.engines.crm_summary.build_crm_live_snapshot",
+                    new_callable=AsyncMock,
+                    return_value={"active_bots": [], "positions": [], "gate_tightening": {}, "chronic_loser_symbols": {}, "proven_winner_symbols": {}},
+                  ):
+                    with patch(
+                      "app.engines.crm_summary.build_crm_integration_hooks",
+                      new_callable=AsyncMock,
+                      return_value={
+                        "fomo": {
+                          "configured": True,
+                          "bearer_configured": True,
+                          "bearer_polling_active": False,
+                          "bearer_minutes_remaining": -100,
+                        },
+                        "tradingview": {},
+                        "polymarket": {},
+                        "wallet_tracker": {},
+                      },
+                    ):
+                      response = client.get("/crm")
+
+  assert response.status_code == 200
+  body = response.text
+  assert "Deploy credentials need attention" in body
+  assert "check-deploy-credentials.sh" in body
+
+
 def test_crm_landing_shows_us_stocks_imminent_banner():
   client = TestClient(app)
   recovery = {

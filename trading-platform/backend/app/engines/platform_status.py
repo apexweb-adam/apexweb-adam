@@ -16,6 +16,7 @@ from app.engines.deploy_status import (
   build_deploy_status,
   build_cme_deploy_urgency,
   build_cme_deploy_window,
+  build_deploy_credentials_warnings,
   dashboard_url_from_deploy,
   recommended_dashboard_url,
 )
@@ -240,6 +241,12 @@ async def _build_platform_status_uncached(session: AsyncSession) -> dict[str, An
       "Set Vercel BACKEND_URL + BACKEND_WS_URL to Render service URL",
     ]
   )
+  deploy_credentials_warnings = build_deploy_credentials_warnings(
+    github_token_configured=bool(os.environ.get("GITHUB_TOKEN", "").strip()),
+    fomo_configured=bool(fomo_bearer.get("configured")),
+    fomo_polling_active=bool(fomo_bearer.get("polling_active")),
+    fomo_minutes_remaining=fomo_bearer.get("minutes_remaining"),
+  )
   return {
     "platform": "Apex Trading Platform",
     "version": "1.0.0",
@@ -328,6 +335,8 @@ async def _build_platform_status_uncached(session: AsyncSession) -> dict[str, An
         cme_minutes_until_open=cme_sess.get("minutes_until_open"),
         cme_in_session=bool(cme_sess.get("in_session")),
       ),
+      "deploy_credentials_warnings": deploy_credentials_warnings,
+      "deploy_credentials_ready": len(deploy_credentials_warnings) == 0,
       "git_commit": deploy_info.get("git_commit"),
       "git_branch": deploy_info.get("git_branch"),
       "latest_main_commit": deploy_info.get("latest_main_commit"),

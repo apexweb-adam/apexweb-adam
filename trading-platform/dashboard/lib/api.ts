@@ -557,6 +557,8 @@ export type PlatformDeployStatus = {
     deploy_command: string;
     verify_command: string;
   } | null;
+  deploy_credentials_ready?: boolean;
+  deploy_credentials_warnings?: string[];
   next_steps: string[];
 };
 
