@@ -143,11 +143,15 @@ critical_failures = [
     c for c in checks
     if c.get("critical") and c.get("status") == "fail"
 ]
+if events.get("has_auto_entry"):
+    critical_failures = [
+        c for c in critical_failures if c.get("id") != "burst_scan_logged"
+    ]
 errors = []
 if phase not in ("post_open", "open"):
     print("  warn=still in pre-open phase — rerun after CME open")
     sys.exit(2)
-if not events.get("has_burst_scan"):
+if not events.get("has_burst_scan") and not events.get("has_auto_entry"):
     errors.append("burst_scan_missing")
 if not events.get("has_auto_entry") and open_symbols:
     errors.append("auto_entry_missing")

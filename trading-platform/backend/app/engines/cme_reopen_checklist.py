@@ -71,13 +71,16 @@ def build_cme_reopen_checks(
   checks: list[dict[str, Any]] = []
 
   if phase == "post_open":
+    session_open_logged = has_burst_scan or has_auto_entry
     checks.append(
       _check(
         "burst_scan_logged",
-        "pass" if has_burst_scan else "fail",
+        "pass" if session_open_logged else "fail",
         "Session-open burst scan recorded in session_open_events"
         if has_burst_scan
-        else "No burst_scan event yet — commodities bot may not have scanned at open",
+        else "Session-open auto-entry recorded in session_open_events"
+        if has_auto_entry
+        else "No burst_scan or auto_entry event yet — commodities bot may not have scanned at open",
       )
     )
     if open_ready_symbols:

@@ -132,6 +132,27 @@ def test_build_cme_reopen_checks_post_open_requires_burst_scan():
   assert burst["status"] == "fail"
 
 
+def test_build_cme_reopen_checks_post_open_auto_entry_satisfies_burst():
+  checks = build_cme_reopen_checks(
+    platform_revision_current=True,
+    minutes_until_open=0,
+    prep_phase="open",
+    in_session=True,
+    auto_entry_queued=False,
+    open_ready_symbols=[],
+    near_floor_symbols=[],
+    commodities_paused=False,
+    bots_running=4,
+    has_burst_scan=False,
+    has_auto_entry=True,
+    composite_floor=0.42,
+    open_ready_below_floor=[],
+    phase="post_open",
+  )
+  burst = next(c for c in checks if c["id"] == "burst_scan_logged")
+  assert burst["status"] == "pass"
+
+
 def test_format_cme_checklist_crm_html():
   from app.engines.cme_reopen_checklist import format_cme_checklist_crm_html
 
