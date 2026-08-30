@@ -1,3 +1,4 @@
+import asyncio
 import random
 from datetime import datetime, timedelta
 from typing import Any
@@ -239,6 +240,21 @@ async def fetch_crypto_data(symbol: str, interval: str = "5m") -> tuple[float, p
 
 
 YAHOO_HEADERS = {"User-Agent": "Mozilla/5.0 (compatible; ApexTrading/1.0)"}
+YFINANCE_HISTORY_TIMEOUT_SEC = 30
+
+
+def _fetch_yfinance_history_sync(symbol: str) -> tuple[float, pd.DataFrame | None]:
+  import yfinance as yf
+
+  ticker = yf.Ticker(symbol)
+  df = ticker.history(period="1mo", interval="1h")
+  if df.empty or len(df) < 30:
+    return 0.0, None
+  df = df.reset_index()
+  df.columns = [c.lower() for c in df.columns]
+  price = float(df["close"].iloc[-1])
+  _price_cache[symbol] = price
+  return price, df
 
 
 async def fetch_yahoo_chart(symbol: str, interval: str = "1h", range_: str = "1mo") -> tuple[float, pd.DataFrame | None]:
@@ -302,16 +318,13 @@ async def fetch_yfinance_data(symbol: str) -> tuple[float, pd.DataFrame | None]:
     return price, df
 
   try:
-    import yfinance as yf
-    ticker = yf.Ticker(symbol)
-    df = ticker.history(period="1mo", interval="1h")
-    if not df.empty and len(df) >= 30:
-      df = df.reset_index()
-      df.columns = [c.lower() for c in df.columns]
-      price = float(df["close"].iloc[-1])
-      _price_cache[symbol] = price
+    price, df = await asyncio.wait_for(
+      asyncio.to_thread(_fetch_yfinance_history_sync, symbol),
+      timeout=YFINANCE_HISTORY_TIMEOUT_SEC,
+    )
+    if price > 0 and df is not None:
       return price, df
-  except Exception:
+  except (asyncio.TimeoutError, Exception):
     pass
 
   cached = _price_cache.get(symbol, 0)

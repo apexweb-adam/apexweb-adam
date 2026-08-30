@@ -1624,7 +1624,10 @@ class StocksFuturesBot(BaseBot):
       self._session_open_burst = burst
       try:
         await self._record_scan_heartbeat()
-        await self.scan_and_trade()
+        await asyncio.wait_for(self.scan_and_trade(), timeout=120)
+      except asyncio.TimeoutError:
+        print(f"[{self.bot_type}] Scan timed out after 120s")
+        await self._record_scan_failure("scan timed out after 120s")
       except Exception as e:
         print(f"[{self.bot_type}] Error in scan: {e}")
         await self._record_scan_failure(str(e))
@@ -1663,6 +1666,7 @@ class CommoditiesBot(BaseBot):
   bot_type = "commodities"
   scan_interval = 30
   gate_active_scan_interval = 15
+  scan_timeout_sec = 120
 
   async def get_symbols(self) -> list[str]:
     yf_symbols = [s.strip() for s in settings.commodity_symbols.split(",")]
@@ -1733,7 +1737,10 @@ class CommoditiesBot(BaseBot):
       self._session_open_burst = burst
       try:
         await self._record_scan_heartbeat()
-        await self.scan_and_trade()
+        await asyncio.wait_for(self.scan_and_trade(), timeout=self.scan_timeout_sec)
+      except asyncio.TimeoutError:
+        print(f"[{self.bot_type}] Scan timed out after {self.scan_timeout_sec}s")
+        await self._record_scan_failure(f"scan timed out after {self.scan_timeout_sec}s")
       except Exception as e:
         print(f"[{self.bot_type}] Error in scan: {e}")
         await self._record_scan_failure(str(e))
