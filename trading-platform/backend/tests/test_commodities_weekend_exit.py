@@ -343,3 +343,12 @@ def test_commodities_monday_futures_gate_skip_bypass():
       signal_direction="buy",
       macd_signal="bullish",
     ) is False
+
+
+def test_trading_bots_waives_in_memory_cooldown_for_cme_gate_skip():
+  from app.bots import trading_bots
+
+  source = open(trading_bots.__file__).read()
+  assert "monday_commodities_cooldown_waived" in source
+  assert "commodities_monday_futures_gate_skip_bypass" in source
+  assert "not monday_commodities_cooldown_waived" in source
