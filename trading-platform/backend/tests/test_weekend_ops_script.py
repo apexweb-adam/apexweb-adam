@@ -61,7 +61,9 @@ def test_fetch_json_lib_exists():
   lib = SCRIPTS / "lib" / "fetch_json.sh"
   text = lib.read_text(encoding="utf-8")
   assert "fetch_json()" in text
+  assert "wake_backend()" in text
   assert "attempts" in text
+  assert "return 0" in text
 
 
 def test_verify_post_deploy_includes_crm_and_learning_checks():
@@ -292,6 +294,9 @@ def test_verify_cme_reopen_uses_deploy_json_fallback():
   assert "queue_dropped_in_prep_window" in text
   assert "extended_watch=" in text
   assert "CME_WATCH" in text
+  assert "wake_backend" in text
+  assert "status_endpoint_unreachable" in text
+  assert "checklist fallback" in text
 
 
 def test_deploy_json_lib_exists():
