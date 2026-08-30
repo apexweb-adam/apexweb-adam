@@ -1,4 +1,6 @@
 import asyncio
+import os
+import time
 from datetime import datetime
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -333,6 +335,47 @@ async def fomo_bearer_monitor_job() -> None:
   _fomo_bearer_was_polling = polling
 
 
+_cme_deploy_reminder_last_at: float = 0.0
+CME_DEPLOY_REMINDER_INTERVAL_SECONDS = 1800
+
+
+async def cme_deploy_reminder_job() -> None:
+  """Log and push CRM when Render revision is behind and CME reopen is within 6h."""
+  global _cme_deploy_reminder_last_at
+  from app.engines.deploy_status import EXPECTED_PLATFORM_REVISION, build_cme_deploy_urgency
+  from app.engines.gate_entry_guard import commodities_futures_weekend_closed, commodities_session_info
+
+  if not commodities_futures_weekend_closed():
+    _cme_deploy_reminder_last_at = 0.0
+    return
+
+  cme_session = commodities_session_info()
+  platform_revision = os.environ.get("PLATFORM_REVISION", "").strip() or None
+  revision_current = (
+    platform_revision == EXPECTED_PLATFORM_REVISION if platform_revision else None
+  )
+  urgency = build_cme_deploy_urgency(
+    platform_revision_current=revision_current,
+    cme_minutes_until_open=cme_session.get("minutes_until_open"),
+    cme_in_session=bool(cme_session.get("in_session")),
+  )
+  if not urgency:
+    return
+
+  now = time.monotonic()
+  if now - _cme_deploy_reminder_last_at < CME_DEPLOY_REMINDER_INTERVAL_SECONDS:
+    return
+
+  _cme_deploy_reminder_last_at = now
+  print(
+    f"[CmeDeploy] {urgency['message']} — running {platform_revision or '?'}, "
+    f"expected {EXPECTED_PLATFORM_REVISION}"
+  )
+  from app.ws_manager import push_live_update
+
+  await push_live_update()
+
+
 async def commodities_cme_reopen_wake_job() -> None:
   """Force-refresh TV signals right before/after CME reopen so open-ready futures enter fast."""
   from app.engines.gate_entry_guard import (
@@ -652,6 +695,29 @@ async def setup_scheduler() -> None:
     elif redeploy.get("deploy", {}).get("is_stale"):
       print("[Deploy] Auto-redeploy disabled (DISABLE_AUTO_REDEPLOY) — stale; set RENDER_API_KEY for API recovery")
 
+  from app.engines.deploy_status import EXPECTED_PLATFORM_REVISION, build_cme_deploy_urgency
+  from app.engines.gate_entry_guard import commodities_session_info
+
+  cme_session = commodities_session_info()
+  platform_revision = os.environ.get("PLATFORM_REVISION", "").strip() or None
+  revision_current = (
+    platform_revision == EXPECTED_PLATFORM_REVISION if platform_revision else None
+  )
+  if revision_current is False:
+    mins = cme_session.get("minutes_until_open")
+    urgency = build_cme_deploy_urgency(
+      platform_revision_current=revision_current,
+      cme_minutes_until_open=mins,
+      cme_in_session=bool(cme_session.get("in_session")),
+    )
+    if urgency:
+      print(f"[CmeDeploy] STARTUP: {urgency['message']}")
+    elif mins is not None:
+      print(
+        f"[CmeDeploy] STARTUP: revision behind ({platform_revision or '?'} vs "
+        f"{EXPECTED_PLATFORM_REVISION}), CME open in {mins}min"
+      )
+
   await ensure_verification_period_on_startup()
   async with SessionLocal() as session:
     from app.engines.gate_entry_guard import sync_gate_bot_pauses, sync_gate_recovery_rotation
@@ -790,6 +856,12 @@ async def setup_scheduler() -> None:
     "interval",
     minutes=15,
     id="fomo_bearer_monitor",
+  )
+  scheduler.add_job(
+    cme_deploy_reminder_job,
+    "interval",
+    minutes=15,
+    id="cme_deploy_reminder",
   )
   scheduler.add_job(daily_review_job, "cron", hour=22, minute=0, id="daily_review")
   scheduler.add_job(daily_review_refresh_job, "interval", hours=4, id="daily_review_refresh")
