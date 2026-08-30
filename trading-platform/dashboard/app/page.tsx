@@ -18,7 +18,7 @@ import {
 import { useState, useMemo, useEffect, type ReactNode } from "react";
 import { useLiveData } from "@/lib/useLiveData";
 import { useAPI } from "@/lib/useAPI";
-import { fetchAPI } from "@/lib/api";
+import { fetchAPI, getSessionPrepEntry } from "@/lib/api";
 import {
   VERIFIED_PREVIEW_URL,
   VERIFIED_PROMOTE_DEPLOYMENT_ID,
@@ -330,7 +330,7 @@ export default function Dashboard() {
                     <BotCard
                       key={bot.bot_type}
                       bot={bot}
-                      sessionPrep={sessionPrep?.[bot.bot_type as keyof SessionPrepStatus]}
+                      sessionPrep={getSessionPrepEntry(sessionPrep, bot.bot_type)}
                       session={
                         botSessions?.[bot.bot_type] ??
                         platformStatus?.bot_sessions?.[bot.bot_type]
@@ -1735,7 +1735,7 @@ function NextSessionsCard({
                   </td>
                   <td className="pr-2">{row.direction ?? "—"}</td>
                   <td className="pr-2">{row.macd ?? "—"}</td>
-                  <td>{formatScanBlockers(row.blockers)}</td>
+                  <td>{formatScanBlockers(row.blockers ?? [])}</td>
                 </tr>
               ))}
             </tbody>
@@ -1769,7 +1769,7 @@ function NextSessionsCard({
                   </td>
                   <td className="pr-2">{row.direction ?? "—"}</td>
                   <td className="pr-2">{row.macd ?? "—"}</td>
-                  <td>{formatScanBlockers(row.blockers)}</td>
+                  <td>{formatScanBlockers(row.blockers ?? [])}</td>
                 </tr>
               ))}
             </tbody>
@@ -2089,17 +2089,17 @@ function MondayRecoveryBanner({ summary }: { summary: MondayRecoverySummary | nu
           </ul>
         </div>
       )}
-      {summary.stocks_trade_count_nudge && (
+      {summary?.stocks_trade_count_nudge && (
         <p className="text-[11px] text-amber-400/90 mb-2">
           Stocks trade-count nudge active — proven winners scanned first (composite floor 0.34).
         </p>
       )}
-      {summary.commodities_graduation_nudge && (
+      {summary?.commodities_graduation_nudge && (
         <p className="text-[11px] text-amber-400/90 mb-2">
           Commodities graduation nudge active — recovery futures prioritized for CME reopen.
         </p>
       )}
-      {summary.all?.length ? (
+      {summary?.all?.length ? (
         <ul className="space-y-1.5">
           {summary.all.map((row) => (
             <li

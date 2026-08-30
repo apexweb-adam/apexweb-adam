@@ -273,6 +273,11 @@ export type SessionPrepEntry = {
   gate_fast_scan_active?: boolean;
   gate_reopen_imminent?: boolean;
   reopen_wake_active?: boolean;
+  prep_phase?: "extended" | "imminent" | "wake" | "open";
+  prep_scan_label?: string;
+  minutes_until_imminent_scan?: number | null;
+  minutes_until_wake?: number | null;
+  imminent_scan_minutes?: number;
   open_ready_symbols?: string[];
   open_ready_details?: Array<{
     symbol: string;
@@ -292,12 +297,32 @@ export type SessionPrepEntry = {
   }>;
 };
 
+export const SESSION_PREP_BOT_TYPES = ["stocks_futures", "commodities"] as const;
+export type SessionPrepBotType = (typeof SESSION_PREP_BOT_TYPES)[number];
+
 export type SessionPrepStatus = {
   stocks_futures: SessionPrepEntry;
   commodities: SessionPrepEntry;
   open_ready?: MondayRecoverySummary["open_ready"];
   open_ready_candidates?: string[];
+  near_floor?: MondayRecoverySummary["open_ready"];
+  near_floor_candidates?: string[];
+  next_session_events?: NextSessionEvents;
+  timestamp?: string;
+  prep_cache_hit?: boolean;
+  prep_cache_age_seconds?: number;
 };
+
+export function getSessionPrepEntry(
+  sessionPrep: SessionPrepStatus | null | undefined,
+  botType: string,
+): SessionPrepEntry | undefined {
+  if (!sessionPrep) return undefined;
+  if (botType === "stocks_futures" || botType === "commodities") {
+    return sessionPrep[botType];
+  }
+  return undefined;
+}
 
 export type OpenReadyDetail = {
   symbol: string;
