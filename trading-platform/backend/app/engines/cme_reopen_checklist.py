@@ -200,14 +200,24 @@ def build_cme_reopen_checks(
       )
     )
   elif near_floor_symbols:
-    checks.append(
-      _check(
-        "composite_floor",
-        "warn",
-        f"Near-floor watch: {', '.join(near_floor_symbols)}",
-        critical=False,
+    watch_only = [sym for sym in near_floor_symbols if sym not in open_ready_symbols]
+    if watch_only:
+      checks.append(
+        _check(
+          "composite_floor",
+          "warn",
+          f"Near-floor watch: {', '.join(watch_only)}",
+          critical=False,
+        )
       )
-    )
+    elif open_ready_symbols:
+      checks.append(
+        _check(
+          "composite_floor",
+          "pass",
+          "All queued symbols above composite floor",
+        )
+      )
   elif open_ready_symbols:
     checks.append(
       _check(
