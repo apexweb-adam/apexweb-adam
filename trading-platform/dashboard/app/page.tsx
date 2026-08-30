@@ -1810,9 +1810,13 @@ function SessionOpenLogCard({ events }: { events?: SessionOpenEvent[] }) {
                 <td className="pr-2">
                   <span
                     className={
-                      evt.event_type === "auto_entry"
+                      evt.event_type === "auto_entry" || evt.event_type === "queue_add"
                         ? "text-lime-400"
-                        : "text-violet-300/80"
+                        : evt.event_type === "prep_phase"
+                          ? "text-sky-300"
+                          : evt.event_type === "near_floor"
+                            ? "text-amber-300"
+                            : "text-violet-300/80"
                     }
                   >
                     {evt.event_type}
