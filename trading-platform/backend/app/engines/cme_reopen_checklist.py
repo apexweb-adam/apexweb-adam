@@ -134,13 +134,23 @@ def build_cme_reopen_checks(
   )
 
   if commodities_paused:
-    checks.append(
-      _check(
-        "commodities_active",
-        "fail",
-        "Commodities bot is paused — auto-entry will not fire",
+    if auto_entry_queued and open_ready_symbols:
+      checks.append(
+        _check(
+          "commodities_active",
+          "warn",
+          f"Commodities bot in shadow mode — CME gate-skip auto-entry armed for {', '.join(open_ready_symbols)}",
+          critical=False,
+        )
       )
-    )
+    else:
+      checks.append(
+        _check(
+          "commodities_active",
+          "fail",
+          "Commodities bot is paused — auto-entry will not fire",
+        )
+      )
   else:
     checks.append(
       _check(
