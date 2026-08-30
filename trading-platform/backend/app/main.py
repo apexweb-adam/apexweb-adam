@@ -84,8 +84,7 @@ async def root_dashboard_redirect():
 
 @app.api_route("/crm", methods=["GET", "HEAD"], include_in_schema=False)
 async def crm_landing():
-  from app.database import SessionLocal
-  from app.engines.profitability_gate import ProfitabilityGate
+  from app.engines.crm_landing_context import build_crm_landing_context
 
   deploy = await build_deploy_status()
   url = await resolve_crm_dashboard_url(deploy)
@@ -96,52 +95,27 @@ async def crm_landing():
   prod_bundle = deploy.get("vercel_bundle_revision") or "?"
   expected_bundle = deploy.get("expected_dashboard_bundle") or EXPECTED_DASHBOARD_BUNDLE
 
-  async with SessionLocal() as session:
-    gate_engine = ProfitabilityGate(session)
-    gate = await gate_engine.evaluate()
-    per_bot = await gate_engine.evaluate_per_bot()
-    from app.engines.scan_preview import build_monday_recovery_summary
-    from app.engines.learning_engine import (
-      build_crm_content_study_highlights,
-      build_crm_learning_highlights,
-    )
-    from app.engines.intel_source_status import build_intel_sources
-    from app.engines.crm_summary import build_crm_integration_hooks, build_crm_live_snapshot
+  ctx = await build_crm_landing_context()
+  gate = ctx["gate"]
+  per_bot = ctx["per_bot"]
+  monday_recovery = ctx["monday_recovery"]
+  learning = ctx["learning"]
+  content_study = ctx["content_study"]
+  intel_sources = ctx["intel_sources"]
+  live_snapshot = ctx["live_snapshot"]
+  integrations = ctx["integrations"]
+  session_open_events = ctx["session_open_events"]
+  cme_checklist = ctx["cme_checklist"]
+  us_stocks_checklist = ctx["us_stocks_checklist"]
 
-    monday_recovery = await build_monday_recovery_summary(session)
-    learning = await build_crm_learning_highlights(session)
-    content_study = await build_crm_content_study_highlights(session)
-    intel_sources = await build_intel_sources(session)
-    live_snapshot = await build_crm_live_snapshot(session)
-    integrations = await build_crm_integration_hooks(session)
-    from app.engines.session_open_log import get_session_open_events
-
-    try:
-      session_open_events = await get_session_open_events(session)
-    except Exception:
-      session_open_events = []
-
-    from app.engines.cme_reopen_checklist import (
-      build_cme_reopen_checklist,
-      format_cme_checklist_crm_html,
-      should_show_cme_checklist_on_crm,
-    )
-
-    try:
-      cme_checklist = await build_cme_reopen_checklist(session)
-    except Exception:
-      cme_checklist = None
-
-    from app.engines.us_stocks_open_checklist import (
-      build_us_stocks_open_checklist,
-      format_us_stocks_checklist_crm_html,
-      should_show_us_stocks_checklist_on_crm,
-    )
-
-    try:
-      us_stocks_checklist = await build_us_stocks_open_checklist(session)
-    except Exception:
-      us_stocks_checklist = None
+  from app.engines.cme_reopen_checklist import (
+    format_cme_checklist_crm_html,
+    should_show_cme_checklist_on_crm,
+  )
+  from app.engines.us_stocks_open_checklist import (
+    format_us_stocks_checklist_crm_html,
+    should_show_us_stocks_checklist_on_crm,
+  )
 
   cme_checklist_card = ""
   if should_show_cme_checklist_on_crm(cme_checklist):

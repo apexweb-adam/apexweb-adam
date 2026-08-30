@@ -146,7 +146,7 @@ if [[ -n "$CRM_TIME" ]]; then
   if python3 -c "import sys; sys.exit(0 if float('$CRM_TIME') < 30 else 1)"; then
     ok "CRM landing loaded in ${CRM_SEC}s"
   else
-    note "CRM landing slow (${CRM_SEC}s) — check Vercel discovery cache"
+    note "CRM landing slow (${CRM_SEC}s) — expect faster after r367+ parallel load deploy"
   fi
 else
   note "CRM landing timing unavailable"
