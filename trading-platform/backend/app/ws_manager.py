@@ -64,16 +64,24 @@ async def build_live_payload(session: AsyncSession) -> dict:
   monday_recovery = await build_monday_recovery_summary(session)
   from app.engines.gate_entry_guard import (
     build_session_prep_status,
+    build_next_session_events,
     commodities_session_info,
     stocks_session_info,
   )
 
+  cme_session = commodities_session_info()
+  stocks_session = stocks_session_info()
   session_prep = build_session_prep_status(
-    stocks_session=stocks_session_info(),
-    commodities_session=commodities_session_info(),
+    stocks_session=stocks_session,
+    commodities_session=cme_session,
     stocks_trade_count_nudge=bool(monday_recovery.get("stocks_trade_count_nudge")),
     commodities_graduation_nudge=bool(monday_recovery.get("commodities_graduation_nudge")),
     open_ready_rows=monday_recovery.get("open_ready"),
+  )
+  next_session_events = build_next_session_events(
+    session_prep=session_prep,
+    commodities_session=cme_session,
+    stocks_session=stocks_session,
   )
   portfolios = (await session.execute(select(Portfolio))).scalars().all()
   sell_trades = (await session.execute(select(Trade).where(Trade.action == "sell"))).scalars().all()
@@ -239,6 +247,7 @@ async def build_live_payload(session: AsyncSession) -> dict:
     "verification_history": [serialize_verification_snapshot(s) for s in verification_history],
     "monday_recovery": monday_recovery,
     "session_prep": session_prep,
+    "next_session_events": next_session_events,
     "content_study": content_study,
     **gate_payload,
   }

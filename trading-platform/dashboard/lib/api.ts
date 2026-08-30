@@ -289,6 +289,19 @@ export type SessionPrepStatus = {
   open_ready_candidates?: string[];
 };
 
+export type NextSessionEvent = {
+  session_open_utc?: string | null;
+  minutes_until_open?: number | null;
+  reopen_imminent?: boolean;
+  reopen_wake_active?: boolean;
+  open_ready_symbols?: string[];
+};
+
+export type NextSessionEvents = {
+  cme_reopen: NextSessionEvent;
+  us_stocks_open: NextSessionEvent;
+};
+
 export type MondayRecoverySummary = {
   recovery_candidates: string[];
   open_ready_candidates?: string[];
@@ -542,5 +555,6 @@ export type PlatformStatus = {
   };
   session_prep?: SessionPrepStatus;
   open_ready_candidates?: string[];
+  next_session_events?: NextSessionEvents;
   deploy?: PlatformDeployStatus;
 };

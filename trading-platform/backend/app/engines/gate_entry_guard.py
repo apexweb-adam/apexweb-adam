@@ -3690,6 +3690,32 @@ def build_session_prep_status(
   return result
 
 
+def build_next_session_events(
+  *,
+  session_prep: dict[str, Any],
+  commodities_session: dict[str, Any],
+  stocks_session: dict[str, Any],
+) -> dict[str, Any]:
+  """Countdown + open-ready symbols for the next CME reopen and US stocks open."""
+  comm_prep = session_prep.get("commodities") or {}
+  stocks_prep = session_prep.get("stocks_futures") or {}
+  return {
+    "cme_reopen": {
+      "session_open_utc": commodities_session.get("session_open_utc"),
+      "minutes_until_open": commodities_session.get("minutes_until_open"),
+      "reopen_imminent": comm_prep.get("gate_reopen_imminent"),
+      "reopen_wake_active": comm_prep.get("reopen_wake_active"),
+      "open_ready_symbols": comm_prep.get("open_ready_symbols") or [],
+    },
+    "us_stocks_open": {
+      "session_open_utc": stocks_session.get("session_open_utc"),
+      "minutes_until_open": stocks_session.get("minutes_until_open"),
+      "reopen_wake_active": stocks_prep.get("reopen_wake_active"),
+      "open_ready_symbols": stocks_prep.get("open_ready_symbols") or [],
+    },
+  }
+
+
 def stocks_pre_session_prep_window_minutes(trade_count_nudge: bool) -> int:
   """How far ahead of US open to refresh TradingView boosts for stocks prep."""
   if trade_count_nudge:
