@@ -1194,6 +1194,47 @@ def test_build_session_prep_status_includes_open_ready():
   assert status["open_ready_candidates"] == ["NG=F", "AAPL"]
 
 
+def test_build_next_session_events():
+  from app.engines.gate_entry_guard import build_next_session_events, build_session_prep_status
+
+  commodities_session = {
+    "in_session": False,
+    "minutes_until_open": 45,
+    "session_open_utc": "2026-08-30T22:00:00",
+    "mode": "weekend_closed",
+  }
+  stocks_session = {
+    "in_session": False,
+    "minutes_until_open": 2000,
+    "session_open_utc": "2026-08-31T13:30:00",
+    "mode": "weekend_closed",
+  }
+  session_prep = build_session_prep_status(
+    stocks_session=stocks_session,
+    commodities_session=commodities_session,
+    stocks_trade_count_nudge=True,
+    commodities_graduation_nudge=True,
+    open_ready_rows=[
+      {
+        "bot_type": "commodities",
+        "symbol": "NG=F",
+        "composite": 0.57,
+        "monday_gate_skip_ready": True,
+        "blockers": ["weekend_futures_closed"],
+      },
+    ],
+  )
+  events = build_next_session_events(
+    session_prep=session_prep,
+    commodities_session=commodities_session,
+    stocks_session=stocks_session,
+  )
+  assert events["cme_reopen"]["minutes_until_open"] == 45
+  assert events["cme_reopen"]["reopen_imminent"] is True
+  assert events["cme_reopen"]["open_ready_symbols"] == ["NG=F"]
+  assert events["us_stocks_open"]["minutes_until_open"] == 2000
+
+
 def test_commodities_reopen_wake_active():
   from app.engines.gate_entry_guard import commodities_reopen_wake_active
 

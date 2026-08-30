@@ -23,6 +23,7 @@ import {
   type MondayRecoverySummary,
   type SessionPrepStatus,
   type SessionPrepEntry,
+  type NextSessionEvents,
   type ContentStudySummary,
   type PlatformStatus,
 } from "./api";
@@ -45,6 +46,7 @@ type LiveData = {
   botSessions: BotSessions | null;
   mondayRecovery: MondayRecoverySummary | null;
   sessionPrep: SessionPrepStatus | null;
+  nextSessionEvents: NextSessionEvents | null;
   contentStudy: ContentStudySummary | null;
   connected: boolean;
   lastUpdate: string | null;
@@ -69,6 +71,7 @@ export function useLiveData(): LiveData {
   const [botSessions, setBotSessions] = useState<BotSessions | null>(null);
   const [mondayRecovery, setMondayRecovery] = useState<MondayRecoverySummary | null>(null);
   const [sessionPrep, setSessionPrep] = useState<SessionPrepStatus | null>(null);
+  const [nextSessionEvents, setNextSessionEvents] = useState<NextSessionEvents | null>(null);
   const [contentStudy, setContentStudy] = useState<ContentStudySummary | null>(null);
   const [connected, setConnected] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<string | null>(null);
@@ -98,6 +101,7 @@ export function useLiveData(): LiveData {
       else if (recovery?.open_ready?.length) {
         setSessionPrep((prev) => prev ?? ({ open_ready: recovery.open_ready } as SessionPrepStatus));
       }
+      if (status.next_session_events) setNextSessionEvents(status.next_session_events);
       if (status.timestamp) setLastUpdate(status.timestamp);
     } catch {
       // keep last good snapshot
@@ -140,6 +144,7 @@ export function useLiveData(): LiveData {
     if (data.bot_sessions) setBotSessions(data.bot_sessions as BotSessions);
     if (data.monday_recovery) setMondayRecovery(data.monday_recovery as MondayRecoverySummary);
     if (data.session_prep) setSessionPrep(data.session_prep as SessionPrepStatus);
+    if (data.next_session_events) setNextSessionEvents(data.next_session_events as NextSessionEvents);
     if (data.content_study) setContentStudy(data.content_study as ContentStudySummary);
     if (data.timestamp) setLastUpdate(String(data.timestamp));
   }, []);
@@ -212,6 +217,7 @@ export function useLiveData(): LiveData {
     botSessions,
     mondayRecovery,
     sessionPrep,
+    nextSessionEvents,
     contentStudy,
     connected,
     lastUpdate,

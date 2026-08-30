@@ -490,6 +490,7 @@ async def get_platform_status(db: AsyncSession = Depends(get_db)) -> dict[str, A
   dashboard_url = await recommended_dashboard_url()
   from app.engines.gate_entry_guard import (
     build_gate_ws_payload,
+    build_next_session_events,
     build_session_prep_status,
     commodities_session_info,
     stocks_session_info,
@@ -498,32 +499,20 @@ async def get_platform_status(db: AsyncSession = Depends(get_db)) -> dict[str, A
 
   gate_payload = await build_gate_ws_payload(db)
   monday_recovery = await build_monday_recovery_summary(db)
+  cme_sess = commodities_session_info()
+  us_sess = stocks_session_info()
   session_prep = build_session_prep_status(
-    stocks_session=stocks_session_info(),
-    commodities_session=commodities_session_info(),
+    stocks_session=us_sess,
+    commodities_session=cme_sess,
     stocks_trade_count_nudge=bool(monday_recovery.get("stocks_trade_count_nudge")),
     commodities_graduation_nudge=bool(monday_recovery.get("commodities_graduation_nudge")),
     open_ready_rows=monday_recovery.get("open_ready"),
   )
-  cme_sess = commodities_session_info()
-  us_sess = stocks_session_info()
-  comm_prep = session_prep.get("commodities") or {}
-  stocks_prep = session_prep.get("stocks_futures") or {}
-  next_session_events = {
-    "cme_reopen": {
-      "session_open_utc": cme_sess.get("session_open_utc"),
-      "minutes_until_open": cme_sess.get("minutes_until_open"),
-      "reopen_imminent": comm_prep.get("gate_reopen_imminent"),
-      "reopen_wake_active": comm_prep.get("reopen_wake_active"),
-      "open_ready_symbols": comm_prep.get("open_ready_symbols") or [],
-    },
-    "us_stocks_open": {
-      "session_open_utc": us_sess.get("session_open_utc"),
-      "minutes_until_open": us_sess.get("minutes_until_open"),
-      "reopen_wake_active": stocks_prep.get("reopen_wake_active"),
-      "open_ready_symbols": stocks_prep.get("open_ready_symbols") or [],
-    },
-  }
+  next_session_events = build_next_session_events(
+    session_prep=session_prep,
+    commodities_session=cme_sess,
+    stocks_session=us_sess,
+  )
   gate_tightening_data = gate_payload["gate_entry_tightening"]
   from app.intelligence.axiom_tracker import get_axiom_session_status
   from app.intelligence.fomo_tracker import get_fomo_bearer_status

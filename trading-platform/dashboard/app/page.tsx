@@ -45,6 +45,7 @@ import type {
   MondayRecoverySummary,
   SessionPrepStatus,
   SessionPrepEntry,
+  NextSessionEvents,
   StrategyConfig,
   ProfitabilityStatus,
   VerificationSnapshot,
@@ -63,7 +64,7 @@ import { IntelRoutingPanel } from "@/components/IntelRoutingPanel";
 type Tab = "overview" | "trades" | "positions" | "intelligence" | "learning" | "strategy";
 
 export default function Dashboard() {
-  const { stats, portfolios, bots, positions: livePositions, trades: liveTrades, recentIntel, analyses: liveAnalyses, reviews: liveReviews, insights: liveInsights, strategies: liveStrategies, intelSources: liveIntelSources, verificationHistory: liveVerificationHistory, connected, lastUpdate, lastTrade, profitabilityGate: liveProfitability, gateEntryTightening, botSessions, mondayRecovery, sessionPrep, contentStudy } = useLiveData();
+  const { stats, portfolios, bots, positions: livePositions, trades: liveTrades, recentIntel, analyses: liveAnalyses, reviews: liveReviews, insights: liveInsights, strategies: liveStrategies, intelSources: liveIntelSources, verificationHistory: liveVerificationHistory, connected, lastUpdate, lastTrade, profitabilityGate: liveProfitability, gateEntryTightening, botSessions, mondayRecovery, sessionPrep, nextSessionEvents, contentStudy } = useLiveData();
   const { data: tradesRest } = useAPI<Trade[]>("/trades?limit=50", 30000);
   const { data: gateTradesRest } = useAPI<Trade[]>("/trades?limit=200", 30000);
   const { data: positionsRest } = useAPI<Position[]>("/positions", 30000);
@@ -316,6 +317,7 @@ export default function Dashboard() {
         {tab === "overview" && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-6">
+              <CmeImminentBanner events={nextSessionEvents} sessionPrep={sessionPrep} />
               <MondayRecoveryBanner summary={mondayRecovery} />
               <SessionPrepBanner sessionPrep={sessionPrep} />
               <Card title="Bot Status">
@@ -1600,6 +1602,45 @@ function BotCard({
         <span>{bot.trades_today} trades today</span>
         <span>Strategy v{bot.strategy_version}</span>
       </div>
+    </div>
+  );
+}
+
+function CmeImminentBanner({
+  events,
+  sessionPrep,
+}: {
+  events: NextSessionEvents | null;
+  sessionPrep: SessionPrepStatus | null;
+}) {
+  const cme = events?.cme_reopen;
+  const commPrep = sessionPrep?.commodities;
+  const mins = cme?.minutes_until_open ?? commPrep?.minutes_until_open;
+  const imminent =
+    Boolean(cme?.reopen_imminent) ||
+    Boolean(commPrep?.gate_reopen_imminent) ||
+    (mins != null && mins <= 60);
+  if (!imminent || mins == null) return null;
+
+  const ready =
+    cme?.open_ready_symbols?.join(", ") ||
+    commPrep?.open_ready_symbols?.join(", ") ||
+    sessionPrep?.open_ready_candidates?.join(", ") ||
+    "—";
+  const fastScan = cme?.reopen_imminent || commPrep?.gate_reopen_imminent ? "5s" : "15s";
+  const wake = cme?.reopen_wake_active || commPrep?.reopen_wake_active;
+
+  return (
+    <div className="rounded-lg border border-amber-500/40 bg-amber-950/40 p-4">
+      <p className="text-sm font-semibold text-amber-300">
+        CME reopen imminent — {mins}m until open
+        {wake ? (
+          <span className="ml-2 text-amber-200/80 font-normal">· TV wake active</span>
+        ) : null}
+      </p>
+      <p className="text-xs text-amber-200/70 mt-1">
+        Fast scan {fastScan} · open ready: {ready}
+      </p>
     </div>
   );
 }
