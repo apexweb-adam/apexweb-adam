@@ -43,6 +43,26 @@ def build_cme_deploy_urgency(
   }
 
 
+def resolve_cme_deploy_reminder() -> dict[str, Any] | None:
+  """Build deploy urgency during CME weekend prep, or None when not applicable."""
+  import os
+
+  from app.engines.gate_entry_guard import commodities_futures_weekend_closed, commodities_session_info
+
+  if not commodities_futures_weekend_closed():
+    return None
+  cme_session = commodities_session_info()
+  platform_revision = os.environ.get("PLATFORM_REVISION", "").strip() or None
+  revision_current = (
+    platform_revision == EXPECTED_PLATFORM_REVISION if platform_revision else None
+  )
+  return build_cme_deploy_urgency(
+    platform_revision_current=revision_current,
+    cme_minutes_until_open=cme_session.get("minutes_until_open"),
+    cme_in_session=bool(cme_session.get("in_session")),
+  )
+
+
 def github_headers() -> dict[str, str]:
   headers = {
     "Accept": "application/vnd.github+json",
@@ -56,7 +76,7 @@ PRODUCTION_DASHBOARD_URL = "https://apex-trading-dashboard-flame.vercel.app"
 DEFAULT_VERIFIED_DASHBOARD_URL = "https://apex-trading-dashboard-o7tb7wydk-apexweb-adams-projects.vercel.app"
 DEFAULT_VERIFIED_DEPLOYMENT_ID = "dpl_Cn62LPUnD83i28cydia12AKr3uUw"
 EXPECTED_DASHBOARD_BUNDLE = "2026-08-29-r97"
-EXPECTED_PLATFORM_REVISION = "2026-08-29-r341"
+EXPECTED_PLATFORM_REVISION = "2026-08-29-r342"
 GIT_MAIN_ALIAS = "apex-trading-dashboard-git-main"
 ACCEPTABLE_DASHBOARD_BUNDLES = frozenset({
   "2026-08-27-r9", "2026-08-27-r10", "2026-08-27-r11", "2026-08-27-r12",
