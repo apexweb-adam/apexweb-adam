@@ -1615,6 +1615,16 @@ function NextSessionsCard({
   events: NextSessionEvents | null;
   sessionPrep: SessionPrepStatus | null;
 }) {
+  const phaseNote = (event: NextSessionEvents["cme_reopen"] | undefined) => {
+    const phase = event?.prep_phase;
+    if (phase === "wake") return "TV wake active";
+    if (phase === "imminent") return "fast scan 5s active";
+    if (phase === "open") return "session open";
+    const mins = event?.minutes_until_imminent_scan;
+    if (mins != null) return `fast scan in ${Math.floor(mins / 60)}h ${mins % 60}m`;
+    return undefined;
+  };
+
   const cme = events?.cme_reopen;
   const us = events?.us_stocks_open;
   const commPrep = sessionPrep?.commodities;
@@ -1624,6 +1634,7 @@ function NextSessionsCard({
     mins: number | null | undefined;
     ready: string;
     scanLabel?: string;
+    phaseNote?: string;
   }> = [];
 
   const cmeMins = cme?.minutes_until_open ?? commPrep?.minutes_until_open;
@@ -1642,6 +1653,7 @@ function NextSessionsCard({
           : commPrep?.gate_fast_scan_active
             ? "15s"
             : "30s"),
+      phaseNote: phaseNote(cme),
     });
   }
   const usMins = us?.minutes_until_open ?? stocksPrep?.minutes_until_open;
@@ -1660,6 +1672,7 @@ function NextSessionsCard({
           : stocksPrep?.gate_fast_scan_active
             ? "15s"
             : "30s"),
+      phaseNote: phaseNote(us),
     });
   }
   if (rows.length === 0) return null;
@@ -1682,6 +1695,9 @@ function NextSessionsCard({
             {row.mins != null ? `${Math.floor(row.mins / 60)}h ${row.mins % 60}m` : "soon"}
             {row.scanLabel ? (
               <span className="text-sky-300/80"> · prep scan {row.scanLabel}</span>
+            ) : null}
+            {row.phaseNote ? (
+              <span className="text-sky-300/70"> · {row.phaseNote}</span>
             ) : null}
             <span className="text-lime-400/90"> · open ready: {row.ready}</span>
           </li>

@@ -311,6 +311,10 @@ export type NextSessionEvent = {
   auto_entry_queued?: boolean;
   prep_scan_label?: string;
   composite_floor?: number | null;
+  prep_phase?: "extended" | "imminent" | "wake" | "open";
+  minutes_until_imminent_scan?: number | null;
+  minutes_until_wake?: number | null;
+  imminent_scan_minutes?: number;
 };
 
 export type NextSessionEvents = {

@@ -511,6 +511,7 @@ def test_crm_landing_shows_next_sessions_card():
   assert "NG=F, CL=F" in body
   assert "AAPL" in body
   assert "composite floor" in body.lower()
+  assert "fast scan in" in body
 
 
 def test_crm_landing_auto_refreshes():

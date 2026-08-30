@@ -1240,9 +1240,45 @@ def test_build_next_session_events():
   assert events["cme_reopen"]["prep_scan_label"] == "5s"
   assert events["cme_reopen"]["open_ready_details"][0]["symbol"] == "NG=F"
   assert events["cme_reopen"]["composite_floor"] == 0.42
+  assert events["cme_reopen"]["prep_phase"] == "imminent"
+  assert events["cme_reopen"]["minutes_until_imminent_scan"] == 0
+  assert events["us_stocks_open"]["prep_phase"] == "extended"
   assert events["us_stocks_open"]["minutes_until_open"] == 2000
   assert events["us_stocks_open"]["auto_entry_queued"] is False
   assert events["us_stocks_open"]["prep_scan_label"] == "15s"
+
+
+def test_session_prep_phase_info():
+  from app.engines.gate_entry_guard import session_prep_phase_info
+
+  extended = session_prep_phase_info(
+    session={"in_session": False, "minutes_until_open": 1200},
+    imminent_minutes=60,
+    wake_minutes_before=3,
+    wake_minutes_after=5,
+  )
+  assert extended["prep_phase"] == "extended"
+  assert extended["minutes_until_imminent_scan"] == 1140
+  assert extended["minutes_until_wake"] == 1197
+
+  imminent = session_prep_phase_info(
+    session={"in_session": False, "minutes_until_open": 45},
+    imminent_minutes=60,
+    wake_minutes_before=3,
+    wake_minutes_after=5,
+    imminent_active=True,
+  )
+  assert imminent["prep_phase"] == "imminent"
+  assert imminent["minutes_until_imminent_scan"] == 0
+
+  wake = session_prep_phase_info(
+    session={"in_session": False, "minutes_until_open": 2},
+    imminent_minutes=60,
+    wake_minutes_before=3,
+    wake_minutes_after=5,
+    wake_active=True,
+  )
+  assert wake["prep_phase"] == "wake"
 
 
 def test_session_prep_scan_label():
