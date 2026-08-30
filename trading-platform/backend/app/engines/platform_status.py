@@ -12,7 +12,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import BOT_TYPES, settings
 from app.database import is_postgres
-from app.engines.deploy_status import build_deploy_status, build_cme_deploy_urgency, build_cme_deploy_window, recommended_dashboard_url
+from app.engines.deploy_status import (
+  build_deploy_status,
+  build_cme_deploy_urgency,
+  build_cme_deploy_window,
+  dashboard_url_from_deploy,
+  recommended_dashboard_url,
+)
 from app.engines.gate_entry_guard import (
   build_gate_ws_payload,
   build_next_session_events,
@@ -181,9 +187,7 @@ async def _fetch_learning_counts(session: AsyncSession) -> dict[str, Any]:
 
 
 def _dashboard_url_from_deploy(deploy_info: dict[str, Any]) -> str | None:
-  if deploy_info.get("vercel_bundle_stale"):
-    return deploy_info.get("verified_dashboard_url") or deploy_info.get("dashboard_url")
-  return deploy_info.get("dashboard_url") or deploy_info.get("verified_dashboard_url")
+  return dashboard_url_from_deploy(deploy_info)
 
 
 async def _build_platform_status_uncached(session: AsyncSession) -> dict[str, Any]:

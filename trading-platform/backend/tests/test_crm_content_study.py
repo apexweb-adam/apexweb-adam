@@ -53,7 +53,7 @@ def test_crm_landing_includes_content_study_section():
     ],
   }
 
-  with patch("app.main.recommended_dashboard_url", new_callable=AsyncMock, return_value="https://example.com"):
+  with patch("app.main.resolve_crm_dashboard_url", new_callable=AsyncMock, return_value="https://example.com"):
     with patch("app.main.build_deploy_status", new_callable=AsyncMock, return_value={"vercel_bundle_stale": False}):
       with patch("app.database.SessionLocal") as mock_session_local:
         mock_session = AsyncMock()
@@ -153,7 +153,7 @@ def test_crm_landing_includes_live_positions():
     "proven_winner_symbols": {"commodities": ["SI=F"]},
   }
 
-  with patch("app.main.recommended_dashboard_url", new_callable=AsyncMock, return_value="https://example.com"):
+  with patch("app.main.resolve_crm_dashboard_url", new_callable=AsyncMock, return_value="https://example.com"):
     with patch("app.main.build_deploy_status", new_callable=AsyncMock, return_value={"vercel_bundle_stale": False}):
       with patch("app.database.SessionLocal") as mock_session_local:
         mock_session = AsyncMock()

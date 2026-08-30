@@ -230,7 +230,7 @@ PRODUCTION_DASHBOARD_URL = "https://apex-trading-dashboard-flame.vercel.app"
 DEFAULT_VERIFIED_DASHBOARD_URL = "https://apex-trading-dashboard-o7tb7wydk-apexweb-adams-projects.vercel.app"
 DEFAULT_VERIFIED_DEPLOYMENT_ID = "dpl_Cn62LPUnD83i28cydia12AKr3uUw"
 EXPECTED_DASHBOARD_BUNDLE = "2026-08-29-r98"
-EXPECTED_PLATFORM_REVISION = "2026-08-29-r366"
+EXPECTED_PLATFORM_REVISION = "2026-08-29-r367"
 GIT_MAIN_ALIAS = "apex-trading-dashboard-git-main"
 ACCEPTABLE_DASHBOARD_BUNDLES = frozenset({
   "2026-08-27-r9", "2026-08-27-r10", "2026-08-27-r11", "2026-08-27-r12",
@@ -1021,6 +1021,43 @@ async def _build_deploy_status_uncached() -> dict[str, Any]:
     "next_steps": next_steps,
     **vercel,
   }
+
+
+def dashboard_url_from_deploy(deploy_info: dict[str, Any]) -> str | None:
+  """Pick dashboard URL from an existing deploy snapshot (no extra HTTP probes)."""
+  if deploy_info.get("vercel_bundle_stale"):
+    return deploy_info.get("verified_dashboard_url") or deploy_info.get("dashboard_url")
+  return deploy_info.get("dashboard_url") or deploy_info.get("verified_dashboard_url")
+
+
+async def resolve_crm_dashboard_url(deploy_info: dict[str, Any] | None = None) -> str:
+  """Best CRM dashboard URL — one build_deploy_status when deploy_info is omitted.
+
+  Reuses Vercel discovery from build_deploy_status instead of calling
+  recommended_dashboard_url (which would probe verified previews again).
+  """
+  deploy = deploy_info if deploy_info is not None else await build_deploy_status()
+
+  public = deploy.get("public_dashboard_url") or configured_public_dashboard_url()
+  if public:
+    cfg = await probe_dashboard_config(public)
+    if cfg and bundle_is_acceptable(cfg):
+      return public
+
+  verified = deploy.get("verified_dashboard_url") or configured_verified_dashboard_url()
+  verified_bundle = deploy.get("verified_bundle_revision")
+  if verified_bundle and bundle_rank({"bundleRevision": verified_bundle, "features": {"activeGate": True}}) < bundle_rank(
+    {"bundleRevision": EXPECTED_DASHBOARD_BUNDLE, "features": {"activeGate": True}}
+  ):
+    if is_git_main_alias(verified):
+      return configured_verified_dashboard_url()
+  if deploy.get("vercel_bundle_stale"):
+    return verified
+  return (
+    deploy.get("dashboard_url")
+    or verified
+    or configured_verified_dashboard_url()
+  )
 
 
 _recommended_dashboard_cache: str | None = None
