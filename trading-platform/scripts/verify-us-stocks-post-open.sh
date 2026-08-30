@@ -2,6 +2,9 @@
 # Post-open verification after Monday US stocks open (run after 13:30 UTC).
 set -euo pipefail
 
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+# shellcheck source=lib/fetch_json.sh
+source "$ROOT/scripts/lib/fetch_json.sh"
 BACKEND="${BACKEND_URL:-https://apex-trading-backend.onrender.com}"
 
 pass=0
@@ -16,14 +19,24 @@ echo "=== US Stocks Post-Open Verification — $(date -u '+%Y-%m-%d %H:%M UTC') 
 echo "Backend: $BACKEND"
 echo ""
 
-CHECKLIST=$(curl -fsS -m 90 "$BACKEND/api/gate/us-stocks-open-checklist" 2>/dev/null || echo "{}")
-STATUS=$(curl -fsS -m 90 "$BACKEND/api/status" 2>/dev/null || echo "{}")
+TMP=$(mktemp -d)
+trap 'rm -rf "$TMP"' EXIT
+fetch_json "$BACKEND/api/gate/us-stocks-open-checklist" 90 2 > "$TMP/checklist.json" || echo "{}" > "$TMP/checklist.json"
+fetch_json "$BACKEND/api/status" 90 2 > "$TMP/status.json" || echo "{}" > "$TMP/status.json"
 
-python3 << PY
-import json, sys
+CHECKLIST_FILE="$TMP/checklist.json" STATUS_FILE="$TMP/status.json" python3 << 'PY'
+import json, os, sys
+from pathlib import Path
 
-checklist = json.loads('''$CHECKLIST''')
-status = json.loads('''$STATUS''')
+def load(name: str) -> dict:
+    path = Path(os.environ[f"{name}_FILE"])
+    try:
+        return json.loads(path.read_text(encoding="utf-8") or "{}")
+    except json.JSONDecodeError:
+        return {}
+
+checklist = load("CHECKLIST")
+status = load("STATUS")
 if not checklist:
     print("  error=checklist_unreachable")
     sys.exit(1)
