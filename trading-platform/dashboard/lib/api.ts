@@ -545,6 +545,18 @@ export type PlatformDeployStatus = {
     message: string;
     deploy_command: string;
   } | null;
+  cme_deploy_window?: {
+    in_window: boolean;
+    window_closed: boolean;
+    minutes_until_open: number;
+    minutes_until_window_opens: number;
+    minutes_until_window_closes?: number | null;
+    window_opens_at_utc?: string | null;
+    window_closes_at_utc?: string | null;
+    message: string;
+    deploy_command: string;
+    verify_command: string;
+  } | null;
   next_steps: string[];
 };
 

@@ -4,7 +4,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BACKEND="${BACKEND_URL:-https://apex-trading-backend.onrender.com}"
-EXPECTED_REVISION="${EXPECTED_PLATFORM_REVISION:-2026-08-29-r352}"
+EXPECTED_REVISION="${EXPECTED_PLATFORM_REVISION:-2026-08-29-r353}"
 MIN_HOURS_BEFORE_CME="${MIN_HOURS_BEFORE_CME:-4}"
 MAX_HOURS_BEFORE_CME="${MAX_HOURS_BEFORE_CME:-6}"
 
@@ -42,6 +42,24 @@ if [[ -n "$CME_MINS" ]]; then
   else
     ok "Deploy timing within ${MIN_HOURS_BEFORE_CME}-${MAX_HOURS_BEFORE_CME}h window (${CME_MINS}min to CME)"
   fi
+  python3 << PY
+import json
+from datetime import datetime, timedelta
+prep = json.loads('''$PREP''')
+comm = prep.get("commodities") or {}
+cme = (prep.get("next_session_events") or {}).get("cme_reopen") or {}
+mins = comm.get("minutes_until_open") or cme.get("minutes_until_open")
+if mins is None:
+    raise SystemExit(0)
+mins = int(mins)
+start = int("$MAX_HOURS_BEFORE_CME") * 60
+end = int("$MIN_HOURS_BEFORE_CME") * 60
+now = datetime.utcnow()
+opens = now + timedelta(minutes=max(0, mins - start))
+closes = now + timedelta(minutes=max(0, mins - end))
+print(f"  deploy_window_opens_utc={opens.strftime('%Y-%m-%d %H:%M')}")
+print(f"  deploy_window_closes_utc={closes.strftime('%Y-%m-%d %H:%M')}")
+PY
 fi
 
 CODE_REV=$(grep '^EXPECTED_PLATFORM_REVISION' "$ROOT/backend/app/engines/deploy_status.py" | sed -n 's/.*"\([^"]*\)".*/\1/p')

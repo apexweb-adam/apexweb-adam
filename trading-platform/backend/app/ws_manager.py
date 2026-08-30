@@ -93,6 +93,7 @@ async def build_live_payload(session: AsyncSession) -> dict:
   from app.engines.deploy_status import (
     EXPECTED_PLATFORM_REVISION,
     build_cme_deploy_urgency,
+    build_cme_deploy_window,
   )
   import os
 
@@ -272,6 +273,11 @@ async def build_live_payload(session: AsyncSession) -> dict:
       "expected_platform_revision": EXPECTED_PLATFORM_REVISION,
       "platform_revision_current": revision_current,
       "cme_deploy_urgency": build_cme_deploy_urgency(
+        platform_revision_current=revision_current,
+        cme_minutes_until_open=cme_session.get("minutes_until_open"),
+        cme_in_session=bool(cme_session.get("in_session")),
+      ),
+      "cme_deploy_window": build_cme_deploy_window(
         platform_revision_current=revision_current,
         cme_minutes_until_open=cme_session.get("minutes_until_open"),
         cme_in_session=bool(cme_session.get("in_session")),

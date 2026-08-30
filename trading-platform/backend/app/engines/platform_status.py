@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import BOT_TYPES, settings
 from app.database import is_postgres
-from app.engines.deploy_status import build_deploy_status, build_cme_deploy_urgency, recommended_dashboard_url
+from app.engines.deploy_status import build_deploy_status, build_cme_deploy_urgency, build_cme_deploy_window, recommended_dashboard_url
 from app.engines.gate_entry_guard import (
   build_gate_ws_payload,
   build_next_session_events,
@@ -311,6 +311,11 @@ async def _build_platform_status_uncached(session: AsyncSession) -> dict[str, An
       "expected_platform_revision": deploy_info.get("expected_platform_revision"),
       "platform_revision_current": deploy_info.get("platform_revision_current"),
       "cme_deploy_urgency": build_cme_deploy_urgency(
+        platform_revision_current=deploy_info.get("platform_revision_current"),
+        cme_minutes_until_open=cme_sess.get("minutes_until_open"),
+        cme_in_session=bool(cme_sess.get("in_session")),
+      ),
+      "cme_deploy_window": build_cme_deploy_window(
         platform_revision_current=deploy_info.get("platform_revision_current"),
         cme_minutes_until_open=cme_sess.get("minutes_until_open"),
         cme_in_session=bool(cme_sess.get("in_session")),
