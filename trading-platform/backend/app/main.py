@@ -252,6 +252,22 @@ async def crm_landing():
     </table>
   </div>"""
 
+  commodities_prep = session_prep.get("commodities") or {}
+  cme_mins = cme_session.get("minutes_until_open")
+  cme_imminent_banner = ""
+  if not cme_session.get("in_session") and cme_mins is not None and cme_mins <= 60:
+    ready = ", ".join(
+      commodities_prep.get("open_ready_symbols")
+      or session_prep.get("open_ready_candidates")
+      or []
+    )
+    scan_label = "5s" if commodities_prep.get("gate_reopen_imminent") else "15s"
+    wake_note = " · TV wake active" if commodities_prep.get("reopen_wake_active") else ""
+    cme_imminent_banner = f"""<div class="card" style="border-color:#b45309;background:#451a03;">
+    <p style="color:#fbbf24;font-weight:600;margin:0;">CME reopen imminent — {cme_mins}m until open{wake_note}</p>
+    <p class="muted" style="margin-top:0.5rem;">Fast scan {scan_label} · open ready: {ready or "—"}</p>
+  </div>"""
+
   learning_rows = ""
   learning_reviews = learning.get("reviews") or []
   for row in learning_reviews:
@@ -465,6 +481,7 @@ async def crm_landing():
   <p>Paper trading · 4 autonomous bots · Real-time WebSocket</p>
   <p class="muted" style="margin-top:0;">{session_summary}</p>
   {f"<p class='muted' style='margin-top:0;color:#fbbf24;'>{prep_summary}</p>" if prep_summary else ""}
+  {cme_imminent_banner}
   <div class="card">
     <p class="label">30-day verification gate · day {day}/30</p>
     <div class="grid">

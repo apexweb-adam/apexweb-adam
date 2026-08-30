@@ -505,6 +505,25 @@ async def get_platform_status(db: AsyncSession = Depends(get_db)) -> dict[str, A
     commodities_graduation_nudge=bool(monday_recovery.get("commodities_graduation_nudge")),
     open_ready_rows=monday_recovery.get("open_ready"),
   )
+  cme_sess = commodities_session_info()
+  us_sess = stocks_session_info()
+  comm_prep = session_prep.get("commodities") or {}
+  stocks_prep = session_prep.get("stocks_futures") or {}
+  next_session_events = {
+    "cme_reopen": {
+      "session_open_utc": cme_sess.get("session_open_utc"),
+      "minutes_until_open": cme_sess.get("minutes_until_open"),
+      "reopen_imminent": comm_prep.get("gate_reopen_imminent"),
+      "reopen_wake_active": comm_prep.get("reopen_wake_active"),
+      "open_ready_symbols": comm_prep.get("open_ready_symbols") or [],
+    },
+    "us_stocks_open": {
+      "session_open_utc": us_sess.get("session_open_utc"),
+      "minutes_until_open": us_sess.get("minutes_until_open"),
+      "reopen_wake_active": stocks_prep.get("reopen_wake_active"),
+      "open_ready_symbols": stocks_prep.get("open_ready_symbols") or [],
+    },
+  }
   gate_tightening_data = gate_payload["gate_entry_tightening"]
   from app.intelligence.axiom_tracker import get_axiom_session_status
   from app.intelligence.fomo_tracker import get_fomo_bearer_status
@@ -542,6 +561,7 @@ async def get_platform_status(db: AsyncSession = Depends(get_db)) -> dict[str, A
     "bot_sessions": gate_payload.get("bot_sessions"),
     "session_prep": session_prep,
     "open_ready_candidates": session_prep.get("open_ready_candidates") or [],
+    "next_session_events": next_session_events,
     "bots": bots,
     "intelligence": {
       "active_sources": active_sources,
