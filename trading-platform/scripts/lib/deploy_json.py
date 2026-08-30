@@ -139,6 +139,9 @@ def evaluate_post_deploy(
       print(f"    near_floor {sym}: composite={comp} gap_to_floor={gap}")
 
   deploy_info = status.get("deploy") or {}
+  revision_current = deploy_info.get("platform_revision_current")
+  if snapshot.get("platform_revision_current") is not None:
+    revision_current = snapshot.get("platform_revision_current")
   deploy_window = deploy_info.get("cme_deploy_window") or snapshot.get("cme_deploy_window")
   if deploy_window:
     print(
@@ -146,6 +149,8 @@ def evaluate_post_deploy(
       f"in_window={deploy_window.get('in_window')} "
       f"opens={deploy_window.get('window_opens_at_utc')}"
     )
+  elif revision_current is True or prod_rev == expected:
+    print("  cme_deploy_window=none (revision current — expected outside deploy window)")
   else:
     errors.append("cme_deploy_window_missing")
 
@@ -171,7 +176,7 @@ def evaluate_post_deploy(
         f"mins={snapshot.get('fomo_bearer_minutes_remaining')} "
         f"nudge_tier={snapshot.get('fomo_bearer_nudge_tier')}"
       )
-      if snapshot.get("fomo_bearer_nudge_tier") is None:
+      if snapshot.get("fomo_bearer_configured") and snapshot.get("fomo_bearer_nudge_tier") is None:
         errors.append("snapshot_missing_fomo_bearer_nudge_tier")
     if snapshot.get("github_token_configured") is False:
       print("  note: GITHUB_TOKEN missing on Render — deploy staleness checks incomplete")

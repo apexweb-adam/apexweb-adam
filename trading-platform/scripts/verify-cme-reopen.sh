@@ -170,6 +170,8 @@ if deploy_window:
         f"  status.cme_deploy_window in_window={deploy_window.get('in_window')} "
         f"opens={deploy_window.get('window_opens_at_utc')}"
     )
+elif rev_current is True:
+    print("  status.cme_deploy_window=none (revision current — outside deploy window)")
 elif rev_current is False:
     notes.append("cme_deploy_window_pending_deploy")
 else:
