@@ -7,7 +7,7 @@ BACKEND="${BACKEND_URL:-https://apex-trading-backend.onrender.com}"
 DASHBOARD="${DASHBOARD_URL:-https://apex-trading-dashboard-flame.vercel.app}"
 FLAME="${FLAME_URL:-https://apex-trading-dashboard-flame.vercel.app}"
 GIT_MAIN="https://apex-trading-dashboard-git-main-apexweb-adams-projects.vercel.app"
-EXPECTED_BUNDLE="2026-08-28-r29"
+EXPECTED_BUNDLE="2026-08-29-r97"
 
 pass=0
 fail=0
@@ -134,6 +134,28 @@ else
   bad "Scan-preview endpoint missing or invalid (deploy r95+)"
 fi
 
+# CME reopen prep (weekend / pre-open)
+PREP=$(curl -fsS -m 30 "$BACKEND/api/gate/prep-status" 2>/dev/null || echo "{}")
+python3 << PY
+import json, sys
+prep = json.loads('''$PREP''')
+comm = prep.get("commodities") or {}
+cme = (prep.get("next_session_events") or {}).get("cme_reopen") or {}
+mins = comm.get("minutes_until_open") or cme.get("minutes_until_open")
+phase = comm.get("prep_phase") or cme.get("prep_phase")
+open_ready = comm.get("open_ready_symbols") or cme.get("open_ready_symbols") or []
+auto_entry = comm.get("auto_entry_queued") or cme.get("auto_entry_queued")
+if mins is None:
+    sys.exit(1)
+print(f"  cme_phase={phase} open_in={mins}min open_ready={open_ready} auto_entry={auto_entry}")
+sys.exit(0)
+PY
+if [[ $? -eq 0 ]]; then
+  ok "CME prep-status (phase, open-ready queue)"
+else
+  note "CME prep-status unavailable (run verify-cme-reopen.sh)"
+fi
+
 # CRM landing
 CRM=$(curl -fsS -m 35 "$BACKEND/crm" 2>/dev/null || echo "")
 if echo "$CRM" | grep -q "Apex Trading CRM"; then
@@ -177,12 +199,12 @@ python3 << PY
 import json
 d = json.loads('''$DCFG''')
 rev = d.get("bundleRevision", "?")
-ok = rev.startswith("2026-08-28-r2") and (d.get("features") or {}).get("activeGate")
+ok = rev.startswith("2026-08-29-r9") and (d.get("features") or {}).get("activeGate")
 print(f"  bundle={rev} api={str(d.get('apiUrl','?'))[:50]}")
 import sys; sys.exit(0 if ok else 1)
 PY
 if [[ $? -eq 0 ]]; then
-  ok "Verified dashboard /api/config (r27+ bundle, activeGate)"
+  ok "Verified dashboard /api/config (r97+ bundle, activeGate)"
 else
   note "Dashboard bundle stale at $DASHBOARD"
 fi
