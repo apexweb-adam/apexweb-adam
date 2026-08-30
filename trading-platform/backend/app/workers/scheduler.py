@@ -273,6 +273,9 @@ async def commodities_pre_session_prep_job() -> None:
       f"[CommoditiesPrep] Refreshed TradingView signals for {', '.join(refreshed)} "
       f"({minutes_until_open} min until CME open)"
     )
+    from app.engines.scan_preview import clear_monday_recovery_cache
+
+    clear_monday_recovery_cache()
     from app.ws_manager import push_live_update
 
     await push_live_update()
@@ -461,6 +464,9 @@ async def commodities_cme_reopen_wake_job() -> None:
       f"[CommoditiesReopenWake] {label}: refreshed {', '.join(refreshed)} "
       f"(until_open={minutes_until_open}, since_open={minutes_since_open})"
     )
+    from app.engines.scan_preview import clear_monday_recovery_cache
+
+    clear_monday_recovery_cache()
     from app.ws_manager import push_live_update
 
     await push_live_update()
@@ -669,6 +675,8 @@ async def refresh_status_caches_job() -> None:
 async def _deferred_startup_jobs() -> None:
   """Heavy intel/learning jobs — run in background so /api/health is ready quickly on Render."""
   try:
+    # TV refresh before intel scan so post-deploy composites use fresh signals.
+    await commodities_pre_session_prep_job()
     await intelligence_job()
     await content_study_job()
     async with SessionLocal() as session:
@@ -685,6 +693,9 @@ async def _deferred_startup_jobs() -> None:
     await verification_snapshot_job()
     await stocks_pre_session_prep_job()
     await commodities_pre_session_prep_job()
+    from app.engines.scan_preview import clear_monday_recovery_cache
+
+    clear_monday_recovery_cache()
     async with SessionLocal() as session:
       from app.engines.session_open_log import (
         backfill_open_ready_queue_events,
