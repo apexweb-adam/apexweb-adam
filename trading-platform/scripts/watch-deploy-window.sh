@@ -125,6 +125,9 @@ if window.get("in_window"):
     print(f"  {window.get('deploy_command', 'TRIGGER_DEPLOY=true bash trading-platform/scripts/sync-render-env.sh')}")
     print(f"  bash trading-platform/scripts/verify-post-deploy.sh")
     print(f"  bash trading-platform/scripts/verify-dashboard-bundle.sh")
+    weekend = payload.get("weekend_ops_verify_command")
+    if weekend:
+        print(f"  {weekend}")
     sys.exit(10)
 
 sys.exit(0)

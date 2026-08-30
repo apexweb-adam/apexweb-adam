@@ -81,6 +81,31 @@ else
   note "Dashboard bundle check failed (non-blocking)"
 fi
 
+US_CHECKLIST=$(curl -fsS -m 30 "$BACKEND/api/gate/us-stocks-open-checklist" 2>/dev/null || echo "{}")
+US_NOTE=$(python3 << PY
+import json
+data = json.loads('''$US_CHECKLIST''')
+if not data:
+    raise SystemExit(0)
+checks = {c.get("id"): c for c in data.get("checks") or []}
+stocks = checks.get("stocks_active") or {}
+open_ready = (data.get("open_ready") or {}).get("symbols") or []
+mins = data.get("minutes_until_open")
+if stocks.get("status") == "fail":
+    syms = ", ".join(open_ready) if open_ready else "none"
+    print(f"Stocks bot paused — Monday auto-entry for {syms} blocked until gate clears (US open in {mins}min)")
+elif open_ready:
+    print(f"US stocks open-ready queued: {', '.join(open_ready)} (opens in {mins}min)")
+PY
+)
+if [[ -n "$US_NOTE" ]]; then
+  if echo "$US_NOTE" | grep -q "paused"; then
+    note "$US_NOTE"
+  else
+    ok "$US_NOTE"
+  fi
+fi
+
 PROD_REV=$(curl -fsS -m 15 "$BACKEND/api/deploy/snapshot" 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('platform_revision') or '')" 2>/dev/null || echo "")
 if [[ -z "$PROD_REV" ]]; then
   PROD_REV=$(curl -fsS -m 45 "$BACKEND/api/status" 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print((d.get('deploy') or {}).get('platform_revision') or '?')" 2>/dev/null || echo "?")
@@ -110,6 +135,9 @@ echo "  TRIGGER_DEPLOY=true bash trading-platform/scripts/sync-render-env.sh"
 echo ""
 echo "After deploy:"
 echo "  bash trading-platform/scripts/verify-post-deploy.sh"
+echo ""
+echo "Monday US open (if stocks still paused, auto-entry stays blocked by design):"
+echo "  bash trading-platform/scripts/verify-us-stocks-open.sh --watch 120"
 echo ""
 echo "Watch deploy window (opens ~4-6h before CME):"
 echo "  bash trading-platform/scripts/watch-deploy-window.sh --once"

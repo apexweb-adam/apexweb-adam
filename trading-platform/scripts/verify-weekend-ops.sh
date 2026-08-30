@@ -26,7 +26,32 @@ if window.get("message"):
 bundle = snap.get("expected_dashboard_bundle")
 if bundle:
     print(f"Dashboard bundle target: {bundle}")
+for key in ("dashboard_bundle_verify_command", "weekend_ops_verify_command"):
+    cmd = snap.get(key)
+    if cmd:
+        print(f"  {cmd}")
 PY
+
+US_CHECKLIST=$(curl -fsS -m 30 "$BACKEND/api/gate/us-stocks-open-checklist" 2>/dev/null || echo "{}")
+US_NOTE=$(python3 << PY
+import json
+data = json.loads('''$US_CHECKLIST''')
+if not data:
+    raise SystemExit(0)
+checks = {c.get("id"): c for c in data.get("checks") or []}
+stocks = checks.get("stocks_active") or {}
+open_ready = (data.get("open_ready") or {}).get("symbols") or []
+mins = data.get("minutes_until_open")
+if stocks.get("status") == "fail":
+    syms = ", ".join(open_ready) if open_ready else "none"
+    print(f"US stocks: bot paused — Monday auto-entry for {syms} blocked until profitability gate clears (open in {mins}min)")
+elif open_ready:
+    print(f"US stocks: open_ready={open_ready} (opens in {mins}min)")
+PY
+)
+if [[ -n "$US_NOTE" ]]; then
+  echo "$US_NOTE"
+fi
 
 echo ""
 bash "$ROOT/scripts/verify-dashboard-bundle.sh" || true
