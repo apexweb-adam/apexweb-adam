@@ -234,6 +234,14 @@ async def get_session_prep_status(db: AsyncSession = Depends(get_db)) -> dict[st
   return await build_gate_prep_status(db)
 
 
+@router.get("/gate/cme-reopen-checklist")
+async def get_cme_reopen_checklist(db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
+  """CME Sunday reopen preflight and post-open verification checklist."""
+  from app.engines.cme_reopen_checklist import build_cme_reopen_checklist
+
+  return await build_cme_reopen_checklist(db)
+
+
 @router.get("/intelligence")
 async def get_intelligence(
   limit: int = 50,
