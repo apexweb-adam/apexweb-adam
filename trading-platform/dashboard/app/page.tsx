@@ -96,6 +96,12 @@ export default function Dashboard() {
   const { data: equityHistory } = useAPI<EquityHistoryPoint[]>("/equity-history", 60000);
   const { data: intelRouting } = useAPI<IntelRouting>("/intelligence/routing", 60000);
   const { data: platformStatus } = useAPI<PlatformStatus>("/status", 30000);
+  const intelSourcesDisplay = useMemo(() => {
+    if (intelSources.length > 0) return intelSources;
+    const statusSources = platformStatus?.intelligence?.sources;
+    if (statusSources && statusSources.length > 0) return statusSources;
+    return null;
+  }, [intelSources, platformStatus?.intelligence?.sources]);
   const [tab, setTab] = useState<Tab>("overview");
   const [dashConfig, setDashConfig] = useState<DashboardConfig | null>(null);
 
@@ -319,7 +325,7 @@ export default function Dashboard() {
         {tab === "overview" && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-6">
-              <IntelAlertBanner platformStatus={platformStatus} intelSources={liveIntelSources} />
+              <IntelAlertBanner platformStatus={platformStatus} intelSources={intelSourcesDisplay ?? []} />
               <CmeDeployUrgencyBanner
                 urgency={cmeDeployUrgency ?? platformStatus?.deploy?.cme_deploy_urgency}
               />
@@ -1183,22 +1189,8 @@ export default function Dashboard() {
             </Card>
             <Card title="Intelligence Sources">
               <div className="space-y-4">
-                {(intelSources ?? [
-                  { source: "news", status: "active", items_collected: 0, last_fetched: null },
-                  { source: "reddit", status: "active", items_collected: 0, last_fetched: null },
-                  { source: "youtube", status: "active", items_collected: 0, last_fetched: null },
-                  { source: "x", status: "pending", items_collected: 0, last_fetched: null },
-                  { source: "tiktok", status: "active", items_collected: 0, last_fetched: null },
-                  { source: "dexscreener", status: "active", items_collected: 0, last_fetched: null },
-                  { source: "hyperliquid", status: "active", items_collected: 0, last_fetched: null },
-                  { source: "fomo", status: "degraded", items_collected: 0, last_fetched: null },
-                  { source: "polymarket", status: "active", items_collected: 0, last_fetched: null },
-                  { source: "polymarket_account", status: "active", items_collected: 0, last_fetched: null },
-                  { source: "wallet_tracker", status: "active", items_collected: 0, last_fetched: null },
-                  { source: "political", status: "active", items_collected: 0, last_fetched: null },
-                  { source: "tradingview", status: "pending", items_collected: 0, last_fetched: null },
-                  { source: "newsapi", status: "optional", items_collected: 0, last_fetched: null },
-                ]).map((src) => (
+                {intelSourcesDisplay ? (
+                intelSourcesDisplay.map((src) => (
                   <div
                     key={src.source}
                     className="flex items-center justify-between p-3 rounded-lg bg-apex-dark border border-apex-border"
@@ -1246,7 +1238,12 @@ export default function Dashboard() {
                       {src.status}
                     </span>
                   </div>
-                ))}
+                ))
+                ) : (
+                  <p className="text-xs text-gray-500 py-4 text-center">
+                    Loading intelligence sources from platform status…
+                  </p>
+                )}
               </div>
             </Card>
             <Card title="Intel Source Routing">
@@ -1872,24 +1869,41 @@ function IntelAlertBanner({
   intelSources: IntelligenceSource[];
 }) {
   const integrations = platformStatus?.integrations;
-  const fomoExpired =
+  const fomoNudge = integrations?.fomo_bearer_nudge_message;
+  const fomoNudgeTier = integrations?.fomo_bearer_nudge_tier;
+  const fomoExpired = fomoNudgeTier === "expired" || (
     Boolean(integrations?.fomo_bearer_configured) &&
-    integrations?.fomo_bearer_polling_active === false;
+    integrations?.fomo_bearer_polling_active === false
+  );
+  const fomoExpiringSoon = fomoNudgeTier === "60" || fomoNudgeTier === "15";
   const degraded = intelSources
     .filter((src) => src.status === "degraded" && src.source !== "fomo")
     .map((src) => src.source);
 
-  if (!fomoExpired && degraded.length === 0) return null;
+  if (!fomoExpired && !fomoExpiringSoon && degraded.length === 0) return null;
 
   if (fomoExpired) {
     return (
       <div className="rounded-lg border border-amber-500/40 bg-amber-950/40 p-4">
         <p className="text-sm font-semibold text-amber-300">
-          fomo.family bearer expired — memecoin intel paused
+          {fomoNudge || "fomo.family bearer expired — memecoin intel paused"}
         </p>
         <p className="text-xs text-amber-200/70 mt-1">
           Open fomo.family with Tampermonkey bridge or run{" "}
           <code className="text-amber-100/90">./trading-platform/scripts/fomo-set-bearer.sh &apos;eyJ...&apos;</code>
+        </p>
+      </div>
+    );
+  }
+
+  if (fomoExpiringSoon) {
+    return (
+      <div className="rounded-lg border border-yellow-500/40 bg-yellow-950/35 p-4">
+        <p className="text-sm font-semibold text-yellow-300">
+          {fomoNudge || "fomo.family bearer expiring soon"}
+        </p>
+        <p className="text-xs text-yellow-200/70 mt-1">
+          Refresh before tonight&apos;s deploy window — open fomo.family with the Tampermonkey bridge.
         </p>
       </div>
     );

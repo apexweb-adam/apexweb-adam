@@ -7,6 +7,7 @@ from app.workers import scheduler
 def test_fomo_bearer_monitor_pushes_on_expiry():
   async def run():
     scheduler._fomo_bearer_was_polling = True
+    scheduler._fomo_bearer_last_nudge_tier = None
     with patch(
       "app.intelligence.fomo_tracker.get_fomo_bearer_status",
       new=AsyncMock(return_value={"configured": True, "polling_active": False}),
@@ -18,6 +19,7 @@ def test_fomo_bearer_monitor_pushes_on_expiry():
         await scheduler.fomo_bearer_monitor_job()
         push.assert_awaited_once()
     scheduler._fomo_bearer_was_polling = None
+    scheduler._fomo_bearer_last_nudge_tier = None
 
   asyncio.run(run())
 
@@ -25,6 +27,7 @@ def test_fomo_bearer_monitor_pushes_on_expiry():
 def test_fomo_bearer_monitor_skips_when_not_configured():
   async def run():
     scheduler._fomo_bearer_was_polling = None
+    scheduler._fomo_bearer_last_nudge_tier = None
     with patch(
       "app.intelligence.fomo_tracker.get_fomo_bearer_status",
       new=AsyncMock(return_value={"configured": False}),

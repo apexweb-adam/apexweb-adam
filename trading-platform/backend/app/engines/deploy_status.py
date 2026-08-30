@@ -235,6 +235,37 @@ def build_deploy_credentials_warnings(
   return warnings
 
 
+def resolve_fomo_bearer_nudge_tier(
+  *,
+  polling_active: bool,
+  minutes_remaining: int | None,
+) -> str | None:
+  """Return nudge tier when bearer needs operator attention: 60, 15, or expired."""
+  if not polling_active:
+    return "expired"
+  if minutes_remaining is None:
+    return None
+  if minutes_remaining <= 0:
+    return "expired"
+  if minutes_remaining <= 15:
+    return "15"
+  if minutes_remaining <= 60:
+    return "60"
+  return None
+
+
+def fomo_bearer_nudge_message(tier: str, *, minutes_remaining: int | None = None) -> str:
+  if tier == "expired":
+    return "fomo.family bearer expired — memecoin intel paused"
+  if tier == "15":
+    label = f"{minutes_remaining}min" if minutes_remaining is not None else "soon"
+    return f"fomo.family bearer expires in {label} — refresh before deploy window"
+  if tier == "60":
+    label = f"{minutes_remaining}min" if minutes_remaining is not None else "under 1h"
+    return f"fomo.family bearer expires in {label} — schedule refresh"
+  return ""
+
+
 def format_deploy_credentials_crm_html(warnings: list[str]) -> str:
   """Render deploy credential warnings for the /crm landing page."""
   if not warnings:
@@ -291,7 +322,7 @@ PRODUCTION_DASHBOARD_URL = "https://apex-trading-dashboard-flame.vercel.app"
 DEFAULT_VERIFIED_DASHBOARD_URL = "https://apex-trading-dashboard-o7tb7wydk-apexweb-adams-projects.vercel.app"
 DEFAULT_VERIFIED_DEPLOYMENT_ID = "dpl_Cn62LPUnD83i28cydia12AKr3uUw"
 EXPECTED_DASHBOARD_BUNDLE = "2026-08-29-r98"
-EXPECTED_PLATFORM_REVISION = "2026-08-29-r377"
+EXPECTED_PLATFORM_REVISION = "2026-08-29-r378"
 GIT_MAIN_ALIAS = "apex-trading-dashboard-git-main"
 ACCEPTABLE_DASHBOARD_BUNDLES = frozenset({
   "2026-08-27-r9", "2026-08-27-r10", "2026-08-27-r11", "2026-08-27-r12",

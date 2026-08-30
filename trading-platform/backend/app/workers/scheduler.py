@@ -314,11 +314,13 @@ async def session_prep_queue_monitor_job() -> None:
 
 
 _fomo_bearer_was_polling: bool | None = None
+_fomo_bearer_last_nudge_tier: str | None = None
 
 
 async def fomo_bearer_monitor_job() -> None:
-  """Push CRM updates when fomo.family bearer expires or is restored."""
-  global _fomo_bearer_was_polling
+  """Push CRM updates when fomo.family bearer expires, is restored, or nears expiry."""
+  global _fomo_bearer_was_polling, _fomo_bearer_last_nudge_tier
+  from app.engines.deploy_status import fomo_bearer_nudge_message, resolve_fomo_bearer_nudge_tier
   from app.intelligence.fomo_tracker import get_fomo_bearer_status
 
   async with SessionLocal() as session:
@@ -326,13 +328,29 @@ async def fomo_bearer_monitor_job() -> None:
   if not status.get("configured"):
     return
   polling = bool(status.get("polling_active"))
+  minutes = status.get("minutes_remaining")
+  minutes_int = int(minutes) if isinstance(minutes, (int, float)) else None
+  tier = resolve_fomo_bearer_nudge_tier(
+    polling_active=polling,
+    minutes_remaining=minutes_int,
+  )
+
+  should_push = False
   if _fomo_bearer_was_polling is not None and polling != _fomo_bearer_was_polling:
     state = "restored" if polling else "expired"
     print(f"[FomoBearer] bearer {state} — memecoin polling {'active' if polling else 'paused'}")
+    should_push = True
+  if tier != _fomo_bearer_last_nudge_tier and tier is not None:
+    print(f"[FomoBearer] {fomo_bearer_nudge_message(tier, minutes_remaining=minutes_int)}")
+    should_push = True
+
+  if should_push:
     from app.ws_manager import push_live_update
 
     await push_live_update()
+
   _fomo_bearer_was_polling = polling
+  _fomo_bearer_last_nudge_tier = tier
 
 
 _cme_deploy_reminder_last_at: float = 0.0
