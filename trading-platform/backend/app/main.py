@@ -173,7 +173,12 @@ async def crm_landing():
     else ""
   )
 
-  redirect_seconds = 15 if recovery_candidates or live_snapshot.get("positions") or recovery_nudge_note else 3
+  redirect_seconds = 15 if (
+    recovery_candidates
+    or live_snapshot.get("positions")
+    or recovery_nudge_note
+    or monday_recovery.get("open_ready")
+  ) else 3
 
   from app.engines.gate_entry_guard import (
     build_session_prep_status,
@@ -219,6 +224,33 @@ async def crm_landing():
   else:
     session_lines.append("US stocks session open")
   session_summary = " · ".join(session_lines)
+
+  open_ready_card = ""
+  open_ready_list = session_prep.get("open_ready") or []
+  if open_ready_list:
+    open_ready_table = ""
+    for row in open_ready_list:
+      bot_type = row.get("bot_type", "")
+      symbol = row.get("symbol", "")
+      composite = row.get("composite")
+      composite_label = f"{composite:.3f}" if composite is not None else "—"
+      mins = row.get("minutes_until_open")
+      countdown = f"{mins // 60}h {mins % 60}m" if mins is not None else "soon"
+      blockers = ", ".join(row.get("blockers") or []) or "—"
+      gate_skip = " · gate-skip" if row.get("monday_gate_skip_ready") else ""
+      open_ready_table += (
+        f"<tr><td>{bot_type}</td><td><strong>{symbol}</strong></td>"
+        f"<td>{composite_label}</td><td>{countdown}</td>"
+        f"<td>{blockers}{gate_skip}</td></tr>"
+      )
+    open_ready_card = f"""<div class="card recovery">
+    <h2>Session open ready</h2>
+    <p class="muted" style="margin-top:0;">Gate-skip eligible — auto-entry when session opens.</p>
+    <table>
+      <thead><tr><th>Bot</th><th>Symbol</th><th>Composite</th><th>Opens in</th><th>Blockers</th></tr></thead>
+      <tbody>{open_ready_table}</tbody>
+    </table>
+  </div>"""
 
   learning_rows = ""
   learning_reviews = learning.get("reviews") or []
@@ -458,6 +490,7 @@ async def crm_landing():
     <p class="muted" style="margin-top:0.75rem;">Blocked entries: {blocked_entries}</p>
     <p class="muted" style="margin-top:0;">Proven winners: {proven_summary}</p>
   </div>""" if position_rows else ""}
+  {open_ready_card}
   {f"""<div class="card recovery">
     <h2>Monday recovery watchlist</h2>
     <p class="muted" style="margin-top:0;">Recovery-ready symbols across commodities and stocks shadow bots.</p>
