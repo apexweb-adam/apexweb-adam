@@ -181,3 +181,65 @@ def test_backfill_open_ready_queue_events_logs_missing_symbols():
 
   asyncio.run(run())
 
+
+def test_monitor_open_ready_queue_logs_remove_with_last_composite():
+  async def run():
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    async with engine.begin() as conn:
+      await conn.run_sync(Base.metadata.create_all)
+    factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+    async with factory() as session:
+      from app.engines.platform_settings import set_platform_setting
+      from app.engines.session_open_log import PREP_PHASE_STATE_KEY, monitor_open_ready_queue
+
+      await set_platform_setting(
+        session,
+        PREP_PHASE_STATE_KEY,
+        json.dumps(
+          {
+            "cme_reopen": {
+              "open_ready_symbols": ["NG=F", "CL=F"],
+              "near_floor_symbols": [],
+              "open_ready_composites": {"NG=F": 0.62, "CL=F": 0.41},
+            },
+            "us_stocks_open": {
+              "open_ready_symbols": ["AAPL"],
+              "near_floor_symbols": [],
+            },
+          }
+        ),
+      )
+
+      with patch(
+        "app.engines.scan_preview.build_monday_recovery_summary",
+        new=AsyncMock(
+          return_value={
+            "stocks_trade_count_nudge": True,
+            "commodities_graduation_nudge": True,
+            "open_ready": [
+              {
+                "bot_type": "commodities",
+                "symbol": "NG=F",
+                "composite": 0.62,
+                "monday_gate_skip_ready": True,
+              },
+              {
+                "bot_type": "stocks_futures",
+                "symbol": "AAPL",
+                "composite": 0.49,
+                "monday_gate_skip_ready": True,
+              },
+            ],
+            "near_floor": [],
+          }
+        ),
+      ):
+        logged = await monitor_open_ready_queue(session)
+
+      remove = next(entry for entry in logged if entry["event_type"] == "queue_remove")
+      assert remove["symbols"] == ["CL=F"]
+      assert "CL=F (last 0.410)" in (remove.get("detail") or "")
+    await engine.dispose()
+
+  asyncio.run(run())
+

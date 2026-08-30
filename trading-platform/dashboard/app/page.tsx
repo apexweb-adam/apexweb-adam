@@ -1945,6 +1945,12 @@ function SessionOpenChecklistsCard({
             </p>
             <p className="text-gray-300 mt-1">
               Queued: {data.open_ready_symbols.join(", ") || "—"}
+              {(data.sticky_symbols?.length ?? 0) > 0 ? (
+                <span className="text-cyan-300 ml-2">
+                  · sticky {data.sticky_symbols!.join(", ")}
+                  {data.release_margin != null ? ` (±${data.release_margin})` : ""}
+                </span>
+              ) : null}
               {data.has_auto_entry ? (
                 <span className="text-lime-400 ml-2">· auto-entry logged</span>
               ) : null}

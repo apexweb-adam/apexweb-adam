@@ -258,6 +258,11 @@ async def monitor_open_ready_queue(session: AsyncSession) -> list[dict[str, Any]
         **entry_state,
         "open_ready_symbols": ready,
         "near_floor_symbols": near_floor,
+        "open_ready_composites": {
+          str(row.get("symbol")): row.get("composite")
+          for row in (event.get("open_ready_details") or [])
+          if row.get("symbol") is not None and row.get("composite") is not None
+        },
       }
       continue
 
@@ -273,13 +278,28 @@ async def monitor_open_ready_queue(session: AsyncSession) -> list[dict[str, Any]
         )
       )
     if removed:
+      prev_composites = entry_state.get("open_ready_composites") or {}
+      details_map = {
+        str(row.get("symbol")): row.get("composite")
+        for row in (event.get("open_ready_details") or [])
+        if row.get("symbol")
+      }
+      remove_parts: list[str] = []
+      for symbol in removed:
+        composite = details_map.get(symbol)
+        if composite is None:
+          composite = prev_composites.get(symbol)
+        if composite is not None:
+          remove_parts.append(f"{symbol} (last {float(composite):.3f})")
+        else:
+          remove_parts.append(symbol)
       logged.append(
         await record_session_open_event(
           session,
           bot_type=bot_type,
           event_type="queue_remove",
           symbols=removed,
-          detail=f"{session_key}: removed from queue — {', '.join(removed)}",
+          detail=f"{session_key}: removed from queue — {', '.join(remove_parts)}",
         )
       )
 
@@ -306,10 +326,19 @@ async def monitor_open_ready_queue(session: AsyncSession) -> list[dict[str, Any]
         )
       )
 
+    details_map = {
+      str(row.get("symbol")): row.get("composite")
+      for row in (event.get("open_ready_details") or [])
+      if row.get("symbol") is not None and row.get("composite") is not None
+    }
     state[session_key] = {
       **entry_state,
       "open_ready_symbols": ready,
       "near_floor_symbols": near_floor,
+      "open_ready_composites": {
+        **(entry_state.get("open_ready_composites") or {}),
+        **details_map,
+      },
     }
 
   await _set_json_setting(session, PREP_PHASE_STATE_KEY, state)
