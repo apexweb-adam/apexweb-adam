@@ -18,18 +18,14 @@ def test_cme_deploy_reminder_logs_and_pushes_when_urgency_active():
   sched._cme_deploy_reminder_last_at = 0.0
 
   with patch(
-    "app.engines.gate_entry_guard.commodities_futures_weekend_closed",
-    return_value=True,
+    "app.engines.deploy_status.resolve_cme_deploy_reminder",
+    return_value=_URGENCY,
   ):
     with patch(
-      "app.engines.deploy_status.build_cme_deploy_urgency",
-      return_value=_URGENCY,
-    ):
-      with patch(
-        "app.ws_manager.push_live_update",
-        new_callable=AsyncMock,
-      ) as push:
-        asyncio.run(sched.cme_deploy_reminder_job())
+      "app.ws_manager.push_live_update",
+      new_callable=AsyncMock,
+    ) as push:
+      asyncio.run(sched.cme_deploy_reminder_job())
 
   push.assert_awaited_once()
   sched._cme_deploy_reminder_last_at = 0.0
@@ -39,18 +35,14 @@ def test_cme_deploy_reminder_skips_when_no_urgency():
   sched._cme_deploy_reminder_last_at = 0.0
 
   with patch(
-    "app.engines.gate_entry_guard.commodities_futures_weekend_closed",
-    return_value=True,
+    "app.engines.deploy_status.resolve_cme_deploy_reminder",
+    return_value=None,
   ):
     with patch(
-      "app.engines.deploy_status.build_cme_deploy_urgency",
-      return_value=None,
-    ):
-      with patch(
-        "app.ws_manager.push_live_update",
-        new_callable=AsyncMock,
-      ) as push:
-        asyncio.run(sched.cme_deploy_reminder_job())
+      "app.ws_manager.push_live_update",
+      new_callable=AsyncMock,
+    ) as push:
+      asyncio.run(sched.cme_deploy_reminder_job())
 
   push.assert_not_awaited()
   sched._cme_deploy_reminder_last_at = 0.0
@@ -60,18 +52,14 @@ def test_cme_deploy_reminder_rate_limited():
   sched._cme_deploy_reminder_last_at = time.monotonic()
 
   with patch(
-    "app.engines.gate_entry_guard.commodities_futures_weekend_closed",
-    return_value=True,
+    "app.engines.deploy_status.resolve_cme_deploy_reminder",
+    return_value=_URGENCY,
   ):
     with patch(
-      "app.engines.deploy_status.build_cme_deploy_urgency",
-      return_value=_URGENCY,
-    ):
-      with patch(
-        "app.ws_manager.push_live_update",
-        new_callable=AsyncMock,
-      ) as push:
-        asyncio.run(sched.cme_deploy_reminder_job())
+      "app.ws_manager.push_live_update",
+      new_callable=AsyncMock,
+    ) as push:
+      asyncio.run(sched.cme_deploy_reminder_job())
 
   push.assert_not_awaited()
   sched._cme_deploy_reminder_last_at = 0.0

@@ -43,6 +43,26 @@ def build_cme_deploy_urgency(
   }
 
 
+def resolve_cme_deploy_reminder() -> dict[str, Any] | None:
+  """Build deploy urgency during CME weekend prep, or None when not applicable."""
+  import os
+
+  from app.engines.gate_entry_guard import commodities_futures_weekend_closed, commodities_session_info
+
+  if not commodities_futures_weekend_closed():
+    return None
+  cme_session = commodities_session_info()
+  platform_revision = os.environ.get("PLATFORM_REVISION", "").strip() or None
+  revision_current = (
+    platform_revision == EXPECTED_PLATFORM_REVISION if platform_revision else None
+  )
+  return build_cme_deploy_urgency(
+    platform_revision_current=revision_current,
+    cme_minutes_until_open=cme_session.get("minutes_until_open"),
+    cme_in_session=bool(cme_session.get("in_session")),
+  )
+
+
 def github_headers() -> dict[str, str]:
   headers = {
     "Accept": "application/vnd.github+json",
