@@ -1177,6 +1177,8 @@ def test_build_session_prep_status_includes_open_ready():
         "bot_type": "commodities",
         "symbol": "NG=F",
         "composite": 0.57,
+        "direction": "buy",
+        "macd": "bullish",
         "monday_gate_skip_ready": True,
         "blockers": ["weekend_futures_closed"],
       },
@@ -1191,6 +1193,7 @@ def test_build_session_prep_status_includes_open_ready():
   )
   assert status["commodities"]["open_ready_symbols"] == ["NG=F"]
   assert status["stocks_futures"]["open_ready_symbols"] == ["AAPL"]
+  assert status["commodities"]["open_ready_details"][0]["direction"] == "buy"
   assert status["open_ready_candidates"] == ["NG=F", "AAPL"]
 
 
@@ -1235,6 +1238,8 @@ def test_build_next_session_events():
   assert events["cme_reopen"]["auto_gate_skip_at_open"] == ["NG=F"]
   assert events["cme_reopen"]["auto_entry_queued"] is True
   assert events["cme_reopen"]["prep_scan_label"] == "5s"
+  assert events["cme_reopen"]["open_ready_details"][0]["symbol"] == "NG=F"
+  assert events["cme_reopen"]["composite_floor"] == 0.42
   assert events["us_stocks_open"]["minutes_until_open"] == 2000
   assert events["us_stocks_open"]["auto_entry_queued"] is False
   assert events["us_stocks_open"]["prep_scan_label"] == "15s"

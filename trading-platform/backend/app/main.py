@@ -291,10 +291,42 @@ async def crm_landing():
         "<p class='muted' style='margin:0.5rem 0 0;color:#86efac;'>"
         "Gate-skip eligible — bots auto-enter when session opens.</p>"
       )
+    auto_entry_details = ""
+    detail_rows = (commodities_prep.get("open_ready_details") or []) + (
+      stocks_prep.get("open_ready_details") or []
+    )
+    if detail_rows:
+      detail_table = ""
+      for row in detail_rows:
+        symbol = row.get("symbol", "")
+        composite = row.get("composite")
+        composite_label = f"{composite:.3f}" if composite is not None else "—"
+        direction = row.get("direction") or "—"
+        macd = row.get("macd") or "—"
+        blockers = ", ".join(row.get("blockers") or []) or "—"
+        gate_skip = "yes" if row.get("monday_gate_skip_ready") else "no"
+        detail_table += (
+          f"<tr><td><strong>{symbol}</strong></td><td>{composite_label}</td>"
+          f"<td>{direction}</td><td>{macd}</td><td>{blockers}</td><td>{gate_skip}</td></tr>"
+        )
+      floor_note = ""
+      if commodities_prep.get("nudge_active"):
+        from app.engines.gate_entry_guard import commodities_recovery_composite_floor
+
+        cme_floor = commodities_recovery_composite_floor(graduation_nudge=True)
+        floor_note = (
+          f"<p class='muted' style='margin:0.35rem 0 0;font-size:0.8rem;'>"
+          f"Commodities composite floor: {cme_floor:.2f}</p>"
+        )
+      auto_entry_details = f"""<table style="margin-top:0.75rem;">
+      <thead><tr><th>Symbol</th><th>Composite</th><th>Signal</th><th>MACD</th><th>Blockers</th><th>Gate-skip</th></tr></thead>
+      <tbody>{detail_table}</tbody>
+    </table>{floor_note}"""
     next_sessions_card = f"""<div class="card" style="border-color:#1e3a5f;background:#0c1929;">
     <h2 style="color:#60a5fa;font-size:1rem;margin:0 0 0.35rem;">Next sessions</h2>
     {body}
     {auto_entry_note}
+    {auto_entry_details}
   </div>"""
 
   cme_mins = cme_session.get("minutes_until_open")

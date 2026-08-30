@@ -3679,6 +3679,8 @@ def build_session_prep_status(
         {
           "symbol": symbol,
           "composite": row.get("composite"),
+          "direction": row.get("direction"),
+          "macd": row.get("macd"),
           "monday_gate_skip_ready": bool(row.get("monday_gate_skip_ready")),
           "blockers": row.get("blockers") or [],
         }
@@ -3723,6 +3725,11 @@ def build_next_session_events(
     fast_scan_active=bool(stocks_prep.get("gate_fast_scan_active")),
     imminent=bool(stocks_prep.get("gate_reopen_imminent")),
   )
+  comm_composite_floor = (
+    commodities_recovery_composite_floor(graduation_nudge=True)
+    if comm_prep.get("nudge_active")
+    else None
+  )
   return {
     "cme_reopen": {
       "session_open_utc": commodities_session.get("session_open_utc"),
@@ -3730,15 +3737,18 @@ def build_next_session_events(
       "reopen_imminent": comm_prep.get("gate_reopen_imminent"),
       "reopen_wake_active": comm_prep.get("reopen_wake_active"),
       "open_ready_symbols": comm_ready_symbols,
+      "open_ready_details": comm_prep.get("open_ready_details") or [],
       "auto_gate_skip_at_open": comm_ready_symbols,
       "auto_entry_queued": bool(comm_ready_symbols),
       "prep_scan_label": comm_scan_label,
+      "composite_floor": comm_composite_floor,
     },
     "us_stocks_open": {
       "session_open_utc": stocks_session.get("session_open_utc"),
       "minutes_until_open": stocks_session.get("minutes_until_open"),
       "reopen_wake_active": stocks_prep.get("reopen_wake_active"),
       "open_ready_symbols": stocks_ready_symbols,
+      "open_ready_details": stocks_prep.get("open_ready_details") or [],
       "auto_gate_skip_at_open": stocks_ready_symbols,
       "auto_entry_queued": bool(stocks_ready_symbols),
       "prep_scan_label": stocks_scan_label,

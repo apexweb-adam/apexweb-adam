@@ -510,6 +510,7 @@ def test_crm_landing_shows_next_sessions_card():
   assert "US stocks open" in body
   assert "NG=F, CL=F" in body
   assert "AAPL" in body
+  assert "composite floor" in body.lower()
 
 
 def test_crm_landing_auto_refreshes():

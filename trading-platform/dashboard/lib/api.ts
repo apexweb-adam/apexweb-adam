@@ -277,6 +277,8 @@ export type SessionPrepEntry = {
   open_ready_details?: Array<{
     symbol: string;
     composite?: number;
+    direction?: string;
+    macd?: string;
     monday_gate_skip_ready?: boolean;
     blockers?: string[];
   }>;
@@ -289,15 +291,26 @@ export type SessionPrepStatus = {
   open_ready_candidates?: string[];
 };
 
+export type OpenReadyDetail = {
+  symbol: string;
+  composite?: number;
+  direction?: string;
+  macd?: string;
+  monday_gate_skip_ready?: boolean;
+  blockers?: string[];
+};
+
 export type NextSessionEvent = {
   session_open_utc?: string | null;
   minutes_until_open?: number | null;
   reopen_imminent?: boolean;
   reopen_wake_active?: boolean;
   open_ready_symbols?: string[];
+  open_ready_details?: OpenReadyDetail[];
   auto_gate_skip_at_open?: string[];
   auto_entry_queued?: boolean;
   prep_scan_label?: string;
+  composite_floor?: number | null;
 };
 
 export type NextSessionEvents = {
