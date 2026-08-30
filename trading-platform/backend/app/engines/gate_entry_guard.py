@@ -3709,6 +3709,7 @@ def build_next_session_events(
       "reopen_wake_active": comm_prep.get("reopen_wake_active"),
       "open_ready_symbols": comm_ready_symbols,
       "auto_gate_skip_at_open": comm_ready_symbols,
+      "auto_entry_queued": bool(comm_ready_symbols),
     },
     "us_stocks_open": {
       "session_open_utc": stocks_session.get("session_open_utc"),
@@ -3716,6 +3717,7 @@ def build_next_session_events(
       "reopen_wake_active": stocks_prep.get("reopen_wake_active"),
       "open_ready_symbols": stocks_ready_symbols,
       "auto_gate_skip_at_open": stocks_ready_symbols,
+      "auto_entry_queued": bool(stocks_ready_symbols),
     },
   }
 

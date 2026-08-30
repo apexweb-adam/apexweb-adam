@@ -317,6 +317,7 @@ export default function Dashboard() {
         {tab === "overview" && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-6">
+              <IntelAlertBanner platformStatus={platformStatus} intelSources={liveIntelSources} />
               <SessionImminentBanners events={nextSessionEvents} sessionPrep={sessionPrep} />
               <NextSessionsCard events={nextSessionEvents} sessionPrep={sessionPrep} />
               <MondayRecoveryBanner summary={mondayRecovery} />
@@ -1668,6 +1669,49 @@ function NextSessionsCard({
   );
 }
 
+function IntelAlertBanner({
+  platformStatus,
+  intelSources,
+}: {
+  platformStatus: PlatformStatus | null;
+  intelSources: IntelligenceSource[];
+}) {
+  const integrations = platformStatus?.integrations;
+  const fomoExpired =
+    Boolean(integrations?.fomo_bearer_configured) &&
+    integrations?.fomo_bearer_polling_active === false;
+  const degraded = intelSources
+    .filter((src) => src.status === "degraded" && src.source !== "fomo")
+    .map((src) => src.source);
+
+  if (!fomoExpired && degraded.length === 0) return null;
+
+  if (fomoExpired) {
+    return (
+      <div className="rounded-lg border border-amber-500/40 bg-amber-950/40 p-4">
+        <p className="text-sm font-semibold text-amber-300">
+          fomo.family bearer expired — memecoin intel paused
+        </p>
+        <p className="text-xs text-amber-200/70 mt-1">
+          Open fomo.family with Tampermonkey bridge or run{" "}
+          <code className="text-amber-100/90">./trading-platform/scripts/fomo-set-bearer.sh &apos;eyJ...&apos;</code>
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-lg border border-yellow-600/40 bg-yellow-950/30 p-4">
+      <p className="text-sm font-semibold text-yellow-300">
+        Intel degraded: {degraded.join(", ")}
+      </p>
+      <p className="text-xs text-yellow-200/70 mt-1">
+        Check integrations — trading continues on active sources.
+      </p>
+    </div>
+  );
+}
+
 function SessionImminentBanners({
   events,
   sessionPrep,
@@ -1689,6 +1733,10 @@ function SessionImminentBanners({
       cme?.open_ready_symbols?.join(", ") ||
       commPrep?.open_ready_symbols?.join(", ") ||
       "—";
+    const autoEntry =
+      cme?.auto_gate_skip_at_open?.join(", ") ||
+      commPrep?.open_ready_symbols?.join(", ") ||
+      "";
     const fastScan = cme?.reopen_imminent || commPrep?.gate_reopen_imminent ? "5s" : "15s";
     const wake = cme?.reopen_wake_active || commPrep?.reopen_wake_active;
     banners.push(
@@ -1705,6 +1753,11 @@ function SessionImminentBanners({
         <p className="text-xs text-amber-200/70 mt-1">
           Fast scan {fastScan} · open ready: {ready}
         </p>
+        {autoEntry ? (
+          <p className="text-xs text-lime-400/90 mt-1">
+            Gate-skip auto-entry queued: {autoEntry}
+          </p>
+        ) : null}
       </div>
     );
   }
@@ -1720,6 +1773,10 @@ function SessionImminentBanners({
       us?.open_ready_symbols?.join(", ") ||
       stocksPrep?.open_ready_symbols?.join(", ") ||
       "—";
+    const autoEntry =
+      us?.auto_gate_skip_at_open?.join(", ") ||
+      stocksPrep?.open_ready_symbols?.join(", ") ||
+      "";
     const fastScan = stocksPrep?.gate_reopen_imminent ? "5s" : "15s";
     const wake = us?.reopen_wake_active || stocksPrep?.reopen_wake_active;
     banners.push(
@@ -1736,6 +1793,11 @@ function SessionImminentBanners({
         <p className="text-xs text-amber-200/70 mt-1">
           Fast scan {fastScan} · open ready: {ready}
         </p>
+        {autoEntry ? (
+          <p className="text-xs text-lime-400/90 mt-1">
+            Gate-skip auto-entry queued: {autoEntry}
+          </p>
+        ) : null}
       </div>
     );
   }
