@@ -68,12 +68,13 @@ def test_verify_post_deploy_includes_crm_and_learning_checks():
   text = script.read_text(encoding="utf-8")
   assert "ops-gate-summary.sh" in text
   assert "/crm" in text
-  assert "learning_loop" in text
-  assert "run_deploy_window_command" in text
+  assert "post-deploy-check" in text
+  assert "apply-pending-insights" in text
+  assert "deploy_json.py" in text
   assert ".crm-load-baseline" in text
   assert "r367-r371" in text
   assert "check-deploy-credentials.sh" in text
-  assert "fomo_bearer_configured" in text
+  assert "verify-platform.sh" in text
 
 
 def test_verify_pre_deploy_saves_crm_baseline():
@@ -239,8 +240,10 @@ def test_verify_post_deploy_checks_learning_endpoint():
   text = script.read_text(encoding="utf-8")
   assert "learning/apply-pending-insights" in text
   assert "openapi.json" in text
-  assert "x_intel_collection_mode" in text
-  assert "scoring_excludes_synthetic" in text
+  assert "deploy_json.py" in text
+  assert "post-deploy-check" in text
+  assert "fetch_json.sh" in text
+  assert "scoring_excludes_synthetic" in text or "intel-readiness" in text
   assert "/api/intelligence/sources" in text
 
 

@@ -4,6 +4,8 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 LIB="$ROOT/scripts/lib/deploy_json.py"
+# shellcheck source=lib/fetch_json.sh
+source "$ROOT/scripts/lib/fetch_json.sh"
 BACKEND="${BACKEND_URL:-https://apex-trading-backend.onrender.com}"
 EXPECTED_REVISION="${EXPECTED_PLATFORM_REVISION:-$(grep '^EXPECTED_PLATFORM_REVISION' "$ROOT/backend/app/engines/deploy_status.py" | sed -n 's/.*"\([^"]*\)".*/\1/p')}"
 MIN_HOURS_BEFORE_CME="${MIN_HOURS_BEFORE_CME:-4}"
@@ -26,10 +28,7 @@ echo ""
 bash "$ROOT/scripts/check-deploy-credentials.sh" || true
 echo ""
 
-PREP=$(curl -fsS -m 45 "$BACKEND/api/gate/prep-status" 2>/dev/null || echo "{}")
-if [[ -z "$PREP" || "$PREP" == "{}" ]]; then
-  PREP=$(curl -fsS -m 45 "$BACKEND/api/gate/prep-status" 2>/dev/null || echo "{}")
-fi
+PREP=$(fetch_json "$BACKEND/api/gate/prep-status" 45 2)
 CME_MINS=$(echo "$PREP" | python3 "$LIB" prep-mins)
 
 if [[ -n "$CME_MINS" ]]; then
@@ -107,7 +106,7 @@ if [[ -n "$US_NOTE" ]]; then
   fi
 fi
 
-SNAPSHOT=$(curl -fsS -m 15 "$BACKEND/api/deploy/snapshot" 2>/dev/null || echo "{}")
+SNAPSHOT=$(fetch_json "$BACKEND/api/deploy/snapshot" 45 2)
 PROD_REV=$(echo "$SNAPSHOT" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('platform_revision') or '')" 2>/dev/null || echo "")
 if [[ -z "$PROD_REV" ]]; then
   PROD_REV=$(curl -fsS -m 45 "$BACKEND/api/status" 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print((d.get('deploy') or {}).get('platform_revision') or '?')" 2>/dev/null || echo "?")
@@ -125,7 +124,7 @@ else
   note "Post-deploy: verify-post-deploy.sh checks r385+ intel (X mode, TV synthetic exclusion)"
 fi
 
-INTEL_SOURCES=$(curl -fsS -m 25 "$BACKEND/api/intelligence/sources" 2>/dev/null || echo "[]")
+INTEL_SOURCES=$(fetch_json "$BACKEND/api/intelligence/sources" 30 2)
 TMP_SOURCES=$(mktemp)
 TMP_SNAPSHOT=$(mktemp)
 trap 'rm -f "$TMP_SOURCES" "$TMP_SNAPSHOT"' EXIT
