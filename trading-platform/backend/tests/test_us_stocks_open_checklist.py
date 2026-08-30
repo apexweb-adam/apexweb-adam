@@ -35,6 +35,29 @@ def test_should_show_us_stocks_checklist_when_aapl_queued():
   )
 
 
+def test_format_us_stocks_checklist_crm_html_near_floor_sticky():
+  html = format_us_stocks_checklist_crm_html(
+    {
+      "phase": "preflight",
+      "ready": True,
+      "minutes_until_open": 1800,
+      "open_ready": {
+        "symbols": ["AAPL"],
+        "composite_floor": 0.34,
+        "sticky_symbols": ["AAPL"],
+        "release_margin": 0.02,
+      },
+      "near_floor": {
+        "symbols": ["NVDA"],
+        "details": [{"symbol": "NVDA", "gap_to_floor": 0.02}],
+      },
+      "checks": [{"id": "auto_entry_queued", "status": "pass", "message": "AAPL queued"}],
+    }
+  )
+  assert "sticky AAPL" in html
+  assert "near floor NVDA +0.02" in html
+
+
 def test_format_us_stocks_checklist_crm_html():
   html = format_us_stocks_checklist_crm_html(
     {

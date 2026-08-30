@@ -175,6 +175,75 @@ def test_build_monday_recovery_summary_keeps_sticky_open_ready():
   assert clf.get("sticky_queue") is True
 
 
+def test_build_monday_recovery_summary_keeps_sticky_stocks_open_ready():
+  from app.engines.gate_entry_guard import STOCKS_PROVEN_RECOVERY_MIN_COMPOSITE
+
+  async def _run():
+    session = AsyncMock()
+
+    async def fake_preview(_session, bot_type):
+      if bot_type == "stocks_futures":
+        return {
+          "recovery_candidates": [],
+          "stocks_trade_count_nudge": False,
+          "graduation_nudge": False,
+          "shadow_mode": True,
+          "shadow_bot_wr": 0.6,
+          "total_trades": 40,
+          "proven_winners": ["AAPL", "MSFT"],
+          "session": {"mode": "outside_session", "minutes_until_open": 1800},
+          "symbols": [
+            {
+              "symbol": "AAPL",
+              "composite": 0.5,
+              "monday_open_ready": True,
+              "monday_gate_skip_ready": True,
+              "direction": "buy",
+              "macd": "bullish",
+              "blockers": ["gate_skip"],
+            },
+            {
+              "symbol": "MSFT",
+              "composite": STOCKS_PROVEN_RECOVERY_MIN_COMPOSITE - 0.01,
+              "monday_open_ready": False,
+              "monday_gate_skip_ready": True,
+              "direction": "buy",
+              "macd": "bullish",
+              "blockers": ["gate_skip"],
+            },
+          ],
+        }
+      return {
+        "recovery_candidates": [],
+        "graduation_nudge": False,
+        "shadow_mode": False,
+        "symbols": [],
+      }
+
+    with patch(
+      "app.engines.scan_preview.build_scan_preview",
+      side_effect=fake_preview,
+    ):
+      with patch(
+        "app.engines.session_open_log.get_prep_phase_state",
+        new=AsyncMock(
+          return_value={
+            "us_stocks_open": {"open_ready_symbols": ["AAPL", "MSFT"]},
+          }
+        ),
+      ):
+        return await build_monday_recovery_summary(session)
+
+  import asyncio
+
+  result = asyncio.run(_run())
+  stocks_rows = [row for row in result["open_ready"] if row["bot_type"] == "stocks_futures"]
+  symbols = [row["symbol"] for row in stocks_rows]
+  assert symbols == ["AAPL", "MSFT"]
+  msft = next(row for row in stocks_rows if row["symbol"] == "MSFT")
+  assert msft.get("sticky_queue") is True
+
+
 def test_build_monday_recovery_summary_nudge_without_recovery_candidates():
   async def _run():
     session = AsyncMock()

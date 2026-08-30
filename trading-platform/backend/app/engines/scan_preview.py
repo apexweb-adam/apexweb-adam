@@ -1058,6 +1058,7 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
     "crypto_shadow_raw_floor_active": crypto_shadow_raw_floor,
     "early_verification_boost": early_verification_boost,
     "shadow_bot_wr": bot_wr if bot_wr is not None else shadow_bot_wr,
+    "total_trades": int(per_bot_stats.get("total_trades") or 0),
     "proven_winners": sorted(proven_winners),
     "min_signal": round(effective_min_signal, 3),
     "open_count": open_count,
@@ -1206,6 +1207,7 @@ async def _build_monday_recovery_summary(session: AsyncSession) -> dict[str, Any
   existing_open_ready = {(row["bot_type"], row["symbol"]) for row in open_ready_rows}
   sticky_session_keys = {
     "commodities": "cme_reopen",
+    "stocks_futures": "us_stocks_open",
   }
   for bot_type, preview in preview_results:
     if preview.get("error") or bot_type not in sticky_session_keys:
@@ -1219,6 +1221,9 @@ async def _build_monday_recovery_summary(session: AsyncSession) -> dict[str, Any
     session_info = preview.get("session") or {}
     minutes_until_open = session_info.get("minutes_until_open")
     symbol_rows = {row["symbol"]: row for row in preview.get("symbols", []) if row.get("symbol")}
+    proven_winners = frozenset(preview.get("proven_winners") or [])
+    bot_win_rate = preview.get("shadow_bot_wr")
+    total_trades = int(preview.get("total_trades") or 0)
     for symbol in prev_ready:
       if (bot_type, symbol) in existing_open_ready:
         continue
@@ -1229,17 +1234,34 @@ async def _build_monday_recovery_summary(session: AsyncSession) -> dict[str, Any
       composite = row.get("composite")
       if composite is None:
         continue
-      if not commodities_monday_open_ready(
-        bot_type=bot_type,
-        shadow_mode=shadow_mode,
-        symbol=symbol,
-        composite=float(composite),
-        signal_direction=str(row.get("direction") or ""),
-        macd_signal=str(row.get("macd") or ""),
-        blockers=blockers,
-        graduation_nudge=graduation_nudge,
-        sticky_queue=True,
-      ):
+      sticky_ready = False
+      if bot_type == "commodities":
+        sticky_ready = commodities_monday_open_ready(
+          bot_type=bot_type,
+          shadow_mode=shadow_mode,
+          symbol=symbol,
+          composite=float(composite),
+          signal_direction=str(row.get("direction") or ""),
+          macd_signal=str(row.get("macd") or ""),
+          blockers=blockers,
+          graduation_nudge=graduation_nudge,
+          sticky_queue=True,
+        )
+      elif bot_type == "stocks_futures":
+        sticky_ready = stocks_monday_open_ready(
+          bot_type=bot_type,
+          shadow_mode=shadow_mode,
+          symbol=symbol,
+          proven_winners=proven_winners,
+          bot_win_rate=bot_win_rate,
+          composite=float(composite),
+          signal_direction=str(row.get("direction") or ""),
+          macd_signal=str(row.get("macd") or ""),
+          blockers=blockers,
+          total_trades=total_trades,
+          sticky_queue=True,
+        )
+      if not sticky_ready:
         continue
       open_ready_rows.append(
         {

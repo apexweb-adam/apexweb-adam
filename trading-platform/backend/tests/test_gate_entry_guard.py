@@ -993,6 +993,32 @@ def test_commodities_monday_open_ready_sticky_queue():
   ) is False
 
 
+def test_stocks_monday_open_ready_sticky_queue():
+  from app.engines.gate_entry_guard import (
+    STOCKS_PROVEN_RECOVERY_MIN_COMPOSITE,
+    stocks_monday_open_ready,
+  )
+
+  base = dict(
+    bot_type="stocks_futures",
+    shadow_mode=True,
+    symbol="AAPL",
+    proven_winners=frozenset({"AAPL"}),
+    bot_win_rate=0.6,
+    composite=STOCKS_PROVEN_RECOVERY_MIN_COMPOSITE - 0.01,
+    signal_direction="buy",
+    macd_signal="bullish",
+    blockers=["gate_skip"],
+    total_trades=40,
+  )
+  assert stocks_monday_open_ready(**base) is False
+  assert stocks_monday_open_ready(**base, sticky_queue=True) is True
+  assert stocks_monday_open_ready(
+    **{**base, "composite": STOCKS_PROVEN_RECOVERY_MIN_COMPOSITE - 0.03},
+    sticky_queue=True,
+  ) is False
+
+
 def test_commodities_graduation_prep_active_weekend_window():
   from app.engines.gate_entry_guard import commodities_graduation_prep_active
 
