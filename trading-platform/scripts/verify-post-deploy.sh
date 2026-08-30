@@ -166,6 +166,8 @@ else
   note "CRM landing timing unavailable"
 fi
 
+bash "$ROOT/scripts/check-fomo-bearer.sh" || true
+
 REVIEWS=$(curl -fsS -m 20 "$BACKEND/api/reviews?limit=1" 2>/dev/null || echo "[]")
 if echo "$REVIEWS" | python3 -c "import json,sys; d=json.load(sys.stdin); sys.exit(0 if isinstance(d,list) and len(d)>0 else 1)" 2>/dev/null; then
   ok "Daily review API has history"

@@ -29,6 +29,8 @@ echo ""
 
 bash "$ROOT/scripts/ops-gate-summary.sh" || true
 echo ""
+bash "$ROOT/scripts/check-fomo-bearer.sh" || true
+echo ""
 
 if ! bash "$ROOT/scripts/verify-pre-deploy.sh"; then
   echo ""
@@ -43,6 +45,10 @@ if [[ "$DRY_RUN" == "true" ]]; then
   else
     echo "○ CME preflight has warnings — review before deploy" >&2
     exit 1
+  fi
+  echo ""
+  if [[ -f "$ROOT/.crm-load-baseline" ]]; then
+    echo "CRM baseline saved: $(tr -d '[:space:]' < "$ROOT/.crm-load-baseline")s → compare after deploy with verify-post-deploy.sh"
   fi
   echo ""
   echo "When window opens:"
