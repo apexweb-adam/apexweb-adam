@@ -29,11 +29,13 @@ def test_build_live_payload_includes_learning_fields():
   import app.engines.scan_preview as scan_mod
   import app.engines.session_open_log as session_log_mod
   import app.engines.session_open_checklist_summary as checklist_mod
+  import app.intelligence.fomo_tracker as fomo_mod
 
   orig = gate_mod.build_gate_ws_payload
   orig_summary = scan_mod.build_monday_recovery_summary
   orig_events = session_log_mod.get_session_open_events
   orig_checklists = checklist_mod.build_session_open_checklist_summaries
+  orig_fomo = fomo_mod.get_fomo_bearer_status
   gate_mod.build_gate_ws_payload = fake_gate_payload
   scan_mod.build_monday_recovery_summary = AsyncMock(
     return_value={"bots": {}, "all": [], "recovery_candidates": []},
@@ -44,6 +46,9 @@ def test_build_live_payload_includes_learning_fields():
       "cme_reopen": {"ready": True, "open_ready_symbols": [], "auto_entry_queued": False, "critical_failures": [], "has_burst_scan": False, "has_auto_entry": False},
       "us_stocks_open": {"ready": True, "open_ready_symbols": [], "auto_entry_queued": False, "critical_failures": [], "has_burst_scan": False, "has_auto_entry": False},
     },
+  )
+  fomo_mod.get_fomo_bearer_status = AsyncMock(
+    return_value={"configured": True, "polling_active": False, "minutes_remaining": -10},
   )
   try:
     payload = asyncio.run(build_live_payload(session))
@@ -64,6 +69,8 @@ def test_build_live_payload_includes_learning_fields():
     assert "deploy" in payload
     assert "cme_deploy_urgency" in payload["deploy"]
     assert "cme_deploy_window" in payload["deploy"]
+    assert "deploy_credentials_warnings" in payload["deploy"]
+    assert payload["deploy"]["deploy_credentials_ready"] is False
     assert "content_study" in payload
     assert isinstance(payload["analyses"], list)
     assert isinstance(payload["reviews"], list)
@@ -75,3 +82,4 @@ def test_build_live_payload_includes_learning_fields():
     scan_mod.build_monday_recovery_summary = orig_summary
     session_log_mod.get_session_open_events = orig_events
     checklist_mod.build_session_open_checklist_summaries = orig_checklists
+    fomo_mod.get_fomo_bearer_status = orig_fomo

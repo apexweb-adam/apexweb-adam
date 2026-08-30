@@ -4,7 +4,7 @@ set -euo pipefail
 
 BACKEND="${BACKEND_URL:-https://apex-trading-backend.onrender.com}"
 SNAPSHOT=$(curl -fsS -m 15 "$BACKEND/api/deploy/snapshot" 2>/dev/null || echo "{}")
-STATUS=$(curl -fsS -m 20 "$BACKEND/api/status" 2>/dev/null || echo "{}")
+STATUS=$(curl -fsS -m 45 "$BACKEND/api/status" 2>/dev/null || echo "{}")
 
 SNAPSHOT_JSON="$SNAPSHOT" STATUS_JSON="$STATUS" python3 << 'PY'
 import json, os, sys
@@ -19,6 +19,9 @@ mins = snap.get("fomo_bearer_minutes_remaining")
 hint = snap.get("fomo_bearer_refresh_hint")
 
 if configured is None:
+    if not status:
+        print("○ fomo bearer status unknown — /api/status unavailable")
+        sys.exit(0)
     configured = integrations.get("fomo_bearer_configured")
 if polling is None:
     polling = integrations.get("fomo_bearer_polling_active")
