@@ -3401,6 +3401,7 @@ def commodities_session_info() -> dict[str, Any]:
 
 COMMODITIES_MONDAY_SCAN_OPEN_HOUR_MINUTES = 60
 COMMODITIES_MONDAY_SCAN_PREP_MINUTES = 90
+COMMODITIES_OPEN_READY_PREP_MINUTES = 360  # 6h — CME deploy window; keep queued symbols warm
 COMMODITIES_GRADUATION_PREP_MINUTES = 4320  # 72h — weekend TV refresh before CME reopen
 COMMODITIES_REOPEN_IMMINENT_SCAN_MINUTES = 60
 COMMODITIES_REOPEN_IMMINENT_SCAN_INTERVAL = 5
@@ -3432,10 +3433,16 @@ def _apply_commodities_monday_futures_order(symbols: list[str]) -> list[str]:
   return futures_first + futures_rest + non_futures
 
 
-def commodities_pre_session_prep_window_minutes(graduation_nudge: bool) -> int:
+def commodities_pre_session_prep_window_minutes(
+  graduation_nudge: bool,
+  *,
+  open_ready_watch: bool = False,
+) -> int:
   """How far ahead of CME reopen to refresh TradingView boosts for commodities prep."""
   if graduation_nudge:
     return COMMODITIES_GRADUATION_PREP_MINUTES
+  if open_ready_watch:
+    return COMMODITIES_OPEN_READY_PREP_MINUTES
   return COMMODITIES_MONDAY_SCAN_PREP_MINUTES
 
 
@@ -3639,7 +3646,11 @@ def build_session_prep_status(
   commodities_minutes = commodities_session.get("minutes_until_open")
   stocks_window = stocks_pre_session_prep_window_minutes(stocks_trade_count_nudge)
   commodities_window = commodities_pre_session_prep_window_minutes(
-    commodities_graduation_nudge
+    commodities_graduation_nudge,
+    open_ready_watch=bool(
+      [r for r in (open_ready_rows or []) if r.get("bot_type") == "commodities"]
+      or [r for r in (near_floor_rows or []) if r.get("bot_type") == "commodities"]
+    ),
   )
 
   def _prep_entry(

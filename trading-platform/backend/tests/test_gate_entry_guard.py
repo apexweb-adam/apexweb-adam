@@ -1420,6 +1420,20 @@ def test_session_prep_scan_label():
   assert session_prep_scan_label(fast_scan_active=True, imminent=True) == "5s"
 
 
+def test_commodities_pre_session_prep_window_open_ready_watch():
+  from app.engines.gate_entry_guard import (
+    COMMODITIES_MONDAY_SCAN_PREP_MINUTES,
+    COMMODITIES_OPEN_READY_PREP_MINUTES,
+    commodities_pre_session_prep_window_minutes,
+  )
+
+  assert commodities_pre_session_prep_window_minutes(False) == COMMODITIES_MONDAY_SCAN_PREP_MINUTES
+  assert (
+    commodities_pre_session_prep_window_minutes(False, open_ready_watch=True)
+    == COMMODITIES_OPEN_READY_PREP_MINUTES
+  )
+
+
 def test_commodities_reopen_wake_active():
   from app.engines.gate_entry_guard import commodities_reopen_wake_active
 
