@@ -3716,7 +3716,45 @@ def build_session_prep_status(
     result["near_floor"] = near_floor
     result["near_floor_candidates"] = [row["symbol"] for row in near_floor]
 
+  _enrich_prep_phase_fields(
+    result["commodities"],
+    commodities_session,
+    imminent_minutes=COMMODITIES_REOPEN_IMMINENT_SCAN_MINUTES,
+    wake_minutes_before=CME_REOPEN_WAKE_MINUTES_BEFORE,
+    wake_minutes_after=CME_REOPEN_WAKE_MINUTES_AFTER,
+  )
+  _enrich_prep_phase_fields(
+    result["stocks_futures"],
+    stocks_session,
+    imminent_minutes=STOCKS_OPEN_IMMINENT_SCAN_MINUTES,
+    wake_minutes_before=US_OPEN_WAKE_MINUTES_BEFORE,
+    wake_minutes_after=US_OPEN_WAKE_MINUTES_AFTER,
+  )
+
   return result
+
+
+def _enrich_prep_phase_fields(
+  entry: dict[str, Any],
+  session_info: dict[str, Any],
+  *,
+  imminent_minutes: int,
+  wake_minutes_before: int,
+  wake_minutes_after: int,
+) -> None:
+  phase = session_prep_phase_info(
+    session=session_info,
+    imminent_minutes=imminent_minutes,
+    wake_minutes_before=wake_minutes_before,
+    wake_minutes_after=wake_minutes_after,
+    wake_active=bool(entry.get("reopen_wake_active")),
+    imminent_active=bool(entry.get("gate_reopen_imminent")),
+  )
+  entry.update(phase)
+  entry["prep_scan_label"] = session_prep_scan_label(
+    fast_scan_active=bool(entry.get("gate_fast_scan_active")),
+    imminent=bool(entry.get("gate_reopen_imminent")),
+  )
 
 
 def session_prep_scan_label(
