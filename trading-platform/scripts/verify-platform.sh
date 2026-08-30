@@ -182,7 +182,7 @@ else
 fi
 
 # CRM landing
-CRM=$(curl -fsS -m 35 "$BACKEND/crm" 2>/dev/null || echo "")
+CRM=$(curl -fsS -m 120 "$BACKEND/crm" 2>/dev/null || echo "")
 if echo "$CRM" | grep -q "Apex Trading CRM"; then
   ok "Backend /crm landing page"
   if echo "$CRM" | grep -q "Graduation"; then

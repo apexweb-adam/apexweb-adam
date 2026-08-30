@@ -92,6 +92,12 @@ if [[ -n "$CME_NOTE" ]]; then
   echo "$CME_NOTE"
 fi
 
+if [[ -f "$ROOT/.crm-load-baseline" ]]; then
+  echo "CRM baseline: $(tr -d '[:space:]' < "$ROOT/.crm-load-baseline")s (pre-deploy; target <30s after r369)"
+elif CRM_SEC=$(curl -sS -o /dev/null -m 120 -w "%{time_total}" "$BACKEND/crm" 2>/dev/null); [[ -n "$CRM_SEC" ]]; then
+  echo "CRM load: $(python3 -c "print(f'{float('$CRM_SEC'):.1f}')")s (target <30s after r367-r369 deploy)"
+fi
+
 echo ""
 bash "$ROOT/scripts/verify-dashboard-bundle.sh" || true
 
