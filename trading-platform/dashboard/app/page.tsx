@@ -1682,6 +1682,10 @@ function NextSessionsCard({
     ...(cme?.open_ready_details ?? commPrep?.open_ready_details ?? []),
     ...(us?.open_ready_details ?? stocksPrep?.open_ready_details ?? []),
   ];
+  const nearFloorRows = [
+    ...(cme?.near_floor_details ?? commPrep?.near_floor_details ?? []),
+    ...(us?.near_floor_details ?? stocksPrep?.near_floor_details ?? []),
+  ];
   const compositeFloor = cme?.composite_floor;
 
   return (
@@ -1739,6 +1743,35 @@ function NextSessionsCard({
               Commodities composite floor: {compositeFloor.toFixed(2)}
             </p>
           ) : null}
+        </div>
+      ) : null}
+      {nearFloorRows.length > 0 ? (
+        <div className="mt-3 overflow-x-auto">
+          <p className="text-[11px] text-amber-300/90 mb-1.5">Near composite floor</p>
+          <table className="w-full text-[11px] text-gray-300">
+            <thead>
+              <tr className="text-gray-500">
+                <th className="text-left pr-2">Symbol</th>
+                <th className="text-left pr-2">Comp</th>
+                <th className="text-left pr-2">Signal</th>
+                <th className="text-left pr-2">MACD</th>
+                <th className="text-left">Blockers</th>
+              </tr>
+            </thead>
+            <tbody>
+              {nearFloorRows.map((row) => (
+                <tr key={`near-${row.symbol}`}>
+                  <td className="pr-2 font-medium text-amber-200/90">{row.symbol}</td>
+                  <td className="pr-2">
+                    {row.composite != null ? row.composite.toFixed(3) : "—"}
+                  </td>
+                  <td className="pr-2">{row.direction ?? "—"}</td>
+                  <td className="pr-2">{row.macd ?? "—"}</td>
+                  <td>{formatScanBlockers(row.blockers)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       ) : null}
     </div>

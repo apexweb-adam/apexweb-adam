@@ -1197,6 +1197,58 @@ def test_build_session_prep_status_includes_open_ready():
   assert status["open_ready_candidates"] == ["NG=F", "AAPL"]
 
 
+def test_commodities_near_floor_candidate():
+  from app.engines.gate_entry_guard import commodities_near_floor_candidate
+
+  assert commodities_near_floor_candidate(
+    composite=0.40,
+    signal_direction="buy",
+    macd_signal="bullish",
+    blockers=["weekend_futures_closed"],
+    graduation_nudge=True,
+    monday_open_ready=False,
+  )
+  assert not commodities_near_floor_candidate(
+    composite=0.55,
+    signal_direction="buy",
+    macd_signal="bullish",
+    blockers=["weekend_futures_closed"],
+    graduation_nudge=True,
+    monday_open_ready=True,
+  )
+  assert not commodities_near_floor_candidate(
+    composite=0.35,
+    signal_direction="buy",
+    macd_signal="bullish",
+    blockers=["weekend_futures_closed"],
+    graduation_nudge=True,
+    monday_open_ready=False,
+  )
+
+
+def test_build_session_prep_status_includes_near_floor():
+  from app.engines.gate_entry_guard import build_session_prep_status
+
+  status = build_session_prep_status(
+    stocks_session={"in_session": False, "minutes_until_open": 2220, "mode": "outside_session"},
+    commodities_session={"in_session": False, "minutes_until_open": 1290, "mode": "weekend_closed"},
+    stocks_trade_count_nudge=True,
+    commodities_graduation_nudge=True,
+    near_floor_rows=[
+      {
+        "bot_type": "commodities",
+        "symbol": "CL=F",
+        "composite": 0.41,
+        "direction": "buy",
+        "macd": "bullish",
+        "blockers": ["weekend_futures_closed"],
+      },
+    ],
+  )
+  assert status["commodities"]["near_floor_symbols"] == ["CL=F"]
+  assert status["near_floor_candidates"] == ["CL=F"]
+
+
 def test_build_next_session_events():
   from app.engines.gate_entry_guard import build_next_session_events, build_session_prep_status
 
@@ -1226,6 +1278,16 @@ def test_build_next_session_events():
         "blockers": ["weekend_futures_closed"],
       },
     ],
+    near_floor_rows=[
+      {
+        "bot_type": "commodities",
+        "symbol": "CL=F",
+        "composite": 0.41,
+        "direction": "buy",
+        "macd": "bullish",
+        "blockers": ["weekend_futures_closed"],
+      },
+    ],
   )
   events = build_next_session_events(
     session_prep=session_prep,
@@ -1240,6 +1302,7 @@ def test_build_next_session_events():
   assert events["cme_reopen"]["prep_scan_label"] == "5s"
   assert events["cme_reopen"]["open_ready_details"][0]["symbol"] == "NG=F"
   assert events["cme_reopen"]["composite_floor"] == 0.42
+  assert events["cme_reopen"]["near_floor_symbols"] == ["CL=F"]
   assert events["cme_reopen"]["prep_phase"] == "imminent"
   assert events["cme_reopen"]["minutes_until_imminent_scan"] == 0
   assert events["us_stocks_open"]["prep_phase"] == "extended"

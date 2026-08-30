@@ -77,6 +77,7 @@ async def build_live_payload(session: AsyncSession) -> dict:
     stocks_trade_count_nudge=bool(monday_recovery.get("stocks_trade_count_nudge")),
     commodities_graduation_nudge=bool(monday_recovery.get("commodities_graduation_nudge")),
     open_ready_rows=monday_recovery.get("open_ready"),
+    near_floor_rows=monday_recovery.get("near_floor"),
   )
   next_session_events = build_next_session_events(
     session_prep=session_prep,

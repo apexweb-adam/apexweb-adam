@@ -122,6 +122,7 @@ class BaseBot(ABC):
     self._last_exit_reason: dict[str, str] = {}
     self._last_exit_after_loss: dict[str, bool] = {}
     self._prev_session_in_market: bool | None = None
+    self._session_open_burst: bool = False
 
   def _cooldown_seconds(self, *, after_loss: bool) -> int | None:
     if self.bot_type == "crypto":
@@ -1350,6 +1351,8 @@ class BaseBot(ABC):
       actions,
       "shadow — proving for graduation" if shadow_mode else None,
     )
+    if getattr(self, "_session_open_burst", False):
+      await self._record_session_open_burst(len(symbols), actions)
 
     if actions:
       from app.ws_manager import broadcast_trade, push_live_update
@@ -1415,6 +1418,26 @@ class BaseBot(ABC):
       if not state:
         return
       state.last_action = f"Scan error — {error[:120]}"
+      state.updated_at = datetime.utcnow()
+      await session.commit()
+
+  async def _record_session_open_burst(self, symbol_count: int, actions: list[dict]) -> None:
+    """Log session-open burst scan and any auto-entries for CRM visibility."""
+    buys = [a for a in actions if a.get("action") == "buy"]
+    if buys:
+      symbols = ", ".join(a.get("symbol", "?") for a in buys)
+      summary = f"Session open auto-entry: {symbols}"
+    else:
+      summary = f"Session open burst scan — {symbol_count} symbols, no entry yet"
+    async with SessionLocal() as session:
+      result = await session.execute(
+        select(BotState).where(BotState.bot_type == self.bot_type)
+      )
+      state = result.scalar_one_or_none()
+      if not state:
+        state = BotState(bot_type=self.bot_type, status="running")
+        session.add(state)
+      state.last_action = summary[:200]
       state.updated_at = datetime.utcnow()
       await session.commit()
 
@@ -1548,18 +1571,21 @@ class StocksFuturesBot(BaseBot):
   async def run_loop(self) -> None:
     self.running = True
     while self.running:
-      try:
-        await self._record_scan_heartbeat()
-        await self.scan_and_trade()
-      except Exception as e:
-        print(f"[{self.bot_type}] Error in scan: {e}")
-        await self._record_scan_failure(str(e))
       from app.engines.gate_entry_guard import stocks_session_info
 
       session_info = stocks_session_info()
       in_session = bool(session_info.get("in_session"))
       burst = self._prev_session_in_market is False and in_session
       self._prev_session_in_market = in_session
+      self._session_open_burst = burst
+      try:
+        await self._record_scan_heartbeat()
+        await self.scan_and_trade()
+      except Exception as e:
+        print(f"[{self.bot_type}] Error in scan: {e}")
+        await self._record_scan_failure(str(e))
+      finally:
+        self._session_open_burst = False
       if not burst:
         await asyncio.sleep(await self._effective_scan_interval())
 
@@ -1654,18 +1680,21 @@ class CommoditiesBot(BaseBot):
   async def run_loop(self) -> None:
     self.running = True
     while self.running:
-      try:
-        await self._record_scan_heartbeat()
-        await self.scan_and_trade()
-      except Exception as e:
-        print(f"[{self.bot_type}] Error in scan: {e}")
-        await self._record_scan_failure(str(e))
       from app.engines.gate_entry_guard import commodities_session_info
 
       session_info = commodities_session_info()
       in_session = bool(session_info.get("in_session"))
       burst = self._prev_session_in_market is False and in_session
       self._prev_session_in_market = in_session
+      self._session_open_burst = burst
+      try:
+        await self._record_scan_heartbeat()
+        await self.scan_and_trade()
+      except Exception as e:
+        print(f"[{self.bot_type}] Error in scan: {e}")
+        await self._record_scan_failure(str(e))
+      finally:
+        self._session_open_burst = False
       if not burst:
         await asyncio.sleep(await self._effective_scan_interval())
 

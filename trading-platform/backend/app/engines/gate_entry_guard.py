@@ -717,6 +717,7 @@ STOCKS_TRADE_COUNT_MIN_SENTIMENT = 0.05
 STOCKS_TRADE_COUNT_PROFIT_LOCK_USD = 2.5
 COMMODITIES_HIGH_COMPOSITE_RECOVERY_FLOOR = 0.48
 COMMODITIES_GRADUATION_OPEN_COMPOSITE_FLOOR = 0.42
+OPEN_READY_NEAR_FLOOR_MARGIN = 0.05
 COMMODITIES_FUTURES_WEEKEND_FLAT_EXIT_BAND_USD = 1.0
 COMMODITIES_WEEKEND_SPOT_SYMBOLS = frozenset({"XAUUSDT", "PAXGUSDT"})
 COMMODITIES_GOLD_PROXY_PREFERRED = "XAUUSDT"
@@ -3586,6 +3587,7 @@ def build_session_prep_status(
   stocks_trade_count_nudge: bool,
   commodities_graduation_nudge: bool,
   open_ready_rows: list[dict[str, Any]] | None = None,
+  near_floor_rows: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
   """Summarize whether extended weekend TV prep windows are active."""
   stocks_minutes = stocks_session.get("minutes_until_open")
@@ -3689,6 +3691,31 @@ def build_session_prep_status(
     result["open_ready"] = open_ready
     result["open_ready_candidates"] = [row["symbol"] for row in open_ready]
 
+  if near_floor_rows:
+    near_floor: list[dict[str, Any]] = []
+    for row in near_floor_rows:
+      bot_type = row.get("bot_type")
+      symbol = row.get("symbol")
+      if not bot_type or not symbol or bot_type not in result:
+        continue
+      entry = result[bot_type]
+      symbols = entry.setdefault("near_floor_symbols", [])
+      if symbol not in symbols:
+        symbols.append(symbol)
+      details = entry.setdefault("near_floor_details", [])
+      details.append(
+        {
+          "symbol": symbol,
+          "composite": row.get("composite"),
+          "direction": row.get("direction"),
+          "macd": row.get("macd"),
+          "blockers": row.get("blockers") or [],
+        }
+      )
+      near_floor.append(row)
+    result["near_floor"] = near_floor
+    result["near_floor_candidates"] = [row["symbol"] for row in near_floor]
+
   return result
 
 
@@ -3766,6 +3793,8 @@ def build_next_session_events(
   stocks_prep = session_prep.get("stocks_futures") or {}
   comm_ready_symbols = comm_prep.get("open_ready_symbols") or []
   stocks_ready_symbols = stocks_prep.get("open_ready_symbols") or []
+  comm_near_floor = comm_prep.get("near_floor_symbols") or []
+  stocks_near_floor = stocks_prep.get("near_floor_symbols") or []
   comm_scan_label = session_prep_scan_label(
     fast_scan_active=bool(comm_prep.get("gate_fast_scan_active")),
     imminent=bool(comm_prep.get("gate_reopen_imminent")),
@@ -3807,6 +3836,8 @@ def build_next_session_events(
       "auto_entry_queued": bool(comm_ready_symbols),
       "prep_scan_label": comm_scan_label,
       "composite_floor": comm_composite_floor,
+      "near_floor_symbols": comm_near_floor,
+      "near_floor_details": comm_prep.get("near_floor_details") or [],
       **cme_phase,
     },
     "us_stocks_open": {
@@ -3818,6 +3849,8 @@ def build_next_session_events(
       "auto_gate_skip_at_open": stocks_ready_symbols,
       "auto_entry_queued": bool(stocks_ready_symbols),
       "prep_scan_label": stocks_scan_label,
+      "near_floor_symbols": stocks_near_floor,
+      "near_floor_details": stocks_prep.get("near_floor_details") or [],
       **stocks_phase,
     },
   }
@@ -4334,6 +4367,33 @@ def commodities_monday_open_ready(
   return set(blockers).issubset(COMMODITIES_MONDAY_OPEN_READY_BLOCKERS)
 
 
+def commodities_near_floor_candidate(
+  *,
+  composite: float,
+  signal_direction: str,
+  macd_signal: str,
+  blockers: list[str],
+  graduation_nudge: bool,
+  monday_open_ready: bool,
+) -> bool:
+  """Bullish futures within margin of the open composite floor — may queue on next scan."""
+  if monday_open_ready:
+    return False
+  if signal_direction != "buy" or macd_signal != "bullish":
+    return False
+  if not blockers:
+    return False
+  floor = commodities_recovery_composite_floor(graduation_nudge)
+  if composite < floor - OPEN_READY_NEAR_FLOOR_MARGIN:
+    return False
+  allowed = COMMODITIES_MONDAY_OPEN_READY_BLOCKERS | COMMODITIES_MONDAY_RECOVERY_SOFT_BLOCKERS
+  if not set(blockers).issubset(allowed):
+    return False
+  if composite >= floor:
+    return not set(blockers).issubset(COMMODITIES_MONDAY_OPEN_READY_BLOCKERS)
+  return set(blockers).issubset(COMMODITIES_MONDAY_OPEN_READY_BLOCKERS)
+
+
 def commodities_monday_recovery_ready(
   *,
   bot_type: str,
@@ -4400,6 +4460,37 @@ def stocks_monday_open_ready(
     return False
   if not blockers:
     return False
+  return set(blockers).issubset(STOCKS_MONDAY_OPEN_READY_BLOCKERS)
+
+
+def stocks_near_floor_candidate(
+  *,
+  composite: float,
+  signal_direction: str,
+  macd_signal: str,
+  blockers: list[str],
+  trade_count_nudge: bool,
+  monday_open_ready: bool,
+) -> bool:
+  """Proven-winner stock within margin of recovery composite — may queue before US open."""
+  if monday_open_ready:
+    return False
+  if signal_direction != "buy" or macd_signal != "bullish":
+    return False
+  if not blockers:
+    return False
+  floor = (
+    STOCKS_TRADE_COUNT_RECOVERY_MIN_COMPOSITE
+    if trade_count_nudge
+    else STOCKS_PROVEN_RECOVERY_MIN_COMPOSITE
+  )
+  if composite < floor - OPEN_READY_NEAR_FLOOR_MARGIN:
+    return False
+  allowed = STOCKS_MONDAY_OPEN_READY_BLOCKERS | STOCKS_MONDAY_RECOVERY_SOFT_BLOCKERS
+  if not set(blockers).issubset(allowed):
+    return False
+  if composite >= floor:
+    return not set(blockers).issubset(STOCKS_MONDAY_OPEN_READY_BLOCKERS)
   return set(blockers).issubset(STOCKS_MONDAY_OPEN_READY_BLOCKERS)
 
 

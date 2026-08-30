@@ -202,6 +202,7 @@ async def crm_landing():
     stocks_trade_count_nudge=stocks_trade_count_nudge,
     commodities_graduation_nudge=commodities_graduation_nudge,
     open_ready_rows=monday_recovery.get("open_ready"),
+    near_floor_rows=monday_recovery.get("near_floor"),
   )
   prep_lines: list[str] = []
   for bot_key, label in (("stocks_futures", "Stocks"), ("commodities", "Commodities")):
@@ -215,6 +216,9 @@ async def crm_landing():
       ready = entry.get("open_ready_symbols") or []
       if ready:
         line += f" · open ready: {', '.join(ready)}"
+      near = entry.get("near_floor_symbols") or []
+      if near:
+        line += f" · near floor: {', '.join(near)}"
       prep_lines.append(line)
   prep_summary = " · ".join(prep_lines)
 
@@ -260,6 +264,32 @@ async def crm_landing():
     <table>
       <thead><tr><th>Bot</th><th>Symbol</th><th>Composite</th><th>Signal</th><th>MACD</th><th>Opens in</th><th>Blockers</th></tr></thead>
       <tbody>{open_ready_table}</tbody>
+    </table>
+  </div>"""
+
+  near_floor_card = ""
+  near_floor_list = session_prep.get("near_floor") or []
+  if near_floor_list:
+    near_floor_table = ""
+    for row in near_floor_list:
+      bot_type = row.get("bot_type", "")
+      symbol = row.get("symbol", "")
+      composite = row.get("composite")
+      composite_label = f"{composite:.3f}" if composite is not None else "—"
+      direction = row.get("direction") or "—"
+      macd = row.get("macd") or "—"
+      blockers = ", ".join(row.get("blockers") or []) or "—"
+      near_floor_table += (
+        f"<tr><td>{bot_type}</td><td><strong>{symbol}</strong></td>"
+        f"<td>{composite_label}</td><td>{direction}</td><td>{macd}</td>"
+        f"<td>{blockers}</td></tr>"
+      )
+    near_floor_card = f"""<div class="card recovery" style="border-color:#f59e0b40;">
+    <h2>Near composite floor</h2>
+    <p class="muted" style="margin-top:0;">Borderline symbols — may queue for auto-entry on next scan.</p>
+    <table>
+      <thead><tr><th>Bot</th><th>Symbol</th><th>Composite</th><th>Signal</th><th>MACD</th><th>Blockers</th></tr></thead>
+      <tbody>{near_floor_table}</tbody>
     </table>
   </div>"""
 
@@ -669,6 +699,7 @@ async def crm_landing():
     <p class="muted" style="margin-top:0;">Proven winners: {proven_summary}</p>
   </div>""" if position_rows else ""}
   {open_ready_card}
+  {near_floor_card}
   {f"""<div class="card recovery">
     <h2>Monday recovery watchlist</h2>
     <p class="muted" style="margin-top:0;">Recovery-ready symbols across commodities and stocks shadow bots.</p>
