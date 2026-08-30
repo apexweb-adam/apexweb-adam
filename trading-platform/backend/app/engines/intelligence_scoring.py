@@ -6,6 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
+from app.engines.intel_source_status import get_intel_weight_multipliers
 from app.models.entities import IntelligenceItem
 
 # Source weights by bot type (1.0 = baseline). Higher = more influence on composite sentiment.
@@ -192,6 +193,7 @@ async def compute_bot_sentiment(
   if not items:
     return 0.0, ""
 
+  source_multipliers = await get_intel_weight_multipliers(session)
   weighted_sum = 0.0
   weight_total = 0.0
   breakdown: list[str] = []
@@ -199,6 +201,7 @@ async def compute_bot_sentiment(
   for item in items:
     src_weight = _source_weight(bot_type, item.source)
     src_weight *= _proxy_source_multiplier(item.source)
+    src_weight *= source_multipliers.get(item.source, 1.0)
     if item.source == "political":
       src_weight *= _political_event_boost(bot_type, item.category or "")
     relevance = max(0.1, min(1.0, item.relevance_score or 0.5))

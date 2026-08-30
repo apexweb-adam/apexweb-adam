@@ -2,7 +2,7 @@
 
 import asyncio
 from datetime import datetime
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch, patch
 
 from app.engines.integration_signals import get_integration_boost
 from app.intelligence.fomo_tracker import (
@@ -88,7 +88,11 @@ def test_fomo_leader_confluence_boost():
     )
   )
 
-  boost, reason = asyncio.run(get_integration_boost(session, "WIFUSDT"))
+  with patch(
+    "app.engines.integration_signals.get_intel_weight_multipliers",
+    AsyncMock(return_value={}),
+  ):
+    boost, reason = asyncio.run(get_integration_boost(session, "WIFUSDT"))
   assert boost > 0.08
   assert "fomo_leader_confluence" in reason
 
@@ -117,7 +121,11 @@ def test_get_fomo_hot_symbols():
     mock_settings.crypto_symbols = "BTCUSDT,ETHUSDT"
     mock_settings.fomo_hot_symbol_min_relevance = 0.8
     mock_settings.fomo_hot_symbols_max = 8
-    hot = asyncio.run(get_fomo_hot_symbols(session))
+    with patch(
+      "app.engines.intel_source_status.intel_source_feed_active",
+      AsyncMock(return_value=True),
+    ):
+      hot = asyncio.run(get_fomo_hot_symbols(session))
 
   assert hot == ["NEWCOINUSDT"]
 

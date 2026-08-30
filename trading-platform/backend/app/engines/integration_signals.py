@@ -5,6 +5,10 @@ from datetime import datetime, timedelta
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.engines.intel_source_status import (
+  get_intel_weight_multipliers,
+  intel_source_trusted_for_confluence,
+)
 from app.models.entities import IntelligenceItem
 
 INTEGRATION_SOURCES = (
@@ -66,9 +70,11 @@ async def get_integration_boost(session: AsyncSession, symbol: str) -> tuple[flo
   if not items:
     return 0.0, ""
 
+  source_multipliers = await get_intel_weight_multipliers(session)
   boost = 0.0
   reasons: list[str] = []
   for item in items[:5]:
+    source_mult = source_multipliers.get(item.source, 1.0)
     weight = 0.15 if item.source == "tradingview" else 0.10
     if item.source == "polymarket_account":
       weight = 0.12
@@ -89,14 +95,28 @@ async def get_integration_boost(session: AsyncSession, symbol: str) -> tuple[flo
       fetched = fetched.replace(tzinfo=None)
     age_hours = (datetime.utcnow() - fetched).total_seconds() / 3600 if fetched else MAX_AGE_HOURS
     freshness = max(0.25, 1.0 - age_hours / MAX_AGE_HOURS)
-    boost += item.sentiment * weight * min(1.0, item.relevance_score) * freshness
+    boost += item.sentiment * weight * min(1.0, item.relevance_score) * freshness * source_mult
     tag = item.source.replace("_", " ")
     reasons.append(f"{tag}:{item.sentiment:+.2f}")
 
-  dex_bullish = any(i.source == "dexscreener" and i.sentiment > 0.1 for i in items)
-  hl_bullish = any(i.source == "hyperliquid" and i.sentiment > 0.1 for i in items)
-  fomo_bullish = any(i.source == "fomo" and i.sentiment > 0.1 for i in items)
-  axiom_bullish = any(i.source == "axiom" and i.sentiment > 0.1 for i in items)
+  dex_bullish = any(
+    i.source == "dexscreener" and i.sentiment > 0.1 for i in items
+  )
+  hl_bullish = any(
+    i.source == "hyperliquid" and i.sentiment > 0.1 for i in items
+  )
+  fomo_bullish = any(
+    i.source == "fomo"
+    and i.sentiment > 0.1
+    and intel_source_trusted_for_confluence("fomo", source_multipliers)
+    for i in items
+  )
+  axiom_bullish = any(
+    i.source == "axiom"
+    and i.sentiment > 0.1
+    and intel_source_trusted_for_confluence("axiom", source_multipliers)
+    for i in items
+  )
   if dex_bullish and hl_bullish:
     boost += 0.06
     reasons.append("memecoin_confluence:+0.06")
