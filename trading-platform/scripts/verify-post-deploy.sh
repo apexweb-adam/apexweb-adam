@@ -97,6 +97,18 @@ if prod_rev == expected:
         print("  note: run_deploy_window_command missing on snapshot (pre-r366)")
     if wait_cmd:
         print(f"  wait_for_deploy_command=ok")
+    for key in ("github_token_configured", "fomo_bearer_configured"):
+        if key not in snapshot:
+            errors.append(f"snapshot_missing_{key}")
+    if "fomo_bearer_configured" in snapshot:
+        fomo_poll = snapshot.get("fomo_bearer_polling_active")
+        fomo_mins = snapshot.get("fomo_bearer_minutes_remaining")
+        print(
+            f"  fomo_bearer configured={snapshot.get('fomo_bearer_configured')} "
+            f"polling={fomo_poll} mins={fomo_mins}"
+        )
+    if snapshot.get("github_token_configured") is False:
+        print("  note: GITHUB_TOKEN missing on Render — deploy staleness checks incomplete")
 
 learning = status.get("learning") or {}
 if learning:
@@ -150,7 +162,7 @@ if [[ -n "$CRM_TIME" ]]; then
   fi
   if python3 -c "import sys; sys.exit(0 if float('$CRM_TIME') < 30 else 1)"; then
     if [[ -n "$BASELINE_SEC" ]]; then
-      ok "CRM landing loaded in ${CRM_SEC}s (baseline ${BASELINE_SEC}s — r367-r369 stack)"
+      ok "CRM landing loaded in ${CRM_SEC}s (baseline ${BASELINE_SEC}s — r367-r371 stack)"
     else
       ok "CRM landing loaded in ${CRM_SEC}s"
     fi
@@ -159,7 +171,7 @@ if [[ -n "$CRM_TIME" ]]; then
       CRM_NOTE=$(python3 -c "now=float('$CRM_TIME'); base=float('$BASELINE_SEC'); delta=base-now; msg=f'CRM landing {now:.1f}s vs baseline {base:.1f}s ({delta:+.1f}s)'; msg += ' — improved but still >30s' if delta >= 5 else (' — slower than baseline; check cold start' if delta <= -5 else ' — similar to baseline; confirm r369 live'); print(msg)")
       note "$CRM_NOTE"
     else
-      note "CRM landing slow (${CRM_SEC}s) — confirm r369 revision live; target <30s after r367-r369 stack"
+      note "CRM landing slow (${CRM_SEC}s) — confirm r371 revision live; target <30s after r367-r371 stack"
     fi
   fi
 else
@@ -167,6 +179,8 @@ else
 fi
 
 bash "$ROOT/scripts/check-fomo-bearer.sh" || true
+echo ""
+bash "$ROOT/scripts/check-github-token.sh" || true
 
 REVIEWS=$(curl -fsS -m 20 "$BACKEND/api/reviews?limit=1" 2>/dev/null || echo "[]")
 if echo "$REVIEWS" | python3 -c "import json,sys; d=json.load(sys.stdin); sys.exit(0 if isinstance(d,list) and len(d)>0 else 1)" 2>/dev/null; then

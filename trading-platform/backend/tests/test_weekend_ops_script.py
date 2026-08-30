@@ -23,6 +23,13 @@ def test_wait_for_render_deploy_script_exists():
   assert "--verify" in text
 
 
+def test_wait_for_render_deploy_prints_snapshot_integrations():
+  script = SCRIPTS / "wait-for-render-deploy.sh"
+  text = script.read_text(encoding="utf-8")
+  assert "snapshot integrations" in text
+  assert "fomo_bearer_configured" in text
+
+
 def test_ops_gate_summary_includes_learning_loop():
   script = SCRIPTS / "ops-gate-summary.sh"
   text = script.read_text(encoding="utf-8")
@@ -55,7 +62,9 @@ def test_verify_post_deploy_includes_crm_and_learning_checks():
   assert "learning_loop" in text
   assert "run_deploy_window_command" in text
   assert ".crm-load-baseline" in text
-  assert "r367-r369" in text
+  assert "r367-r371" in text
+  assert "check-github-token.sh" in text
+  assert "fomo_bearer_configured" in text
 
 
 def test_verify_pre_deploy_saves_crm_baseline():
