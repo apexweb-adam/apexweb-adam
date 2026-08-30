@@ -49,9 +49,20 @@ if [[ "$DRY_RUN" == "true" ]]; then
   echo ""
   bash "$ROOT/scripts/print-deploy-window-summary.sh" || true
   echo ""
+  echo "Before live deploy, refresh credentials:"
+  echo "  bash trading-platform/scripts/check-deploy-credentials.sh --strict"
+  echo ""
   echo "When window opens:"
   echo "  bash trading-platform/scripts/run-deploy-window.sh"
   exit 0
+fi
+
+echo ""
+echo "Checking deploy credentials (strict)..."
+if ! bash "$ROOT/scripts/check-deploy-credentials.sh" --strict; then
+  echo ""
+  echo "Deploy aborted — fix credentials before sync-render-env." >&2
+  exit 1
 fi
 
 echo ""

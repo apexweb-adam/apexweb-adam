@@ -84,6 +84,21 @@ def test_check_fomo_bearer_script_exists():
   assert "fomo-set-bearer.sh" in text
 
 
+def test_check_deploy_credentials_supports_strict_mode():
+  script = SCRIPTS / "check-deploy-credentials.sh"
+  text = script.read_text(encoding="utf-8")
+  assert "--strict" in text
+  assert "STRICT_FLAG" in text
+
+
+def test_run_deploy_window_strict_credentials_on_live_deploy():
+  script = SCRIPTS / "run-deploy-window.sh"
+  text = script.read_text(encoding="utf-8")
+  assert "Checking deploy credentials (strict)" in text
+  assert "check-deploy-credentials.sh --strict" in text
+  assert "Deploy aborted" in text
+
+
 def test_run_deploy_window_includes_credentials_check():
   script = SCRIPTS / "run-deploy-window.sh"
   text = script.read_text(encoding="utf-8")
