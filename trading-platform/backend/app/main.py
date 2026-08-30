@@ -188,6 +188,7 @@ async def crm_landing():
     commodities_session=cme_session,
     stocks_trade_count_nudge=stocks_trade_count_nudge,
     commodities_graduation_nudge=commodities_graduation_nudge,
+    open_ready_rows=monday_recovery.get("open_ready"),
   )
   prep_lines: list[str] = []
   for bot_key, label in (("stocks_futures", "Stocks"), ("commodities", "Commodities")):
@@ -197,7 +198,11 @@ async def crm_landing():
       hours_label = f"{mins // 60}h {mins % 60}m" if mins is not None else "soon"
       extended = "weekend TV prep · " if entry.get("extended_weekend_prep") else "TV prep · "
       nudge = entry.get("nudge_label") or "nudge"
-      prep_lines.append(f"{label}: {extended}{nudge} — open in {hours_label}")
+      line = f"{label}: {extended}{nudge} — open in {hours_label}"
+      ready = entry.get("open_ready_symbols") or []
+      if ready:
+        line += f" · open ready: {', '.join(ready)}"
+      prep_lines.append(line)
   prep_summary = " · ".join(prep_lines)
 
   session_lines: list[str] = []

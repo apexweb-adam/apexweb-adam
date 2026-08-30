@@ -242,6 +242,7 @@ async def get_session_prep_status(db: AsyncSession = Depends(get_db)) -> dict[st
     commodities_session=commodities_session_info(),
     stocks_trade_count_nudge=bool(recovery.get("stocks_trade_count_nudge")),
     commodities_graduation_nudge=bool(recovery.get("commodities_graduation_nudge")),
+    open_ready_rows=recovery.get("open_ready"),
   )
 
 

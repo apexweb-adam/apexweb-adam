@@ -273,11 +273,20 @@ export type SessionPrepEntry = {
   gate_fast_scan_active?: boolean;
   gate_reopen_imminent?: boolean;
   reopen_wake_active?: boolean;
+  open_ready_symbols?: string[];
+  open_ready_details?: Array<{
+    symbol: string;
+    composite?: number;
+    monday_gate_skip_ready?: boolean;
+    blockers?: string[];
+  }>;
 };
 
 export type SessionPrepStatus = {
   stocks_futures: SessionPrepEntry;
   commodities: SessionPrepEntry;
+  open_ready?: MondayRecoverySummary["open_ready"];
+  open_ready_candidates?: string[];
 };
 
 export type MondayRecoverySummary = {
