@@ -301,6 +301,36 @@ else
   note "TradingView webhook not configured on prod"
 fi
 
+# Learning loop + content study (post-mortems, strategy adaptation)
+if echo "$STATUS" | python3 -c "
+import json, sys
+learning = json.load(sys.stdin).get('learning') or {}
+analyses = learning.get('trade_analyses') or 0
+reviews = learning.get('daily_reviews') or 0
+applied = learning.get('insights_applied') or 0
+pending = learning.get('insights_pending') or 0
+if analyses > 0 and reviews > 0:
+    print(
+        f'  learning analyses={analyses} reviews={reviews} '
+        f'insights_applied={applied} pending={pending}'
+    )
+    sys.exit(0)
+sys.exit(1)
+"; then
+  ok "Learning loop active (trade analyses + daily reviews)"
+  if echo "$STATUS" | python3 -c "
+import json, sys
+applied = (json.load(sys.stdin).get('learning') or {}).get('insights_applied') or 0
+sys.exit(0 if applied > 0 else 1)
+"; then
+    ok "Content study insights applied to strategy"
+  else
+    note "Content study insights not applied yet — hourly job or POST /api/admin/run-content-study"
+  fi
+else
+  note "Learning loop sparse — confirm trades and daily review scheduler"
+fi
+
 # Deploy revision — compare code target to production
 REV=$(echo "$STATUS" | python3 -c "import json,sys; print(json.load(sys.stdin).get('deploy',{}).get('platform_revision',''))" 2>/dev/null || echo "")
 EXP=$(echo "$STATUS" | python3 -c "import json,sys; print(json.load(sys.stdin).get('deploy',{}).get('expected_platform_revision',''))" 2>/dev/null || echo "")

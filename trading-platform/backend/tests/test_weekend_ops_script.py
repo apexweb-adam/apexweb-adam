@@ -21,6 +21,7 @@ def test_wait_for_render_deploy_script_exists():
   assert "/api/deploy/snapshot" in text
   assert "platform_revision_current" in text
   assert "--verify" in text
+  assert "fetch_json.sh" in text
 
 
 def test_wait_for_render_deploy_prints_snapshot_integrations():
@@ -135,6 +136,8 @@ def test_run_deploy_window_includes_summary_script():
   text = script.read_text(encoding="utf-8")
   assert "print-deploy-window-summary.sh" in text
   assert "try-promote-vercel-dashboard.sh" in text
+  assert "verify-platform.sh" in text
+  assert "RUN_PLATFORM_VERIFY" in text
 
 
 def test_try_promote_vercel_dashboard_script_exists():
@@ -258,3 +261,5 @@ def test_verify_platform_prints_intel_health_fields():
   text = script.read_text(encoding="utf-8")
   assert "scoring_excludes_synthetic" in text
   assert "x_intel=" in text
+  assert "Content study insights" in text
+  assert "insights_applied" in text

@@ -88,6 +88,21 @@ bash "$ROOT/scripts/print-deploy-window-summary.sh" || true
 echo ""
 bash "$ROOT/scripts/try-promote-vercel-dashboard.sh" || true
 echo ""
+if [[ "${RUN_PLATFORM_VERIFY:-}" == "1" ]]; then
+  echo "Running full platform verification..."
+  if bash "$ROOT/scripts/verify-platform.sh"; then
+    echo "✓ Full platform verification passed"
+  else
+    echo "○ Platform verification reported issues — review above" >&2
+    exit 1
+  fi
+else
+  echo "Optional full platform verification:"
+  echo "  RUN_PLATFORM_VERIFY=1 bash trading-platform/scripts/run-deploy-window.sh"
+  echo "  # or:"
+  echo "  bash trading-platform/scripts/verify-platform.sh"
+fi
+echo ""
 echo "After CME open (22:00 UTC):"
 echo "  bash trading-platform/scripts/verify-cme-post-open.sh"
 echo ""
