@@ -2,7 +2,19 @@
 
 from unittest.mock import AsyncMock, patch
 
-from app.engines.scan_preview import build_monday_recovery_summary
+import pytest
+
+from app.engines.scan_preview import (
+  build_monday_recovery_summary,
+  clear_monday_recovery_cache,
+)
+
+
+@pytest.fixture(autouse=True)
+def _reset_monday_recovery_cache():
+  clear_monday_recovery_cache()
+  yield
+  clear_monday_recovery_cache()
 
 
 def test_build_monday_recovery_summary_aggregates_bots():
@@ -140,3 +152,25 @@ def test_build_monday_recovery_summary_empty_when_no_candidates():
   result = asyncio.run(_run())
   assert result["recovery_candidates"] == []
   assert result["bots"] == {}
+
+
+def test_build_monday_recovery_summary_uses_short_ttl_cache():
+  async def _run():
+    session = AsyncMock()
+    preview = AsyncMock(
+      return_value={
+        "recovery_candidates": [],
+        "graduation_nudge": False,
+        "symbols": [],
+      }
+    )
+    with patch("app.engines.scan_preview.build_scan_preview", preview):
+      first = await build_monday_recovery_summary(session)
+      second = await build_monday_recovery_summary(session)
+      return first, second, preview.await_count
+
+  import asyncio
+
+  first, second, call_count = asyncio.run(_run())
+  assert first == second
+  assert call_count == 2

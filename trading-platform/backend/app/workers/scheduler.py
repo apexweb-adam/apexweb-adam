@@ -544,6 +544,14 @@ async def _deferred_startup_jobs() -> None:
     await verification_snapshot_job()
     await stocks_pre_session_prep_job()
     await commodities_pre_session_prep_job()
+    async with SessionLocal() as session:
+      from app.engines.session_open_log import (
+        monitor_open_ready_queue,
+        monitor_session_prep_transitions,
+      )
+
+      await monitor_session_prep_transitions(session)
+      await monitor_open_ready_queue(session)
   except Exception as exc:
     print(f"[Startup] Deferred jobs error: {exc}")
 
