@@ -216,8 +216,12 @@ async def held_positions_tv_refresh_job() -> None:
 COMMODITIES_PREP_SYMBOLS = ("CL=F", "SI=F", "NG=F", "GC=F", "HG=F")
 
 
-async def commodities_pre_session_prep_job() -> None:
-  """90 min before CME futures reopen: refresh TradingView boosts for key commodities."""
+async def _commodities_cme_watch_tv_refresh(
+  *,
+  reason_prefix: str,
+  max_minutes_until_open: int | None = None,
+) -> list[str]:
+  """Refresh TradingView for CME open-ready / near-floor watch symbols."""
   from app.engines.gate_entry_guard import (
     commodities_pre_session_prep_window_minutes,
     commodities_session_info,
@@ -229,14 +233,16 @@ async def commodities_pre_session_prep_job() -> None:
   )
   from app.engines.integration_signals import refresh_tradingview_signals
   from app.engines.profitability_gate import ProfitabilityGate
+  from app.engines.scan_preview import build_monday_recovery_summary
+  from app.engines.session_open_log import get_prep_phase_state
 
   session_info = commodities_session_info()
   if session_info["in_session"]:
-    return
+    return []
 
   minutes_until_open = session_info.get("minutes_until_open")
   if minutes_until_open is None:
-    return
+    return []
 
   async with SessionLocal() as session:
     per_bot = (await ProfitabilityGate(session).evaluate_per_bot()).get("commodities") or {}
@@ -247,9 +253,6 @@ async def commodities_pre_session_prep_job() -> None:
       profit_factor=per_bot.get("profit_factor"),
       total_pnl=per_bot.get("total_pnl"),
     )
-    from app.engines.scan_preview import build_monday_recovery_summary
-    from app.engines.session_open_log import get_prep_phase_state
-
     recovery = await build_monday_recovery_summary(session)
     open_ready_symbols = [
       row["symbol"]
@@ -266,19 +269,22 @@ async def commodities_pre_session_prep_job() -> None:
     watch_symbols = sorted(
       set(open_ready_symbols) | set(near_floor_symbols) | set(prev_ready)
     )
+    if not watch_symbols and max_minutes_until_open is not None:
+      return []
     prep_window = commodities_pre_session_prep_window_minutes(
       graduation_nudge or bool(open_ready_symbols),
       open_ready_watch=bool(watch_symbols),
     )
-    if minutes_until_open > prep_window:
-      return
+    allowed_window = prep_window
+    if max_minutes_until_open is not None:
+      allowed_window = min(prep_window, max_minutes_until_open)
+    if minutes_until_open > allowed_window:
+      return []
 
     winners = await get_proven_winner_symbols(session, "commodities")
     chronic = await get_chronic_loser_symbols(session, "commodities")
     recovery_futures = sorted(s for s in chronic if is_commodities_futures_symbol(s))
-    base_symbols = sorted(set(COMMODITIES_PREP_SYMBOLS) | set(winners) | set(recovery_futures))
-    if watch_symbols:
-      base_symbols = sorted(set(base_symbols) | set(watch_symbols))
+    base_symbols = sorted(set(COMMODITIES_PREP_SYMBOLS) | set(winners) | set(recovery_futures) | set(watch_symbols))
     prioritize_nudge = graduation_nudge or bool(watch_symbols)
     symbols = prioritize_commodities_monday_scan(
       base_symbols,
@@ -287,13 +293,48 @@ async def commodities_pre_session_prep_job() -> None:
       session_info=session_info,
       graduation_nudge=prioritize_nudge,
     )
-    refreshed = await refresh_tradingview_signals(
+    return await refresh_tradingview_signals(
       session,
       symbols,
-      reason_prefix="Pre-CME-session TV refresh",
-      force_refresh=prioritize_nudge,
+      reason_prefix=reason_prefix,
+      force_refresh=True,
     )
+
+
+async def commodities_open_ready_watch_job() -> None:
+  """5-min TV refresh for CME open-ready / near-floor watch symbols."""
+  from app.engines.gate_entry_guard import (
+    COMMODITIES_OPEN_READY_PREP_MINUTES,
+    commodities_session_info,
+  )
+
+  refreshed = await _commodities_cme_watch_tv_refresh(
+    reason_prefix="CME open-ready watch TV refresh",
+    max_minutes_until_open=COMMODITIES_OPEN_READY_PREP_MINUTES,
+  )
   if refreshed:
+    minutes_until_open = commodities_session_info().get("minutes_until_open")
+    print(
+      f"[CommoditiesWatch] Refreshed TradingView signals for {', '.join(refreshed)} "
+      f"({minutes_until_open} min until CME open)"
+    )
+    from app.engines.scan_preview import clear_monday_recovery_cache
+
+    clear_monday_recovery_cache()
+    from app.ws_manager import push_live_update
+
+    await push_live_update()
+
+
+async def commodities_pre_session_prep_job() -> None:
+  """90 min before CME futures reopen: refresh TradingView boosts for key commodities."""
+  refreshed = await _commodities_cme_watch_tv_refresh(
+    reason_prefix="Pre-CME-session TV refresh",
+  )
+  if refreshed:
+    from app.engines.gate_entry_guard import commodities_session_info
+
+    minutes_until_open = commodities_session_info().get("minutes_until_open")
     print(
       f"[CommoditiesPrep] Refreshed TradingView signals for {', '.join(refreshed)} "
       f"({minutes_until_open} min until CME open)"
@@ -866,6 +907,12 @@ async def setup_scheduler() -> None:
     "interval",
     minutes=15,
     id="commodities_pre_session_prep_poll",
+  )
+  scheduler.add_job(
+    commodities_open_ready_watch_job,
+    "interval",
+    minutes=5,
+    id="commodities_open_ready_watch",
   )
   scheduler.add_job(
     commodities_pre_session_prep_job,

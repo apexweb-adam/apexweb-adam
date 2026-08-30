@@ -70,6 +70,8 @@ for row in open_ready.get('details') or []:
     blockers = row.get('blockers') or []
     sticky_flag = ' sticky' if row.get('sticky_queue') else ''
     print(f'    {sym}: composite={comp}{sticky_flag} blockers={blockers}')
+if near.get('symbols') and not open_ready.get('symbols') and not open_ready.get('auto_entry_queued'):
+    print('  warn=queue_dropped near_floor without open_ready — confirm 6h prep watch is active')
 for row in data.get('checks') or []:
     print(f\"  check {row.get('id')}={row.get('status')}: {row.get('message')}\")
 critical_fail = [c for c in (data.get('checks') or []) if c.get('critical') and c.get('status') == 'fail']

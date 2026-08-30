@@ -969,6 +969,35 @@ def test_commodities_monday_open_ready():
     ) is True
 
 
+def test_commodities_monday_open_ready_extended_sticky_margin():
+  from app.engines.gate_entry_guard import (
+    COMMODITIES_GRADUATION_OPEN_COMPOSITE_FLOOR,
+    commodities_monday_open_ready,
+  )
+
+  base = dict(
+    bot_type="commodities",
+    shadow_mode=False,
+    symbol="NG=F",
+    signal_direction="buy",
+    macd_signal="bullish",
+    blockers=["weekend_futures_closed"],
+    graduation_nudge=True,
+  )
+  floor = COMMODITIES_GRADUATION_OPEN_COMPOSITE_FLOOR
+  assert (
+    commodities_monday_open_ready(**base, composite=floor - 0.01, sticky_queue=True) is True
+  )
+  assert (
+    commodities_monday_open_ready(**base, composite=0.376, sticky_queue=True, extended_sticky=True)
+    is True
+  )
+  assert (
+    commodities_monday_open_ready(**base, composite=floor - 0.03, sticky_queue=True, extended_sticky=False)
+    is False
+  )
+
+
 def test_commodities_monday_open_ready_sticky_queue():
   from app.engines.gate_entry_guard import (
     COMMODITIES_GRADUATION_OPEN_COMPOSITE_FLOOR,

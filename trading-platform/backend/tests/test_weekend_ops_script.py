@@ -117,6 +117,13 @@ def test_run_deploy_window_includes_credentials_check():
   assert "print-deploy-window-summary.sh" in text
 
 
+def test_scheduler_registers_open_ready_watch_job():
+  script = SCRIPTS.parent / "backend" / "app" / "workers" / "scheduler.py"
+  text = script.read_text(encoding="utf-8")
+  assert "commodities_open_ready_watch_job" in text
+  assert "commodities_open_ready_watch" in text
+
+
 def test_print_deploy_window_summary_script_exists():
   script = SCRIPTS / "print-deploy-window-summary.sh"
   text = script.read_text(encoding="utf-8")
@@ -133,6 +140,9 @@ def test_print_deploy_window_summary_script_exists():
   assert "sticky_symbols" in text
   assert "near_floor" in text
   assert "open_ready" in text and "blockers=" in text
+  assert "prep-status" in text
+  assert "CME prep watch:" in text
+  assert "queue dropped" in text
   assert "us-stocks-open-checklist" in text
 
 
@@ -275,6 +285,7 @@ def test_verify_cme_reopen_uses_deploy_json_fallback():
   assert "json.load(sys.stdin)" in text
   assert "STATUS_JSON" in text
   assert "composite_floor_ok_with_sticky_margin" in text
+  assert "queue_dropped" in text
 
 
 def test_deploy_json_lib_exists():

@@ -13,12 +13,13 @@ SNAPSHOT=$(fetch_json "$BACKEND/api/deploy/snapshot" 45 2)
 CME=$(fetch_json "$BACKEND/api/gate/cme-reopen-checklist" 60 2)
 US_CHECKLIST=$(fetch_json "$BACKEND/api/gate/us-stocks-open-checklist" 45 2)
 INTEL_SOURCES=$(fetch_json "$BACKEND/api/intelligence/sources" 30 2)
+PREP_STATUS=$(fetch_json "$BACKEND/api/gate/prep-status" 45 2)
 BASELINE=""
 if [[ -f "$ROOT/.crm-load-baseline" ]]; then
   BASELINE=$(tr -d '[:space:]' < "$ROOT/.crm-load-baseline")
 fi
 
-CODE_REV="$CODE_REV" BASELINE="$BASELINE" SNAPSHOT_JSON="$SNAPSHOT" CME_JSON="$CME" US_JSON="$US_CHECKLIST" INTEL_JSON="$INTEL_SOURCES" LIB="$LIB" python3 << 'PY'
+CODE_REV="$CODE_REV" BASELINE="$BASELINE" SNAPSHOT_JSON="$SNAPSHOT" CME_JSON="$CME" US_JSON="$US_CHECKLIST" INTEL_JSON="$INTEL_SOURCES" PREP_JSON="$PREP_STATUS" LIB="$LIB" python3 << 'PY'
 import json, os, subprocess, sys
 from pathlib import Path
 
@@ -27,6 +28,7 @@ baseline = os.environ.get("BASELINE") or ""
 snap = json.loads(os.environ.get("SNAPSHOT_JSON") or "{}")
 cme = json.loads(os.environ.get("CME_JSON") or "{}")
 us = json.loads(os.environ.get("US_JSON") or "{}")
+prep = json.loads(os.environ.get("PREP_JSON") or "{}")
 intel_raw = os.environ.get("INTEL_JSON") or "[]"
 lib = os.environ.get("LIB") or ""
 
@@ -78,6 +80,23 @@ if open_ready or sticky or near_symbols or mins is not None:
         sticky_flag = " sticky" if row.get("sticky_queue") else ""
         if sym:
             print(f"  open_ready {sym}: composite={comp}{sticky_flag} blockers={blockers}")
+    if near_symbols and not open_ready and auto_entry is False:
+        print(
+            "  warn: near_floor without open_ready — queue dropped; "
+            "confirm 6h prep watch is refreshing TV signals"
+        )
+
+comm_prep = prep.get("commodities") or {}
+if comm_prep.get("prep_active"):
+    window = comm_prep.get("prep_window_minutes")
+    phase = comm_prep.get("prep_phase")
+    label = f"prep_active phase={phase}"
+    if window is not None:
+        hours = int(window) // 60
+        label += f" window={hours}h" if hours >= 1 else f" window={window}min"
+    if comm_prep.get("gate_reopen_imminent"):
+        label += " fast_scan=5s"
+    print(f"CME prep watch: {label}")
 
 if us:
     checks = {c.get("id"): c for c in us.get("checks") or []}
