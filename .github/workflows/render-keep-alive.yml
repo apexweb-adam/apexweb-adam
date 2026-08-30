@@ -43,9 +43,10 @@ jobs:
           print('bots_active=%s trades=%s mode=%s' % (d.get('bots_active'), d.get('total_trades'), d.get('mode')))
           "
 
-          # Sunday CME prep window (16:00–23:59 UTC): keep open-ready queue endpoints warm.
           DOW="$(date -u +%u)"
           HOUR="$(date -u +%H)"
+
+          # Sunday CME prep window (16:00–23:59 UTC): keep open-ready queue endpoints warm.
           if [[ "$DOW" == "7" && "$HOUR" -ge 16 ]]; then
             checklist="$(wake_json /api/gate/cme-reopen-checklist 90)"
             if [[ -n "$checklist" && "$checklist" != "{}" ]]; then
@@ -65,5 +66,28 @@ jobs:
           "
             else
               echo "cme_checklist unreachable (non-fatal)"
+            fi
+          fi
+
+          # Monday US stocks prep (10:00–14:59 UTC): keep open-ready queue warm.
+          if [[ "$DOW" == "1" && "$HOUR" -ge 10 && "$HOUR" -le 14 ]]; then
+            us_checklist="$(wake_json /api/gate/us-stocks-open-checklist 90)"
+            if [[ -n "$us_checklist" && "$us_checklist" != "{}" ]]; then
+              echo "$us_checklist" | python3 -c "
+          import json,sys
+          d=json.load(sys.stdin)
+          orx=d.get('open_ready') or {}
+          print(
+              'us_checklist ready=%s open_in=%smin open_ready=%s auto_entry=%s'
+              % (
+                  d.get('ready'),
+                  d.get('minutes_until_open'),
+                  orx.get('symbols'),
+                  orx.get('auto_entry_queued'),
+              )
+          )
+          "
+            else
+              echo "us_checklist unreachable (non-fatal)"
             fi
           fi

@@ -32,8 +32,9 @@ run_verification() {
 
   TMP=$(mktemp -d)
   trap 'rm -rf "$TMP"' RETURN
-  fetch_json "$BACKEND/api/gate/us-stocks-open-checklist" 90 2 > "$TMP/checklist.json" || echo "{}" > "$TMP/checklist.json"
-  fetch_json "$BACKEND/api/status" 90 2 > "$TMP/status.json" || echo "{}" > "$TMP/status.json"
+  wake_backend "$BACKEND" 3
+  fetch_json "$BACKEND/api/gate/us-stocks-open-checklist" 120 3 > "$TMP/checklist.json"
+  fetch_json "$BACKEND/api/status" 120 3 > "$TMP/status.json"
 
   CHECKLIST_FILE="$TMP/checklist.json" STATUS_FILE="$TMP/status.json" python3 << 'PY'
 import json, os, sys
