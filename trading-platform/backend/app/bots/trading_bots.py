@@ -93,7 +93,9 @@ from app.engines.polymarket_data import (
   find_pm_position,
   get_market_meta,
   get_polymarket_symbols,
+  hydrate_pm_history_from_settings,
   is_macro_relevant_market,
+  persist_pm_history_to_settings,
 )
 from app.engines.polymarket_signals import analyze_polymarket
 from app.engines.paper_trading import PaperTradingEngine
@@ -1784,6 +1786,7 @@ class PolymarketBot(BaseBot):
         from app.engines.platform_settings import is_bot_paused
 
         shadow_mode = await is_bot_paused(session, self.bot_type)
+        await hydrate_pm_history_from_settings(session)
         engine = PaperTradingEngine(session, self.bot_type)
         strategy = await engine.get_strategy()
         gate_tightening = await get_gate_entry_tightening(session)
@@ -1951,6 +1954,8 @@ class PolymarketBot(BaseBot):
           else:
             sym = action.get("symbol", "")
             self._register_symbol_cooldown(sym, after_loss=False)
+
+        await persist_pm_history_to_settings(session)
     except Exception as e:
       await self._record_scan_result(len(symbols), actions, f"failed — {e}")
       raise
