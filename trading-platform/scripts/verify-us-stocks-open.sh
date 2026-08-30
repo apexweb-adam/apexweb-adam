@@ -4,6 +4,7 @@
 set -euo pipefail
 
 BACKEND="${BACKEND_URL:-https://apex-trading-backend.onrender.com}"
+EXPECTED_REVISION="${EXPECTED_PLATFORM_REVISION:-2026-08-29-r357}"
 WATCH_INTERVAL=""
 
 if [[ "${1:-}" == "--watch" ]]; then
@@ -25,6 +26,7 @@ run_preflight() {
 
   echo "=== US Stocks Open Preflight — $(date -u '+%Y-%m-%d %H:%M UTC') ==="
   echo "Backend: $BACKEND"
+  echo "Expected revision (code): $EXPECTED_REVISION"
   echo ""
 
   CHECKLIST=$(curl -fsS -m 90 "$BACKEND/api/gate/us-stocks-open-checklist" 2>/dev/null || echo "")
@@ -32,10 +34,30 @@ run_preflight() {
     python3 << PY
 import json, sys
 data = json.loads('''$CHECKLIST''')
+deploy = data.get("deploy") or {}
 open_ready = data.get("open_ready") or {}
-print(f"  phase={data.get('phase')} ready={data.get('ready')}")
+near = data.get("near_floor") or {}
+print(f"  checklist_phase={data.get('phase')} ready={data.get('ready')}")
+print(f"  platform_revision={deploy.get('platform_revision')} current={deploy.get('platform_revision_current')}")
 print(f"  prep_phase={data.get('prep_phase')} minutes_until_open={data.get('minutes_until_open')}")
-print(f"  auto_entry_queued={open_ready.get('auto_entry_queued')} open_ready={open_ready.get('symbols')}")
+print(f"  auto_entry_queued={open_ready.get('auto_entry_queued')} composite_floor={open_ready.get('composite_floor')}")
+print(f"  open_ready={open_ready.get('symbols')}")
+sticky = open_ready.get("sticky_symbols") or []
+if sticky:
+    print(f"  sticky_queue={sticky} (release_margin={open_ready.get('release_margin')})")
+print(f"  near_floor={near.get('symbols')}")
+for row in near.get("details") or []:
+    sym = row.get("symbol")
+    comp = row.get("composite")
+    gap = row.get("gap_to_floor")
+    gap_label = f" need +{gap}" if gap is not None else ""
+    print(f"    near_floor {sym}: composite={comp}{gap_label}")
+for row in open_ready.get("details") or []:
+    sym = row.get("symbol")
+    comp = row.get("composite")
+    blockers = row.get("blockers") or []
+    sticky_flag = " sticky" if row.get("sticky_queue") else ""
+    print(f"    {sym}: composite={comp}{sticky_flag} blockers={blockers}")
 for row in data.get("checks") or []:
     print(f"  check {row.get('id')}={row.get('status')}: {row.get('message')}")
 critical_fail = [c for c in (data.get("checks") or []) if c.get("critical") and c.get("status") == "fail"]
@@ -74,6 +96,46 @@ PY
     ok "Backend health"
   else
     bad "Backend health unreachable"
+  fi
+
+  STATUS=$(curl -fsS -m 90 "$BACKEND/api/status" 2>/dev/null || echo "{}")
+  python3 << PY
+import json, sys
+
+status = json.loads('''$STATUS''')
+deploy = status.get("deploy") or {}
+rev_current = deploy.get("platform_revision_current")
+errors = []
+notes = []
+
+summaries = status.get("session_open_checklists") or {}
+if not summaries.get("us_stocks_open"):
+    (errors if rev_current is True else notes).append("us_stocks_open_summary_missing")
+else:
+    us = summaries["us_stocks_open"]
+    print(
+        f"  status.session_open_checklists.us_stocks_open "
+        f"ready={us.get('ready')} open_ready={us.get('open_ready_symbols')}"
+    )
+    composites = us.get("open_ready_composites") or {}
+    if composites:
+        print(f"  open_ready_composites={composites}")
+
+open_ready = json.loads('''$CHECKLIST''').get("open_ready") or {} if '''$CHECKLIST''' else {}
+if '''$CHECKLIST''' and "sticky_symbols" not in open_ready:
+    (errors if rev_current is True else notes).append("sticky_symbols_field_missing")
+
+for note in notes:
+    print(f"  note={note} (expected until revision deploy)")
+if errors:
+    print("  errors=" + ",".join(errors))
+    sys.exit(1)
+sys.exit(0)
+PY
+  if [[ $? -eq 0 ]]; then
+    ok "US stocks status contract"
+  else
+    bad "US stocks status contract failed"
   fi
 
   echo ""

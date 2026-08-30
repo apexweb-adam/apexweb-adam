@@ -4097,6 +4097,7 @@ def stocks_proven_winner_recovery_entry_ok(
   signal_direction: str,
   macd_signal: str,
   total_trades: int = 0,
+  floor_release_margin: float = 0.0,
 ) -> bool:
   """High-WR stocks shadow can re-enter proven winners with aligned bullish signals."""
   from app.engines.profitability_gate import ProfitabilityGate
@@ -4114,6 +4115,7 @@ def stocks_proven_winner_recovery_entry_ok(
     bot_type, shadow_mode, bot_win_rate, total_trades
   ):
     min_composite = STOCKS_TRADE_COUNT_RECOVERY_MIN_COMPOSITE
+  min_composite -= floor_release_margin
   return composite >= min_composite
 
 
@@ -4540,8 +4542,10 @@ def stocks_monday_open_ready(
   macd_signal: str,
   blockers: list[str],
   total_trades: int = 0,
+  sticky_queue: bool = False,
 ) -> bool:
   """Proven stock shadow winner that will enter when gate_skip clears pre-US open."""
+  release_margin = OPEN_READY_QUEUE_RELEASE_MARGIN if sticky_queue else 0.0
   if not stocks_proven_winner_recovery_entry_ok(
     bot_type=bot_type,
     shadow_mode=shadow_mode,
@@ -4552,6 +4556,7 @@ def stocks_monday_open_ready(
     signal_direction=signal_direction,
     macd_signal=macd_signal,
     total_trades=total_trades,
+    floor_release_margin=release_margin,
   ):
     return False
   if not blockers:
