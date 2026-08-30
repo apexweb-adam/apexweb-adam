@@ -11,7 +11,9 @@ from app.api.routes import router
 from app.config import settings
 from app.engines.deploy_status import (
   EXPECTED_DASHBOARD_BUNDLE,
+  build_cme_deploy_window,
   build_deploy_status,
+  format_cme_deploy_window_crm_html,
   recommended_dashboard_url,
 )
 from app.workers.scheduler import setup_scheduler, stop_bots
@@ -693,7 +695,15 @@ async def crm_landing():
       f"code expects {expected_rev}. "
       "Deploy: <code>TRIGGER_DEPLOY=true bash trading-platform/scripts/sync-render-env.sh</code></p>"
     )
-  cme_mins = cme_session.get("minutes_until_open")
+  deploy_window_card = ""
+  if revision_current is False:
+    deploy_window = build_cme_deploy_window(
+      platform_revision_current=revision_current,
+      cme_minutes_until_open=cme_mins,
+      cme_in_session=bool(cme_session.get("in_session")),
+    )
+    if deploy_window:
+      deploy_window_card = format_cme_deploy_window_crm_html(deploy_window)
   if (
     revision_current is False
     and cme_mins is not None
@@ -752,6 +762,7 @@ async def crm_landing():
   {next_sessions_card}
   {cme_imminent_banner}
   {us_imminent_banner}
+  {deploy_window_card}
   {cme_checklist_card}
   {us_stocks_checklist_card}
   <div class="card">
