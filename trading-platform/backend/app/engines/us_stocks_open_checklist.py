@@ -115,13 +115,23 @@ def build_us_stocks_open_checks(
   )
 
   if stocks_paused:
-    checks.append(
-      _check(
-        "stocks_active",
-        "fail",
-        "Stocks bot is paused — auto-entry will not fire",
+    if auto_entry_queued and open_ready_symbols:
+      checks.append(
+        _check(
+          "stocks_active",
+          "warn",
+          f"Stocks bot in shadow mode — Monday gate-skip auto-entry armed for {', '.join(open_ready_symbols)}",
+          critical=False,
+        )
       )
-    )
+    else:
+      checks.append(
+        _check(
+          "stocks_active",
+          "fail",
+          "Stocks bot is paused — auto-entry will not fire",
+        )
+      )
   else:
     checks.append(
       _check(

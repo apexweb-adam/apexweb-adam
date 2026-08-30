@@ -153,6 +153,28 @@ def test_build_cme_reopen_checks_post_open_auto_entry_satisfies_burst():
   assert burst["status"] == "pass"
 
 
+def test_build_cme_reopen_checks_shadow_mode_with_auto_entry_warns():
+  checks = build_cme_reopen_checks(
+    platform_revision_current=True,
+    minutes_until_open=180,
+    prep_phase="extended",
+    in_session=False,
+    auto_entry_queued=True,
+    open_ready_symbols=["NG=F"],
+    near_floor_symbols=[],
+    commodities_paused=True,
+    bots_running=4,
+    has_burst_scan=False,
+    has_auto_entry=False,
+    composite_floor=0.42,
+    open_ready_below_floor=[],
+    phase="preflight",
+  )
+  active = next(c for c in checks if c["id"] == "commodities_active")
+  assert active["status"] == "warn"
+  assert active["critical"] is False
+
+
 def test_format_cme_checklist_crm_html():
   from app.engines.cme_reopen_checklist import format_cme_checklist_crm_html
 

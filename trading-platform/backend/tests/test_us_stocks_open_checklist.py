@@ -26,6 +26,28 @@ def test_build_us_stocks_open_checks_preflight_pass():
   assert any(c["id"] == "auto_entry_queued" and c["status"] == "pass" for c in checks)
 
 
+def test_build_us_stocks_open_checks_shadow_mode_with_auto_entry_warns():
+  checks = build_us_stocks_open_checks(
+    platform_revision_current=True,
+    minutes_until_open=1800,
+    prep_phase="extended",
+    in_session=False,
+    auto_entry_queued=True,
+    open_ready_symbols=["AAPL"],
+    near_floor_symbols=[],
+    stocks_paused=True,
+    bots_running=4,
+    has_burst_scan=False,
+    has_auto_entry=False,
+    open_ready_below_floor=[],
+    phase="preflight",
+  )
+  active = next(c for c in checks if c["id"] == "stocks_active")
+  assert active["status"] == "warn"
+  assert active["critical"] is False
+  assert "AAPL" in active["message"]
+
+
 def test_should_show_us_stocks_checklist_when_aapl_queued():
   assert should_show_us_stocks_checklist_on_crm(
     {
