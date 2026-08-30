@@ -1644,6 +1644,8 @@ function NextSessionsCard({
   }
   if (rows.length === 0) return null;
 
+  const hasAutoEntry = rows.some((row) => row.ready !== "—");
+
   return (
     <div className="rounded-lg border border-sky-500/30 bg-sky-950/20 p-4">
       <p className="text-sm font-medium text-sky-300 mb-2">Next sessions</p>
@@ -1657,6 +1659,11 @@ function NextSessionsCard({
           </li>
         ))}
       </ul>
+      {hasAutoEntry ? (
+        <p className="text-[11px] text-lime-400/80 mt-2">
+          Gate-skip eligible — bots auto-enter when session opens.
+        </p>
+      ) : null}
     </div>
   );
 }

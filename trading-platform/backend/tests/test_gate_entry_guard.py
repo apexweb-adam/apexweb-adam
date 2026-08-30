@@ -1232,6 +1232,7 @@ def test_build_next_session_events():
   assert events["cme_reopen"]["minutes_until_open"] == 45
   assert events["cme_reopen"]["reopen_imminent"] is True
   assert events["cme_reopen"]["open_ready_symbols"] == ["NG=F"]
+  assert events["cme_reopen"]["auto_gate_skip_at_open"] == ["NG=F"]
   assert events["us_stocks_open"]["minutes_until_open"] == 2000
 
 
