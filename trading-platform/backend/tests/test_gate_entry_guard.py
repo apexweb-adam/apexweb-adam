@@ -1234,8 +1234,19 @@ def test_build_next_session_events():
   assert events["cme_reopen"]["open_ready_symbols"] == ["NG=F"]
   assert events["cme_reopen"]["auto_gate_skip_at_open"] == ["NG=F"]
   assert events["cme_reopen"]["auto_entry_queued"] is True
+  assert events["cme_reopen"]["prep_scan_label"] == "5s"
   assert events["us_stocks_open"]["minutes_until_open"] == 2000
   assert events["us_stocks_open"]["auto_entry_queued"] is False
+  assert events["us_stocks_open"]["prep_scan_label"] == "15s"
+
+
+def test_session_prep_scan_label():
+  from app.engines.gate_entry_guard import session_prep_scan_label
+
+  assert session_prep_scan_label(imminent=True) == "5s"
+  assert session_prep_scan_label(fast_scan_active=True) == "15s"
+  assert session_prep_scan_label() == "30s"
+  assert session_prep_scan_label(fast_scan_active=True, imminent=True) == "5s"
 
 
 def test_commodities_reopen_wake_active():

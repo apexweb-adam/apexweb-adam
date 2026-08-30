@@ -29,6 +29,8 @@ def test_build_monday_recovery_summary_aggregates_bots():
               "recovery_ready": False,
               "monday_open_ready": True,
               "monday_gate_skip_ready": True,
+              "direction": "buy",
+              "macd": "bullish",
               "blockers": ["weekend_futures_closed"],
             },
           ],
@@ -53,6 +55,8 @@ def test_build_monday_recovery_summary_aggregates_bots():
               "recovery_ready": False,
               "monday_open_ready": True,
               "monday_gate_skip_ready": True,
+              "direction": "buy",
+              "macd": "bullish",
               "blockers": ["stocks_session_closed"],
             },
           ],
@@ -81,6 +85,8 @@ def test_build_monday_recovery_summary_aggregates_bots():
   assert result["open_ready"][0]["symbol"] == "NG=F"
   assert result["open_ready"][0]["minutes_until_open"] == 120
   assert result["open_ready"][0]["monday_gate_skip_ready"] is True
+  assert result["open_ready"][0]["direction"] == "buy"
+  assert result["open_ready"][0]["macd"] == "bullish"
   assert result["open_ready"][1]["minutes_until_open"] == 3000
   assert result["open_ready"][1]["monday_gate_skip_ready"] is True
 

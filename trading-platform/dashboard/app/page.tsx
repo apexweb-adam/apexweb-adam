@@ -1619,7 +1619,12 @@ function NextSessionsCard({
   const us = events?.us_stocks_open;
   const commPrep = sessionPrep?.commodities;
   const stocksPrep = sessionPrep?.stocks_futures;
-  const rows: Array<{ label: string; mins: number | null | undefined; ready: string }> = [];
+  const rows: Array<{
+    label: string;
+    mins: number | null | undefined;
+    ready: string;
+    scanLabel?: string;
+  }> = [];
 
   const cmeMins = cme?.minutes_until_open ?? commPrep?.minutes_until_open;
   if (cmeMins != null && !commPrep?.in_session) {
@@ -1630,6 +1635,13 @@ function NextSessionsCard({
         cme?.open_ready_symbols?.join(", ") ||
         commPrep?.open_ready_symbols?.join(", ") ||
         "—",
+      scanLabel:
+        cme?.prep_scan_label ||
+        (commPrep?.gate_reopen_imminent
+          ? "5s"
+          : commPrep?.gate_fast_scan_active
+            ? "15s"
+            : "30s"),
     });
   }
   const usMins = us?.minutes_until_open ?? stocksPrep?.minutes_until_open;
@@ -1641,6 +1653,13 @@ function NextSessionsCard({
         us?.open_ready_symbols?.join(", ") ||
         stocksPrep?.open_ready_symbols?.join(", ") ||
         "—",
+      scanLabel:
+        us?.prep_scan_label ||
+        (stocksPrep?.gate_reopen_imminent
+          ? "5s"
+          : stocksPrep?.gate_fast_scan_active
+            ? "15s"
+            : "30s"),
     });
   }
   if (rows.length === 0) return null;
@@ -1656,6 +1675,9 @@ function NextSessionsCard({
             <span className="font-medium text-white">{row.label}</span>
             {" · "}
             {row.mins != null ? `${Math.floor(row.mins / 60)}h ${row.mins % 60}m` : "soon"}
+            {row.scanLabel ? (
+              <span className="text-sky-300/80"> · prep scan {row.scanLabel}</span>
+            ) : null}
             <span className="text-lime-400/90"> · open ready: {row.ready}</span>
           </li>
         ))}
