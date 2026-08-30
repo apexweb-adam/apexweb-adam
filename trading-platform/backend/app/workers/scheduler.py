@@ -248,6 +248,7 @@ async def commodities_pre_session_prep_job() -> None:
       total_pnl=per_bot.get("total_pnl"),
     )
     from app.engines.scan_preview import build_monday_recovery_summary
+    from app.engines.session_open_log import get_prep_phase_state
 
     recovery = await build_monday_recovery_summary(session)
     open_ready_symbols = [
@@ -255,8 +256,19 @@ async def commodities_pre_session_prep_job() -> None:
       for row in recovery.get("open_ready") or []
       if row.get("bot_type") == "commodities" and row.get("symbol")
     ]
+    near_floor_symbols = [
+      row["symbol"]
+      for row in recovery.get("near_floor") or []
+      if row.get("bot_type") == "commodities" and row.get("symbol")
+    ]
+    prep_state = await get_prep_phase_state(session)
+    prev_ready = (prep_state.get("cme_reopen") or {}).get("open_ready_symbols") or []
+    watch_symbols = sorted(
+      set(open_ready_symbols) | set(near_floor_symbols) | set(prev_ready)
+    )
     prep_window = commodities_pre_session_prep_window_minutes(
       graduation_nudge or bool(open_ready_symbols),
+      open_ready_watch=bool(watch_symbols),
     )
     if minutes_until_open > prep_window:
       return
@@ -265,9 +277,9 @@ async def commodities_pre_session_prep_job() -> None:
     chronic = await get_chronic_loser_symbols(session, "commodities")
     recovery_futures = sorted(s for s in chronic if is_commodities_futures_symbol(s))
     base_symbols = sorted(set(COMMODITIES_PREP_SYMBOLS) | set(winners) | set(recovery_futures))
-    if open_ready_symbols:
-      base_symbols = sorted(set(base_symbols) | set(open_ready_symbols))
-    prioritize_nudge = graduation_nudge or bool(open_ready_symbols)
+    if watch_symbols:
+      base_symbols = sorted(set(base_symbols) | set(watch_symbols))
+    prioritize_nudge = graduation_nudge or bool(watch_symbols)
     symbols = prioritize_commodities_monday_scan(
       base_symbols,
       chronic_losers=chronic,
