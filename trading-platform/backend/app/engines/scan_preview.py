@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import time
 from typing import Any
 
@@ -1072,8 +1073,18 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
 
 MONDAY_RECOVERY_BOT_TYPES = ("commodities", "stocks_futures")
 MONDAY_RECOVERY_CACHE_TTL_SECONDS = 30
+MONDAY_RECOVERY_PREP_CACHE_TTL_SECONDS = 60
 _monday_recovery_cache: dict[str, Any] | None = None
 _monday_recovery_cached_at: float = 0.0
+
+
+def _monday_recovery_cache_ttl_seconds() -> int:
+  """Longer cache during CME weekend prep when scan previews are polled heavily."""
+  from app.engines.gate_entry_guard import commodities_futures_weekend_closed
+
+  if commodities_futures_weekend_closed():
+    return MONDAY_RECOVERY_PREP_CACHE_TTL_SECONDS
+  return MONDAY_RECOVERY_CACHE_TTL_SECONDS
 
 
 def clear_monday_recovery_cache() -> None:
@@ -1088,13 +1099,21 @@ async def build_monday_recovery_summary(session: AsyncSession) -> dict[str, Any]
   now = time.monotonic()
   if (
     _monday_recovery_cache is not None
-    and (now - _monday_recovery_cached_at) < MONDAY_RECOVERY_CACHE_TTL_SECONDS
+    and (now - _monday_recovery_cached_at) < _monday_recovery_cache_ttl_seconds()
   ):
     return _monday_recovery_cache
   result = await _build_monday_recovery_summary(session)
   _monday_recovery_cache = result
   _monday_recovery_cached_at = now
   return result
+
+
+async def _scan_preview_for_bot(bot_type: str) -> tuple[str, dict[str, Any]]:
+  from app.database import SessionLocal
+
+  async with SessionLocal() as bot_session:
+    preview = await build_scan_preview(bot_session, bot_type)
+    return bot_type, preview
 
 
 async def _build_monday_recovery_summary(session: AsyncSession) -> dict[str, Any]:
@@ -1105,8 +1124,11 @@ async def _build_monday_recovery_summary(session: AsyncSession) -> dict[str, Any
   stocks_trade_count_nudge = False
   commodities_graduation_nudge = False
 
-  for bot_type in MONDAY_RECOVERY_BOT_TYPES:
-    preview = await build_scan_preview(session, bot_type)
+  preview_results = await asyncio.gather(
+    *[_scan_preview_for_bot(bot_type) for bot_type in MONDAY_RECOVERY_BOT_TYPES]
+  )
+
+  for bot_type, preview in preview_results:
     if preview.get("error"):
       continue
     if bot_type == "stocks_futures":

@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from app.engines.scan_preview import (
+  _monday_recovery_cache_ttl_seconds,
   build_monday_recovery_summary,
   clear_monday_recovery_cache,
 )
@@ -174,3 +175,39 @@ def test_build_monday_recovery_summary_uses_short_ttl_cache():
   first, second, call_count = asyncio.run(_run())
   assert first == second
   assert call_count == 2
+
+
+def test_monday_recovery_cache_ttl_extended_during_cme_weekend():
+  with patch(
+    "app.engines.gate_entry_guard.commodities_futures_weekend_closed",
+    return_value=True,
+  ):
+    assert _monday_recovery_cache_ttl_seconds() == 60
+
+
+def test_build_monday_recovery_summary_runs_scan_previews_in_parallel():
+  async def _run():
+    session = AsyncMock()
+    call_order: list[str] = []
+
+    async def fake_preview(_session, bot_type):
+      call_order.append(bot_type)
+      return {
+        "recovery_candidates": [],
+        "graduation_nudge": bot_type == "commodities",
+        "stocks_trade_count_nudge": bot_type == "stocks_futures",
+        "symbols": [],
+      }
+
+    with patch("app.engines.scan_preview.build_scan_preview", side_effect=fake_preview):
+      with patch("app.database.SessionLocal") as session_local:
+        bot_session = AsyncMock()
+        session_local.return_value.__aenter__.return_value = bot_session
+        result = await build_monday_recovery_summary(session)
+        return result, call_order
+
+  import asyncio
+
+  result, call_order = asyncio.run(_run())
+  assert set(call_order) == {"commodities", "stocks_futures"}
+  assert result["commodities_graduation_nudge"] is True
