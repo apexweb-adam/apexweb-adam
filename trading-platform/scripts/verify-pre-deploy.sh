@@ -4,7 +4,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BACKEND="${BACKEND_URL:-https://apex-trading-backend.onrender.com}"
-EXPECTED_REVISION="${EXPECTED_PLATFORM_REVISION:-2026-08-29-r354}"
+EXPECTED_REVISION="${EXPECTED_PLATFORM_REVISION:-2026-08-29-r355}"
 MIN_HOURS_BEFORE_CME="${MIN_HOURS_BEFORE_CME:-4}"
 MAX_HOURS_BEFORE_CME="${MAX_HOURS_BEFORE_CME:-6}"
 
@@ -79,8 +79,14 @@ PROD_REV=$(curl -fsS -m 90 "$BACKEND/api/status" 2>/dev/null | python3 -c "impor
 echo "  production_revision=$PROD_REV code_revision=$CODE_REV"
 if [[ "$PROD_REV" == "$CODE_REV" ]]; then
   note "Production already on target revision — deploy may be unnecessary"
+  if bash "$ROOT/scripts/verify-post-deploy.sh"; then
+    ok "Post-deploy session-open contract verified on production"
+  else
+    bad "Production on target revision but session-open contract failed"
+  fi
 else
   ok "Production behind code ($PROD_REV → $CODE_REV)"
+  note "Post-deploy contract (cme_deploy_window, sticky_symbols) will verify after deploy"
 fi
 
 echo ""

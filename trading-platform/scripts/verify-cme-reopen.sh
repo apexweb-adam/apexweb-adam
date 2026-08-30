@@ -4,7 +4,7 @@
 set -euo pipefail
 
 BACKEND="${BACKEND_URL:-https://apex-trading-backend.onrender.com}"
-EXPECTED_REVISION="${EXPECTED_PLATFORM_REVISION:-2026-08-29-r354}"
+EXPECTED_REVISION="${EXPECTED_PLATFORM_REVISION:-2026-08-29-r355}"
 WATCH_INTERVAL=""
 
 if [[ "${1:-}" == "--watch" ]]; then
@@ -130,6 +130,58 @@ PY
     ok "Bots running"
   else
     bad "Not all bots running"
+  fi
+
+  STATUS=$(curl -fsS -m 90 "$BACKEND/api/status" 2>/dev/null || echo "{}")
+  CHECKLIST=$(curl -fsS -m 90 "$BACKEND/api/gate/cme-reopen-checklist" 2>/dev/null || echo "{}")
+  python3 << PY
+import json, sys
+
+status = json.loads('''$STATUS''')
+checklist = json.loads('''$CHECKLIST''')
+deploy = status.get("deploy") or {}
+rev_current = deploy.get("platform_revision_current")
+errors = []
+notes = []
+
+summaries = status.get("session_open_checklists") or {}
+if not summaries.get("cme_reopen"):
+    (errors if rev_current is True else notes).append("session_open_checklists_missing")
+else:
+    cme = summaries["cme_reopen"]
+    print(
+        f"  status.session_open_checklists.cme_reopen "
+        f"ready={cme.get('ready')} open_ready={cme.get('open_ready_symbols')}"
+    )
+
+open_ready = checklist.get("open_ready") or {}
+if checklist and "sticky_symbols" not in open_ready:
+    (errors if rev_current is True else notes).append("sticky_symbols_field_missing")
+elif open_ready.get("sticky_symbols"):
+    print(f"  status sticky_symbols={open_ready.get('sticky_symbols')}")
+
+deploy_window = deploy.get("cme_deploy_window")
+if deploy_window:
+    print(
+        f"  status.cme_deploy_window in_window={deploy_window.get('in_window')} "
+        f"opens={deploy_window.get('window_opens_at_utc')}"
+    )
+elif rev_current is False:
+    notes.append("cme_deploy_window_pending_deploy")
+else:
+    errors.append("cme_deploy_window_missing")
+
+for note in notes:
+    print(f"  note={note} (expected until revision deploy)")
+if errors:
+    print("  errors=" + ",".join(errors))
+    sys.exit(1)
+sys.exit(0)
+PY
+  if [[ $? -eq 0 ]]; then
+    ok "Session-open status contract"
+  else
+    bad "Session-open status contract failed"
   fi
 
   echo ""
