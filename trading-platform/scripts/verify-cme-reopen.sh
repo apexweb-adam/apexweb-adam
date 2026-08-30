@@ -5,6 +5,8 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 LIB="$ROOT/scripts/lib/deploy_json.py"
+# shellcheck source=lib/fetch_json.sh
+source "$ROOT/scripts/lib/fetch_json.sh"
 BACKEND="${BACKEND_URL:-https://apex-trading-backend.onrender.com}"
 EXPECTED_REVISION="${EXPECTED_PLATFORM_REVISION:-$(grep '^EXPECTED_PLATFORM_REVISION' "$ROOT/backend/app/engines/deploy_status.py" | sed -n 's/.*"\([^"]*\)".*/\1/p')}"
 WATCH_INTERVAL=""
@@ -21,12 +23,6 @@ ok() { echo "✓ $*"; pass=$((pass + 1)); }
 bad() { echo "✗ $*"; fail=$((fail + 1)); }
 note() { echo "○ $*"; warn=$((warn + 1)); }
 
-fetch_json() {
-  local url="$1"
-  local timeout="${2:-45}"
-  curl -fsS -m "$timeout" "$url" 2>/dev/null || echo "{}"
-}
-
 run_preflight() {
   pass=0
   fail=0
@@ -37,10 +33,10 @@ run_preflight() {
   echo "Expected revision (code): $EXPECTED_REVISION"
   echo ""
 
-  STATUS=$(fetch_json "$BACKEND/api/status" 90)
-  CHECKLIST=$(fetch_json "$BACKEND/api/gate/cme-reopen-checklist" 45)
+  STATUS=$(fetch_json "$BACKEND/api/status" 90 2)
+  CHECKLIST=$(fetch_json "$BACKEND/api/gate/cme-reopen-checklist" 60 2)
   if [[ -z "$CHECKLIST" || "$CHECKLIST" == "{}" ]]; then
-    CHECKLIST=$(fetch_json "$BACKEND/api/gate/cme-reopen-checklist" 45)
+    CHECKLIST=$(fetch_json "$BACKEND/api/gate/cme-reopen-checklist" 60 2)
   fi
 
   if [[ -n "$CHECKLIST" && "$CHECKLIST" != "{}" ]]; then
@@ -87,9 +83,9 @@ if critical_fail:
     fi
   else
     note "Checklist endpoint unavailable — using prep-status fallback"
-    PREP=$(fetch_json "$BACKEND/api/gate/prep-status" 45)
+    PREP=$(fetch_json "$BACKEND/api/gate/prep-status" 45 2)
     if [[ -z "$PREP" || "$PREP" == "{}" ]]; then
-      PREP=$(fetch_json "$BACKEND/api/gate/prep-status" 45)
+      PREP=$(fetch_json "$BACKEND/api/gate/prep-status" 45 2)
     fi
 
     REV=$(echo "$STATUS" | python3 -c "import json,sys; d=json.load(sys.stdin); print((d.get('deploy') or {}).get('platform_revision') or '?')" 2>/dev/null || echo "?")
