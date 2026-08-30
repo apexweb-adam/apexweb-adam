@@ -165,7 +165,7 @@ class BaseBot(ABC):
     self._symbol_cooldown_until[symbol] = datetime.utcnow() + timedelta(seconds=seconds)
 
   @abstractmethod
-  async def get_symbols(self) -> list[str]:
+  async def get_symbols(self, session: AsyncSession | None = None) -> list[str]:
     pass
 
   @abstractmethod
@@ -189,10 +189,12 @@ class BaseBot(ABC):
 
   async def scan_and_trade(self, *, allow_new_entries: bool = True) -> list[dict]:
     actions: list[dict] = []
-    symbols = await self.get_symbols()
     shadow_mode = False
+    symbols: list[str] = []
 
     async with SessionLocal() as session:
+      await self._touch_scan_heartbeat(session)
+      symbols = await self.get_symbols(session=session)
       from app.engines.gate_entry_guard import (
         SHADOW_MAX_OPEN,
         SHADOW_MIN_SENTIMENT_BOOST,
@@ -1363,11 +1365,13 @@ class BaseBot(ABC):
           await self._analyze_loss(session, action.get("symbol", ""))
           self._register_symbol_cooldown(action.get("symbol", ""), after_loss=True, reason=action.get("reason"))
 
-    await self._record_scan_result(
-      len(symbols),
-      actions,
-      "shadow — proving for graduation" if shadow_mode else None,
-    )
+      await self._record_scan_result(
+        session,
+        len(symbols),
+        actions,
+        "shadow — proving for graduation" if shadow_mode else None,
+      )
+
     if getattr(self, "_session_open_burst", False):
       await self._record_session_open_burst(
         len(symbols),
@@ -1396,39 +1400,43 @@ class BaseBot(ABC):
       learner = LearningEngine(session)
       await learner.analyze_losing_trade(trade)
 
-  async def _record_scan_heartbeat(self) -> None:
-    async with SessionLocal() as session:
-      result = await session.execute(
-        select(BotState).where(BotState.bot_type == self.bot_type)
-      )
-      state = result.scalar_one_or_none()
-      if not state:
-        state = BotState(bot_type=self.bot_type, status="running")
-        session.add(state)
-      state.last_scan_at = datetime.utcnow()
-      state.status = "running"
-      if state.last_action.startswith("Paper reset"):
-        state.last_action = "Scanning markets"
-      state.updated_at = datetime.utcnow()
-      await session.commit()
+  async def _touch_scan_heartbeat(self, session: AsyncSession) -> None:
+    result = await session.execute(
+      select(BotState).where(BotState.bot_type == self.bot_type)
+    )
+    state = result.scalar_one_or_none()
+    if not state:
+      state = BotState(bot_type=self.bot_type, status="running")
+      session.add(state)
+    state.last_scan_at = datetime.utcnow()
+    state.status = "running"
+    if state.last_action.startswith("Paper reset"):
+      state.last_action = "Scanning markets"
+    state.updated_at = datetime.utcnow()
+    await session.commit()
 
-  async def _record_scan_result(self, symbol_count: int, actions: list[dict], detail: str = "") -> None:
+  async def _record_scan_result(
+    self,
+    session: AsyncSession,
+    symbol_count: int,
+    actions: list[dict],
+    detail: str | None = "",
+  ) -> None:
     trade_actions = [a for a in actions if a.get("action") in ("buy", "sell")]
     if trade_actions:
       return
-    async with SessionLocal() as session:
-      result = await session.execute(
-        select(BotState).where(BotState.bot_type == self.bot_type)
-      )
-      state = result.scalar_one_or_none()
-      if not state:
-        return
-      if state.last_action.startswith(("BUY", "SELL", "PM:")):
-        return
-      summary = detail or "watching for signals"
-      state.last_action = f"Scanned {symbol_count} symbols — {summary}"[:200]
-      state.updated_at = datetime.utcnow()
-      await session.commit()
+    result = await session.execute(
+      select(BotState).where(BotState.bot_type == self.bot_type)
+    )
+    state = result.scalar_one_or_none()
+    if not state:
+      return
+    if state.last_action.startswith(("BUY", "SELL", "PM:")):
+      return
+    summary = detail or "watching for signals"
+    state.last_action = f"Scanned {symbol_count} symbols — {summary}"[:200]
+    state.updated_at = datetime.utcnow()
+    await session.commit()
 
   async def _record_scan_failure(self, error: str) -> None:
     async with SessionLocal() as session:
@@ -1474,8 +1482,6 @@ class BaseBot(ABC):
         session.add(state)
       state.last_action = summary[:200]
       state.updated_at = datetime.utcnow()
-      await session.commit()
-    async with SessionLocal() as session:
       await record_session_open_event(
         session,
         bot_type=self.bot_type,
@@ -1484,12 +1490,12 @@ class BaseBot(ABC):
         symbol_count=symbol_count,
         detail=summary,
       )
+      await session.commit()
 
   async def run_loop(self) -> None:
     self.running = True
     while self.running:
       try:
-        await self._record_scan_heartbeat()
         await self.scan_and_trade()
       except Exception as e:
         print(f"[{self.bot_type}] Error in scan: {e}")
@@ -1504,26 +1510,34 @@ class CryptoBot(BaseBot):
   bot_type = "crypto"
   scan_interval = 20
 
-  async def get_symbols(self) -> list[str]:
+  async def get_symbols(self, session: AsyncSession | None = None) -> list[str]:
     base = [s.strip() for s in settings.crypto_symbols.split(",") if s.strip()]
     if not settings.fomo_hot_symbols_enabled and not settings.axiom_hot_symbols_enabled and not settings.phantom_hot_symbols_enabled:
       return base
-    async with SessionLocal() as session:
+
+    async def _merge_hot(owned: AsyncSession) -> list[str]:
       from app.intelligence.axiom_tracker import get_axiom_hot_symbols
       from app.intelligence.fomo_tracker import get_fomo_hot_symbols
       from app.intelligence.phantom_tracker import get_phantom_watch_symbols
 
       hot: list[str] = []
       if settings.fomo_hot_symbols_enabled:
-        hot.extend(await get_fomo_hot_symbols(session))
+        hot.extend(await get_fomo_hot_symbols(owned))
       if settings.axiom_hot_symbols_enabled:
-        for sym in await get_axiom_hot_symbols(session):
+        for sym in await get_axiom_hot_symbols(owned):
           if sym not in hot:
             hot.append(sym)
       if settings.phantom_hot_symbols_enabled:
-        for sym in await get_phantom_watch_symbols(session):
+        for sym in await get_phantom_watch_symbols(owned):
           if sym not in hot:
             hot.append(sym)
+      return hot
+
+    if session is not None:
+      hot = await _merge_hot(session)
+    else:
+      async with SessionLocal() as owned:
+        hot = await _merge_hot(owned)
     if not hot:
       return base
     merged = list(base)
@@ -1541,7 +1555,7 @@ class StocksFuturesBot(BaseBot):
   scan_interval = 30
   gate_active_scan_interval = 15
 
-  async def get_symbols(self) -> list[str]:
+  async def get_symbols(self, session: AsyncSession | None = None) -> list[str]:
     stocks = [s.strip() for s in settings.stock_symbols.split(",")]
     futures = [s.strip() for s in settings.futures_symbols.split(",")]
     return stocks + futures
@@ -1632,7 +1646,6 @@ class StocksFuturesBot(BaseBot):
       self._prev_session_in_market = in_session
       self._session_open_burst = burst
       try:
-        await self._record_scan_heartbeat()
         await asyncio.wait_for(self.scan_and_trade(), timeout=120)
       except asyncio.TimeoutError:
         print(f"[{self.bot_type}] Scan timed out after 120s")
@@ -1652,8 +1665,9 @@ class StocksFuturesBot(BaseBot):
         engine = PaperTradingEngine(session, self.bot_type)
         open_positions = await engine.get_open_positions()
         if not open_positions:
-          symbols = await self.get_symbols()
-          await self._record_scan_result(len(symbols), [], "outside US market hours")
+          await self._touch_scan_heartbeat(session)
+          symbols = await self.get_symbols(session=session)
+          await self._record_scan_result(session, len(symbols), [], "outside US market hours")
           return []
     actions = await super().scan_and_trade(allow_new_entries=in_session)
     if in_session and not any(a.get("action") in ("buy", "sell") for a in actions):
@@ -1662,8 +1676,9 @@ class StocksFuturesBot(BaseBot):
         async with SessionLocal() as session:
           gate_tightening = await get_gate_entry_tightening(session)
           if gate_tightening.active:
-            symbols = await self.get_symbols()
+            symbols = await self.get_symbols(session=session)
             await self._record_scan_result(
+              session,
               len(symbols),
               actions,
               f"US session · {interval}s scan · gate active",
@@ -1677,7 +1692,7 @@ class CommoditiesBot(BaseBot):
   gate_active_scan_interval = 15
   scan_timeout_sec = 120
 
-  async def get_symbols(self) -> list[str]:
+  async def get_symbols(self, session: AsyncSession | None = None) -> list[str]:
     yf_symbols = [s.strip() for s in settings.commodity_symbols.split(",")]
     crypto_fallback = ["PAXGUSDT", "XAUUSDT"]
     return yf_symbols + crypto_fallback
@@ -1754,7 +1769,6 @@ class CommoditiesBot(BaseBot):
       self._prev_session_in_market = in_session
       self._session_open_burst = burst
       try:
-        await self._record_scan_heartbeat()
         await asyncio.wait_for(self.scan_and_trade(), timeout=self.scan_timeout_sec)
       except asyncio.TimeoutError:
         print(f"[{self.bot_type}] Scan timed out after {self.scan_timeout_sec}s")
@@ -1775,7 +1789,7 @@ class PolymarketBot(BaseBot):
   scan_interval = 45
   _symbol_cooldown_until: dict[str, datetime] = {}
 
-  async def get_symbols(self) -> list[str]:
+  async def get_symbols(self, session: AsyncSession | None = None) -> list[str]:
     return await get_polymarket_symbols()
 
   async def fetch_price_data(self, symbol: str) -> tuple[float, pd.DataFrame | None]:
@@ -1793,15 +1807,17 @@ class PolymarketBot(BaseBot):
 
   async def scan_and_trade(self) -> list[dict]:
     actions: list[dict] = []
-    symbols = await self.get_symbols()
     buy_candidates = 0
     best_buy_score = 0.0
     skipped = 0
 
     shadow_mode = False
+    symbols: list[str] = []
 
     try:
       async with SessionLocal() as session:
+        await self._touch_scan_heartbeat(session)
+        symbols = await self.get_symbols(session=session)
         from app.engines.gate_entry_guard import (
           SHADOW_MAX_OPEN,
           SHADOW_MIN_SENTIMENT_BOOST,
@@ -1981,18 +1997,19 @@ class PolymarketBot(BaseBot):
             self._register_symbol_cooldown(sym, after_loss=False)
 
         await persist_pm_history_to_settings(session)
-    except Exception as e:
-      await self._record_scan_result(len(symbols), actions, f"failed — {e}")
-      raise
 
-    pm_detail = (
-      f"{buy_candidates} buy signals (best {best_buy_score:.2f})"
-      if buy_candidates
-      else "shadow — proving for graduation" if shadow_mode else "no qualifying entries"
-    )
-    if skipped:
-      pm_detail += f", {skipped} skipped"
-    await self._record_scan_result(len(symbols), actions, pm_detail)
+        pm_detail = (
+          f"{buy_candidates} buy signals (best {best_buy_score:.2f})"
+          if buy_candidates
+          else "shadow — proving for graduation" if shadow_mode else "no qualifying entries"
+        )
+        if skipped:
+          pm_detail += f", {skipped} skipped"
+        await self._record_scan_result(session, len(symbols), actions, pm_detail)
+    except Exception as e:
+      async with SessionLocal() as session:
+        await self._record_scan_result(session, len(symbols), actions, f"failed — {e}")
+      raise
 
     if actions:
       from app.ws_manager import broadcast_trade, push_live_update

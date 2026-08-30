@@ -25,9 +25,8 @@ def _engine_kwargs(url: str) -> dict:
   kwargs: dict = {"echo": False}
   if normalized.startswith("postgresql+asyncpg://"):
     kwargs["connect_args"] = {"ssl": "require"}
-    # Supabase pooler session mode caps concurrent clients — keep pool small.
-    kwargs["pool_size"] = 5
-    kwargs["max_overflow"] = 3
+    kwargs["pool_size"] = settings.database_pool_size
+    kwargs["max_overflow"] = settings.database_max_overflow
     kwargs["pool_pre_ping"] = True
     kwargs["pool_recycle"] = 280
   elif normalized.startswith("sqlite"):

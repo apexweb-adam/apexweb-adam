@@ -4,6 +4,9 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     app_name: str = "Apex Trading Platform"
     database_url: str = "sqlite+aiosqlite:///./data/trading.db"
+    # Supabase session pooler — tune via env if concurrent scans exhaust the pool.
+    database_pool_size: int = 10
+    database_max_overflow: int = 5
     paper_trading_only: bool = True
     initial_balance: float = 100_000.0
 
