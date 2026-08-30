@@ -86,7 +86,10 @@ async def root_dashboard_redirect():
 async def crm_landing():
   from app.engines.crm_landing_context import build_crm_landing_context
 
-  deploy = await build_deploy_status()
+  deploy, ctx = await asyncio.gather(
+    build_deploy_status(),
+    build_crm_landing_context(),
+  )
   url = await resolve_crm_dashboard_url(deploy)
   stale = deploy.get("vercel_bundle_stale")
   behind_expected = deploy.get("vercel_bundle_behind_expected")
@@ -95,7 +98,6 @@ async def crm_landing():
   prod_bundle = deploy.get("vercel_bundle_revision") or "?"
   expected_bundle = deploy.get("expected_dashboard_bundle") or EXPECTED_DASHBOARD_BUNDLE
 
-  ctx = await build_crm_landing_context()
   gate = ctx["gate"]
   per_bot = ctx["per_bot"]
   monday_recovery = ctx["monday_recovery"]
