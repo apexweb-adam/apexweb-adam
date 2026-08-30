@@ -37,6 +37,17 @@ def clear_gate_prep_status_cache() -> None:
   _gate_prep_cached_at = 0.0
 
 
+def gate_prep_status_cache_age_seconds() -> float | None:
+  if _gate_prep_cache is None:
+    return None
+  return round(time.monotonic() - _gate_prep_cached_at, 1)
+
+
+def gate_prep_status_cache_fresh(max_age_seconds: float) -> bool:
+  age = gate_prep_status_cache_age_seconds()
+  return age is not None and age < max_age_seconds
+
+
 async def build_gate_prep_status(session: AsyncSession) -> dict[str, Any]:
   global _gate_prep_cache, _gate_prep_cached_at
   now = time.monotonic()

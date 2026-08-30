@@ -536,6 +536,30 @@ async def warm_status_caches_job() -> None:
   print("[Startup] Warmed platform status and gate prep caches")
 
 
+async def refresh_status_caches_job() -> None:
+  """Keep status caches warm during CME weekend prep so dashboard polls avoid cold builds."""
+  from app.engines.gate_entry_guard import commodities_futures_weekend_closed
+  from app.engines.gate_prep_status import (
+    build_gate_prep_status,
+    gate_prep_status_cache_fresh,
+  )
+  from app.engines.platform_status import (
+    build_platform_status,
+    platform_status_cache_fresh,
+  )
+
+  if not commodities_futures_weekend_closed():
+    return
+  if platform_status_cache_fresh(30) and gate_prep_status_cache_fresh(30):
+    return
+
+  async with SessionLocal() as session:
+    if not platform_status_cache_fresh(30):
+      await build_platform_status(session)
+    if not gate_prep_status_cache_fresh(30):
+      await build_gate_prep_status(session)
+
+
 async def _deferred_startup_jobs() -> None:
   """Heavy intel/learning jobs — run in background so /api/health is ready quickly on Render."""
   try:
@@ -693,6 +717,12 @@ async def setup_scheduler() -> None:
     "interval",
     minutes=15,
     id="session_prep_queue_monitor",
+  )
+  scheduler.add_job(
+    refresh_status_caches_job,
+    "interval",
+    seconds=45,
+    id="refresh_status_caches",
   )
   scheduler.add_job(
     stocks_us_open_wake_job,

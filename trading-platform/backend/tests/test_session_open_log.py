@@ -1,6 +1,8 @@
+import asyncio
 import json
 
 import pytest
+from unittest.mock import AsyncMock, patch
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
@@ -66,3 +68,52 @@ def test_queue_delta():
   added, removed = _queue_delta(["NG=F", "CL=F"], ["NG=F"])
   assert added == []
   assert removed == ["CL=F"]
+
+
+def test_monitor_open_ready_queue_logs_initial_baseline():
+  async def run():
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    async with engine.begin() as conn:
+      await conn.run_sync(Base.metadata.create_all)
+    factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+    async with factory() as session:
+      from app.engines.session_open_log import monitor_open_ready_queue
+
+      with patch(
+        "app.engines.scan_preview.build_monday_recovery_summary",
+        new=AsyncMock(
+          return_value={
+            "stocks_trade_count_nudge": True,
+            "commodities_graduation_nudge": True,
+            "open_ready": [
+              {
+                "bot_type": "commodities",
+                "symbol": "NG=F",
+                "composite": 0.55,
+                "monday_gate_skip_ready": True,
+              },
+              {
+                "bot_type": "stocks_futures",
+                "symbol": "AAPL",
+                "composite": 0.47,
+                "monday_gate_skip_ready": True,
+              },
+            ],
+            "near_floor": [],
+          }
+        ),
+      ):
+        logged = await monitor_open_ready_queue(session)
+
+      assert len(logged) == 2
+      assert logged[0]["event_type"] == "queue_add"
+      assert logged[0]["symbols"] == ["NG=F"]
+      assert logged[1]["symbols"] == ["AAPL"]
+
+      events = await get_session_open_events(session)
+      assert any(e["symbols"] == ["NG=F"] for e in events)
+      assert any(e["symbols"] == ["AAPL"] for e in events)
+    await engine.dispose()
+
+  asyncio.run(run())
+
