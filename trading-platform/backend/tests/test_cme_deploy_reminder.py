@@ -4,55 +4,53 @@ import asyncio
 import time
 from unittest.mock import AsyncMock, patch
 
-from app.engines.deploy_status import EXPECTED_PLATFORM_REVISION
 from app.workers import scheduler as sched
+
+_URGENCY = {
+  "active": True,
+  "minutes_until_open": 120,
+  "message": "CME reopen in 2h 0m — deploy before open",
+  "deploy_command": "TRIGGER_DEPLOY=true bash trading-platform/scripts/sync-render-env.sh",
+}
 
 
 def test_cme_deploy_reminder_logs_and_pushes_when_urgency_active():
   sched._cme_deploy_reminder_last_at = 0.0
-  cme_session = {"in_session": False, "minutes_until_open": 120}
 
   with patch(
     "app.engines.gate_entry_guard.commodities_futures_weekend_closed",
     return_value=True,
   ):
     with patch(
-      "app.engines.gate_entry_guard.commodities_session_info",
-      return_value=cme_session,
+      "app.engines.deploy_status.build_cme_deploy_urgency",
+      return_value=_URGENCY,
     ):
-      with patch.dict("os.environ", {"PLATFORM_REVISION": "2026-08-29-r336"}, clear=False):
-        with patch(
-          "app.ws_manager.push_live_update",
-          new_callable=AsyncMock,
-        ) as push:
-          asyncio.run(sched.cme_deploy_reminder_job())
+      with patch(
+        "app.ws_manager.push_live_update",
+        new_callable=AsyncMock,
+      ) as push:
+        asyncio.run(sched.cme_deploy_reminder_job())
 
   push.assert_awaited_once()
   sched._cme_deploy_reminder_last_at = 0.0
 
 
-def test_cme_deploy_reminder_skips_when_revision_current():
+def test_cme_deploy_reminder_skips_when_no_urgency():
   sched._cme_deploy_reminder_last_at = 0.0
-  cme_session = {"in_session": False, "minutes_until_open": 120}
 
   with patch(
     "app.engines.gate_entry_guard.commodities_futures_weekend_closed",
     return_value=True,
   ):
     with patch(
-      "app.engines.gate_entry_guard.commodities_session_info",
-      return_value=cme_session,
+      "app.engines.deploy_status.build_cme_deploy_urgency",
+      return_value=None,
     ):
-      with patch.dict(
-        "os.environ",
-        {"PLATFORM_REVISION": EXPECTED_PLATFORM_REVISION},
-        clear=False,
-      ):
-        with patch(
-          "app.ws_manager.push_live_update",
-          new_callable=AsyncMock,
-        ) as push:
-          asyncio.run(sched.cme_deploy_reminder_job())
+      with patch(
+        "app.ws_manager.push_live_update",
+        new_callable=AsyncMock,
+      ) as push:
+        asyncio.run(sched.cme_deploy_reminder_job())
 
   push.assert_not_awaited()
   sched._cme_deploy_reminder_last_at = 0.0
@@ -60,22 +58,20 @@ def test_cme_deploy_reminder_skips_when_revision_current():
 
 def test_cme_deploy_reminder_rate_limited():
   sched._cme_deploy_reminder_last_at = time.monotonic()
-  cme_session = {"in_session": False, "minutes_until_open": 90}
 
   with patch(
     "app.engines.gate_entry_guard.commodities_futures_weekend_closed",
     return_value=True,
   ):
     with patch(
-      "app.engines.gate_entry_guard.commodities_session_info",
-      return_value=cme_session,
+      "app.engines.deploy_status.build_cme_deploy_urgency",
+      return_value=_URGENCY,
     ):
-      with patch.dict("os.environ", {"PLATFORM_REVISION": "2026-08-29-r336"}, clear=False):
-        with patch(
-          "app.ws_manager.push_live_update",
-          new_callable=AsyncMock,
-        ) as push:
-          asyncio.run(sched.cme_deploy_reminder_job())
+      with patch(
+        "app.ws_manager.push_live_update",
+        new_callable=AsyncMock,
+      ) as push:
+        asyncio.run(sched.cme_deploy_reminder_job())
 
   push.assert_not_awaited()
   sched._cme_deploy_reminder_last_at = 0.0
