@@ -6,8 +6,8 @@ from app.database import _engine_kwargs, normalize_database_url
 def test_postgres_engine_uses_small_pool():
   url = "postgresql://user:pass@aws-0-eu-west-1.pooler.supabase.com:5432/postgres"
   kwargs = _engine_kwargs(url)
-  assert kwargs["pool_size"] == 10
-  assert kwargs["max_overflow"] == 5
+  assert kwargs["pool_size"] == 4
+  assert kwargs["max_overflow"] == 2
   assert kwargs["pool_pre_ping"] is True
   assert kwargs["pool_recycle"] == 280
   assert kwargs["connect_args"] == {"ssl": "require"}
