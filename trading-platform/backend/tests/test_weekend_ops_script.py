@@ -52,6 +52,15 @@ def test_verify_platform_uses_ops_gate_summary():
   assert "ops-gate-summary.sh" in text
   assert "EXPECTED_DASHBOARD_BUNDLE" in text
   assert "verify-dashboard-bundle.sh" in text
+  assert "fetch_json.sh" in text
+  assert "json.load(sys.stdin)" in text
+
+
+def test_fetch_json_lib_exists():
+  lib = SCRIPTS / "lib" / "fetch_json.sh"
+  text = lib.read_text(encoding="utf-8")
+  assert "fetch_json()" in text
+  assert "attempts" in text
 
 
 def test_verify_post_deploy_includes_crm_and_learning_checks():

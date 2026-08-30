@@ -4,12 +4,14 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LIB="$ROOT/scripts/lib/deploy_json.py"
+# shellcheck source=lib/fetch_json.sh
+source "$ROOT/scripts/lib/fetch_json.sh"
 BACKEND="${BACKEND_URL:-https://apex-trading-backend.onrender.com}"
 CODE_REV="$(grep '^EXPECTED_PLATFORM_REVISION' "$ROOT/backend/app/engines/deploy_status.py" | sed -n 's/.*"\([^"]*\)".*/\1/p')"
 
-SNAPSHOT=$(curl -fsS -m 20 "$BACKEND/api/deploy/snapshot" 2>/dev/null || echo "{}")
-CME=$(curl -fsS -m 45 "$BACKEND/api/gate/cme-reopen-checklist" 2>/dev/null || echo "{}")
-INTEL_SOURCES=$(curl -fsS -m 25 "$BACKEND/api/intelligence/sources" 2>/dev/null || echo "[]")
+SNAPSHOT=$(fetch_json "$BACKEND/api/deploy/snapshot" 45 2)
+CME=$(fetch_json "$BACKEND/api/gate/cme-reopen-checklist" 60 2)
+INTEL_SOURCES=$(fetch_json "$BACKEND/api/intelligence/sources" 30 2)
 BASELINE=""
 if [[ -f "$ROOT/.crm-load-baseline" ]]; then
   BASELINE=$(tr -d '[:space:]' < "$ROOT/.crm-load-baseline")

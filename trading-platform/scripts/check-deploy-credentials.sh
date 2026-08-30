@@ -4,6 +4,8 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=lib/fetch_json.sh
+source "$ROOT/scripts/lib/fetch_json.sh"
 BACKEND="${BACKEND_URL:-https://apex-trading-backend.onrender.com}"
 ENV_FILE="${ENV_FILE:-$ROOT/.env}"
 STRICT=false
@@ -21,7 +23,7 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-SNAPSHOT=$(curl -fsS -m 15 "$BACKEND/api/deploy/snapshot" 2>/dev/null || echo "{}")
+SNAPSHOT=$(fetch_json "$BACKEND/api/deploy/snapshot" 45 2)
 CODE_REV="$(grep '^EXPECTED_PLATFORM_REVISION' "$ROOT/backend/app/engines/deploy_status.py" | sed -n 's/.*"\([^"]*\)".*/\1/p')"
 STRICT_FLAG="$STRICT" SNAPSHOT_JSON="$SNAPSHOT" ENV_FILE="$ENV_FILE" CODE_REV="$CODE_REV" python3 << 'PY'
 import json, os, sys

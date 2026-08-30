@@ -3,6 +3,8 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+# shellcheck source=lib/fetch_json.sh
+source "$ROOT/scripts/lib/fetch_json.sh"
 BACKEND="${BACKEND_URL:-https://apex-trading-backend.onrender.com}"
 DASHBOARD="${DASHBOARD_URL:-https://apex-trading-dashboard-flame.vercel.app}"
 FLAME="${FLAME_URL:-https://apex-trading-dashboard-flame.vercel.app}"
@@ -35,55 +37,52 @@ else
 fi
 
 # Status + gate
-STATUS=$(curl -fsS -m 45 "$BACKEND/api/status" 2>/dev/null || echo "{}")
-python3 << PY
-import json, os, sys
-d = json.loads('''$STATUS''')
-if not d.get("platform"):
+STATUS=$(fetch_json "$BACKEND/api/status" 60 2)
+if echo "$STATUS" | python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+if not d.get('platform'):
     sys.exit(1)
-g = d.get("profitability_gate") or {}
-s = d.get("stats") or {}
-dep = d.get("deploy") or {}
-print(f"  paper_only={d.get('paper_trading_only')} bots={s.get('bots_active')} intel={s.get('intelligence_items')}")
-print(f"  gate_wr={g.get('win_rate')} trades={g.get('total_trades')} paused={g.get('paused_bots')}")
-print(f"  deploy={str(dep.get('git_commit',''))[:12]} revision={dep.get('platform_revision')} stale={dep.get('is_stale')}")
-bs = (d.get("bot_sessions") or {}).get("stocks_futures") or {}
-if bs.get("minutes_until_open") is not None and bs["minutes_until_open"] <= 90:
-    print(f"  stocks_prep_window=True open_in={bs.get('minutes_until_open')}min mode={bs.get('mode')}")
-if d.get("paper_trading_only") is True:
+g = d.get('profitability_gate') or {}
+s = d.get('stats') or {}
+dep = d.get('deploy') or {}
+print(f\"  paper_only={d.get('paper_trading_only')} bots={s.get('bots_active')} intel={s.get('intelligence_items')}\")
+print(f\"  gate_wr={g.get('win_rate')} trades={g.get('total_trades')} paused={g.get('paused_bots')}\")
+print(f\"  deploy={str(dep.get('git_commit',''))[:12]} revision={dep.get('platform_revision')} stale={dep.get('is_stale')}\")
+bs = (d.get('bot_sessions') or {}).get('stocks_futures') or {}
+if bs.get('minutes_until_open') is not None and bs['minutes_until_open'] <= 90:
+    print(f\"  stocks_prep_window=True open_in={bs.get('minutes_until_open')}min mode={bs.get('mode')}\")
+if d.get('paper_trading_only') is True:
     sys.exit(0)
 sys.exit(1)
-PY
-if [[ $? -eq 0 ]]; then
+"; then
   ok "Backend /api/status (paper trading, gate stats)"
 else
-  bad "Backend /api/status invalid"
+  bad "Backend /api/status invalid or unavailable"
 fi
 
 # Database persistence (Supabase required on Render)
-db_ok=0
-python3 << PY || db_ok=$?
+if echo "$STATUS" | python3 -c "
 import json, sys
-d = json.loads('''$STATUS''')
-db = d.get("database") or {}
-if db.get("persistent") is True:
-    print(f"  engine={db.get('engine')} persistent=True")
+d = json.load(sys.stdin)
+db = d.get('database') or {}
+if db.get('persistent') is True:
+    print(f\"  engine={db.get('engine')} persistent=True\")
     sys.exit(0)
-on_render = "onrender.com" in "$BACKEND"
+on_render = 'onrender.com' in sys.argv[1]
 if on_render:
-    print("  engine=sqlite ephemeral — gate data resets each deploy; set DATABASE_URL on Render")
+    print('  engine=sqlite ephemeral — gate data resets each deploy; set DATABASE_URL on Render')
     sys.exit(1)
-print(f"  engine={db.get('engine')} (local dev OK)")
+print(f\"  engine={db.get('engine')} (local dev OK)\")
 sys.exit(0)
-PY
-if [[ "${db_ok:-0}" -eq 0 ]]; then
+" "$BACKEND"; then
   ok "Database persistence"
 else
   bad "Database not persistent on production (set Supabase DATABASE_URL)"
 fi
 
 # Intel sources
-INTEL_RAW=$(curl -fsS -m 25 "$BACKEND/api/intelligence/sources" 2>/dev/null || echo "[]")
+INTEL_RAW=$(fetch_json "$BACKEND/api/intelligence/sources" 30 2)
 SRC_COUNT=$(echo "$INTEL_RAW" | python3 -c "
 import json,sys
 raw=json.load(sys.stdin)
@@ -123,73 +122,69 @@ else
 fi
 
 # Per-bot graduation gate
-PER_BOT=$(curl -fsS -m 25 "$BACKEND/api/gate/per-bot" 2>/dev/null || echo "{}")
-python3 << PY
+PER_BOT=$(fetch_json "$BACKEND/api/gate/per-bot" 30 2)
+if echo "$PER_BOT" | python3 -c "
 import json, sys
-d = json.loads('''$PER_BOT''')
-bots = d.get("bots") or {}
+d = json.load(sys.stdin)
+bots = d.get('bots') or {}
 if len(bots) < 4:
     sys.exit(1)
-ready = [b for b, s in bots.items() if s.get("graduation_ready")]
-paused = [b for b, s in bots.items() if s.get("paused")]
-print(f"  bots={len(bots)} paused={paused} graduation_ready={ready or 'none'}")
-sys.exit(0)
-PY
-if [[ $? -eq 0 ]]; then
+ready = [b for b, s in bots.items() if s.get('graduation_ready')]
+paused = [b for b, s in bots.items() if s.get('paused')]
+print(f\"  bots={len(bots)} paused={paused} graduation_ready={ready or 'none'}\")
+"; then
   ok "Per-bot graduation gate (/api/gate/per-bot)"
 else
   bad "Per-bot gate endpoint missing or incomplete"
 fi
 
 # Scan preview diagnostics (paused bot entry blockers)
-SCAN_PREVIEW=$(curl -fsS -m 45 "$BACKEND/api/bots/commodities/scan-preview" 2>/dev/null || echo "{}")
-python3 << PY
+SCAN_PREVIEW=$(fetch_json "$BACKEND/api/bots/commodities/scan-preview" 45 2)
+if echo "$SCAN_PREVIEW" | python3 -c "
 import json, sys
-d = json.loads('''$SCAN_PREVIEW''')
-if d.get("bot_type") != "commodities":
+d = json.load(sys.stdin)
+if d.get('bot_type') != 'commodities':
     sys.exit(1)
-if "symbols" not in d or not isinstance(d["symbols"], list):
+if 'symbols' not in d or not isinstance(d['symbols'], list):
     sys.exit(1)
-print(f"  shadow={d.get('shadow_mode')} nudge={d.get('graduation_nudge')} symbols={len(d['symbols'])}")
-sys.exit(0)
-PY
-if [[ $? -eq 0 ]]; then
+print(f\"  shadow={d.get('shadow_mode')} nudge={d.get('graduation_nudge')} symbols={len(d['symbols'])}\")
+"; then
   ok "Commodities scan-preview (/api/bots/commodities/scan-preview)"
 else
   bad "Scan-preview endpoint missing or invalid (deploy r95+)"
 fi
 
 # CME reopen prep (weekend / pre-open)
-PREP=$(curl -fsS -m 30 "$BACKEND/api/gate/prep-status" 2>/dev/null || echo "{}")
-python3 << PY
+PREP=$(fetch_json "$BACKEND/api/gate/prep-status" 45 2)
+if echo "$PREP" | python3 -c "
 import json, sys
-prep = json.loads('''$PREP''')
-comm = prep.get("commodities") or {}
-cme = (prep.get("next_session_events") or {}).get("cme_reopen") or {}
-mins = comm.get("minutes_until_open") or cme.get("minutes_until_open")
-phase = comm.get("prep_phase") or cme.get("prep_phase")
-open_ready = comm.get("open_ready_symbols") or cme.get("open_ready_symbols") or []
-auto_entry = comm.get("auto_entry_queued") or cme.get("auto_entry_queued")
+prep = json.load(sys.stdin)
+comm = prep.get('commodities') or {}
+cme = (prep.get('next_session_events') or {}).get('cme_reopen') or {}
+mins = comm.get('minutes_until_open') or cme.get('minutes_until_open')
+phase = comm.get('prep_phase') or cme.get('prep_phase')
+open_ready = comm.get('open_ready_symbols') or cme.get('open_ready_symbols') or []
+auto_entry = comm.get('auto_entry_queued') or cme.get('auto_entry_queued')
 if mins is None:
     sys.exit(1)
-print(f"  cme_phase={phase} open_in={mins}min open_ready={open_ready} auto_entry={auto_entry}")
-sys.exit(0)
-PY
-if [[ $? -eq 0 ]]; then
+print(f\"  cme_phase={phase} open_in={mins}min open_ready={open_ready} auto_entry={auto_entry}\")
+"; then
   ok "CME prep-status (phase, open-ready queue)"
 else
   note "CME prep-status unavailable (run verify-cme-reopen.sh)"
 fi
 
-CME_CHECK=$(curl -fsS -m 45 "$BACKEND/api/gate/cme-reopen-checklist" 2>/dev/null || echo "")
+CME_CHECK=$(fetch_json "$BACKEND/api/gate/cme-reopen-checklist" 60 2)
 if [[ -n "$CME_CHECK" && "$CME_CHECK" != "{}" ]]; then
-  python3 << PY
+  if echo "$CME_CHECK" | python3 -c "
 import json, sys
-d = json.loads('''$CME_CHECK''')
-print(f"  cme_checklist_ready={d.get('ready')} phase={d.get('phase')}")
-sys.exit(0)
-PY
-  ok "CME reopen checklist API"
+d = json.load(sys.stdin)
+print(f\"  cme_checklist_ready={d.get('ready')} phase={d.get('phase')}\")
+"; then
+    ok "CME reopen checklist API"
+  else
+    note "CME checklist API returned invalid JSON"
+  fi
 else
   note "CME checklist API unavailable until r344+ deploy"
 fi
@@ -215,23 +210,31 @@ else
 fi
 
 # Pick best live CRM — git-main r27 when -flame bundle is stale
-FLAME_CFG=$(curl -fsS -m 20 "$FLAME/api/config" 2>/dev/null || echo "{}")
+FLAME_CFG=$(fetch_json "$FLAME/api/config" 30 2)
 DASHBOARD="$FLAME"
-python3 << PY
-import json
-flame_cfg = json.loads('''$FLAME_CFG''')
+export FLAME_CFG_JSON="$FLAME_CFG"
+export EXPECTED_BUNDLE GIT_MAIN="$GIT_MAIN" FLAME_URL="$FLAME"
+if python3 << 'PY'
+import json, os
+
+flame_cfg = json.loads(os.environ.get("FLAME_CFG_JSON") or "{}")
 rev = flame_cfg.get("bundleRevision", "")
-expected = "$EXPECTED_BUNDLE"
-git_main = "$GIT_MAIN"
-flame_url = "$FLAME"
+expected = os.environ.get("EXPECTED_BUNDLE", "")
+git_main = os.environ.get("GIT_MAIN", "")
+flame_url = os.environ.get("FLAME_URL", "")
 if rev != expected or not (flame_cfg.get("features") or {}).get("activeGate"):
     print(f"  flame bundle={rev!r} — using git-main verified preview")
-    with open("/tmp/apex-dashboard-url.txt", "w") as out:
+    with open("/tmp/apex-dashboard-url.txt", "w", encoding="utf-8") as out:
         out.write(git_main)
 else:
-    with open("/tmp/apex-dashboard-url.txt", "w") as out:
+    with open("/tmp/apex-dashboard-url.txt", "w", encoding="utf-8") as out:
         out.write(flame_url)
 PY
+then
+  :
+else
+  note "Dashboard config parse failed — using flame URL"
+fi
 if [[ -f /tmp/apex-dashboard-url.txt ]]; then
   DASHBOARD=$(cat /tmp/apex-dashboard-url.txt)
 fi
@@ -246,13 +249,13 @@ else
 fi
 
 # Dashboard proxy config (legacy check for activeGate on selected URL)
-DCFG=$(curl -fsS -m 20 "$DASHBOARD/api/config" 2>/dev/null || echo "{}")
-python3 << PY
-import json
-d = json.loads('''$DCFG''')
-rev = d.get("bundleRevision", "?")
-print(f"  selected_dashboard bundle={rev} api={str(d.get('apiUrl','?'))[:50]}")
-PY
+DCFG=$(fetch_json "$DASHBOARD/api/config" 30 2)
+echo "$DCFG" | python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+rev = d.get('bundleRevision', '?')
+print(f\"  selected_dashboard bundle={rev} api={str(d.get('apiUrl','?'))[:50]}\")
+" 2>/dev/null || note "Dashboard /api/config unavailable"
 
 # Native active-gate on verified preview (not available on stale -flame alone)
 if [[ "$DASHBOARD" == *"git-main"* ]]; then
@@ -264,17 +267,16 @@ if [[ "$DASHBOARD" == *"git-main"* ]]; then
   fi
 fi
 
-PROXY=$(curl -fsS -m 45 "$DASHBOARD/api/backend/status" 2>/dev/null || echo "{}")
-python3 << PY
+PROXY=$(fetch_json "$DASHBOARD/api/backend/status" 60 2)
+if echo "$PROXY" | python3 -c "
 import json, sys
-d = json.loads('''$PROXY''')
-g = d.get("profitability_gate") or {}
-if g.get("win_rate") is not None and d.get("paper_trading_only") is True:
-    print(f"  proxy_wr={g.get('win_rate')} paused={g.get('paused_bots')}")
+d = json.load(sys.stdin)
+g = d.get('profitability_gate') or {}
+if g.get('win_rate') is not None and d.get('paper_trading_only') is True:
+    print(f\"  proxy_wr={g.get('win_rate')} paused={g.get('paused_bots')}\")
     sys.exit(0)
 sys.exit(1)
-PY
-if [[ $? -eq 0 ]]; then
+"; then
   ok "Dashboard proxy → backend status (real-time CRM)"
 else
   bad "Dashboard proxy failed"
