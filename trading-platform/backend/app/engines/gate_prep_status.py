@@ -87,7 +87,41 @@ async def _build_gate_prep_status_uncached(session: AsyncSession) -> dict[str, A
     stocks_session=stocks_session,
   )
   return {
-    **session_prep,
+    **_enrich_prep_with_session_events(session_prep, next_session_events),
     "next_session_events": next_session_events,
     "timestamp": datetime.utcnow().isoformat(),
   }
+
+
+def _enrich_prep_with_session_events(
+  session_prep: dict[str, Any],
+  next_session_events: dict[str, Any],
+) -> dict[str, Any]:
+  """Surface auto-entry fields on each bot prep entry for lightweight CRM polls."""
+  enriched = dict(session_prep)
+  cme = next_session_events.get("cme_reopen") or {}
+  us = next_session_events.get("us_stocks_open") or {}
+  commodities = dict(enriched.get("commodities") or {})
+  stocks = dict(enriched.get("stocks_futures") or {})
+  commodities.update(
+    {
+      "auto_entry_queued": bool(cme.get("auto_entry_queued")),
+      "composite_floor": cme.get("composite_floor"),
+      "open_ready_symbols": cme.get("open_ready_symbols") or commodities.get("open_ready_symbols"),
+      "open_ready_details": cme.get("open_ready_details") or commodities.get("open_ready_details"),
+      "near_floor_symbols": cme.get("near_floor_symbols") or commodities.get("near_floor_symbols"),
+      "near_floor_details": cme.get("near_floor_details") or commodities.get("near_floor_details"),
+    }
+  )
+  stocks.update(
+    {
+      "auto_entry_queued": bool(us.get("auto_entry_queued")),
+      "open_ready_symbols": us.get("open_ready_symbols") or stocks.get("open_ready_symbols"),
+      "open_ready_details": us.get("open_ready_details") or stocks.get("open_ready_details"),
+      "near_floor_symbols": us.get("near_floor_symbols") or stocks.get("near_floor_symbols"),
+      "near_floor_details": us.get("near_floor_details") or stocks.get("near_floor_details"),
+    }
+  )
+  enriched["commodities"] = commodities
+  enriched["stocks_futures"] = stocks
+  return enriched
