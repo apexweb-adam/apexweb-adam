@@ -15,7 +15,7 @@ import {
   TrendingUp,
   Zap,
 } from "lucide-react";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, type ReactNode } from "react";
 import { useLiveData } from "@/lib/useLiveData";
 import { useAPI } from "@/lib/useAPI";
 import { fetchAPI } from "@/lib/api";
@@ -317,7 +317,8 @@ export default function Dashboard() {
         {tab === "overview" && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-6">
-              <CmeImminentBanner events={nextSessionEvents} sessionPrep={sessionPrep} />
+              <SessionImminentBanners events={nextSessionEvents} sessionPrep={sessionPrep} />
+              <NextSessionsCard events={nextSessionEvents} sessionPrep={sessionPrep} />
               <MondayRecoveryBanner summary={mondayRecovery} />
               <SessionPrepBanner sessionPrep={sessionPrep} />
               <Card title="Bot Status">
@@ -1606,7 +1607,7 @@ function BotCard({
   );
 }
 
-function CmeImminentBanner({
+function NextSessionsCard({
   events,
   sessionPrep,
 }: {
@@ -1614,35 +1615,126 @@ function CmeImminentBanner({
   sessionPrep: SessionPrepStatus | null;
 }) {
   const cme = events?.cme_reopen;
+  const us = events?.us_stocks_open;
   const commPrep = sessionPrep?.commodities;
-  const mins = cme?.minutes_until_open ?? commPrep?.minutes_until_open;
-  const imminent =
-    Boolean(cme?.reopen_imminent) ||
-    Boolean(commPrep?.gate_reopen_imminent) ||
-    (mins != null && mins <= 60);
-  if (!imminent || mins == null) return null;
+  const stocksPrep = sessionPrep?.stocks_futures;
+  const rows: Array<{ label: string; mins: number | null | undefined; ready: string }> = [];
 
-  const ready =
-    cme?.open_ready_symbols?.join(", ") ||
-    commPrep?.open_ready_symbols?.join(", ") ||
-    sessionPrep?.open_ready_candidates?.join(", ") ||
-    "—";
-  const fastScan = cme?.reopen_imminent || commPrep?.gate_reopen_imminent ? "5s" : "15s";
-  const wake = cme?.reopen_wake_active || commPrep?.reopen_wake_active;
+  const cmeMins = cme?.minutes_until_open ?? commPrep?.minutes_until_open;
+  if (cmeMins != null && !commPrep?.in_session) {
+    rows.push({
+      label: "CME reopen",
+      mins: cmeMins,
+      ready:
+        cme?.open_ready_symbols?.join(", ") ||
+        commPrep?.open_ready_symbols?.join(", ") ||
+        "—",
+    });
+  }
+  const usMins = us?.minutes_until_open ?? stocksPrep?.minutes_until_open;
+  if (usMins != null && !stocksPrep?.in_session) {
+    rows.push({
+      label: "US stocks open",
+      mins: usMins,
+      ready:
+        us?.open_ready_symbols?.join(", ") ||
+        stocksPrep?.open_ready_symbols?.join(", ") ||
+        "—",
+    });
+  }
+  if (rows.length === 0) return null;
 
   return (
-    <div className="rounded-lg border border-amber-500/40 bg-amber-950/40 p-4">
-      <p className="text-sm font-semibold text-amber-300">
-        CME reopen imminent — {mins}m until open
-        {wake ? (
-          <span className="ml-2 text-amber-200/80 font-normal">· TV wake active</span>
-        ) : null}
-      </p>
-      <p className="text-xs text-amber-200/70 mt-1">
-        Fast scan {fastScan} · open ready: {ready}
-      </p>
+    <div className="rounded-lg border border-sky-500/30 bg-sky-950/20 p-4">
+      <p className="text-sm font-medium text-sky-300 mb-2">Next sessions</p>
+      <ul className="space-y-1.5">
+        {rows.map((row) => (
+          <li key={row.label} className="text-xs text-gray-300">
+            <span className="font-medium text-white">{row.label}</span>
+            {" · "}
+            {row.mins != null ? `${Math.floor(row.mins / 60)}h ${row.mins % 60}m` : "soon"}
+            <span className="text-lime-400/90"> · open ready: {row.ready}</span>
+          </li>
+        ))}
+      </ul>
     </div>
   );
+}
+
+function SessionImminentBanners({
+  events,
+  sessionPrep,
+}: {
+  events: NextSessionEvents | null;
+  sessionPrep: SessionPrepStatus | null;
+}) {
+  const banners: ReactNode[] = [];
+
+  const cme = events?.cme_reopen;
+  const commPrep = sessionPrep?.commodities;
+  const cmeMins = cme?.minutes_until_open ?? commPrep?.minutes_until_open;
+  const cmeImminent =
+    Boolean(cme?.reopen_imminent) ||
+    Boolean(commPrep?.gate_reopen_imminent) ||
+    (cmeMins != null && cmeMins <= 60);
+  if (cmeImminent && cmeMins != null) {
+    const ready =
+      cme?.open_ready_symbols?.join(", ") ||
+      commPrep?.open_ready_symbols?.join(", ") ||
+      "—";
+    const fastScan = cme?.reopen_imminent || commPrep?.gate_reopen_imminent ? "5s" : "15s";
+    const wake = cme?.reopen_wake_active || commPrep?.reopen_wake_active;
+    banners.push(
+      <div
+        key="cme"
+        className="rounded-lg border border-amber-500/40 bg-amber-950/40 p-4"
+      >
+        <p className="text-sm font-semibold text-amber-300">
+          CME reopen imminent — {cmeMins}m until open
+          {wake ? (
+            <span className="ml-2 text-amber-200/80 font-normal">· TV wake active</span>
+          ) : null}
+        </p>
+        <p className="text-xs text-amber-200/70 mt-1">
+          Fast scan {fastScan} · open ready: {ready}
+        </p>
+      </div>
+    );
+  }
+
+  const us = events?.us_stocks_open;
+  const stocksPrep = sessionPrep?.stocks_futures;
+  const usMins = us?.minutes_until_open ?? stocksPrep?.minutes_until_open;
+  const usImminent =
+    Boolean(stocksPrep?.gate_reopen_imminent) ||
+    (usMins != null && usMins <= 60);
+  if (usImminent && usMins != null) {
+    const ready =
+      us?.open_ready_symbols?.join(", ") ||
+      stocksPrep?.open_ready_symbols?.join(", ") ||
+      "—";
+    const fastScan = stocksPrep?.gate_reopen_imminent ? "5s" : "15s";
+    const wake = us?.reopen_wake_active || stocksPrep?.reopen_wake_active;
+    banners.push(
+      <div
+        key="us"
+        className="rounded-lg border border-amber-500/40 bg-amber-950/40 p-4"
+      >
+        <p className="text-sm font-semibold text-amber-300">
+          US stocks open imminent — {usMins}m until open
+          {wake ? (
+            <span className="ml-2 text-amber-200/80 font-normal">· TV wake active</span>
+          ) : null}
+        </p>
+        <p className="text-xs text-amber-200/70 mt-1">
+          Fast scan {fastScan} · open ready: {ready}
+        </p>
+      </div>
+    );
+  }
+
+  if (banners.length === 0) return null;
+  return <div className="space-y-3">{banners}</div>;
 }
 
 function SessionPrepBanner({ sessionPrep }: { sessionPrep: SessionPrepStatus | null }) {
