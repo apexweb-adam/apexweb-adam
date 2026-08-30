@@ -66,6 +66,18 @@ def test_build_deploy_snapshot_no_window_when_current():
   assert snap["cme_deploy_window"] is None
 
 
+def test_apply_fomo_bearer_github_missing_is_nudge_not_blocker():
+  from app.engines.deploy_status import apply_fomo_bearer_to_snapshot
+
+  snap = apply_fomo_bearer_to_snapshot(
+    {"platform_revision": "2026-08-29-r336", "github_token_configured": False},
+    {"configured": False, "polling_active": False, "minutes_remaining": None},
+  )
+  assert snap["deploy_credentials_ready"] is True
+  assert any("GITHUB" in n for n in snap["deploy_credentials_nudges"])
+  assert snap["deploy_credentials_warnings"] == []
+
+
 def test_apply_fomo_bearer_to_snapshot_marks_expired():
   from app.engines.deploy_status import apply_fomo_bearer_to_snapshot
 

@@ -580,6 +580,7 @@ export type PlatformDeployStatus = {
   } | null;
   deploy_credentials_ready?: boolean;
   deploy_credentials_warnings?: string[];
+  deploy_credentials_nudges?: string[];
   next_steps: string[];
 };
 

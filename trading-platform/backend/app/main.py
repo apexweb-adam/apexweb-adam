@@ -12,6 +12,7 @@ from app.config import settings
 from app.engines.deploy_status import (
   EXPECTED_DASHBOARD_BUNDLE,
   build_cme_deploy_window,
+  build_deploy_credentials_nudges,
   build_deploy_credentials_warnings,
   build_deploy_status,
   format_cme_deploy_window_crm_html,
@@ -700,8 +701,12 @@ async def crm_landing():
       fomo_polling_active=bool(fomo_hook.get("bearer_polling_active")),
       fomo_minutes_remaining=fomo_hook.get("bearer_minutes_remaining"),
     )
-    if credential_warnings:
-      deploy_credentials_card = format_deploy_credentials_crm_html(credential_warnings)
+    credential_nudges = build_deploy_credentials_nudges(
+      github_token_configured=bool(os.environ.get("GITHUB_TOKEN", "").strip()),
+    )
+    credential_items = credential_warnings + credential_nudges
+    if credential_items:
+      deploy_credentials_card = format_deploy_credentials_crm_html(credential_items)
   dashboard_bundle_card = ""
   if behind_expected and prod_bundle != "?":
     dashboard_bundle_card = format_dashboard_bundle_crm_html(

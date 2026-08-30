@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Unified deploy credential check: fomo bearer + GITHUB_TOKEN (non-blocking by default).
-# Usage: check-deploy-credentials.sh [--strict]  # --strict exits 1 when not ready
+# Unified deploy credential check: fomo bearer (blocking) + GITHUB_TOKEN (nudge).
+# Usage: check-deploy-credentials.sh [--strict]  # --strict exits 1 when blockers remain
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -34,16 +34,27 @@ env_file = os.environ.get("ENV_FILE") or ""
 code_rev = os.environ.get("CODE_REV") or ""
 
 warnings = list(snap.get("deploy_credentials_warnings") or [])
-ready = snap.get("deploy_credentials_ready")
+nudges = list(snap.get("deploy_credentials_nudges") or [])
 
-if ready is None:
-    if snap.get("github_token_configured") is False:
-        warnings.append("GITHUB_TOKEN missing on Render")
+# Normalize pre-r390 snapshots: GITHUB_TOKEN is advisory, not deploy-blocking.
+if any("GITHUB_TOKEN" in w for w in warnings):
+    warnings = [w for w in warnings if "GITHUB_TOKEN" not in w]
+    fallback = "GITHUB_TOKEN missing on Render — deploy staleness checks incomplete"
+    if fallback not in nudges:
+        nudges.append(fallback)
+
+if snap.get("deploy_credentials_ready") is None:
     if snap.get("fomo_bearer_configured") and snap.get("fomo_bearer_polling_active") is False:
         mins = snap.get("fomo_bearer_minutes_remaining")
         label = f"{mins}min" if mins is not None else "expired"
         warnings.append(f"fomo bearer expired ({label})")
-    ready = len(warnings) == 0
+
+if snap.get("github_token_configured") is False:
+    fallback = "GITHUB_TOKEN missing on Render — deploy staleness checks incomplete"
+    if fallback not in nudges:
+        nudges.append(fallback)
+
+ready = len(warnings) == 0
 
 print("=== Deploy credentials ===")
 prod_rev = snap.get("platform_revision") or "?"
@@ -95,15 +106,19 @@ if env_file and os.path.isfile(env_file):
     if has_github:
         print("local .env: GITHUB_TOKEN present")
     else:
-        print("local .env: GITHUB_TOKEN missing — sync-render-env.sh will not push it")
-        if "GITHUB_TOKEN missing" not in " ".join(warnings):
-            warnings.append("GITHUB_TOKEN missing from local .env")
-        ready = False
+        print("local .env: GITHUB_TOKEN missing — optional for deploy; enables staleness checks")
+        nudge = "GITHUB_TOKEN missing from local .env"
+        if nudge not in nudges:
+            nudges.append(nudge)
 else:
     print("local .env: not found")
 
 if ready:
-    print("✓ Deploy credentials OK")
+    print("✓ Deploy credentials OK (no blocking issues)")
+    if nudges:
+        print("Nudges (non-blocking):")
+        for item in nudges:
+            print(f"  ○ {item}")
 else:
     print("")
     print("ACTION REQUIRED before deploy:")
@@ -112,14 +127,15 @@ else:
     hint = snap.get("fomo_bearer_refresh_hint")
     if hint and any("fomo" in w for w in warnings):
         print(f"  fomo refresh: {hint}")
-    if any("GITHUB" in w for w in warnings):
-        print("  github: add GITHUB_TOKEN to .env then bash trading-platform/scripts/sync-render-env.sh")
+    if nudges:
+        print("Nudges (non-blocking):")
+        for item in nudges:
+            print(f"  ○ {item}")
     if strict:
         sys.exit(1)
 PY
 CRED_EXIT=$?
 
-# Backward compat when production is pre-r371/r370 snapshot fields.
 if ! echo "$SNAPSHOT" | python3 -c "import json,sys; d=json.load(sys.stdin); sys.exit(0 if d.get('fomo_bearer_configured') is not None else 1)" 2>/dev/null; then
   echo ""
   bash "$ROOT/scripts/check-fomo-bearer.sh" || true

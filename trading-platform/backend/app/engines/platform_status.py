@@ -16,6 +16,7 @@ from app.engines.deploy_status import (
   build_deploy_status,
   build_cme_deploy_urgency,
   build_cme_deploy_window,
+  build_deploy_credentials_nudges,
   build_deploy_credentials_warnings,
   dashboard_url_from_deploy,
   fomo_bearer_nudge_message,
@@ -249,6 +250,9 @@ async def _build_platform_status_uncached(session: AsyncSession) -> dict[str, An
     fomo_polling_active=bool(fomo_bearer.get("polling_active")),
     fomo_minutes_remaining=fomo_bearer.get("minutes_remaining"),
   )
+  deploy_credentials_nudges = build_deploy_credentials_nudges(
+    github_token_configured=bool(os.environ.get("GITHUB_TOKEN", "").strip()),
+  )
   return {
     "platform": "Apex Trading Platform",
     "version": "1.0.0",
@@ -339,6 +343,7 @@ async def _build_platform_status_uncached(session: AsyncSession) -> dict[str, An
         cme_in_session=bool(cme_sess.get("in_session")),
       ),
       "deploy_credentials_warnings": deploy_credentials_warnings,
+      "deploy_credentials_nudges": deploy_credentials_nudges,
       "deploy_credentials_ready": len(deploy_credentials_warnings) == 0,
       "git_commit": deploy_info.get("git_commit"),
       "git_branch": deploy_info.get("git_branch"),
