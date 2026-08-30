@@ -202,6 +202,23 @@ def test_verify_pre_deploy_intel_readiness():
   assert "Intel source health fields" in text
   assert "r385" in text
   assert "/api/intelligence/sources" in text
+  assert "deploy_json.py" in text
+  assert "Intel sources API ready" in text
+
+
+def test_verify_cme_reopen_uses_deploy_json_fallback():
+  script = SCRIPTS / "verify-cme-reopen.sh"
+  text = script.read_text(encoding="utf-8")
+  assert "deploy_json.py" in text
+  assert "json.load(sys.stdin)" in text
+  assert "STATUS_JSON" in text
+
+
+def test_deploy_json_lib_exists():
+  lib = SCRIPTS / "lib" / "deploy_json.py"
+  text = lib.read_text(encoding="utf-8")
+  assert "intel-readiness" in text
+  assert "cme-prep-preflight" in text
 
 
 def test_verify_post_deploy_checks_learning_endpoint():
