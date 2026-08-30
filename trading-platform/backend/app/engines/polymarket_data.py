@@ -2,14 +2,22 @@
 
 import json
 from datetime import datetime, timedelta
+from typing import Any
 
 import httpx
 import pandas as pd
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 
+PM_HISTORY_SETTING_KEY = "pm_price_history"
+PM_HISTORY_MIN_TICKS = 10
+PM_HISTORY_MAX_POINTS = 200
+
 # slug -> list of (timestamp, yes_price)
 _pm_history: dict[str, list[tuple[datetime, float]]] = {}
+_pm_history_dirty = False
+_pm_history_loaded = False
 _markets_cache: list[dict] = []
 _markets_cache_at: datetime | None = None
 
@@ -42,6 +50,151 @@ async def fetch_top_markets(limit: int | None = None) -> list[dict]:
   except Exception as e:
     print(f"Polymarket markets fetch error: {e}")
     return _markets_cache[:cap] if _markets_cache else []
+
+
+def _parse_yes_token_id(market: dict) -> str | None:
+  raw = market.get("clobTokenIds")
+  if not raw:
+    return None
+  try:
+    ids = json.loads(raw) if isinstance(raw, str) else raw
+    if isinstance(ids, list) and ids:
+      return str(ids[0])
+  except Exception:
+    pass
+  return None
+
+
+def _merge_history_points(
+  slug: str,
+  points: list[tuple[datetime, float]],
+) -> None:
+  global _pm_history_dirty
+  if not points:
+    return
+  merged: dict[datetime, float] = {t: p for t, p in _pm_history.get(slug, [])}
+  for ts, price in points:
+    merged[ts] = price
+  ordered = sorted(merged.items(), key=lambda item: item[0])[-PM_HISTORY_MAX_POINTS:]
+  _pm_history[slug] = ordered
+  _pm_history_dirty = True
+
+
+def _history_to_dataframe(
+  hist: list[tuple[datetime, float]],
+  market: dict,
+) -> pd.DataFrame:
+  volume = market.get("volume24hr", 1000) or 1000
+  rows = []
+  for ts, p in hist:
+    rows.append({
+      "timestamp": ts,
+      "open": p,
+      "high": min(0.99, p * 1.002),
+      "low": max(0.01, p * 0.998),
+      "close": p,
+      "volume": volume,
+    })
+  return pd.DataFrame(rows)
+
+
+async def _fetch_clob_price_history(token_id: str) -> list[tuple[datetime, float]]:
+  try:
+    async with httpx.AsyncClient(timeout=20) as client:
+      resp = await client.get(
+        f"{settings.polymarket_clob_api_url}/prices-history",
+        params={
+          "market": token_id,
+          "interval": "1d",
+          "fidelity": 30,
+        },
+      )
+      if resp.status_code != 200:
+        return []
+      history = resp.json().get("history") or []
+      points: list[tuple[datetime, float]] = []
+      for point in history:
+        ts_raw = point.get("t")
+        price_raw = point.get("p")
+        if ts_raw is None or price_raw is None:
+          continue
+        price = float(price_raw)
+        if price <= 0 or price >= 1:
+          continue
+        points.append((datetime.utcfromtimestamp(int(ts_raw)), price))
+      return points[-PM_HISTORY_MAX_POINTS:]
+  except Exception as exc:
+    print(f"Polymarket CLOB history error: {exc}")
+    return []
+
+
+async def _bootstrap_history_from_clob(full_slug: str, market: dict) -> None:
+  if len(_pm_history.get(full_slug, [])) >= PM_HISTORY_MIN_TICKS:
+    return
+  token_id = _parse_yes_token_id(market)
+  if not token_id:
+    return
+  boot = await _fetch_clob_price_history(token_id)
+  _merge_history_points(full_slug, boot)
+
+
+def serialize_pm_history() -> dict[str, list[list[Any]]]:
+  return {
+    slug: [[ts.isoformat(), price] for ts, price in hist[-100:]]
+    for slug, hist in _pm_history.items()
+    if hist
+  }
+
+
+def load_pm_history_payload(payload: dict[str, list[list[Any]]]) -> None:
+  global _pm_history_loaded
+  for slug, points in payload.items():
+    parsed: list[tuple[datetime, float]] = []
+    for point in points:
+      if not point or len(point) < 2:
+        continue
+      iso, price = point[0], point[1]
+      try:
+        parsed.append((datetime.fromisoformat(str(iso).replace("Z", "")), float(price)))
+      except (TypeError, ValueError):
+        continue
+    if parsed:
+      _merge_history_points(slug, parsed)
+  _pm_history_loaded = True
+
+
+async def hydrate_pm_history_from_settings(session: AsyncSession) -> None:
+  global _pm_history_loaded
+  if _pm_history_loaded:
+    return
+  from app.engines.platform_settings import get_platform_setting
+
+  raw = await get_platform_setting(session, PM_HISTORY_SETTING_KEY)
+  if raw:
+    try:
+      load_pm_history_payload(json.loads(raw))
+    except json.JSONDecodeError:
+      _pm_history_loaded = True
+      return
+  _pm_history_loaded = True
+
+
+async def persist_pm_history_to_settings(session: AsyncSession) -> None:
+  global _pm_history_dirty
+  if not _pm_history_dirty:
+    return
+  from app.engines.platform_settings import set_platform_setting
+
+  await set_platform_setting(session, PM_HISTORY_SETTING_KEY, json.dumps(serialize_pm_history()))
+  _pm_history_dirty = False
+
+
+def clear_pm_history_cache() -> None:
+  """Test helper — reset in-memory PM history."""
+  global _pm_history, _pm_history_dirty, _pm_history_loaded
+  _pm_history = {}
+  _pm_history_dirty = False
+  _pm_history_loaded = False
 
 
 def _parse_yes_price(market: dict) -> float:
@@ -189,25 +342,17 @@ async def fetch_polymarket_data(symbol: str) -> tuple[float, pd.DataFrame | None
     return 0.0, None
 
   now = datetime.utcnow()
-  hist = _pm_history.setdefault(full_slug, [])
-  hist.append((now, price))
-  _pm_history[full_slug] = [(t, p) for t, p in hist if t > now - timedelta(hours=48)][-200:]
+  _merge_history_points(full_slug, [(now, price)])
+  _pm_history[full_slug] = [
+    (t, p) for t, p in _pm_history[full_slug] if t > now - timedelta(hours=48)
+  ][-PM_HISTORY_MAX_POINTS:]
 
-  if len(_pm_history[full_slug]) >= 10:
-    rows = []
-    for ts, p in _pm_history[full_slug]:
-      rows.append({
-        "timestamp": ts,
-        "open": p,
-        "high": min(0.99, p * 1.002),
-        "low": max(0.01, p * 0.998),
-        "close": p,
-        "volume": market.get("volume24hr", 1000) or 1000,
-      })
-    df = pd.DataFrame(rows)
+  await _bootstrap_history_from_clob(full_slug, market)
+
+  if len(_pm_history[full_slug]) >= PM_HISTORY_MIN_TICKS:
+    df = _history_to_dataframe(_pm_history[full_slug], market)
     return price, df
 
-  # No synthetic OHLCV — avoids fake MACD/momentum whipsaws on fresh markets
   return price, None
 
 
