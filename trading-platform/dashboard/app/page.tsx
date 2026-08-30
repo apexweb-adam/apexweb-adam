@@ -1646,6 +1646,12 @@ function SessionPrepBanner({ sessionPrep }: { sessionPrep: SessionPrepStatus | n
                   · reopen imminent
                 </span>
               ) : null}
+              {entry.reopen_wake_active ? (
+                <span className="text-amber-300/90" title="TV force-refresh within 3 min of open">
+                  {" "}
+                  · open wake
+                </span>
+              ) : null}
               {!inSession && entry.prep_active ? (
                 <>
                   {" · "}

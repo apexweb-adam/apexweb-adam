@@ -1151,6 +1151,44 @@ def test_build_session_prep_status_reopen_imminent():
   assert status["stocks_futures"].get("gate_reopen_imminent") is False
 
 
+def test_build_session_prep_status_reopen_wake_active():
+  from app.engines.gate_entry_guard import build_session_prep_status
+
+  status = build_session_prep_status(
+    stocks_session={"in_session": False, "minutes_until_open": 2, "mode": "pre_session"},
+    commodities_session={"in_session": True, "minutes_since_open": 3, "mode": "entries"},
+    stocks_trade_count_nudge=True,
+    commodities_graduation_nudge=True,
+  )
+  assert status["commodities"]["reopen_wake_active"] is True
+  assert status["stocks_futures"]["reopen_wake_active"] is True
+
+
+def test_commodities_reopen_wake_active():
+  from app.engines.gate_entry_guard import commodities_reopen_wake_active
+
+  assert commodities_reopen_wake_active(
+    {"in_session": False, "minutes_until_open": 2, "minutes_since_open": 0}
+  ) is True
+  assert commodities_reopen_wake_active(
+    {"in_session": False, "minutes_until_open": 10, "minutes_since_open": 0}
+  ) is False
+  assert commodities_reopen_wake_active(
+    {"in_session": True, "minutes_until_open": 0, "minutes_since_open": 4}
+  ) is True
+
+
+def test_stocks_open_wake_active():
+  from app.engines.gate_entry_guard import stocks_open_wake_active
+
+  assert stocks_open_wake_active(
+    {"in_session": True, "minutes_until_open": 0, "minutes_since_open": 2}
+  ) is True
+  assert stocks_open_wake_active(
+    {"in_session": False, "minutes_until_open": 30, "minutes_since_open": 0}
+  ) is False
+
+
 def test_stocks_open_imminent_scan_active():
   from app.engines.gate_entry_guard import (
     STOCKS_OPEN_IMMINENT_SCAN_INTERVAL,

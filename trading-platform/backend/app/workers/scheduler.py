@@ -276,15 +276,10 @@ async def commodities_pre_session_prep_job() -> None:
     await push_live_update()
 
 
-CME_REOPEN_WAKE_MINUTES_BEFORE = 3
-CME_REOPEN_WAKE_MINUTES_AFTER = 5
-US_OPEN_WAKE_MINUTES_BEFORE = 3
-US_OPEN_WAKE_MINUTES_AFTER = 5
-
-
 async def commodities_cme_reopen_wake_job() -> None:
   """Force-refresh TV signals right before/after CME reopen so open-ready futures enter fast."""
   from app.engines.gate_entry_guard import (
+    commodities_reopen_wake_active,
     commodities_session_info,
     get_chronic_loser_symbols,
     get_proven_winner_symbols,
@@ -295,19 +290,12 @@ async def commodities_cme_reopen_wake_job() -> None:
   from app.engines.profitability_gate import ProfitabilityGate
 
   session_info = commodities_session_info()
+  if not commodities_reopen_wake_active(session_info):
+    return
+
   minutes_until_open = session_info.get("minutes_until_open")
   minutes_since_open = session_info.get("minutes_since_open")
   in_session = bool(session_info.get("in_session"))
-  wake_window = (
-    (not in_session and minutes_until_open is not None and minutes_until_open <= CME_REOPEN_WAKE_MINUTES_BEFORE)
-    or (
-      in_session
-      and minutes_since_open is not None
-      and minutes_since_open <= CME_REOPEN_WAKE_MINUTES_AFTER
-    )
-  )
-  if not wake_window:
-    return
 
   async with SessionLocal() as session:
     per_bot = (await ProfitabilityGate(session).evaluate_per_bot()).get("commodities") or {}
@@ -352,6 +340,7 @@ async def stocks_us_open_wake_job() -> None:
     get_chronic_loser_symbols,
     get_proven_winner_symbols,
     prioritize_stocks_monday_scan,
+    stocks_open_wake_active,
     stocks_session_info,
     stocks_trade_count_graduation_nudge,
   )
@@ -360,19 +349,12 @@ async def stocks_us_open_wake_job() -> None:
   from app.engines.profitability_gate import ProfitabilityGate
 
   session_info = stocks_session_info()
+  if not stocks_open_wake_active(session_info):
+    return
+
   minutes_until_open = session_info.get("minutes_until_open")
   minutes_since_open = session_info.get("minutes_since_open")
   in_session = bool(session_info.get("in_session"))
-  wake_window = (
-    (not in_session and minutes_until_open is not None and minutes_until_open <= US_OPEN_WAKE_MINUTES_BEFORE)
-    or (
-      in_session
-      and minutes_since_open is not None
-      and minutes_since_open <= US_OPEN_WAKE_MINUTES_AFTER
-    )
-  )
-  if not wake_window:
-    return
 
   async with SessionLocal() as session:
     shadow_mode = await is_bot_paused(session, "stocks_futures")

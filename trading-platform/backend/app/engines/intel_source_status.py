@@ -68,6 +68,14 @@ def _source_status(
         return "active"
     return "degraded"
   if source == "reddit" and has_items and not configured.get("reddit_oauth"):
+    latest = source_latest.get(source)
+    if latest is not None:
+      now = datetime.now(timezone.utc)
+      latest_utc = latest if latest.tzinfo else latest.replace(tzinfo=timezone.utc)
+      if latest_utc.tzinfo != timezone.utc:
+        latest_utc = latest_utc.astimezone(timezone.utc)
+      if now - latest_utc <= timedelta(hours=24):
+        return "active"
     return "degraded"
   if is_configured or has_items:
     return "active"
@@ -143,6 +151,8 @@ async def build_intel_sources(session: AsyncSession) -> list[dict[str, Any]]:
     }
     if source == "reddit":
       row["oauth_configured"] = reddit_oauth
+      if not reddit_oauth and source_counts.get("reddit", 0) > 0:
+        row["collection_mode"] = "rss"
     if source == "fomo" and fomo_bearer.get("configured"):
       row["bearer_expires_at"] = fomo_bearer.get("expires_at")
       row["bearer_minutes_remaining"] = fomo_bearer.get("minutes_remaining")
