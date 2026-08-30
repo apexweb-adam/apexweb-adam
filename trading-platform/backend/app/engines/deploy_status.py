@@ -27,10 +27,10 @@ def github_headers() -> dict[str, str]:
     headers["Authorization"] = f"Bearer {token}"
   return headers
 PRODUCTION_DASHBOARD_URL = "https://apex-trading-dashboard-flame.vercel.app"
-DEFAULT_VERIFIED_DASHBOARD_URL = "https://apex-trading-dashboard-43tumxweh-apexweb-adams-projects.vercel.app"
-DEFAULT_VERIFIED_DEPLOYMENT_ID = "dpl_4fzZAaUaL2mBCEv1EewqeGci2A5a"
-EXPECTED_DASHBOARD_BUNDLE = "2026-08-29-r94"
-EXPECTED_PLATFORM_REVISION = "2026-08-29-r325"
+DEFAULT_VERIFIED_DASHBOARD_URL = "https://apex-trading-dashboard-o7tb7wydk-apexweb-adams-projects.vercel.app"
+DEFAULT_VERIFIED_DEPLOYMENT_ID = "dpl_Cn62LPUnD83i28cydia12AKr3uUw"
+EXPECTED_DASHBOARD_BUNDLE = "2026-08-29-r95"
+EXPECTED_PLATFORM_REVISION = "2026-08-29-r326"
 GIT_MAIN_ALIAS = "apex-trading-dashboard-git-main"
 ACCEPTABLE_DASHBOARD_BUNDLES = frozenset({
   "2026-08-27-r9", "2026-08-27-r10", "2026-08-27-r11", "2026-08-27-r12",
@@ -100,6 +100,7 @@ ACCEPTABLE_DASHBOARD_BUNDLES = frozenset({
   "2026-08-29-r92",
   "2026-08-29-r93",
   "2026-08-29-r94",
+  "2026-08-29-r95",
 })
 
 
