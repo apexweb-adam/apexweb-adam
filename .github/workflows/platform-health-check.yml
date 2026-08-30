@@ -56,6 +56,27 @@ jobs:
             d.get('total_equity'), d.get('total_pnl'), d.get('total_trades'), d.get('intelligence_items')))
           "
 
+      - name: Check deploy snapshot endpoint (r358+)
+        run: |
+          set -euo pipefail
+          CODE=$(curl -sS -o /tmp/deploy-snapshot.json -w "%{http_code}" \
+            "https://apex-trading-backend.onrender.com/api/deploy/snapshot" || echo "000")
+          echo "/api/deploy/snapshot HTTP $CODE"
+          if [[ "$CODE" == "200" ]]; then
+            python3 -c "
+          import json
+          d=json.load(open('/tmp/deploy-snapshot.json'))
+          assert d.get('expected_platform_revision'), d
+          assert 'cme_deploy_window' in d or d.get('platform_revision_current') is True, d
+          print('OK: deploy snapshot revision=%s current=%s' % (
+            d.get('platform_revision'), d.get('platform_revision_current')))
+          "
+          elif [[ "$CODE" == "404" ]]; then
+            echo "::warning::deploy snapshot not deployed yet — use /api/status fallback until Render promote (r358+)"
+          else
+            echo "::warning::deploy snapshot unreachable (HTTP $CODE)"
+          fi
+
       - name: Check GitHub blockers and Render deploy freshness
         run: |
           set -euo pipefail
