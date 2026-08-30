@@ -155,6 +155,7 @@ def test_verify_us_stocks_post_open_supports_watch_mode():
   assert "--watch" in text
   assert "Watching for US stocks post-open" in text
   assert "run_verification" in text
+  assert "wake_backend" in text
 
 
 def test_verify_cme_post_open_supports_watch_mode():
@@ -367,5 +368,13 @@ def test_render_keepalive_pings_cme_checklist_on_sunday_prep():
   workflow = Path(__file__).resolve().parents[3] / ".github" / "workflows" / "render-keep-alive.yml"
   text = workflow.read_text(encoding="utf-8")
   assert "cme-reopen-checklist" in text
+  assert "us-stocks-open-checklist" in text
   assert "prep-status" in text
   assert 'DOW="$(date -u +%u)"' in text
+
+
+def test_verify_us_stocks_open_uses_wake_and_status_fallback():
+  script = SCRIPTS / "verify-us-stocks-open.sh"
+  text = script.read_text(encoding="utf-8")
+  assert "wake_backend" in text
+  assert "status_endpoint_unreachable" in text

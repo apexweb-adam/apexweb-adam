@@ -35,9 +35,15 @@ run_preflight() {
   bash "$ROOT/scripts/ops-gate-summary.sh" || true
   echo ""
 
+  wake_backend "$BACKEND" 3
+
   TMP=$(mktemp -d)
   trap 'rm -rf "$TMP"' RETURN
-  CHECKLIST=$(fetch_json "$BACKEND/api/gate/us-stocks-open-checklist" 90 2 || echo "")
+  CHECKLIST=$(fetch_json "$BACKEND/api/gate/us-stocks-open-checklist" 120 3)
+  if [[ -z "$CHECKLIST" || "$CHECKLIST" == "{}" ]]; then
+    wake_backend "$BACKEND" 2
+    CHECKLIST=$(fetch_json "$BACKEND/api/gate/us-stocks-open-checklist" 120 3)
+  fi
   echo "$CHECKLIST" > "$TMP/checklist.json"
 
   if [[ -n "$CHECKLIST" && "$CHECKLIST" != "{}" ]]; then
@@ -110,7 +116,7 @@ sys.exit(0 if auto_entry or not open_ready else 1)
     bad "Backend health unreachable"
   fi
 
-  fetch_json "$BACKEND/api/status" 90 2 > "$TMP/status.json" || echo "{}" > "$TMP/status.json"
+  fetch_json "$BACKEND/api/status" 120 3 > "$TMP/status.json"
   CHECKLIST_FILE="$TMP/checklist.json" STATUS_FILE="$TMP/status.json" python3 << 'PY'
 import json, os, sys
 from pathlib import Path
@@ -126,14 +132,24 @@ def load(name: str) -> dict:
 
 status = load("STATUS")
 checklist = load("CHECKLIST")
+status_unreachable = not status
 deploy = status.get("deploy") or {}
+checklist_deploy = checklist.get("deploy") or {}
 rev_current = deploy.get("platform_revision_current")
+if rev_current is None and status_unreachable:
+    rev_current = checklist_deploy.get("platform_revision_current")
 errors = []
 notes = []
 
+if status_unreachable:
+    notes.append("status_endpoint_unreachable")
+
 summaries = status.get("session_open_checklists") or {}
 if not summaries.get("us_stocks_open"):
-    (errors if rev_current is True else notes).append("us_stocks_open_summary_missing")
+    if status_unreachable and checklist.get("ready") is True:
+        notes.append("us_stocks_open_summary_missing")
+    else:
+        (errors if rev_current is True else notes).append("us_stocks_open_summary_missing")
 else:
     us = summaries["us_stocks_open"]
     print(
