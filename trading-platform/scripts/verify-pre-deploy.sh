@@ -4,7 +4,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BACKEND="${BACKEND_URL:-https://apex-trading-backend.onrender.com}"
-EXPECTED_REVISION="${EXPECTED_PLATFORM_REVISION:-2026-08-29-r361}"
+EXPECTED_REVISION="${EXPECTED_PLATFORM_REVISION:-$(grep '^EXPECTED_PLATFORM_REVISION' "$ROOT/backend/app/engines/deploy_status.py" | sed -n 's/.*"\([^"]*\)".*/\1/p')}"
 MIN_HOURS_BEFORE_CME="${MIN_HOURS_BEFORE_CME:-4}"
 MAX_HOURS_BEFORE_CME="${MAX_HOURS_BEFORE_CME:-6}"
 
@@ -73,6 +73,12 @@ if bash "$ROOT/scripts/verify-cme-reopen.sh"; then
   ok "CME reopen preflight"
 else
   bad "CME reopen preflight failed"
+fi
+
+if bash "$ROOT/scripts/verify-dashboard-bundle.sh"; then
+  :
+else
+  note "Dashboard bundle check failed (non-blocking)"
 fi
 
 PROD_REV=$(curl -fsS -m 15 "$BACKEND/api/deploy/snapshot" 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('platform_revision') or '')" 2>/dev/null || echo "")

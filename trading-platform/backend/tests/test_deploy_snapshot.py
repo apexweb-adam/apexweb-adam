@@ -18,6 +18,8 @@ def test_build_deploy_snapshot_includes_deploy_window_when_behind():
   assert snap["platform_revision"] == "2026-08-29-r336"
   assert snap["platform_revision_current"] is False
   assert snap["expected_platform_revision"] == EXPECTED_PLATFORM_REVISION
+  assert snap["expected_dashboard_bundle"] == "2026-08-29-r98"
+  assert "verify-dashboard-bundle" in snap["dashboard_bundle_verify_command"]
   window = snap["cme_deploy_window"]
   assert window is not None
   assert window.get("in_window") is True

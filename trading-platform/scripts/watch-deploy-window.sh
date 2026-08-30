@@ -116,6 +116,7 @@ if window.get("in_window"):
     print(f"  {window.get('verify_command', 'bash trading-platform/scripts/verify-pre-deploy.sh')}")
     print(f"  {window.get('deploy_command', 'TRIGGER_DEPLOY=true bash trading-platform/scripts/sync-render-env.sh')}")
     print(f"  bash trading-platform/scripts/verify-post-deploy.sh")
+    print(f"  bash trading-platform/scripts/verify-dashboard-bundle.sh")
     sys.exit(10)
 
 sys.exit(0)

@@ -104,6 +104,12 @@ else
   bad "CME reopen preflight failed after deploy"
 fi
 
+if bash "$ROOT/scripts/verify-dashboard-bundle.sh"; then
+  :
+else
+  note "Dashboard bundle check failed (non-blocking)"
+fi
+
 echo ""
 echo "Results: $pass passed, $fail failed, $warn notes"
 if [[ "$fail" -gt 0 ]]; then
