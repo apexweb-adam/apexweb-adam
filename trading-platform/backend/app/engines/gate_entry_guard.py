@@ -3758,6 +3758,8 @@ def build_session_prep_status(
       if not bot_type or not symbol or bot_type not in result:
         continue
       entry = result[bot_type]
+      if symbol in (entry.get("open_ready_symbols") or []):
+        continue
       symbols = entry.setdefault("near_floor_symbols", [])
       if symbol not in symbols:
         symbols.append(symbol)

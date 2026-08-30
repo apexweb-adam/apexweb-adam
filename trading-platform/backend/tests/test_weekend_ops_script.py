@@ -138,7 +138,7 @@ def test_print_deploy_window_summary_script_exists():
   assert "verify-cme-post-open.sh" in text
   assert "verify-cme-post-open.sh --watch" in text
   assert "sticky_symbols" in text
-  assert "extended_watch" in text
+  assert "extended_watch dropped" in text
   assert "near_floor" in text
   assert "open_ready" in text and "blockers=" in text
   assert "prep-status" in text
@@ -161,6 +161,8 @@ def test_verify_cme_post_open_supports_watch_mode():
   assert "--watch" in text
   assert "Watching for CME post-open" in text
   assert "run_verification" in text
+  assert "extended_watch" in text
+  assert "expected_platform_revision" in text
 
 
 def test_wait_for_render_deploy_waits_for_status_revision():

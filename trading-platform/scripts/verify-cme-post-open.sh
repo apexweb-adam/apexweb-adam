@@ -63,17 +63,30 @@ events = checklist.get("session_open_events") or {}
 open_ready = checklist.get("open_ready") or {}
 open_symbols = open_ready.get("symbols") or []
 sticky = open_ready.get("sticky_symbols") or []
+extended_watch = open_ready.get("extended_watch_symbols") or []
 release_margin = open_ready.get("release_margin")
 
 print(f"  phase={phase} ready={ready}")
 prod_rev = snapshot.get("platform_revision") or (status.get("deploy") or {}).get("platform_revision")
-if prod_rev and code_rev and prod_rev != code_rev:
-    print(f"  warn=revision_behind running={prod_rev} code={code_rev}")
+expected_rev = (
+    (checklist.get("deploy") or {}).get("expected_platform_revision")
+    or snapshot.get("expected_platform_revision")
+    or code_rev
+)
+if prod_rev and expected_rev and prod_rev != expected_rev:
+    print(f"  warn=revision_behind running={prod_rev} expected={expected_rev}")
+elif prod_rev and code_rev and prod_rev != code_rev:
+    print(f"  note=local_code_rev={code_rev} production={prod_rev}")
 if snapshot.get("deploy_credentials_ready") is False:
     for item in snapshot.get("deploy_credentials_warnings") or []:
         print(f"  warn=credentials {item}")
 print(f"  prep_phase={checklist.get('prep_phase')} in_session={checklist.get('in_session')}")
 print(f"  open_ready={open_symbols} sticky={sticky} release_margin={release_margin}")
+if extended_watch:
+    print(f"  extended_watch={extended_watch}")
+    dropped_watch = [sym for sym in extended_watch if sym not in open_symbols]
+    if dropped_watch:
+        print(f"  extended_watch_dropped={dropped_watch}")
 
 near_floor = checklist.get("near_floor") or {}
 near_symbols = near_floor.get("symbols") or []

@@ -81,8 +81,12 @@ if open_ready or sticky or near_symbols or mins is not None:
         comp = row.get("composite")
         blockers = row.get("blockers") or []
         sticky_flag = " sticky" if row.get("sticky_queue") else ""
+        ext_flag = " extended" if row.get("extended_sticky") else ""
         if sym:
-            print(f"  open_ready {sym}: composite={comp}{sticky_flag} blockers={blockers}")
+            print(f"  open_ready {sym}: composite={comp}{sticky_flag}{ext_flag} blockers={blockers}")
+    dropped_watch = [sym for sym in extended_watch if sym not in open_ready]
+    if dropped_watch:
+        print(f"  extended_watch dropped: {dropped_watch} (TV refresh continues until CME open)")
     if near_symbols and not open_ready and auto_entry is False:
         print(
             "  warn: near_floor without open_ready — queue dropped; "

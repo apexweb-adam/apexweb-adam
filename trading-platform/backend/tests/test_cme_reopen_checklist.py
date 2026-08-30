@@ -68,6 +68,27 @@ def test_build_cme_reopen_checks_preflight_pass():
   assert all(c["status"] != "fail" for c in checks if c.get("critical"))
 
 
+def test_build_cme_reopen_checks_skips_near_floor_warn_when_symbol_queued():
+  checks = build_cme_reopen_checks(
+    platform_revision_current=True,
+    minutes_until_open=900,
+    prep_phase="extended",
+    in_session=False,
+    auto_entry_queued=True,
+    open_ready_symbols=["NG=F"],
+    near_floor_symbols=["NG=F"],
+    commodities_paused=False,
+    bots_running=4,
+    has_burst_scan=False,
+    has_auto_entry=False,
+    composite_floor=0.42,
+    open_ready_below_floor=[],
+    phase="preflight",
+  )
+  floor = next(c for c in checks if c["id"] == "composite_floor")
+  assert floor["status"] == "pass"
+
+
 def test_build_cme_reopen_checks_deploy_behind_critical_near_open():
   checks = build_cme_reopen_checks(
     platform_revision_current=False,
