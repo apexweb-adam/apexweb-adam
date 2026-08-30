@@ -48,3 +48,19 @@ def test_build_session_prep_status_includes_prep_phase_fields():
   assert status["stocks_futures"]["prep_phase"] == "extended"
   assert status["stocks_futures"]["prep_scan_label"] == "15s"
   assert status["stocks_futures"]["minutes_until_imminent_scan"] == 2970
+
+
+def test_gate_prep_status_cache_ttl_extended_during_cme_weekend():
+  with patch(
+    "app.engines.gate_entry_guard.commodities_futures_weekend_closed",
+    return_value=True,
+  ):
+    assert gate_prep_status._gate_prep_status_cache_ttl_seconds() == 60
+
+
+def test_gate_prep_status_cache_ttl_short_outside_cme_weekend():
+  with patch(
+    "app.engines.gate_entry_guard.commodities_futures_weekend_closed",
+    return_value=False,
+  ):
+    assert gate_prep_status._gate_prep_status_cache_ttl_seconds() == 45

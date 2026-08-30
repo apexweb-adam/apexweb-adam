@@ -17,8 +17,18 @@ from app.engines.gate_entry_guard import (
 from app.engines.scan_preview import build_monday_recovery_summary
 
 GATE_PREP_STATUS_CACHE_TTL_SECONDS = 45
+GATE_PREP_STATUS_PREP_CACHE_TTL_SECONDS = 60
 _gate_prep_cache: dict[str, Any] | None = None
 _gate_prep_cached_at: float = 0.0
+
+
+def _gate_prep_status_cache_ttl_seconds() -> int:
+  """Longer cache during CME weekend prep when prep-status is polled heavily."""
+  from app.engines.gate_entry_guard import commodities_futures_weekend_closed
+
+  if commodities_futures_weekend_closed():
+    return GATE_PREP_STATUS_PREP_CACHE_TTL_SECONDS
+  return GATE_PREP_STATUS_CACHE_TTL_SECONDS
 
 
 def clear_gate_prep_status_cache() -> None:
@@ -32,7 +42,7 @@ async def build_gate_prep_status(session: AsyncSession) -> dict[str, Any]:
   now = time.monotonic()
   if (
     _gate_prep_cache is not None
-    and (now - _gate_prep_cached_at) < GATE_PREP_STATUS_CACHE_TTL_SECONDS
+    and (now - _gate_prep_cached_at) < _gate_prep_status_cache_ttl_seconds()
   ):
     cached = dict(_gate_prep_cache)
     cached["timestamp"] = datetime.utcnow().isoformat()
