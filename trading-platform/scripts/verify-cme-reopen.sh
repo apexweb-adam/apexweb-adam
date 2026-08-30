@@ -3,8 +3,9 @@
 # Usage: verify-cme-reopen.sh [--watch SECONDS]
 set -euo pipefail
 
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BACKEND="${BACKEND_URL:-https://apex-trading-backend.onrender.com}"
-EXPECTED_REVISION="${EXPECTED_PLATFORM_REVISION:-2026-08-29-r361}"
+EXPECTED_REVISION="${EXPECTED_PLATFORM_REVISION:-$(grep '^EXPECTED_PLATFORM_REVISION' "$ROOT/backend/app/engines/deploy_status.py" | sed -n 's/.*"\([^"]*\)".*/\1/p')}"
 WATCH_INTERVAL=""
 
 if [[ "${1:-}" == "--watch" ]]; then

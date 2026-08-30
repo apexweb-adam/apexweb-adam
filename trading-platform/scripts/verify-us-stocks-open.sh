@@ -3,8 +3,9 @@
 # Usage: verify-us-stocks-open.sh [--watch SECONDS]
 set -euo pipefail
 
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BACKEND="${BACKEND_URL:-https://apex-trading-backend.onrender.com}"
-EXPECTED_REVISION="${EXPECTED_PLATFORM_REVISION:-2026-08-29-r361}"
+EXPECTED_REVISION="${EXPECTED_PLATFORM_REVISION:-$(grep '^EXPECTED_PLATFORM_REVISION' "$ROOT/backend/app/engines/deploy_status.py" | sed -n 's/.*"\([^"]*\)".*/\1/p')}"
 WATCH_INTERVAL=""
 
 if [[ "${1:-}" == "--watch" ]]; then
@@ -141,6 +142,9 @@ PY
   echo ""
   echo "Results: $pass passed, $fail failed, $warn notes"
   [[ "$fail" -eq 0 ]]
+  echo ""
+  echo "After US stocks open (13:30 UTC Mon):"
+  echo "  bash trading-platform/scripts/verify-us-stocks-post-open.sh"
 }
 
 if [[ -n "$WATCH_INTERVAL" ]]; then
