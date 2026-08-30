@@ -515,6 +515,9 @@ async def get_platform_status(db: AsyncSession = Depends(get_db)) -> dict[str, A
     commodities_session=cme_sess,
     stocks_session=us_sess,
   )
+  from app.engines.session_open_log import get_session_open_events
+
+  session_open_events = await get_session_open_events(db)
   gate_tightening_data = gate_payload["gate_entry_tightening"]
   from app.intelligence.axiom_tracker import get_axiom_session_status
   from app.intelligence.fomo_tracker import get_fomo_bearer_status
@@ -553,6 +556,7 @@ async def get_platform_status(db: AsyncSession = Depends(get_db)) -> dict[str, A
     "session_prep": session_prep,
     "open_ready_candidates": session_prep.get("open_ready_candidates") or [],
     "next_session_events": next_session_events,
+    "session_open_events": session_open_events,
     "bots": bots,
     "intelligence": {
       "active_sources": active_sources,

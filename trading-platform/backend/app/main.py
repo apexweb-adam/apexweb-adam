@@ -108,6 +108,12 @@ async def crm_landing():
     intel_sources = await build_intel_sources(session)
     live_snapshot = await build_crm_live_snapshot(session)
     integrations = await build_crm_integration_hooks(session)
+    from app.engines.session_open_log import get_session_open_events
+
+    try:
+      session_open_events = await get_session_open_events(session)
+    except Exception:
+      session_open_events = []
 
   day = gate.get("verification_day", 0)
   trades = gate.get("total_trades", 0)
@@ -290,6 +296,28 @@ async def crm_landing():
     <table>
       <thead><tr><th>Bot</th><th>Symbol</th><th>Composite</th><th>Signal</th><th>MACD</th><th>Blockers</th></tr></thead>
       <tbody>{near_floor_table}</tbody>
+    </table>
+  </div>"""
+
+  session_open_log_card = ""
+  if session_open_events:
+    log_rows = ""
+    for evt in session_open_events[:10]:
+      ts = (evt.get("timestamp") or "")[:19].replace("T", " ")
+      bot_type = evt.get("bot_type", "")
+      event_type = evt.get("event_type", "")
+      symbols = ", ".join(evt.get("symbols") or []) or "—"
+      detail = evt.get("detail") or ""
+      log_rows += (
+        f"<tr><td>{ts}</td><td>{bot_type}</td><td>{event_type}</td>"
+        f"<td>{symbols}</td><td>{detail[:80]}</td></tr>"
+      )
+    session_open_log_card = f"""<div class="card">
+    <h2>Session open log</h2>
+    <p class="muted" style="margin-top:0;">Burst scans and auto-entries at session transitions (newest first).</p>
+    <table>
+      <thead><tr><th>Time (UTC)</th><th>Bot</th><th>Event</th><th>Symbols</th><th>Detail</th></tr></thead>
+      <tbody>{log_rows}</tbody>
     </table>
   </div>"""
 
@@ -700,6 +728,7 @@ async def crm_landing():
   </div>""" if position_rows else ""}
   {open_ready_card}
   {near_floor_card}
+  {session_open_log_card}
   {f"""<div class="card recovery">
     <h2>Monday recovery watchlist</h2>
     <p class="muted" style="margin-top:0;">Recovery-ready symbols across commodities and stocks shadow bots.</p>

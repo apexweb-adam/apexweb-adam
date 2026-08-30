@@ -332,6 +332,15 @@ export type NextSessionEvents = {
   us_stocks_open: NextSessionEvent;
 };
 
+export type SessionOpenEvent = {
+  timestamp: string;
+  bot_type: string;
+  event_type: string;
+  symbols: string[];
+  symbol_count?: number | null;
+  detail?: string | null;
+};
+
 export type MondayRecoverySummary = {
   recovery_candidates: string[];
   open_ready_candidates?: string[];
@@ -586,5 +595,6 @@ export type PlatformStatus = {
   session_prep?: SessionPrepStatus;
   open_ready_candidates?: string[];
   next_session_events?: NextSessionEvents;
+  session_open_events?: SessionOpenEvent[];
   deploy?: PlatformDeployStatus;
 };
