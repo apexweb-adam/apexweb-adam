@@ -56,6 +56,7 @@ import type {
   ActiveGateStatus,
   EquityHistoryPoint,
   BotSessions,
+  SessionOpenEvent,
 } from "@/lib/api";
 import { enrichProfitabilityStatus, activeGateToProfitability, buildEquityHistoryFromTrades } from "@/lib/profitability";
 import { VerificationPnLChart } from "@/components/VerificationPnLChart";
@@ -320,6 +321,7 @@ export default function Dashboard() {
               <IntelAlertBanner platformStatus={platformStatus} intelSources={liveIntelSources} />
               <SessionImminentBanners events={nextSessionEvents} sessionPrep={sessionPrep} />
               <NextSessionsCard events={nextSessionEvents} sessionPrep={sessionPrep} />
+              <SessionOpenLogCard events={platformStatus?.session_open_events} />
               <MondayRecoveryBanner summary={mondayRecovery} />
               <SessionPrepBanner sessionPrep={sessionPrep} />
               <Card title="Bot Status">
@@ -1774,6 +1776,55 @@ function NextSessionsCard({
           </table>
         </div>
       ) : null}
+    </div>
+  );
+}
+
+function SessionOpenLogCard({ events }: { events?: SessionOpenEvent[] }) {
+  if (!events?.length) return null;
+
+  return (
+    <div className="rounded-lg border border-violet-500/30 bg-violet-950/20 p-4">
+      <p className="text-sm font-medium text-violet-300 mb-2">Session open log</p>
+      <p className="text-[11px] text-gray-400 mb-2">
+        Burst scans and auto-entries at session transitions (newest first).
+      </p>
+      <div className="overflow-x-auto">
+        <table className="w-full text-[11px] text-gray-300">
+          <thead>
+            <tr className="text-gray-500">
+              <th className="text-left pr-2">Time (UTC)</th>
+              <th className="text-left pr-2">Bot</th>
+              <th className="text-left pr-2">Event</th>
+              <th className="text-left pr-2">Symbols</th>
+              <th className="text-left">Detail</th>
+            </tr>
+          </thead>
+          <tbody>
+            {events.slice(0, 8).map((evt, idx) => (
+              <tr key={`${evt.timestamp}-${evt.bot_type}-${idx}`}>
+                <td className="pr-2 whitespace-nowrap">
+                  {evt.timestamp ? formatTime(evt.timestamp) : "—"}
+                </td>
+                <td className="pr-2">{evt.bot_type}</td>
+                <td className="pr-2">
+                  <span
+                    className={
+                      evt.event_type === "auto_entry"
+                        ? "text-lime-400"
+                        : "text-violet-300/80"
+                    }
+                  >
+                    {evt.event_type}
+                  </span>
+                </td>
+                <td className="pr-2">{evt.symbols?.join(", ") || "—"}</td>
+                <td className="text-gray-400">{evt.detail ?? "—"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

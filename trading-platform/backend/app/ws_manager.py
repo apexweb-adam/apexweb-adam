@@ -84,6 +84,9 @@ async def build_live_payload(session: AsyncSession) -> dict:
     commodities_session=cme_session,
     stocks_session=stocks_session,
   )
+  from app.engines.session_open_log import get_session_open_events
+
+  session_open_events = await get_session_open_events(session)
   portfolios = (await session.execute(select(Portfolio))).scalars().all()
   sell_trades = (await session.execute(select(Trade).where(Trade.action == "sell"))).scalars().all()
   positions = (
@@ -249,6 +252,7 @@ async def build_live_payload(session: AsyncSession) -> dict:
     "monday_recovery": monday_recovery,
     "session_prep": session_prep,
     "next_session_events": next_session_events,
+    "session_open_events": session_open_events,
     "content_study": content_study,
     **gate_payload,
   }

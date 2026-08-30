@@ -1423,12 +1423,17 @@ class BaseBot(ABC):
 
   async def _record_session_open_burst(self, symbol_count: int, actions: list[dict]) -> None:
     """Log session-open burst scan and any auto-entries for CRM visibility."""
+    from app.engines.session_open_log import record_session_open_event
+
     buys = [a for a in actions if a.get("action") == "buy"]
+    buy_symbols = [a.get("symbol", "?") for a in buys]
     if buys:
-      symbols = ", ".join(a.get("symbol", "?") for a in buys)
+      symbols = ", ".join(buy_symbols)
       summary = f"Session open auto-entry: {symbols}"
+      event_type = "auto_entry"
     else:
       summary = f"Session open burst scan — {symbol_count} symbols, no entry yet"
+      event_type = "burst_scan"
     async with SessionLocal() as session:
       result = await session.execute(
         select(BotState).where(BotState.bot_type == self.bot_type)
@@ -1440,6 +1445,15 @@ class BaseBot(ABC):
       state.last_action = summary[:200]
       state.updated_at = datetime.utcnow()
       await session.commit()
+    async with SessionLocal() as session:
+      await record_session_open_event(
+        session,
+        bot_type=self.bot_type,
+        event_type=event_type,
+        symbols=buy_symbols if buys else [],
+        symbol_count=symbol_count,
+        detail=summary,
+      )
 
   async def run_loop(self) -> None:
     self.running = True
