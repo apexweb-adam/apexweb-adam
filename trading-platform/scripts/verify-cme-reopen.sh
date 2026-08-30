@@ -50,6 +50,7 @@ data = json.load(sys.stdin)
 deploy = data.get('deploy') or {}
 open_ready = data.get('open_ready') or {}
 near = data.get('near_floor') or {}
+mins = data.get('minutes_until_open')
 print(f\"  checklist_phase={data.get('phase')} ready={data.get('ready')}\")
 print(f\"  platform_revision={deploy.get('platform_revision')} current={deploy.get('platform_revision_current')}\")
 urgency = deploy.get('cme_deploy_urgency')
@@ -78,10 +79,39 @@ for row in open_ready.get('details') or []:
 extended_watch = open_ready.get('extended_watch_symbols') or []
 if extended_watch:
     print(f'  extended_watch={extended_watch}')
+floor = open_ready.get('composite_floor')
+margin = open_ready.get('release_margin')
+extended_margin = open_ready.get('extended_release_margin')
+if margin is None:
+    margin = 0.02
+if extended_margin is None:
+    extended_margin = 0.06
+extended_watch_set = set(extended_watch)
+thin_margin = []
+for row in open_ready.get('details') or []:
+    sym = row.get('symbol')
+    comp = row.get('composite')
+    if sym is None or comp is None or floor is None:
+        continue
+    effective = float(floor)
+    if row.get('sticky_queue'):
+        regular_effective = float(floor) - float(margin)
+        extended_effective = float(floor) - float(extended_margin)
+        use_extended = bool(row.get('extended_sticky')) or sym in extended_watch_set
+        if not use_extended and float(comp) < regular_effective and float(comp) >= extended_effective:
+            use_extended = True
+        effective = extended_effective if use_extended else regular_effective
+    gap = float(comp) - effective
+    if gap < 0.02:
+        thin_margin.append(f'{sym}(+{gap:.3f} to effective floor {effective:.2f})')
+if thin_margin:
+    print('  warn=thin_queue_margin ' + ', '.join(thin_margin))
+dropped_watch = [sym for sym in extended_watch if sym not in (open_ready.get('symbols') or [])]
+if dropped_watch and mins is not None and mins <= 360:
+    print(f'  warn=extended_watch_not_queued {dropped_watch} — TV refresh continues; may re-queue if composite rises')
 queue_dropped = bool(near.get('symbols')) and not open_ready.get('symbols') and not open_ready.get('auto_entry_queued')
 if queue_dropped:
     print('  warn=queue_dropped near_floor without open_ready — confirm 6h prep watch is active')
-mins = data.get('minutes_until_open')
 if queue_dropped and mins is not None and mins <= 360:
     print('  error=queue_dropped_in_prep_window')
     sys.exit(1)
