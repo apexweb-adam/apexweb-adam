@@ -81,23 +81,22 @@ else
   note "Dashboard bundle check failed (non-blocking)"
 fi
 
-US_CHECKLIST=$(curl -fsS -m 30 "$BACKEND/api/gate/us-stocks-open-checklist" 2>/dev/null || echo "{}")
-US_NOTE=$(python3 << PY
-import json
-data = json.loads('''$US_CHECKLIST''')
+US_CHECKLIST=$(fetch_json "$BACKEND/api/gate/us-stocks-open-checklist" 45 2)
+US_NOTE=$(echo "$US_CHECKLIST" | python3 -c "
+import json, sys
+data = json.load(sys.stdin)
 if not data:
     raise SystemExit(0)
-checks = {c.get("id"): c for c in data.get("checks") or []}
-stocks = checks.get("stocks_active") or {}
-open_ready = (data.get("open_ready") or {}).get("symbols") or []
-mins = data.get("minutes_until_open")
-if stocks.get("status") == "fail":
-    syms = ", ".join(open_ready) if open_ready else "none"
-    print(f"Stocks bot paused — Monday auto-entry for {syms} blocked until gate clears (US open in {mins}min)")
+checks = {c.get('id'): c for c in data.get('checks') or []}
+stocks = checks.get('stocks_active') or {}
+open_ready = (data.get('open_ready') or {}).get('symbols') or []
+mins = data.get('minutes_until_open')
+if stocks.get('status') == 'fail':
+    syms = ', '.join(open_ready) if open_ready else 'none'
+    print(f'Stocks bot paused — Monday auto-entry for {syms} blocked until gate clears (US open in {mins}min)')
 elif open_ready:
-    print(f"US stocks open-ready queued: {', '.join(open_ready)} (opens in {mins}min)")
-PY
-)
+    print(f\"US stocks open-ready queued: {', '.join(open_ready)} (opens in {mins}min)\")
+" 2>/dev/null || true)
 if [[ -n "$US_NOTE" ]]; then
   if echo "$US_NOTE" | grep -q "paused"; then
     note "$US_NOTE"

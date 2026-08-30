@@ -257,6 +257,14 @@ def test_watch_deploy_window_shows_x_intel_mode():
   assert "x_intel_collection_mode" in text
 
 
+def test_watch_deploy_window_uses_fetch_json():
+  script = SCRIPTS / "watch-deploy-window.sh"
+  text = script.read_text(encoding="utf-8")
+  assert "fetch_json.sh" in text
+  assert "SNAPSHOT_JSON" in text
+  assert "'''$SNAPSHOT'''" not in text
+
+
 def test_verify_platform_prints_intel_health_fields():
   script = SCRIPTS / "verify-platform.sh"
   text = script.read_text(encoding="utf-8")
@@ -264,3 +272,13 @@ def test_verify_platform_prints_intel_health_fields():
   assert "x_intel=" in text
   assert "Content study insights" in text
   assert "insights_applied" in text
+  assert "deploy_credentials_ready" in text
+  assert "check-deploy-credentials.sh" in text
+
+
+def test_verify_pre_deploy_us_stocks_uses_fetch_json():
+  script = SCRIPTS / "verify-pre-deploy.sh"
+  text = script.read_text(encoding="utf-8")
+  assert "us-stocks-open-checklist" in text
+  assert "fetch_json" in text
+  assert "'''$US_CHECKLIST'''" not in text
