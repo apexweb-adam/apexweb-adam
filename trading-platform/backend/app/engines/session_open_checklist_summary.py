@@ -58,6 +58,11 @@ def summarize_session_open_checklist(checklist: dict[str, Any]) -> dict[str, Any
       if row.get("symbol") and row.get("gap_to_floor") is not None
     },
     "sticky_symbols": list(open_ready.get("sticky_symbols") or []),
+    "open_ready_composites": {
+      str(row.get("symbol")): row.get("composite")
+      for row in (open_ready.get("details") or [])
+      if row.get("symbol") and row.get("composite") is not None
+    },
     "auto_entry_queued": bool(open_ready.get("auto_entry_queued")),
     "composite_floor": open_ready.get("composite_floor"),
     "release_margin": open_ready.get("release_margin"),
