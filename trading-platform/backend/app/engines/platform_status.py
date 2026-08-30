@@ -66,6 +66,17 @@ def clear_platform_status_cache() -> None:
   _platform_status_cached_at = 0.0
 
 
+def platform_status_cache_age_seconds() -> float | None:
+  if _platform_status_cache is None:
+    return None
+  return round(time.monotonic() - _platform_status_cached_at, 1)
+
+
+def platform_status_cache_fresh(max_age_seconds: float) -> bool:
+  age = platform_status_cache_age_seconds()
+  return age is not None and age < max_age_seconds
+
+
 async def build_platform_status(session: AsyncSession) -> dict[str, Any]:
   global _platform_status_cache, _platform_status_cached_at
   now = time.monotonic()

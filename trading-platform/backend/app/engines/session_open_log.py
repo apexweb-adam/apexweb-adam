@@ -226,6 +226,16 @@ async def monitor_open_ready_queue(session: AsyncSession) -> list[dict[str, Any]
 
     prev_ready = list(entry_state.get("open_ready_symbols") or [])
     if "open_ready_symbols" not in entry_state:
+      if ready:
+        logged.append(
+          await record_session_open_event(
+            session,
+            bot_type=bot_type,
+            event_type="queue_add",
+            symbols=ready,
+            detail=f"{session_key}: auto-entry queued — {', '.join(ready)}",
+          )
+        )
       state[session_key] = {
         **entry_state,
         "open_ready_symbols": ready,
