@@ -63,3 +63,66 @@ def test_platform_status_cache_ttl_short_outside_cme_weekend():
     return_value=False,
   ):
     assert platform_status._platform_status_cache_ttl_seconds() == 45
+
+
+def test_build_platform_status_includes_per_bot_gate():
+  async def run():
+    session = AsyncMock()
+    gate_payload = {
+      "profitability_gate": {"total_trades": 40},
+      "per_bot_gate": {
+        "commodities": {"graduation_ready": False, "total_trades": 40},
+        "crypto": {"paused": True, "graduation_progress": {"overall_pct": 0.4}},
+      },
+      "gate_entry_tightening": {"active": True},
+      "bot_sessions": {},
+    }
+    with patch(
+      "app.engines.platform_status._fetch_stats",
+      new=AsyncMock(return_value={"total_trades": 40}),
+    ):
+      with patch(
+        "app.engines.platform_status._fetch_bot_states",
+        new=AsyncMock(return_value=[]),
+      ):
+        with patch(
+          "app.engines.platform_status._fetch_learning_counts",
+          new=AsyncMock(return_value={}),
+        ):
+          with patch(
+            "app.engines.platform_status.build_gate_ws_payload",
+            new=AsyncMock(return_value=gate_payload),
+          ):
+            with patch(
+              "app.engines.platform_status.build_monday_recovery_summary",
+              new=AsyncMock(return_value={"open_ready": [], "near_floor": []}),
+            ):
+              with patch(
+                "app.engines.platform_status.build_intel_sources",
+                new=AsyncMock(return_value=[]),
+              ):
+                with patch(
+                  "app.engines.platform_status.build_deploy_status",
+                  new=AsyncMock(return_value={}),
+                ):
+                  with patch(
+                    "app.engines.platform_status.recommended_dashboard_url",
+                    new=AsyncMock(return_value="https://example.com"),
+                  ):
+                    with patch(
+                      "app.engines.platform_status.get_session_open_events",
+                      new=AsyncMock(return_value=[]),
+                    ):
+                      with patch(
+                        "app.engines.platform_status.get_fomo_bearer_status",
+                        new=AsyncMock(return_value={}),
+                      ):
+                        with patch(
+                          "app.engines.platform_status.get_axiom_session_status",
+                          new=AsyncMock(return_value={}),
+                        ):
+                          result = await platform_status.build_platform_status(session)
+    assert result["per_bot_gate"]["commodities"]["total_trades"] == 40
+    assert result["per_bot_gate"]["crypto"]["paused"] is True
+
+  asyncio.run(run())

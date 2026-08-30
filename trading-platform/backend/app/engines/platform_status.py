@@ -242,6 +242,7 @@ async def _build_platform_status_uncached(session: AsyncSession) -> dict[str, An
     },
     "stats": stats,
     "profitability_gate": profitability,
+    "per_bot_gate": gate_payload.get("per_bot_gate"),
     "gate_entry_tightening": gate_tightening_data,
     "bot_sessions": gate_payload.get("bot_sessions"),
     "session_prep": session_prep,
