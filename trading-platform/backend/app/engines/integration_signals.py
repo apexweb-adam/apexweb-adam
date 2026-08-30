@@ -23,6 +23,11 @@ INTEGRATION_SOURCES = (
   "phantom",
 )
 MAX_AGE_HOURS = 24
+SYNTHETIC_INTEL_CATEGORY = "synthetic"
+
+
+def _is_synthetic_intel(item: IntelligenceItem) -> bool:
+  return (item.category or "").lower() == SYNTHETIC_INTEL_CATEGORY
 
 
 def _normalize_symbol(symbol: str) -> set[str]:
@@ -66,7 +71,11 @@ async def get_integration_boost(session: AsyncSession, symbol: str) -> tuple[flo
     .order_by(IntelligenceItem.fetched_at.desc())
     .limit(50)
   )
-  items = [i for i in result.scalars().all() if _matches_symbol(i, aliases)]
+  items = [
+    i
+    for i in result.scalars().all()
+    if _matches_symbol(i, aliases) and not _is_synthetic_intel(i)
+  ]
   if not items:
     return 0.0, ""
 
@@ -165,7 +174,7 @@ async def refresh_tradingview_signals(
     session.add(
       IntelligenceItem(
         source="tradingview",
-        category="technical",
+        category=SYNTHETIC_INTEL_CATEGORY,
         title=f"TradingView: {action} {symbol}",
         content=f"{reason_prefix}: {action} {symbol}",
         sentiment=sentiment,
