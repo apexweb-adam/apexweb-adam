@@ -144,6 +144,7 @@ while true; do
       if bash "$ROOT/scripts/verify-pre-deploy.sh"; then
         TRIGGER_DEPLOY=true bash "$ROOT/scripts/sync-render-env.sh"
         bash "$ROOT/scripts/verify-post-deploy.sh" || true
+        bash "$ROOT/scripts/verify-dashboard-bundle.sh" || true
       else
         echo "Preflight failed — deploy not triggered" >&2
         exit 1

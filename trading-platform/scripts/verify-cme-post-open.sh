@@ -85,6 +85,9 @@ if not events.get("has_auto_entry") and open_symbols:
     errors.append("auto_entry_missing")
 if critical_failures:
     errors.extend(c["id"] for c in critical_failures)
+near_floor = (checklist.get("near_floor") or {}).get("symbols") or []
+if near_floor and phase in ("post_open", "open"):
+    print(f"  near_floor_watch={near_floor} (expect sticky hysteresis after burst)")
 if errors:
     print("  errors=" + ",".join(errors))
     sys.exit(1)

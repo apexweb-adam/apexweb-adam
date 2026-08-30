@@ -53,6 +53,32 @@ if [[ -n "$US_NOTE" ]]; then
   echo "$US_NOTE"
 fi
 
+CME_CHECKLIST=$(curl -fsS -m 30 "$BACKEND/api/gate/cme-reopen-checklist" 2>/dev/null || echo "{}")
+CME_NOTE=$(python3 << PY
+import json
+data = json.loads('''$CME_CHECKLIST''')
+if not data:
+    raise SystemExit(0)
+open_ready = (data.get("open_ready") or {}).get("symbols") or []
+sticky = (data.get("open_ready") or {}).get("sticky_symbols") or []
+near = (data.get("near_floor") or {}).get("symbols") or []
+auto_entry = (data.get("open_ready") or {}).get("auto_entry_queued")
+mins = data.get("minutes_until_open")
+parts = [f"CME: open_ready={open_ready or 'none'}"]
+if sticky:
+    parts.append(f"sticky={sticky}")
+if near:
+    parts.append(f"near_floor={near}")
+parts.append(f"auto_entry={auto_entry}")
+if mins is not None:
+    parts.append(f"open in {mins}min")
+print("; ".join(parts))
+PY
+)
+if [[ -n "$CME_NOTE" ]]; then
+  echo "$CME_NOTE"
+fi
+
 echo ""
 bash "$ROOT/scripts/verify-dashboard-bundle.sh" || true
 
