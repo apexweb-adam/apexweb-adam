@@ -17,8 +17,10 @@ def summarize_session_open_checklist(checklist: dict[str, Any]) -> dict[str, Any
     "prep_phase": checklist.get("prep_phase"),
     "minutes_until_open": checklist.get("minutes_until_open"),
     "open_ready_symbols": list(open_ready.get("symbols") or []),
+    "sticky_symbols": list(open_ready.get("sticky_symbols") or []),
     "auto_entry_queued": bool(open_ready.get("auto_entry_queued")),
     "composite_floor": open_ready.get("composite_floor"),
+    "release_margin": open_ready.get("release_margin"),
     "critical_failures": [
       str(c.get("id"))
       for c in checks
