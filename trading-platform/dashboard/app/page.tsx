@@ -323,6 +323,7 @@ export default function Dashboard() {
               <CmeDeployUrgencyBanner
                 urgency={cmeDeployUrgency ?? platformStatus?.deploy?.cme_deploy_urgency}
               />
+              <DeployCredentialsBanner deploy={platformStatus?.deploy} />
               <CmeDeployWindowBanner
                 window={
                   cmeDeployWindow ??
@@ -1901,6 +1902,30 @@ function IntelAlertBanner({
       </p>
       <p className="text-xs text-yellow-200/70 mt-1">
         Check integrations — trading continues on active sources.
+      </p>
+    </div>
+  );
+}
+
+function DeployCredentialsBanner({
+  deploy,
+}: {
+  deploy?: PlatformStatus["deploy"];
+}) {
+  const warnings = deploy?.deploy_credentials_warnings ?? [];
+  if (deploy?.deploy_credentials_ready !== false || warnings.length === 0) return null;
+  if (deploy?.platform_revision_current !== false) return null;
+
+  return (
+    <div className="rounded-lg border border-red-500/50 bg-red-950/40 p-4">
+      <p className="text-sm font-semibold text-red-300">Deploy credentials need attention</p>
+      <ul className="text-xs text-red-200/80 mt-2 list-disc pl-4 space-y-1">
+        {warnings.map((warning) => (
+          <li key={warning}>{warning}</li>
+        ))}
+      </ul>
+      <p className="text-[11px] font-mono text-gray-400 mt-2 break-all">
+        bash trading-platform/scripts/check-deploy-credentials.sh
       </p>
     </div>
   );

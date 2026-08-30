@@ -218,6 +218,40 @@ def build_deploy_snapshot() -> dict[str, Any]:
   }
 
 
+def build_deploy_credentials_warnings(
+  *,
+  github_token_configured: bool | None,
+  fomo_configured: bool = False,
+  fomo_polling_active: bool = False,
+  fomo_minutes_remaining: int | None = None,
+) -> list[str]:
+  """Human-readable deploy blockers for fomo bearer and GitHub token."""
+  warnings: list[str] = []
+  if github_token_configured is False:
+    warnings.append("GITHUB_TOKEN missing on Render")
+  if fomo_configured and not fomo_polling_active:
+    label = f"{fomo_minutes_remaining}min" if fomo_minutes_remaining is not None else "expired"
+    warnings.append(f"fomo bearer expired ({label})")
+  return warnings
+
+
+def format_deploy_credentials_crm_html(warnings: list[str]) -> str:
+  """Render deploy credential warnings for the /crm landing page."""
+  if not warnings:
+    return ""
+  items = "".join(f"<li>{item}</li>" for item in warnings)
+  return f"""<div class="card" style="border-color:#7f1d1d;background:#1c0a0a;">
+    <h2 style="color:#f87171;">Deploy credentials need attention</h2>
+    <p class="muted" style="margin-top:0;">Resolve before tonight's Render deploy window:</p>
+    <ul class="muted" style="margin:0.5rem 0 0 1rem;line-height:1.6;">{items}</ul>
+    <p class="muted" style="margin-top:0.75rem;font-family:monospace;font-size:0.8rem;">
+      bash trading-platform/scripts/check-deploy-credentials.sh<br>
+      bash trading-platform/scripts/fomo-set-bearer.sh '&lt;bearer&gt;'<br>
+      bash trading-platform/scripts/sync-render-env.sh
+    </p>
+  </div>"""
+
+
 def apply_fomo_bearer_to_snapshot(
   snap: dict[str, Any],
   fomo: dict[str, Any],
@@ -233,13 +267,12 @@ def apply_fomo_bearer_to_snapshot(
     merged["fomo_bearer_refresh_hint"] = (
       "bash trading-platform/scripts/fomo-set-bearer.sh '<bearer>'"
     )
-  warnings: list[str] = []
-  if merged.get("github_token_configured") is False:
-    warnings.append("GITHUB_TOKEN missing on Render")
-  if configured and not polling:
-    mins = merged.get("fomo_bearer_minutes_remaining")
-    label = f"{mins}min" if mins is not None else "expired"
-    warnings.append(f"fomo bearer expired ({label})")
+  warnings = build_deploy_credentials_warnings(
+    github_token_configured=merged.get("github_token_configured"),
+    fomo_configured=configured,
+    fomo_polling_active=polling,
+    fomo_minutes_remaining=merged.get("fomo_bearer_minutes_remaining"),
+  )
   merged["deploy_credentials_warnings"] = warnings
   merged["deploy_credentials_ready"] = len(warnings) == 0
   return merged
@@ -258,7 +291,7 @@ PRODUCTION_DASHBOARD_URL = "https://apex-trading-dashboard-flame.vercel.app"
 DEFAULT_VERIFIED_DASHBOARD_URL = "https://apex-trading-dashboard-o7tb7wydk-apexweb-adams-projects.vercel.app"
 DEFAULT_VERIFIED_DEPLOYMENT_ID = "dpl_Cn62LPUnD83i28cydia12AKr3uUw"
 EXPECTED_DASHBOARD_BUNDLE = "2026-08-29-r98"
-EXPECTED_PLATFORM_REVISION = "2026-08-29-r373"
+EXPECTED_PLATFORM_REVISION = "2026-08-29-r374"
 GIT_MAIN_ALIAS = "apex-trading-dashboard-git-main"
 ACCEPTABLE_DASHBOARD_BUNDLES = frozenset({
   "2026-08-27-r9", "2026-08-27-r10", "2026-08-27-r11", "2026-08-27-r12",

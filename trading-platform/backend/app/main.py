@@ -12,9 +12,11 @@ from app.config import settings
 from app.engines.deploy_status import (
   EXPECTED_DASHBOARD_BUNDLE,
   build_cme_deploy_window,
+  build_deploy_credentials_warnings,
   build_deploy_status,
   format_cme_deploy_window_crm_html,
   format_dashboard_bundle_crm_html,
+  format_deploy_credentials_crm_html,
   resolve_crm_dashboard_url,
 )
 from app.workers.scheduler import setup_scheduler, stop_bots
@@ -689,6 +691,17 @@ async def crm_landing():
     )
     if deploy_window:
       deploy_window_card = format_cme_deploy_window_crm_html(deploy_window)
+  deploy_credentials_card = ""
+  if revision_current is False:
+    fomo_hook = integrations.get("fomo") or {}
+    credential_warnings = build_deploy_credentials_warnings(
+      github_token_configured=bool(os.environ.get("GITHUB_TOKEN", "").strip()),
+      fomo_configured=bool(fomo_hook.get("bearer_configured")),
+      fomo_polling_active=bool(fomo_hook.get("bearer_polling_active")),
+      fomo_minutes_remaining=fomo_hook.get("bearer_minutes_remaining"),
+    )
+    if credential_warnings:
+      deploy_credentials_card = format_deploy_credentials_crm_html(credential_warnings)
   dashboard_bundle_card = ""
   if behind_expected and prod_bundle != "?":
     dashboard_bundle_card = format_dashboard_bundle_crm_html(
@@ -755,6 +768,7 @@ async def crm_landing():
   {cme_imminent_banner}
   {us_imminent_banner}
   {deploy_window_card}
+  {deploy_credentials_card}
   {dashboard_bundle_card}
   {cme_checklist_card}
   {us_stocks_checklist_card}

@@ -18,6 +18,16 @@ def test_format_dashboard_bundle_crm_html():
   assert "dpl_test123" in html
 
 
+def test_format_deploy_credentials_crm_html():
+  from app.engines.deploy_status import format_deploy_credentials_crm_html
+
+  html = format_deploy_credentials_crm_html(["GITHUB_TOKEN missing on Render"])
+  assert "Deploy credentials need attention" in html
+  assert "GITHUB_TOKEN missing" in html
+  assert "check-deploy-credentials.sh" in html
+  assert format_deploy_credentials_crm_html([]) == ""
+
+
 def test_format_cme_deploy_window_crm_html():
   from app.engines.deploy_status import format_cme_deploy_window_crm_html
 
