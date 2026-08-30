@@ -75,7 +75,10 @@ else
   bad "CME reopen preflight failed"
 fi
 
-PROD_REV=$(curl -fsS -m 90 "$BACKEND/api/status" 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print((d.get('deploy') or {}).get('platform_revision') or '?')" 2>/dev/null || echo "?")
+PROD_REV=$(curl -fsS -m 15 "$BACKEND/api/deploy/snapshot" 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('platform_revision') or '')" 2>/dev/null || echo "")
+if [[ -z "$PROD_REV" ]]; then
+  PROD_REV=$(curl -fsS -m 45 "$BACKEND/api/status" 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print((d.get('deploy') or {}).get('platform_revision') or '?')" 2>/dev/null || echo "?")
+fi
 echo "  production_revision=$PROD_REV code_revision=$CODE_REV"
 if [[ "$PROD_REV" == "$CODE_REV" ]]; then
   note "Production already on target revision — deploy may be unnecessary"
