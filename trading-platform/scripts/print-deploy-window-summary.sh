@@ -3,31 +3,38 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+LIB="$ROOT/scripts/lib/deploy_json.py"
 BACKEND="${BACKEND_URL:-https://apex-trading-backend.onrender.com}"
 CODE_REV="$(grep '^EXPECTED_PLATFORM_REVISION' "$ROOT/backend/app/engines/deploy_status.py" | sed -n 's/.*"\([^"]*\)".*/\1/p')"
 
 SNAPSHOT=$(curl -fsS -m 20 "$BACKEND/api/deploy/snapshot" 2>/dev/null || echo "{}")
 CME=$(curl -fsS -m 45 "$BACKEND/api/gate/cme-reopen-checklist" 2>/dev/null || echo "{}")
+INTEL_SOURCES=$(curl -fsS -m 25 "$BACKEND/api/intelligence/sources" 2>/dev/null || echo "[]")
 BASELINE=""
 if [[ -f "$ROOT/.crm-load-baseline" ]]; then
   BASELINE=$(tr -d '[:space:]' < "$ROOT/.crm-load-baseline")
 fi
 
-CODE_REV="$CODE_REV" BASELINE="$BASELINE" SNAPSHOT_JSON="$SNAPSHOT" CME_JSON="$CME" python3 << 'PY'
-import json, os
+CODE_REV="$CODE_REV" BASELINE="$BASELINE" SNAPSHOT_JSON="$SNAPSHOT" CME_JSON="$CME" INTEL_JSON="$INTEL_SOURCES" LIB="$LIB" python3 << 'PY'
+import json, os, subprocess, sys
+from pathlib import Path
 
 code_rev = os.environ.get("CODE_REV") or "?"
 baseline = os.environ.get("BASELINE") or ""
 snap = json.loads(os.environ.get("SNAPSHOT_JSON") or "{}")
 cme = json.loads(os.environ.get("CME_JSON") or "{}")
+intel_raw = os.environ.get("INTEL_JSON") or "[]"
+lib = os.environ.get("LIB") or ""
 
 print("=== Deploy Window Operator Summary ===")
 prod_rev = snap.get("platform_revision") or "?"
-exp_rev = snap.get("expected_platform_revision") or code_rev
+snap_expected = snap.get("expected_platform_revision")
 print(f"Code target: {code_rev}")
-print(f"Production: {prod_rev} (snapshot expected {exp_rev})")
+print(f"Production: {prod_rev}")
 if prod_rev != code_rev:
     print(f"  → deploy advances {prod_rev} → {code_rev}")
+if snap_expected and snap_expected != code_rev:
+    print(f"  note: production snapshot still expects {snap_expected} until deploy")
 
 window = snap.get("cme_deploy_window") or {}
 if window.get("message"):
@@ -64,7 +71,41 @@ else:
 
 x_mode = snap.get("x_intel_collection_mode")
 if x_mode:
-    print(f"X intel: {x_mode}")
+    print(f"X intel (snapshot): {x_mode}")
+elif lib and Path(lib).is_file():
+    tmp_sources = Path("/tmp") / f"apex-intel-sources-{os.getpid()}.json"
+    tmp_snap = Path("/tmp") / f"apex-intel-snap-{os.getpid()}.json"
+    tmp_sources.write_text(intel_raw, encoding="utf-8")
+    tmp_snap.write_text(json.dumps(snap), encoding="utf-8")
+    try:
+        proc = subprocess.run(
+            [
+                sys.executable,
+                lib,
+                "intel-readiness",
+                "--sources-file",
+                str(tmp_sources),
+                "--snapshot-file",
+                str(tmp_snap),
+                "--prod-rev",
+                str(prod_rev),
+                "--code-rev",
+                code_rev,
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        intel_status = (proc.stdout or "").strip() or "missing"
+    finally:
+        tmp_sources.unlink(missing_ok=True)
+        tmp_snap.unlink(missing_ok=True)
+    if intel_status == "ok":
+        print("Intel: source health + snapshot fields live (r385+)")
+    elif intel_status == "partial":
+        print("Intel: sources API ready — snapshot r385 fields after deploy")
+    else:
+        print("Intel: r385 fields pending — confirm after deploy")
 
 if baseline:
     print(f"CRM baseline: {baseline}s (target <30s after deploy)")
