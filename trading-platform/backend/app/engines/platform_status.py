@@ -46,8 +46,18 @@ from app.models.entities import (
 )
 
 PLATFORM_STATUS_CACHE_TTL_SECONDS = 45
+PLATFORM_STATUS_PREP_CACHE_TTL_SECONDS = 60
 _platform_status_cache: dict[str, Any] | None = None
 _platform_status_cached_at: float = 0.0
+
+
+def _platform_status_cache_ttl_seconds() -> int:
+  """Longer cache during CME weekend prep when /api/status is polled heavily."""
+  from app.engines.gate_entry_guard import commodities_futures_weekend_closed
+
+  if commodities_futures_weekend_closed():
+    return PLATFORM_STATUS_PREP_CACHE_TTL_SECONDS
+  return PLATFORM_STATUS_CACHE_TTL_SECONDS
 
 
 def clear_platform_status_cache() -> None:
@@ -61,7 +71,7 @@ async def build_platform_status(session: AsyncSession) -> dict[str, Any]:
   now = time.monotonic()
   if (
     _platform_status_cache is not None
-    and (now - _platform_status_cached_at) < PLATFORM_STATUS_CACHE_TTL_SECONDS
+    and (now - _platform_status_cached_at) < _platform_status_cache_ttl_seconds()
   ):
     cached = dict(_platform_status_cache)
     cached["timestamp"] = datetime.utcnow().isoformat()

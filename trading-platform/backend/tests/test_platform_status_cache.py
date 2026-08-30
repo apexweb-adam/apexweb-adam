@@ -47,3 +47,19 @@ def test_dashboard_url_from_deploy_uses_prod_when_fresh():
     "dashboard_url": "https://prod.example",
   }
   assert platform_status._dashboard_url_from_deploy(deploy) == "https://prod.example"
+
+
+def test_platform_status_cache_ttl_extended_during_cme_weekend():
+  with patch(
+    "app.engines.gate_entry_guard.commodities_futures_weekend_closed",
+    return_value=True,
+  ):
+    assert platform_status._platform_status_cache_ttl_seconds() == 60
+
+
+def test_platform_status_cache_ttl_short_outside_cme_weekend():
+  with patch(
+    "app.engines.gate_entry_guard.commodities_futures_weekend_closed",
+    return_value=False,
+  ):
+    assert platform_status._platform_status_cache_ttl_seconds() == 45
