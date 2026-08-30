@@ -63,6 +63,22 @@ def test_verify_pre_deploy_saves_crm_baseline():
   text = script.read_text(encoding="utf-8")
   assert ".crm-load-baseline" in text
   assert "CRM landing baseline" in text
+  assert "check-fomo-bearer.sh" in text
+
+
+def test_check_fomo_bearer_script_exists():
+  script = SCRIPTS / "check-fomo-bearer.sh"
+  text = script.read_text(encoding="utf-8")
+  assert "/api/status" in text
+  assert "fomo bearer expired" in text
+  assert "fomo-set-bearer.sh" in text
+
+
+def test_run_deploy_window_includes_fomo_check():
+  script = SCRIPTS / "run-deploy-window.sh"
+  text = script.read_text(encoding="utf-8")
+  assert "check-fomo-bearer.sh" in text
+  assert ".crm-load-baseline" in text
 
 
 def test_verify_weekend_ops_includes_gate_and_revision_hints():
