@@ -135,6 +135,14 @@ def test_print_deploy_window_summary_script_exists():
   assert "us-stocks-open-checklist" in text
 
 
+def test_verify_us_stocks_post_open_supports_watch_mode():
+  script = SCRIPTS / "verify-us-stocks-post-open.sh"
+  text = script.read_text(encoding="utf-8")
+  assert "--watch" in text
+  assert "Watching for US stocks post-open" in text
+  assert "run_verification" in text
+
+
 def test_verify_cme_post_open_supports_watch_mode():
   script = SCRIPTS / "verify-cme-post-open.sh"
   text = script.read_text(encoding="utf-8")

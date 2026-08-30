@@ -166,7 +166,7 @@ PY
   [[ "$fail" -eq 0 ]]
   echo ""
   echo "After US stocks open (13:30 UTC Mon):"
-  echo "  bash trading-platform/scripts/verify-us-stocks-post-open.sh"
+  echo "  bash trading-platform/scripts/verify-us-stocks-post-open.sh --watch 120"
 }
 
 if [[ -n "$WATCH_INTERVAL" ]]; then

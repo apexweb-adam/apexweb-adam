@@ -171,7 +171,7 @@ finish() {
     echo "Monday before US open (13:30 UTC):"
     echo "  bash trading-platform/scripts/verify-us-stocks-open.sh --watch 120"
     echo "Monday after US open:"
-    echo "  bash trading-platform/scripts/verify-us-stocks-post-open.sh"
+    echo "  bash trading-platform/scripts/verify-us-stocks-post-open.sh --watch 120"
   fi
   exit "$rc"
 }
