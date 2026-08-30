@@ -35,10 +35,31 @@ events = checklist.get("session_open_events") or {}
 open_ready = (checklist.get("open_ready") or {}) or {}
 open_symbols = open_ready.get("symbols") or []
 sticky = open_ready.get("sticky_symbols") or []
+release_margin = open_ready.get("release_margin")
 
 print(f"  phase={phase} ready={ready}")
 print(f"  prep_phase={checklist.get('prep_phase')} in_session={checklist.get('in_session')}")
-print(f"  open_ready={open_symbols} sticky={sticky}")
+print(f"  open_ready={open_symbols} sticky={sticky} release_margin={release_margin}")
+
+near_floor = checklist.get("near_floor") or {}
+near_symbols = near_floor.get("symbols") or []
+if near_symbols:
+    print(f"  near_floor_watch={near_symbols}")
+for row in near_floor.get("details") or []:
+    sym = row.get("symbol")
+    gap = row.get("gap_to_floor")
+    comp = row.get("composite")
+    if sym:
+        print(f"    near_floor {sym}: composite={comp} gap_to_floor={gap}")
+
+# After open, near-floor symbols should promote to sticky or open_ready when composite clears floor.
+if phase in ("post_open", "open") and near_symbols:
+    still_near = [s for s in near_symbols if s not in sticky and s not in open_symbols]
+    if still_near:
+        print(f"  near_floor_pending={still_near} (expect sticky promotion as composite rises)")
+    promoted = [s for s in near_symbols if s in sticky or s in open_symbols]
+    if promoted:
+        print(f"  near_floor_promoted={promoted}")
 print(f"  has_burst_scan={events.get('has_burst_scan')} has_auto_entry={events.get('has_auto_entry')}")
 
 latest_burst = events.get("latest_burst_scan")
@@ -85,9 +106,8 @@ if not events.get("has_auto_entry") and open_symbols:
     errors.append("auto_entry_missing")
 if critical_failures:
     errors.extend(c["id"] for c in critical_failures)
-near_floor = (checklist.get("near_floor") or {}).get("symbols") or []
-if near_floor and phase in ("post_open", "open"):
-    print(f"  near_floor_watch={near_floor} (expect sticky hysteresis after burst)")
+if near_symbols and phase in ("post_open", "open"):
+    print("  note=monitor near_floor sticky hysteresis through first burst cycle")
 if errors:
     print("  errors=" + ",".join(errors))
     sys.exit(1)

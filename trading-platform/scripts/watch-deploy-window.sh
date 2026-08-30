@@ -7,6 +7,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BACKEND="${BACKEND_URL:-https://apex-trading-backend.onrender.com}"
+CODE_REV="$(grep '^EXPECTED_PLATFORM_REVISION' "$ROOT/backend/app/engines/deploy_status.py" | sed -n 's/.*"\([^"]*\)".*/\1/p')"
 INTERVAL="${WATCH_INTERVAL:-300}"
 ONCE=false
 AUTO_DEPLOY=false
@@ -82,7 +83,10 @@ expected = payload.get("expected_platform_revision")
 
 print(f"=== Deploy Window Watch — $(date -u '+%Y-%m-%d %H:%M UTC') ===")
 print(f"Backend: $BACKEND")
+print(f"  code_target=$CODE_REV")
 print(f"  platform_revision={rev} expected={expected} current={current}")
+if expected and "$CODE_REV" and expected != "$CODE_REV":
+    print(f"  deploy will advance prod expected {expected} → $CODE_REV")
 
 bundle = payload.get("expected_dashboard_bundle")
 if bundle:

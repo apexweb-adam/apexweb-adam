@@ -5,21 +5,32 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BACKEND="${BACKEND_URL:-https://apex-trading-backend.onrender.com}"
+CODE_REV="$(grep '^EXPECTED_PLATFORM_REVISION' "$ROOT/backend/app/engines/deploy_status.py" | sed -n 's/.*"\([^"]*\)".*/\1/p')"
 
 echo "=== Weekend Ops Checklist — $(date -u '+%Y-%m-%d %H:%M UTC') ==="
 echo "Backend: $BACKEND"
+echo "Code target: $CODE_REV"
 echo ""
 
 SNAPSHOT=$(curl -fsS -m 15 "$BACKEND/api/deploy/snapshot" 2>/dev/null || echo "{}")
 python3 << PY
 import json, sys
 snap = json.loads('''$SNAPSHOT''')
+code_rev = "$CODE_REV"
 if not snap:
     print("○ deploy snapshot unavailable")
+    if code_rev:
+        print(f"  code_target={code_rev}")
     sys.exit(0)
 rev = snap.get("platform_revision")
 exp = snap.get("expected_platform_revision")
-print(f"Platform: {rev} → expected {exp} (current={snap.get('platform_revision_current')})")
+print(f"Platform: {rev} → prod expected {exp} (current={snap.get('platform_revision_current')})")
+if code_rev and exp and code_rev != exp:
+    print(f"  deploy will advance prod expected {exp} → {code_rev}")
+elif code_rev and rev and code_rev != rev:
+    print(f"  production behind code: {rev} → {code_rev}")
+if snap.get("github_verified") is False:
+    print("WARN: GITHUB_TOKEN missing on Render — deploy staleness checks incomplete")
 window = snap.get("cme_deploy_window") or {}
 if window.get("message"):
     print(f"CME window: {window.get('message')}")
@@ -31,6 +42,8 @@ for key in ("dashboard_bundle_verify_command", "weekend_ops_verify_command"):
     if cmd:
         print(f"  {cmd}")
 PY
+
+bash "$ROOT/scripts/ops-gate-summary.sh" || true
 
 US_CHECKLIST=$(curl -fsS -m 30 "$BACKEND/api/gate/us-stocks-open-checklist" 2>/dev/null || echo "{}")
 US_NOTE=$(python3 << PY
