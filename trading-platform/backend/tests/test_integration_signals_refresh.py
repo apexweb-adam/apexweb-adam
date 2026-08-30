@@ -28,6 +28,8 @@ def test_refresh_tradingview_signals_injects_missing():
   refreshed = asyncio.run(refresh_tradingview_signals(session, ["NVDA", "AAPL"]))
   assert refreshed == ["NVDA", "AAPL"]
   assert session.add.call_count == 2
+  added = session.add.call_args_list[0][0][0]
+  assert added.category == "synthetic"
   session.commit.assert_awaited_once()
 
 

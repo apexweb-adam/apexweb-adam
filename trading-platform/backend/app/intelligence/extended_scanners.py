@@ -103,6 +103,8 @@ class ExtendedIntelligenceScanner(IntelligenceScanner):
       count += await self._scan_x_twitter()
     elif settings.newsapi_key:
       count += await self._scan_x_social_news_fallback()
+    else:
+      count += await self._scan_x_google_news_fallback()
     from app.intelligence.wallet_tracker import scan_wallet_tracker
     from app.intelligence.solana_wallet_tracker import scan_solana_wallets
     from app.intelligence.memecoin_scanner import scan_memecoin_intel
@@ -274,8 +276,40 @@ class ExtendedIntelligenceScanner(IntelligenceScanner):
           print(f"X scan error for '{query}': {e}")
 
     if count == 0 and (api_blocked or settings.twitter_bearer_token):
-      print("[X] Using NewsAPI social fallback for X intel slot")
-      count += await self._scan_x_social_news_fallback()
+      if settings.newsapi_key:
+        print("[X] Using NewsAPI social fallback for X intel slot")
+        count += await self._scan_x_social_news_fallback()
+      else:
+        print("[X] Using Google News RSS fallback for X intel slot")
+        count += await self._scan_x_google_news_fallback()
+    return count
+
+  async def _scan_x_google_news_fallback(self) -> int:
+    """Keyless X-style intel via Google News RSS (same pattern as political/TikTok)."""
+    count = 0
+    async with httpx.AsyncClient(timeout=15) as client:
+      for query in X_SEARCH_QUERIES[:8]:
+        try:
+          rss_url = (
+            f"https://news.google.com/rss/search?q={query.replace(' ', '+')}"
+            "+(twitter+OR+tweet+OR+x.com)"
+            "&hl=en-US&gl=US&ceid=US:en"
+          )
+          response = await client.get(rss_url, headers={"User-Agent": "ApexTradingBot/1.0"})
+          feed = feedparser.parse(response.text)
+          for entry in feed.entries[:4]:
+            title = entry.get("title", "")
+            content = entry.get("summary", "")
+            link = entry.get("link", "")
+            full_text = f"{title} {content}"
+            if not title:
+              continue
+            if not _is_trading_relevant(full_text):
+              continue
+            if await self._add_item("x", f"[google-news] {title}", content, link):
+              count += 1
+        except Exception as e:
+          print(f"X Google News fallback error for '{query}': {e}")
     return count
 
   async def _scan_polymarket(self) -> int:
