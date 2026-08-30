@@ -14,15 +14,56 @@ jobs:
         run: |
           set -euo pipefail
           URL="https://apex-trading-backend.onrender.com"
+
+          wake_json() {
+            local path="$1"
+            local timeout="$2"
+            curl -fsS --max-time "$timeout" "$URL$path" 2>/dev/null || true
+          }
+
+          # Lightweight endpoints first — warms Render without heavy /api/status.
+          for path in /api/gate/prep-status /api/health /api/deploy/snapshot; do
+            body="$(wake_json "$path" 20)"
+            if [[ -n "$body" && "$body" != "{}" ]]; then
+              break
+            fi
+          done
+
           curl -fsS --max-time 30 "$URL/api/health" | python3 -c "
           import json,sys
           d=json.load(sys.stdin)
           assert d.get('status')=='ok', d
           print('health OK', d.get('timestamp'))
           "
+
           # Light status pull keeps dashboard data fresh without heavy load
           curl -fsS --max-time 45 "$URL/api/stats" | python3 -c "
           import json,sys
           d=json.load(sys.stdin)
           print('bots_active=%s trades=%s mode=%s' % (d.get('bots_active'), d.get('total_trades'), d.get('mode')))
           "
+
+          # Sunday CME prep window (16:00–23:59 UTC): keep open-ready queue endpoints warm.
+          DOW="$(date -u +%u)"
+          HOUR="$(date -u +%H)"
+          if [[ "$DOW" == "7" && "$HOUR" -ge 16 ]]; then
+            checklist="$(wake_json /api/gate/cme-reopen-checklist 90)"
+            if [[ -n "$checklist" && "$checklist" != "{}" ]]; then
+              echo "$checklist" | python3 -c "
+          import json,sys
+          d=json.load(sys.stdin)
+          orx=d.get('open_ready') or {}
+          print(
+              'cme_checklist ready=%s open_in=%smin open_ready=%s auto_entry=%s'
+              % (
+                  d.get('ready'),
+                  d.get('minutes_until_open'),
+                  orx.get('symbols'),
+                  orx.get('auto_entry_queued'),
+              )
+          )
+          "
+            else
+              echo "cme_checklist unreachable (non-fatal)"
+            fi
+          fi
