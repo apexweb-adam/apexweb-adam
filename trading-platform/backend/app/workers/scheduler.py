@@ -122,6 +122,7 @@ async def stocks_pre_session_prep_job() -> None:
   from app.engines.gate_entry_guard import (
     get_chronic_loser_symbols,
     get_proven_winner_symbols,
+    prioritize_stocks_monday_scan,
     stocks_pre_session_prep_window_minutes,
     stocks_session_info,
     stocks_trade_count_graduation_nudge,
@@ -153,11 +154,14 @@ async def stocks_pre_session_prep_job() -> None:
 
     winners = await get_proven_winner_symbols(session, "stocks_futures")
     chronic = await get_chronic_loser_symbols(session, "stocks_futures")
-    base_symbols = set(winners) | set(chronic) | {"NVDA"}
-    if trade_count_nudge and winners:
-      symbols = sorted(winners) + sorted(base_symbols - set(winners))
-    else:
-      symbols = sorted(base_symbols)
+    base_symbols = sorted(set(winners) | set(chronic) | {"NVDA"})
+    symbols = prioritize_stocks_monday_scan(
+      base_symbols,
+      chronic_losers=chronic,
+      proven_winners=winners,
+      session_info=session_info,
+      trade_count_nudge=trade_count_nudge,
+    )
     refreshed = await refresh_tradingview_signals(
       session,
       symbols,
@@ -219,6 +223,7 @@ async def commodities_pre_session_prep_job() -> None:
     get_proven_winner_symbols,
     in_shadow_graduation_nudge,
     is_commodities_futures_symbol,
+    prioritize_commodities_monday_scan,
   )
   from app.engines.integration_signals import refresh_tradingview_signals
   from app.engines.profitability_gate import ProfitabilityGate
@@ -248,10 +253,13 @@ async def commodities_pre_session_prep_job() -> None:
     chronic = await get_chronic_loser_symbols(session, "commodities")
     recovery_futures = sorted(s for s in chronic if is_commodities_futures_symbol(s))
     base_symbols = sorted(set(COMMODITIES_PREP_SYMBOLS) | set(winners) | set(recovery_futures))
-    if graduation_nudge and recovery_futures:
-      symbols = recovery_futures + [s for s in base_symbols if s not in recovery_futures]
-    else:
-      symbols = base_symbols
+    symbols = prioritize_commodities_monday_scan(
+      base_symbols,
+      chronic_losers=chronic,
+      proven_winners=winners,
+      session_info=session_info,
+      graduation_nudge=graduation_nudge,
+    )
     refreshed = await refresh_tradingview_signals(
       session,
       symbols,
@@ -262,6 +270,143 @@ async def commodities_pre_session_prep_job() -> None:
     print(
       f"[CommoditiesPrep] Refreshed TradingView signals for {', '.join(refreshed)} "
       f"({minutes_until_open} min until CME open)"
+    )
+    from app.ws_manager import push_live_update
+
+    await push_live_update()
+
+
+CME_REOPEN_WAKE_MINUTES_BEFORE = 3
+CME_REOPEN_WAKE_MINUTES_AFTER = 5
+US_OPEN_WAKE_MINUTES_BEFORE = 3
+US_OPEN_WAKE_MINUTES_AFTER = 5
+
+
+async def commodities_cme_reopen_wake_job() -> None:
+  """Force-refresh TV signals right before/after CME reopen so open-ready futures enter fast."""
+  from app.engines.gate_entry_guard import (
+    commodities_session_info,
+    get_chronic_loser_symbols,
+    get_proven_winner_symbols,
+    in_shadow_graduation_nudge,
+    prioritize_commodities_monday_scan,
+  )
+  from app.engines.integration_signals import refresh_tradingview_signals
+  from app.engines.profitability_gate import ProfitabilityGate
+
+  session_info = commodities_session_info()
+  minutes_until_open = session_info.get("minutes_until_open")
+  minutes_since_open = session_info.get("minutes_since_open")
+  in_session = bool(session_info.get("in_session"))
+  wake_window = (
+    (not in_session and minutes_until_open is not None and minutes_until_open <= CME_REOPEN_WAKE_MINUTES_BEFORE)
+    or (
+      in_session
+      and minutes_since_open is not None
+      and minutes_since_open <= CME_REOPEN_WAKE_MINUTES_AFTER
+    )
+  )
+  if not wake_window:
+    return
+
+  async with SessionLocal() as session:
+    per_bot = (await ProfitabilityGate(session).evaluate_per_bot()).get("commodities") or {}
+    graduation_nudge = in_shadow_graduation_nudge(
+      "commodities",
+      per_bot.get("win_rate"),
+      profit_factor=per_bot.get("profit_factor"),
+      total_pnl=per_bot.get("total_pnl"),
+    )
+    if not graduation_nudge:
+      return
+
+    winners = await get_proven_winner_symbols(session, "commodities")
+    chronic = await get_chronic_loser_symbols(session, "commodities")
+    symbols = prioritize_commodities_monday_scan(
+      list(COMMODITIES_PREP_SYMBOLS),
+      chronic_losers=chronic,
+      proven_winners=winners,
+      session_info=session_info,
+      graduation_nudge=True,
+    )
+    refreshed = await refresh_tradingview_signals(
+      session,
+      symbols,
+      reason_prefix="CME reopen wake TV refresh",
+      force_refresh=True,
+    )
+  if refreshed:
+    label = "pre-open" if not in_session else "post-open"
+    print(
+      f"[CommoditiesReopenWake] {label}: refreshed {', '.join(refreshed)} "
+      f"(until_open={minutes_until_open}, since_open={minutes_since_open})"
+    )
+    from app.ws_manager import push_live_update
+
+    await push_live_update()
+
+
+async def stocks_us_open_wake_job() -> None:
+  """Force-refresh TV signals right before/after US cash open for proven shadow winners."""
+  from app.engines.gate_entry_guard import (
+    get_chronic_loser_symbols,
+    get_proven_winner_symbols,
+    prioritize_stocks_monday_scan,
+    stocks_session_info,
+    stocks_trade_count_graduation_nudge,
+  )
+  from app.engines.integration_signals import refresh_tradingview_signals
+  from app.engines.platform_settings import is_bot_paused
+  from app.engines.profitability_gate import ProfitabilityGate
+
+  session_info = stocks_session_info()
+  minutes_until_open = session_info.get("minutes_until_open")
+  minutes_since_open = session_info.get("minutes_since_open")
+  in_session = bool(session_info.get("in_session"))
+  wake_window = (
+    (not in_session and minutes_until_open is not None and minutes_until_open <= US_OPEN_WAKE_MINUTES_BEFORE)
+    or (
+      in_session
+      and minutes_since_open is not None
+      and minutes_since_open <= US_OPEN_WAKE_MINUTES_AFTER
+    )
+  )
+  if not wake_window:
+    return
+
+  async with SessionLocal() as session:
+    shadow_mode = await is_bot_paused(session, "stocks_futures")
+    per_bot = (await ProfitabilityGate(session).evaluate_per_bot()).get("stocks_futures") or {}
+    trade_count_nudge = stocks_trade_count_graduation_nudge(
+      "stocks_futures",
+      shadow_mode,
+      per_bot.get("win_rate"),
+      int(per_bot.get("total_trades") or 0),
+    )
+    if not trade_count_nudge:
+      return
+
+    winners = await get_proven_winner_symbols(session, "stocks_futures")
+    chronic = await get_chronic_loser_symbols(session, "stocks_futures")
+    base_symbols = sorted(set(winners) | set(chronic) | {"NVDA", "AAPL"})
+    symbols = prioritize_stocks_monday_scan(
+      base_symbols,
+      chronic_losers=chronic,
+      proven_winners=winners,
+      session_info=session_info,
+      trade_count_nudge=True,
+    )
+    refreshed = await refresh_tradingview_signals(
+      session,
+      symbols,
+      reason_prefix="US open wake TV refresh",
+      force_refresh=True,
+    )
+  if refreshed:
+    label = "pre-open" if not in_session else "post-open"
+    print(
+      f"[StocksOpenWake] {label}: refreshed {', '.join(refreshed)} "
+      f"(until_open={minutes_until_open}, since_open={minutes_since_open})"
     )
     from app.ws_manager import push_live_update
 
@@ -502,6 +647,18 @@ async def setup_scheduler() -> None:
     minute=30,
     day_of_week="sun",
     id="commodities_pre_session_prep",
+  )
+  scheduler.add_job(
+    commodities_cme_reopen_wake_job,
+    "interval",
+    minutes=1,
+    id="commodities_cme_reopen_wake",
+  )
+  scheduler.add_job(
+    stocks_us_open_wake_job,
+    "interval",
+    minutes=1,
+    id="stocks_us_open_wake",
   )
   scheduler.add_job(
     stocks_pre_session_prep_job,
