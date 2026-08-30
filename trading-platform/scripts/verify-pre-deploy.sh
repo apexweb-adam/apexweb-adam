@@ -24,6 +24,8 @@ bash "$ROOT/scripts/ops-gate-summary.sh" || true
 echo ""
 bash "$ROOT/scripts/check-fomo-bearer.sh" || true
 echo ""
+bash "$ROOT/scripts/check-github-token.sh" || true
+echo ""
 
 PREP=$(curl -fsS -m 45 "$BACKEND/api/gate/prep-status" 2>/dev/null || echo "{}")
 CME_MINS=$(python3 << PY

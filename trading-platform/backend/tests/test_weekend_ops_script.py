@@ -87,5 +87,23 @@ def test_verify_weekend_ops_includes_gate_and_revision_hints():
   assert "Code target:" in text
   assert "ops-gate-summary.sh" in text
   assert "Profitability gate:" not in text  # delegated to helper
-  assert "github_verified" in text
+  assert "github_token_configured" in text
   assert "deploy will advance prod expected" in text
+
+
+def test_check_github_token_script_exists():
+  script = SCRIPTS / "check-github-token.sh"
+  text = script.read_text(encoding="utf-8")
+  assert "/api/deploy/snapshot" in text
+  assert "GITHUB_TOKEN" in text
+  assert "sync-render-env.sh" in text
+
+
+def test_watch_deploy_window_auto_deploy_uses_run_deploy_window():
+  script = SCRIPTS / "watch-deploy-window.sh"
+  text = script.read_text(encoding="utf-8")
+  marker = "Auto-deploy enabled — running full deploy window workflow"
+  assert marker in text
+  block = text.split(marker, 1)[1]
+  assert 'bash "$ROOT/scripts/run-deploy-window.sh"' in block
+  assert "sync-render-env.sh" not in block
