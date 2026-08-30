@@ -71,6 +71,13 @@ if open_ready or sticky or near_symbols or mins is not None:
         gap = row.get("gap_to_floor")
         if sym and gap is not None:
             print(f"  near_floor {sym}: composite={comp} need +{gap}")
+    for row in open_ready_block.get("details") or []:
+        sym = row.get("symbol")
+        comp = row.get("composite")
+        blockers = row.get("blockers") or []
+        sticky_flag = " sticky" if row.get("sticky_queue") else ""
+        if sym:
+            print(f"  open_ready {sym}: composite={comp}{sticky_flag} blockers={blockers}")
 
 if us:
     checks = {c.get("id"): c for c in us.get("checks") or []}

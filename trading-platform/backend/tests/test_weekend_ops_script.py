@@ -132,6 +132,7 @@ def test_print_deploy_window_summary_script_exists():
   assert "verify-cme-post-open.sh --watch" in text
   assert "sticky_symbols" in text
   assert "near_floor" in text
+  assert "open_ready" in text and "blockers=" in text
   assert "us-stocks-open-checklist" in text
 
 

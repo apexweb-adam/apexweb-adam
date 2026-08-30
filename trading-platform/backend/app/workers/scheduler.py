@@ -426,17 +426,28 @@ async def commodities_cme_reopen_wake_job() -> None:
       profit_factor=per_bot.get("profit_factor"),
       total_pnl=per_bot.get("total_pnl"),
     )
-    if not graduation_nudge:
+    from app.engines.scan_preview import build_monday_recovery_summary
+
+    recovery = await build_monday_recovery_summary(session)
+    open_ready_symbols = [
+      row["symbol"]
+      for row in recovery.get("open_ready") or []
+      if row.get("bot_type") == "commodities" and row.get("symbol")
+    ]
+    if not graduation_nudge and not open_ready_symbols:
       return
 
     winners = await get_proven_winner_symbols(session, "commodities")
     chronic = await get_chronic_loser_symbols(session, "commodities")
+    base_symbols = sorted(set(COMMODITIES_PREP_SYMBOLS) | set(winners) | set(chronic))
+    if open_ready_symbols:
+      base_symbols = sorted(set(base_symbols) | set(open_ready_symbols))
     symbols = prioritize_commodities_monday_scan(
-      list(COMMODITIES_PREP_SYMBOLS),
+      base_symbols,
       chronic_losers=chronic,
       proven_winners=winners,
       session_info=session_info,
-      graduation_nudge=True,
+      graduation_nudge=graduation_nudge or bool(open_ready_symbols),
     )
     refreshed = await refresh_tradingview_signals(
       session,
