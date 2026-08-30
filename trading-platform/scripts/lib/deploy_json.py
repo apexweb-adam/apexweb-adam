@@ -87,6 +87,121 @@ def evaluate_intel_readiness(
   return "missing"
 
 
+def evaluate_post_deploy(
+  status: dict[str, Any],
+  checklist: dict[str, Any],
+  snapshot: dict[str, Any],
+  *,
+  expected: str,
+) -> list[str]:
+  errors: list[str] = []
+  deploy = status.get("deploy") or {}
+  if not deploy and snapshot:
+    deploy = snapshot
+  prod_rev = deploy.get("platform_revision") or snapshot.get("platform_revision") or "?"
+  print(f"  platform_revision={prod_rev} expected={expected}")
+  if prod_rev != expected:
+    errors.append("revision_mismatch")
+
+  summaries = status.get("session_open_checklists") or {}
+  if not summaries.get("cme_reopen"):
+    if status:
+      errors.append("session_open_checklists_missing")
+    else:
+      print("  session_open_checklists=skipped (/api/status unavailable)")
+  else:
+    cme = summaries["cme_reopen"]
+    print(
+      f"  session_open_checklists.cme_reopen ready={cme.get('ready')} "
+      f"phase={cme.get('phase')}"
+    )
+    print(
+      f"    open_ready={cme.get('open_ready_symbols')} "
+      f"near_floor={cme.get('near_floor_symbols')}"
+    )
+    gaps = cme.get("near_floor_gaps") or {}
+    if gaps:
+      print(f"    near_floor_gaps={gaps}")
+
+  open_ready = checklist.get("open_ready") or {}
+  if checklist and "sticky_symbols" not in open_ready:
+    errors.append("sticky_symbols_field_missing")
+  elif open_ready.get("sticky_symbols") is not None:
+    sticky = open_ready.get("sticky_symbols") or []
+    print(f"  checklist sticky_symbols={sticky} release_margin={open_ready.get('release_margin')}")
+
+  near = checklist.get("near_floor") or {}
+  for row in near.get("details") or []:
+    sym = row.get("symbol")
+    gap = row.get("gap_to_floor")
+    comp = row.get("composite")
+    if sym and gap is not None:
+      print(f"    near_floor {sym}: composite={comp} gap_to_floor={gap}")
+
+  deploy_info = status.get("deploy") or {}
+  deploy_window = deploy_info.get("cme_deploy_window") or snapshot.get("cme_deploy_window")
+  if deploy_window:
+    print(
+      "  cme_deploy_window "
+      f"in_window={deploy_window.get('in_window')} "
+      f"opens={deploy_window.get('window_opens_at_utc')}"
+    )
+  else:
+    errors.append("cme_deploy_window_missing")
+
+  if deploy_info.get("vercel_bundle_behind_expected") is True:
+    exp = deploy_info.get("expected_dashboard_bundle") or "?"
+    act = deploy_info.get("vercel_bundle_revision") or "?"
+    print(f"  note: dashboard bundle behind expected ({act} vs {exp}) — non-blocking")
+
+  if prod_rev == expected:
+    if snapshot.get("run_deploy_window_command"):
+      print("  run_deploy_window_command=ok")
+    else:
+      print("  note: run_deploy_window_command missing on snapshot (pre-r366)")
+    if snapshot.get("wait_for_deploy_command"):
+      print("  wait_for_deploy_command=ok")
+    for key in ("github_token_configured", "fomo_bearer_configured"):
+      if key not in snapshot:
+        errors.append(f"snapshot_missing_{key}")
+    if "fomo_bearer_configured" in snapshot:
+      print(
+        f"  fomo_bearer configured={snapshot.get('fomo_bearer_configured')} "
+        f"polling={snapshot.get('fomo_bearer_polling_active')} "
+        f"mins={snapshot.get('fomo_bearer_minutes_remaining')} "
+        f"nudge_tier={snapshot.get('fomo_bearer_nudge_tier')}"
+      )
+      if snapshot.get("fomo_bearer_nudge_tier") is None:
+        errors.append("snapshot_missing_fomo_bearer_nudge_tier")
+    if snapshot.get("github_token_configured") is False:
+      print("  note: GITHUB_TOKEN missing on Render — deploy staleness checks incomplete")
+    x_mode = snapshot.get("x_intel_collection_mode")
+    if x_mode:
+      print(f"  x_intel_collection_mode={x_mode}")
+    else:
+      errors.append("snapshot_missing_x_intel_collection_mode")
+
+  learning = status.get("learning") or {}
+  if learning:
+    print(
+      "  learning_loop "
+      f"analyses={learning.get('trade_analyses')} "
+      f"reviews={learning.get('daily_reviews')} "
+      f"pending_insights={learning.get('insights_pending')}"
+    )
+  elif status:
+    errors.append("learning_loop_missing")
+
+  if snapshot.get("cme_deploy_window") or snapshot.get("platform_revision"):
+    print(f"  deploy_snapshot=ok revision={snapshot.get('platform_revision')}")
+  elif snapshot:
+    errors.append("deploy_snapshot_missing_window")
+  elif prod_rev == expected:
+    print("  deploy_snapshot=skipped (pre-r358 backend)")
+
+  return errors
+
+
 def main() -> int:
   parser = argparse.ArgumentParser()
   sub = parser.add_subparsers(dest="cmd", required=True)
@@ -102,6 +217,12 @@ def main() -> int:
   intel_p.add_argument("--snapshot-file", default="-")
   intel_p.add_argument("--prod-rev", default="")
   intel_p.add_argument("--code-rev", default="")
+
+  post_p = sub.add_parser("post-deploy-check")
+  post_p.add_argument("--status-file", default="-")
+  post_p.add_argument("--checklist-file", default="-")
+  post_p.add_argument("--snapshot-file", default="-")
+  post_p.add_argument("--expected", required=True)
 
   args = parser.parse_args()
 
@@ -131,6 +252,19 @@ def main() -> int:
     with open(args.snapshot_file, encoding="utf-8") if args.snapshot_file != "-" else sys.stdin as fh:
       snapshot = json.load(fh)
     print(evaluate_intel_readiness(sources, snapshot, prod_rev=args.prod_rev, code_rev=args.code_rev))
+    return 0
+
+  if args.cmd == "post-deploy-check":
+    with open(args.status_file, encoding="utf-8") if args.status_file != "-" else sys.stdin as fh:
+      status = json.load(fh)
+    with open(args.checklist_file, encoding="utf-8") if args.checklist_file != "-" else sys.stdin as fh:
+      checklist = json.load(fh)
+    with open(args.snapshot_file, encoding="utf-8") if args.snapshot_file != "-" else sys.stdin as fh:
+      snapshot = json.load(fh)
+    errors = evaluate_post_deploy(status, checklist, snapshot, expected=args.expected)
+    if errors:
+      print("  errors=" + ",".join(errors))
+      return 1
     return 0
 
   return 2

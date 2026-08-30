@@ -4,6 +4,8 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=lib/fetch_json.sh
+source "$ROOT/scripts/lib/fetch_json.sh"
 BACKEND="${BACKEND_URL:-https://apex-trading-backend.onrender.com}"
 CODE_REV="$(grep '^EXPECTED_PLATFORM_REVISION' "$ROOT/backend/app/engines/deploy_status.py" | sed -n 's/.*"\([^"]*\)".*/\1/p')"
 
@@ -12,11 +14,13 @@ echo "Backend: $BACKEND"
 echo "Code target: $CODE_REV"
 echo ""
 
-SNAPSHOT=$(curl -fsS -m 15 "$BACKEND/api/deploy/snapshot" 2>/dev/null || echo "{}")
-python3 << PY
-import json, sys
-snap = json.loads('''$SNAPSHOT''')
-code_rev = "$CODE_REV"
+SNAPSHOT=$(fetch_json "$BACKEND/api/deploy/snapshot" 45 2)
+export SNAPSHOT_JSON="$SNAPSHOT" CODE_REV="$CODE_REV"
+python3 << 'PY'
+import json, os, sys
+
+snap = json.loads(os.environ.get("SNAPSHOT_JSON") or "{}")
+code_rev = os.environ.get("CODE_REV") or ""
 if not snap:
     print("○ deploy snapshot unavailable")
     if code_rev:
@@ -48,49 +52,47 @@ bash "$ROOT/scripts/ops-gate-summary.sh" || true
 echo ""
 bash "$ROOT/scripts/check-deploy-credentials.sh" || true
 
-US_CHECKLIST=$(curl -fsS -m 30 "$BACKEND/api/gate/us-stocks-open-checklist" 2>/dev/null || echo "{}")
-US_NOTE=$(python3 << PY
-import json
-data = json.loads('''$US_CHECKLIST''')
+US_CHECKLIST=$(fetch_json "$BACKEND/api/gate/us-stocks-open-checklist" 45 2)
+US_NOTE=$(echo "$US_CHECKLIST" | python3 -c "
+import json, sys
+data = json.load(sys.stdin)
 if not data:
     raise SystemExit(0)
-checks = {c.get("id"): c for c in data.get("checks") or []}
-stocks = checks.get("stocks_active") or {}
-open_ready = (data.get("open_ready") or {}).get("symbols") or []
-mins = data.get("minutes_until_open")
-if stocks.get("status") == "fail":
-    syms = ", ".join(open_ready) if open_ready else "none"
-    print(f"US stocks: bot paused — Monday auto-entry for {syms} blocked until profitability gate clears (open in {mins}min)")
+checks = {c.get('id'): c for c in data.get('checks') or []}
+stocks = checks.get('stocks_active') or {}
+open_ready = (data.get('open_ready') or {}).get('symbols') or []
+mins = data.get('minutes_until_open')
+if stocks.get('status') == 'fail':
+    syms = ', '.join(open_ready) if open_ready else 'none'
+    print(f'US stocks: bot paused — Monday auto-entry for {syms} blocked until profitability gate clears (open in {mins}min)')
 elif open_ready:
-    print(f"US stocks: open_ready={open_ready} (opens in {mins}min)")
-PY
-)
+    print(f'US stocks: open_ready={open_ready} (opens in {mins}min)')
+" 2>/dev/null || true)
 if [[ -n "$US_NOTE" ]]; then
   echo "$US_NOTE"
 fi
 
-CME_CHECKLIST=$(curl -fsS -m 30 "$BACKEND/api/gate/cme-reopen-checklist" 2>/dev/null || echo "{}")
-CME_NOTE=$(python3 << PY
-import json
-data = json.loads('''$CME_CHECKLIST''')
+CME_CHECKLIST=$(fetch_json "$BACKEND/api/gate/cme-reopen-checklist" 60 2)
+CME_NOTE=$(echo "$CME_CHECKLIST" | python3 -c "
+import json, sys
+data = json.load(sys.stdin)
 if not data:
     raise SystemExit(0)
-open_ready = (data.get("open_ready") or {}).get("symbols") or []
-sticky = (data.get("open_ready") or {}).get("sticky_symbols") or []
-near = (data.get("near_floor") or {}).get("symbols") or []
-auto_entry = (data.get("open_ready") or {}).get("auto_entry_queued")
-mins = data.get("minutes_until_open")
-parts = [f"CME: open_ready={open_ready or 'none'}"]
+open_ready = (data.get('open_ready') or {}).get('symbols') or []
+sticky = (data.get('open_ready') or {}).get('sticky_symbols') or []
+near = (data.get('near_floor') or {}).get('symbols') or []
+auto_entry = (data.get('open_ready') or {}).get('auto_entry_queued')
+mins = data.get('minutes_until_open')
+parts = [f\"CME: open_ready={open_ready or 'none'}\"]
 if sticky:
-    parts.append(f"sticky={sticky}")
+    parts.append(f'sticky={sticky}')
 if near:
-    parts.append(f"near_floor={near}")
-parts.append(f"auto_entry={auto_entry}")
+    parts.append(f'near_floor={near}')
+parts.append(f'auto_entry={auto_entry}')
 if mins is not None:
-    parts.append(f"open in {mins}min")
-print("; ".join(parts))
-PY
-)
+    parts.append(f'open in {mins}min')
+print('; '.join(parts))
+" 2>/dev/null || true)
 if [[ -n "$CME_NOTE" ]]; then
   echo "$CME_NOTE"
 fi

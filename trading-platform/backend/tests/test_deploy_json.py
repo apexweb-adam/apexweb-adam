@@ -14,6 +14,7 @@ sys.path.insert(0, str(LIB.parent))
 from deploy_json import (  # noqa: E402
   evaluate_cme_prep_preflight,
   evaluate_intel_readiness,
+  evaluate_post_deploy,
   minutes_until_open,
 )
 
@@ -93,7 +94,70 @@ def test_intel_readiness_ok_when_revision_matches_and_snapshot_fields_present():
   )
 
 
-def test_cli_cme_prep_preflight_reads_stdin():
+def test_post_deploy_check_flags_revision_mismatch():
+  status = {"deploy": {"platform_revision": "2026-08-29-r336"}, "learning": {}}
+  checklist = {"open_ready": {"sticky_symbols": []}}
+  snapshot = {
+    "platform_revision": "2026-08-29-r336",
+    "cme_deploy_window": {"in_window": False},
+    "run_deploy_window_command": "x",
+    "wait_for_deploy_command": "y",
+    "github_token_configured": True,
+    "fomo_bearer_configured": True,
+    "fomo_bearer_nudge_tier": "ok",
+  }
+  errors = evaluate_post_deploy(status, checklist, snapshot, expected="2026-08-29-r388")
+  assert "revision_mismatch" in errors
+
+
+def test_cli_post_deploy_check():
+  import tempfile
+
+  status = {
+    "deploy": {"platform_revision": "2026-08-29-r388", "cme_deploy_window": {}},
+    "session_open_checklists": {"cme_reopen": {"ready": True, "phase": "preflight"}},
+    "learning": {"trade_analyses": 1},
+  }
+  checklist = {"open_ready": {"sticky_symbols": ["NG=F"]}}
+  snapshot = {
+    "platform_revision": "2026-08-29-r388",
+    "cme_deploy_window": {"in_window": True},
+    "run_deploy_window_command": "x",
+    "wait_for_deploy_command": "y",
+    "github_token_configured": True,
+    "fomo_bearer_configured": True,
+    "fomo_bearer_nudge_tier": "ok",
+    "x_intel_collection_mode": "twitter_api",
+  }
+  with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as sf:
+    json.dump(status, sf)
+    status_path = sf.name
+  with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as cf:
+    json.dump(checklist, cf)
+    checklist_path = cf.name
+  with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as nf:
+    json.dump(snapshot, nf)
+    snapshot_path = nf.name
+  proc = subprocess.run(
+    [
+      sys.executable,
+      str(LIB),
+      "post-deploy-check",
+      "--status-file",
+      status_path,
+      "--checklist-file",
+      checklist_path,
+      "--snapshot-file",
+      snapshot_path,
+      "--expected",
+      "2026-08-29-r388",
+    ],
+    capture_output=True,
+    text=True,
+    check=False,
+  )
+  assert proc.returncode == 0, proc.stdout + proc.stderr
+
   payload = json.dumps(
     {
       "commodities": {

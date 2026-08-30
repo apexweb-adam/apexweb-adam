@@ -3,6 +3,9 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+LIB="$ROOT/scripts/lib/deploy_json.py"
+# shellcheck source=lib/fetch_json.sh
+source "$ROOT/scripts/lib/fetch_json.sh"
 BACKEND="${BACKEND_URL:-https://apex-trading-backend.onrender.com}"
 EXPECTED_REVISION="${EXPECTED_PLATFORM_REVISION:-$(grep '^EXPECTED_PLATFORM_REVISION' "$ROOT/backend/app/engines/deploy_status.py" | sed -n 's/.*"\([^"]*\)".*/\1/p')}"
 
@@ -22,127 +25,23 @@ echo ""
 bash "$ROOT/scripts/ops-gate-summary.sh" || true
 echo ""
 
-STATUS=$(curl -fsS -m 45 "$BACKEND/api/status" 2>/dev/null || echo "{}")
-CHECKLIST=$(curl -fsS -m 45 "$BACKEND/api/gate/cme-reopen-checklist" 2>/dev/null || echo "{}")
-SNAPSHOT=$(curl -fsS -m 15 "$BACKEND/api/deploy/snapshot" 2>/dev/null || echo "{}")
+STATUS=$(fetch_json "$BACKEND/api/status" 60 2)
+CHECKLIST=$(fetch_json "$BACKEND/api/gate/cme-reopen-checklist" 60 2)
+SNAPSHOT=$(fetch_json "$BACKEND/api/deploy/snapshot" 45 2)
 
-python3 << PY
-import json, sys
+TMP_STATUS=$(mktemp)
+TMP_CHECKLIST=$(mktemp)
+TMP_SNAPSHOT=$(mktemp)
+trap 'rm -f "$TMP_STATUS" "$TMP_CHECKLIST" "$TMP_SNAPSHOT"' EXIT
+echo "$STATUS" > "$TMP_STATUS"
+echo "$CHECKLIST" > "$TMP_CHECKLIST"
+echo "$SNAPSHOT" > "$TMP_SNAPSHOT"
 
-status = json.loads('''$STATUS''')
-checklist = json.loads('''$CHECKLIST''')
-snapshot = json.loads('''$SNAPSHOT''')
-expected = "$EXPECTED_REVISION"
-errors = []
-
-deploy = status.get("deploy") or {}
-if not deploy and snapshot:
-    deploy = snapshot
-prod_rev = deploy.get("platform_revision") or snapshot.get("platform_revision") or "?"
-print(f"  platform_revision={prod_rev} expected={expected}")
-if prod_rev != expected:
-    errors.append("revision_mismatch")
-
-summaries = status.get("session_open_checklists") or {}
-if not summaries.get("cme_reopen"):
-    if status == {}:
-        print("  session_open_checklists=skipped (/api/status unavailable)")
-    else:
-        errors.append("session_open_checklists_missing")
-else:
-    cme = summaries["cme_reopen"]
-    print(f"  session_open_checklists.cme_reopen ready={cme.get('ready')} phase={cme.get('phase')}")
-    print(f"    open_ready={cme.get('open_ready_symbols')} near_floor={cme.get('near_floor_symbols')}")
-    gaps = cme.get("near_floor_gaps") or {}
-    if gaps:
-        print(f"    near_floor_gaps={gaps}")
-
-open_ready = checklist.get("open_ready") or {}
-if "sticky_symbols" not in open_ready:
-    errors.append("sticky_symbols_field_missing")
-else:
-    sticky = open_ready.get("sticky_symbols") or []
-    print(f"  checklist sticky_symbols={sticky} release_margin={open_ready.get('release_margin')}")
-
-near = checklist.get("near_floor") or {}
-for row in near.get("details") or []:
-    sym = row.get("symbol")
-    gap = row.get("gap_to_floor")
-    comp = row.get("composite")
-    if sym and gap is not None:
-        print(f"    near_floor {sym}: composite={comp} gap_to_floor={gap}")
-
-deploy_info = status.get("deploy") or {}
-deploy_window = deploy_info.get("cme_deploy_window") or snapshot.get("cme_deploy_window")
-if deploy_window:
-    print(
-        "  cme_deploy_window "
-        f"in_window={deploy_window.get('in_window')} "
-        f"opens={deploy_window.get('window_opens_at_utc')}"
-    )
-else:
-    errors.append("cme_deploy_window_missing")
-
-if deploy_info.get("vercel_bundle_behind_expected") is True:
-    exp = deploy_info.get("expected_dashboard_bundle") or "?"
-    act = deploy_info.get("vercel_bundle_revision") or "?"
-    print(f"  note: dashboard bundle behind expected ({act} vs {exp}) — non-blocking")
-
-run_cmd = snapshot.get("run_deploy_window_command")
-wait_cmd = snapshot.get("wait_for_deploy_command")
-if prod_rev == expected:
-    if run_cmd:
-        print(f"  run_deploy_window_command=ok")
-    else:
-        print("  note: run_deploy_window_command missing on snapshot (pre-r366)")
-    if wait_cmd:
-        print(f"  wait_for_deploy_command=ok")
-    for key in ("github_token_configured", "fomo_bearer_configured"):
-        if key not in snapshot:
-            errors.append(f"snapshot_missing_{key}")
-    if "fomo_bearer_configured" in snapshot:
-        fomo_poll = snapshot.get("fomo_bearer_polling_active")
-        fomo_mins = snapshot.get("fomo_bearer_minutes_remaining")
-        fomo_tier = snapshot.get("fomo_bearer_nudge_tier")
-        print(
-            f"  fomo_bearer configured={snapshot.get('fomo_bearer_configured')} "
-            f"polling={fomo_poll} mins={fomo_mins} nudge_tier={fomo_tier}"
-        )
-        if fomo_tier is None and prod_rev == expected:
-            errors.append("snapshot_missing_fomo_bearer_nudge_tier")
-    if snapshot.get("github_token_configured") is False:
-        print("  note: GITHUB_TOKEN missing on Render — deploy staleness checks incomplete")
-    x_mode = snapshot.get("x_intel_collection_mode")
-    if x_mode:
-        print(f"  x_intel_collection_mode={x_mode}")
-    elif prod_rev == expected:
-        errors.append("snapshot_missing_x_intel_collection_mode")
-
-learning = status.get("learning") or {}
-if learning:
-    print(
-        "  learning_loop "
-        f"analyses={learning.get('trade_analyses')} "
-        f"reviews={learning.get('daily_reviews')} "
-        f"pending_insights={learning.get('insights_pending')}"
-    )
-elif status != {}:
-    errors.append("learning_loop_missing")
-
-if snapshot.get("cme_deploy_window") or snapshot.get("platform_revision"):
-    print(f"  deploy_snapshot=ok revision={snapshot.get('platform_revision')}")
-elif snapshot and snapshot != {}:
-    errors.append("deploy_snapshot_missing_window")
-elif prod_rev == expected:
-    print("  deploy_snapshot=skipped (pre-r358 backend)")
-
-if errors:
-    print("  errors=" + ",".join(errors))
-    sys.exit(1)
-sys.exit(0)
-PY
-
-if [[ $? -eq 0 ]]; then
+if python3 "$LIB" post-deploy-check \
+  --status-file "$TMP_STATUS" \
+  --checklist-file "$TMP_CHECKLIST" \
+  --snapshot-file "$TMP_SNAPSHOT" \
+  --expected "$EXPECTED_REVISION"; then
   ok "Post-deploy session-open bundle live"
 else
   bad "Post-deploy verification failed — revision or session-open features missing"
@@ -159,27 +58,19 @@ if [[ "$PROD_REV_CHECK" == "$EXPECTED_REVISION" ]]; then
     note "Learning apply endpoint not in OpenAPI — confirm r380+ revision live"
   fi
 
-  INTEL_SOURCES=$(curl -fsS -m 25 "$BACKEND/api/intelligence/sources" 2>/dev/null || echo "[]")
-  if echo "$INTEL_SOURCES" | python3 -c "
-import json, sys
-raw = json.load(sys.stdin)
-sources = raw.get('sources', raw) if isinstance(raw, dict) else raw
-if not isinstance(sources, list):
-    sys.exit(1)
-by = {s.get('source'): s for s in sources if isinstance(s, dict)}
-x = by.get('x') or {}
-tv = by.get('tradingview') or {}
-if not x.get('collection_mode'):
-    sys.exit(1)
-if tv.get('scoring_excludes_synthetic') is not True:
-    sys.exit(1)
-print(
-    f\"x_mode={x.get('collection_mode')} \"
-    f\"tv_webhook_24h={tv.get('webhook_items_24h')} \"
-    f\"tv_synthetic_24h={tv.get('synthetic_items_24h')}\"
-)
-" 2>/dev/null; then
+  INTEL_SOURCES=$(fetch_json "$BACKEND/api/intelligence/sources" 30 2)
+  TMP_SOURCES=$(mktemp)
+  trap 'rm -f "$TMP_STATUS" "$TMP_CHECKLIST" "$TMP_SNAPSHOT" "$TMP_SOURCES"' EXIT
+  echo "$INTEL_SOURCES" > "$TMP_SOURCES"
+  INTEL_STATUS=$(python3 "$LIB" intel-readiness \
+    --sources-file "$TMP_SOURCES" \
+    --snapshot-file "$TMP_SNAPSHOT" \
+    --prod-rev "$PROD_REV_CHECK" \
+    --code-rev "$EXPECTED_REVISION" 2>/dev/null || echo "missing")
+  if [[ "$INTEL_STATUS" == "ok" ]]; then
     ok "Intel source health fields (r385+)"
+  elif [[ "$INTEL_STATUS" == "partial" ]]; then
+    note "Intel sources API ready — confirm snapshot r385 fields on production"
   else
     note "Intel source r385 fields missing — confirm revision live"
   fi
@@ -227,7 +118,7 @@ fi
 
 bash "$ROOT/scripts/check-deploy-credentials.sh" || true
 
-REVIEWS=$(curl -fsS -m 20 "$BACKEND/api/reviews?limit=1" 2>/dev/null || echo "[]")
+REVIEWS=$(fetch_json "$BACKEND/api/reviews?limit=1" 20 2)
 if echo "$REVIEWS" | python3 -c "import json,sys; d=json.load(sys.stdin); sys.exit(0 if isinstance(d,list) and len(d)>0 else 1)" 2>/dev/null; then
   ok "Daily review API has history"
 else
@@ -240,6 +131,9 @@ if [[ "$fail" -gt 0 ]]; then
   exit 1
 fi
 
+echo ""
+echo "Full platform check (optional):"
+echo "  bash trading-platform/scripts/verify-platform.sh"
 echo ""
 echo "After CME open (22:00 UTC):"
 echo "  bash trading-platform/scripts/verify-cme-post-open.sh"
