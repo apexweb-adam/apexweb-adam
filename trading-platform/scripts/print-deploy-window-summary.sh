@@ -50,6 +50,7 @@ if window.get("message"):
 open_ready_block = cme.get("open_ready") or {}
 open_ready = open_ready_block.get("symbols") or []
 sticky = open_ready_block.get("sticky_symbols") or []
+extended_watch = open_ready_block.get("extended_watch_symbols") or []
 auto_entry = open_ready_block.get("auto_entry_queued")
 release_margin = open_ready_block.get("release_margin")
 mins = cme.get("minutes_until_open")
@@ -59,6 +60,8 @@ if open_ready or sticky or near_symbols or mins is not None:
     parts = [f"CME reopen: open_ready={open_ready or 'none'}"]
     if sticky:
         parts.append(f"sticky={sticky}")
+    if extended_watch:
+        parts.append(f"extended_watch={extended_watch}")
     if near_symbols:
         parts.append(f"near_floor={near_symbols}")
     parts.append(f"auto_entry={auto_entry}")

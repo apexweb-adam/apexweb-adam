@@ -1075,15 +1075,27 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
 MONDAY_RECOVERY_BOT_TYPES = ("commodities", "stocks_futures")
 MONDAY_RECOVERY_CACHE_TTL_SECONDS = 30
 MONDAY_RECOVERY_PREP_CACHE_TTL_SECONDS = 60
+MONDAY_RECOVERY_WATCH_CACHE_TTL_SECONDS = 15
 _monday_recovery_cache: dict[str, Any] | None = None
 _monday_recovery_cached_at: float = 0.0
 
 
 def _monday_recovery_cache_ttl_seconds() -> int:
-  """Longer cache during CME weekend prep when scan previews are polled heavily."""
-  from app.engines.gate_entry_guard import commodities_futures_weekend_closed
+  """Shorter cache during CME open-ready watch; longer when weekend is far from open."""
+  from app.engines.gate_entry_guard import (
+    COMMODITIES_OPEN_READY_PREP_MINUTES,
+    commodities_futures_weekend_closed,
+    commodities_session_info,
+  )
 
   if commodities_futures_weekend_closed():
+    session_info = commodities_session_info()
+    minutes_until_open = session_info.get("minutes_until_open")
+    if (
+      minutes_until_open is not None
+      and minutes_until_open <= COMMODITIES_OPEN_READY_PREP_MINUTES
+    ):
+      return MONDAY_RECOVERY_WATCH_CACHE_TTL_SECONDS
     return MONDAY_RECOVERY_PREP_CACHE_TTL_SECONDS
   return MONDAY_RECOVERY_CACHE_TTL_SECONDS
 

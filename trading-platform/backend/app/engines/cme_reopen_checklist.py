@@ -295,9 +295,13 @@ async def build_cme_reopen_checklist(session: AsyncSession) -> dict[str, Any]:
   from app.engines.platform_settings import is_bot_paused
   from app.engines.profitability_gate import ProfitabilityGate
   from app.engines.scan_preview import build_monday_recovery_summary
-  from app.engines.session_open_log import get_session_open_events
+  from app.engines.session_open_log import get_prep_phase_state, get_session_open_events
 
   recovery = await build_monday_recovery_summary(session)
+  prep_state = await get_prep_phase_state(session)
+  extended_watch_symbols = list(
+    (prep_state.get("cme_reopen") or {}).get("extended_watch_symbols") or []
+  )
   cme_session = commodities_session_info()
   stocks_session = stocks_session_info()
   session_prep = build_session_prep_status(
@@ -405,6 +409,7 @@ async def build_cme_reopen_checklist(session: AsyncSession) -> dict[str, Any]:
         for row in open_ready_details
         if row.get("symbol") and row.get("sticky_queue")
       ],
+      "extended_watch_symbols": extended_watch_symbols,
       "auto_entry_queued": bool(cme.get("auto_entry_queued")),
       "composite_floor": composite_floor,
       "release_margin": OPEN_READY_QUEUE_RELEASE_MARGIN,

@@ -13,6 +13,7 @@ WATCH_INTERVAL=""
 
 if [[ "${1:-}" == "--watch" ]]; then
   WATCH_INTERVAL="${2:-60}"
+  export CME_WATCH=1
 fi
 
 pass=0
@@ -41,7 +42,7 @@ run_preflight() {
 
   if [[ -n "$CHECKLIST" && "$CHECKLIST" != "{}" ]]; then
     if echo "$CHECKLIST" | python3 -c "
-import json, sys
+import json, os, sys
 data = json.load(sys.stdin)
 deploy = data.get('deploy') or {}
 open_ready = data.get('open_ready') or {}
@@ -70,8 +71,16 @@ for row in open_ready.get('details') or []:
     blockers = row.get('blockers') or []
     sticky_flag = ' sticky' if row.get('sticky_queue') else ''
     print(f'    {sym}: composite={comp}{sticky_flag} blockers={blockers}')
-if near.get('symbols') and not open_ready.get('symbols') and not open_ready.get('auto_entry_queued'):
+extended_watch = open_ready.get('extended_watch_symbols') or []
+if extended_watch:
+    print(f'  extended_watch={extended_watch}')
+queue_dropped = bool(near.get('symbols')) and not open_ready.get('symbols') and not open_ready.get('auto_entry_queued')
+if queue_dropped:
     print('  warn=queue_dropped near_floor without open_ready — confirm 6h prep watch is active')
+mins = data.get('minutes_until_open')
+if queue_dropped and mins is not None and mins <= 360:
+    print('  error=queue_dropped_in_prep_window')
+    sys.exit(1)
 for row in data.get('checks') or []:
     print(f\"  check {row.get('id')}={row.get('status')}: {row.get('message')}\")
 critical_fail = [c for c in (data.get('checks') or []) if c.get('critical') and c.get('status') == 'fail']
@@ -207,7 +216,14 @@ PY
 
 if [[ -n "$WATCH_INTERVAL" ]]; then
   while true; do
-    run_preflight || true
+    set +e
+    run_preflight
+    rc=$?
+    set -e
+    if [[ "$rc" -ne 0 ]]; then
+      echo ""
+      echo "⚠ Preflight failed (exit $rc) — continuing watch"
+    fi
     echo ""
     echo "Watching — next check in ${WATCH_INTERVAL}s (Ctrl+C to stop)"
     sleep "$WATCH_INTERVAL"

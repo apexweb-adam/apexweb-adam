@@ -322,7 +322,23 @@ def test_monday_recovery_cache_ttl_extended_during_cme_weekend():
     "app.engines.gate_entry_guard.commodities_futures_weekend_closed",
     return_value=True,
   ):
-    assert _monday_recovery_cache_ttl_seconds() == 60
+    with patch(
+      "app.engines.gate_entry_guard.commodities_session_info",
+      return_value={"minutes_until_open": 500},
+    ):
+      assert _monday_recovery_cache_ttl_seconds() == 60
+
+
+def test_monday_recovery_cache_ttl_short_during_cme_prep_watch():
+  with patch(
+    "app.engines.gate_entry_guard.commodities_futures_weekend_closed",
+    return_value=True,
+  ):
+    with patch(
+      "app.engines.gate_entry_guard.commodities_session_info",
+      return_value={"minutes_until_open": 120},
+    ):
+      assert _monday_recovery_cache_ttl_seconds() == 15
 
 
 def test_build_monday_recovery_summary_runs_scan_previews_in_parallel():
