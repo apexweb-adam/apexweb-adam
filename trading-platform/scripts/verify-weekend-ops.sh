@@ -32,6 +32,12 @@ elif code_rev and rev and code_rev != rev:
 if snap.get("github_token_configured") is False or snap.get("github_verified") is False:
     print("WARN: GITHUB_TOKEN missing on Render — deploy staleness checks incomplete")
     print("  Set in .env and run: bash trading-platform/scripts/sync-render-env.sh")
+fomo_mins = snap.get("fomo_bearer_minutes_remaining")
+if snap.get("fomo_bearer_configured") and snap.get("fomo_bearer_polling_active") is False:
+    label = f"{fomo_mins}min" if fomo_mins is not None else "unknown"
+    print(f"WARN: fomo bearer expired ({label}) — crypto memecoin intel degraded before deploy")
+    hint = snap.get("fomo_bearer_refresh_hint") or "bash trading-platform/scripts/fomo-set-bearer.sh '<bearer>'"
+    print(f"  Refresh: {hint}")
 window = snap.get("cme_deploy_window") or {}
 if window.get("message"):
     print(f"CME window: {window.get('message')}")
@@ -45,6 +51,8 @@ for key in ("dashboard_bundle_verify_command", "weekend_ops_verify_command"):
 PY
 
 bash "$ROOT/scripts/ops-gate-summary.sh" || true
+echo ""
+bash "$ROOT/scripts/check-fomo-bearer.sh" || true
 
 US_CHECKLIST=$(curl -fsS -m 30 "$BACKEND/api/gate/us-stocks-open-checklist" 2>/dev/null || echo "{}")
 US_NOTE=$(python3 << PY

@@ -69,6 +69,7 @@ def test_verify_pre_deploy_saves_crm_baseline():
 def test_check_fomo_bearer_script_exists():
   script = SCRIPTS / "check-fomo-bearer.sh"
   text = script.read_text(encoding="utf-8")
+  assert "/api/deploy/snapshot" in text
   assert "/api/status" in text
   assert "fomo bearer expired" in text
   assert "fomo-set-bearer.sh" in text
@@ -88,6 +89,8 @@ def test_verify_weekend_ops_includes_gate_and_revision_hints():
   assert "ops-gate-summary.sh" in text
   assert "Profitability gate:" not in text  # delegated to helper
   assert "github_token_configured" in text
+  assert "fomo_bearer_polling_active" in text
+  assert "check-fomo-bearer.sh" in text
   assert "deploy will advance prod expected" in text
 
 
