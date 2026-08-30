@@ -487,9 +487,24 @@ async def get_platform_status(db: AsyncSession = Depends(get_db)) -> dict[str, A
 
   active_sources = sum(1 for s in sources if s["status"] in ("active", "degraded"))
   deploy_info = await build_deploy_status()
-  from app.engines.gate_entry_guard import build_gate_ws_payload
+  dashboard_url = await recommended_dashboard_url()
+  from app.engines.gate_entry_guard import (
+    build_gate_ws_payload,
+    build_session_prep_status,
+    commodities_session_info,
+    stocks_session_info,
+  )
+  from app.engines.scan_preview import build_monday_recovery_summary
 
   gate_payload = await build_gate_ws_payload(db)
+  monday_recovery = await build_monday_recovery_summary(db)
+  session_prep = build_session_prep_status(
+    stocks_session=stocks_session_info(),
+    commodities_session=commodities_session_info(),
+    stocks_trade_count_nudge=bool(monday_recovery.get("stocks_trade_count_nudge")),
+    commodities_graduation_nudge=bool(monday_recovery.get("commodities_graduation_nudge")),
+    open_ready_rows=monday_recovery.get("open_ready"),
+  )
   gate_tightening_data = gate_payload["gate_entry_tightening"]
   from app.intelligence.axiom_tracker import get_axiom_session_status
   from app.intelligence.fomo_tracker import get_fomo_bearer_status
@@ -525,6 +540,8 @@ async def get_platform_status(db: AsyncSession = Depends(get_db)) -> dict[str, A
     "profitability_gate": profitability,
     "gate_entry_tightening": gate_tightening_data,
     "bot_sessions": gate_payload.get("bot_sessions"),
+    "session_prep": session_prep,
+    "open_ready_candidates": session_prep.get("open_ready_candidates") or [],
     "bots": bots,
     "intelligence": {
       "active_sources": active_sources,
@@ -755,6 +772,7 @@ async def get_platform_status(db: AsyncSession = Depends(get_db)) -> dict[str, A
       "render_blueprint": "https://render.com/deploy?repo=https://github.com/apexweb-adam/apexweb-adam",
       "supabase_project": "zzgmovjapeyauvpdpuqe",
       "dashboard_url": deploy_info.get("dashboard_url", "https://apex-trading-dashboard-flame.vercel.app"),
+      "recommended_dashboard_url": dashboard_url,
       "verified_dashboard_url": deploy_info.get("verified_dashboard_url"),
       "vercel_bundle_stale": deploy_info.get("vercel_bundle_stale"),
       "vercel_bundle_revision": deploy_info.get("vercel_bundle_revision"),
