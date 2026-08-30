@@ -47,9 +47,7 @@ if [[ "$DRY_RUN" == "true" ]]; then
     exit 1
   fi
   echo ""
-  if [[ -f "$ROOT/.crm-load-baseline" ]]; then
-    echo "CRM baseline saved: $(tr -d '[:space:]' < "$ROOT/.crm-load-baseline")s → compare after deploy with verify-post-deploy.sh"
-  fi
+  bash "$ROOT/scripts/print-deploy-window-summary.sh" || true
   echo ""
   echo "When window opens:"
   echo "  bash trading-platform/scripts/run-deploy-window.sh"
@@ -74,6 +72,8 @@ else
   echo "○ CME preflight warnings after deploy — review before open" >&2
 fi
 
+echo ""
+bash "$ROOT/scripts/print-deploy-window-summary.sh" || true
 echo ""
 echo "After CME open (22:00 UTC):"
 echo "  bash trading-platform/scripts/verify-cme-post-open.sh"
