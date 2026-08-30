@@ -18,7 +18,7 @@ import {
 import { useState, useMemo, useEffect, type ReactNode } from "react";
 import { useLiveData } from "@/lib/useLiveData";
 import { useAPI } from "@/lib/useAPI";
-import { fetchAPI, getSessionPrepEntry } from "@/lib/api";
+import { fetchAPI, applyPendingInsights, getSessionPrepEntry } from "@/lib/api";
 import {
   VERIFIED_PREVIEW_URL,
   VERIFIED_PROMOTE_DEPLOYMENT_ID,
@@ -1254,12 +1254,9 @@ export default function Dashboard() {
 
         {tab === "learning" && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {(platformStatus?.learning?.insights_pending ?? 0) > 0 && (
-              <div className="lg:col-span-2 p-3 rounded-lg bg-apex-gold/10 border border-apex-gold/30 text-xs text-apex-gold">
-                {platformStatus!.learning!.insights_pending} content-study insight(s) pending
-                application — auto-applies every 1h when confidence ≥ 55%.
-              </div>
-            )}
+            <LearningPendingBanner
+              pending={platformStatus?.learning?.insights_pending ?? 0}
+            />
             <Card title="Loss Trade Analysis">
               <div className="space-y-3 max-h-[500px] overflow-y-auto">
                 {(analyses ?? []).length === 0 ? (
@@ -1857,6 +1854,53 @@ function SessionOpenLogCard({ events }: { events?: SessionOpenEvent[] }) {
           </tbody>
         </table>
       </div>
+    </div>
+  );
+}
+
+function LearningPendingBanner({ pending }: { pending: number }) {
+  const [applying, setApplying] = useState(false);
+  const [result, setResult] = useState<string | null>(null);
+
+  if (pending <= 0 && !result) return null;
+
+  return (
+    <div className="lg:col-span-2 p-3 rounded-lg bg-apex-gold/10 border border-apex-gold/30 text-xs text-apex-gold flex flex-wrap items-center justify-between gap-3">
+      <div>
+        {pending > 0 ? (
+          <p>
+            {pending} content-study insight(s) pending application — auto-applies every 1h when
+            confidence ≥ 55%.
+          </p>
+        ) : null}
+        {result ? <p className="text-apex-green mt-1">{result}</p> : null}
+      </div>
+      {pending > 0 ? (
+        <button
+          type="button"
+          disabled={applying}
+          onClick={async () => {
+            setApplying(true);
+            setResult(null);
+            try {
+              const res = await applyPendingInsights();
+              setResult(
+                `Applied ${res.pending_insights_applied} insight(s)` +
+                  (res.noise_insights_dismissed
+                    ? `, dismissed ${res.noise_insights_dismissed} low-confidence`
+                    : "")
+              );
+            } catch {
+              setResult("Failed to apply insights — confirm backend revision r380+ is live");
+            } finally {
+              setApplying(false);
+            }
+          }}
+          className="px-3 py-1.5 rounded-md bg-apex-gold/20 border border-apex-gold/40 text-apex-gold font-medium hover:bg-apex-gold/30 disabled:opacity-50"
+        >
+          {applying ? "Applying…" : "Apply now"}
+        </button>
+      ) : null}
     </div>
   );
 }
