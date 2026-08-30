@@ -1367,7 +1367,11 @@ class BaseBot(ABC):
       "shadow — proving for graduation" if shadow_mode else None,
     )
     if getattr(self, "_session_open_burst", False):
-      await self._record_session_open_burst(len(symbols), actions)
+      await self._record_session_open_burst(
+        len(symbols),
+        actions,
+        scan_order=symbols[:8],
+      )
 
     if actions:
       from app.ws_manager import broadcast_trade, push_live_update
@@ -1436,18 +1440,27 @@ class BaseBot(ABC):
       state.updated_at = datetime.utcnow()
       await session.commit()
 
-  async def _record_session_open_burst(self, symbol_count: int, actions: list[dict]) -> None:
+  async def _record_session_open_burst(
+    self,
+    symbol_count: int,
+    actions: list[dict],
+    *,
+    scan_order: list[str] | None = None,
+  ) -> None:
     """Log session-open burst scan and any auto-entries for CRM visibility."""
     from app.engines.session_open_log import record_session_open_event
 
     buys = [a for a in actions if a.get("action") == "buy"]
     buy_symbols = [a.get("symbol", "?") for a in buys]
+    order_note = ""
+    if scan_order:
+      order_note = f" (scan order: {', '.join(scan_order)})"
     if buys:
       symbols = ", ".join(buy_symbols)
-      summary = f"Session open auto-entry: {symbols}"
+      summary = f"Session open auto-entry: {symbols}{order_note}"
       event_type = "auto_entry"
     else:
-      summary = f"Session open burst scan — {symbol_count} symbols, no entry yet"
+      summary = f"Session open burst scan — {symbol_count} symbols, no entry yet{order_note}"
       event_type = "burst_scan"
     async with SessionLocal() as session:
       result = await session.execute(
