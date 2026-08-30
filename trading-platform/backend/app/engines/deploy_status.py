@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import os
 import time
 from datetime import datetime, timedelta
@@ -14,6 +15,9 @@ GITHUB_API = f"https://api.github.com/repos/{GITHUB_REPO}/commits/main"
 
 _deploy_status_cache: dict[str, Any] | None = None
 _deploy_status_cached_at: float = 0.0
+_discover_verified_cache: dict[str, Any] | None = None
+_discover_verified_cached_at: float = 0.0
+DISCOVER_VERIFIED_CACHE_TTL_SECONDS = 120
 DEPLOY_STATUS_CACHE_TTL_SECONDS = 60
 CME_DEPLOY_REMINDER_MINUTES = 360
 CME_DEPLOY_WINDOW_START_MINUTES = 360
@@ -220,7 +224,7 @@ PRODUCTION_DASHBOARD_URL = "https://apex-trading-dashboard-flame.vercel.app"
 DEFAULT_VERIFIED_DASHBOARD_URL = "https://apex-trading-dashboard-o7tb7wydk-apexweb-adams-projects.vercel.app"
 DEFAULT_VERIFIED_DEPLOYMENT_ID = "dpl_Cn62LPUnD83i28cydia12AKr3uUw"
 EXPECTED_DASHBOARD_BUNDLE = "2026-08-29-r98"
-EXPECTED_PLATFORM_REVISION = "2026-08-29-r364"
+EXPECTED_PLATFORM_REVISION = "2026-08-29-r365"
 GIT_MAIN_ALIAS = "apex-trading-dashboard-git-main"
 ACCEPTABLE_DASHBOARD_BUNDLES = frozenset({
   "2026-08-27-r9", "2026-08-27-r10", "2026-08-27-r11", "2026-08-27-r12",
@@ -480,6 +484,14 @@ async def probe_configured_verified_dashboard() -> dict[str, Any] | None:
 
 async def discover_verified_dashboard() -> dict[str, Any]:
   """Probe candidates and return the URL with the best acceptable bundle."""
+  global _discover_verified_cache, _discover_verified_cached_at
+  now = time.monotonic()
+  if (
+    _discover_verified_cache is not None
+    and (now - _discover_verified_cached_at) < DISCOVER_VERIFIED_CACHE_TTL_SECONDS
+  ):
+    return dict(_discover_verified_cache)
+
   configured_probe = await probe_configured_verified_dashboard()
   configured_url = configured_verified_dashboard_url()
   configured_rank = (configured_probe or {}).get("_rank", -1)
@@ -487,35 +499,51 @@ async def discover_verified_dashboard() -> dict[str, Any]:
   best: dict[str, Any] | None = configured_probe
   best_rank = configured_rank
 
-  for url in verified_dashboard_candidates():
-    if url == configured_url and configured_probe:
-      continue
-    cfg = await probe_dashboard_config(url)
-    if not cfg or not bundle_is_acceptable(cfg):
-      continue
-    rank = bundle_rank(cfg)
-    # Never let stale git-main beat a working configured preview.
-    if is_git_main_alias(url) and configured_rank > rank:
-      continue
-    if rank > best_rank:
-      best_rank = rank
-      best = {
-        "verified_dashboard_url": url,
-        "vercel_bundle_revision": cfg.get("bundleRevision"),
-        "discovered": url != configured_url,
-        "_rank": rank,
-      }
+  urls_to_probe = [
+    url
+    for url in verified_dashboard_candidates()
+    if not (url == configured_url and configured_probe)
+  ]
+
+  if urls_to_probe:
+    probe_results = await asyncio.gather(
+      *(probe_dashboard_config(url) for url in urls_to_probe),
+      return_exceptions=True,
+    )
+    for url, cfg in zip(urls_to_probe, probe_results):
+      if isinstance(cfg, Exception) or not cfg or not bundle_is_acceptable(cfg):
+        continue
+      rank = bundle_rank(cfg)
+      if is_git_main_alias(url) and configured_rank > rank:
+        continue
+      if rank > best_rank:
+        best_rank = rank
+        best = {
+          "verified_dashboard_url": url,
+          "vercel_bundle_revision": cfg.get("bundleRevision"),
+          "discovered": url != configured_url,
+          "_rank": rank,
+        }
 
   if best:
     best.pop("_rank", None)
-    return best
+    result = best
+  else:
+    result = {
+      "verified_dashboard_url": configured_url,
+      "vercel_bundle_revision": None,
+      "discovered": False,
+    }
 
-  fallback = configured_url
-  return {
-    "verified_dashboard_url": fallback,
-    "vercel_bundle_revision": None,
-    "discovered": False,
-  }
+  _discover_verified_cache = dict(result)
+  _discover_verified_cached_at = now
+  return result
+
+
+def clear_discover_verified_dashboard_cache() -> None:
+  global _discover_verified_cache, _discover_verified_cached_at
+  _discover_verified_cache = None
+  _discover_verified_cached_at = 0.0
 
 
 def deployed_git_commit() -> str | None:
@@ -998,6 +1026,7 @@ def clear_recommended_dashboard_cache() -> None:
   global _recommended_dashboard_cache, _recommended_dashboard_cached_at
   _recommended_dashboard_cache = None
   _recommended_dashboard_cached_at = 0.0
+  clear_discover_verified_dashboard_cache()
 
 
 async def recommended_dashboard_url() -> str:
