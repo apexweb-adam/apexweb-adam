@@ -110,9 +110,12 @@ dropped_watch = [sym for sym in extended_watch if sym not in (open_ready.get('sy
 if dropped_watch and mins is not None and mins <= 360:
     print(f'  warn=extended_watch_not_queued {dropped_watch} — TV refresh continues; may re-queue if composite rises')
 queue_dropped = bool(near.get('symbols')) and not open_ready.get('symbols') and not open_ready.get('auto_entry_queued')
+phase = data.get('phase') or ''
+in_session = bool(data.get('in_session'))
+prep_window_active = not in_session and phase not in ('post_open', 'open')
 if queue_dropped:
     print('  warn=queue_dropped near_floor without open_ready — confirm 6h prep watch is active')
-if queue_dropped and mins is not None and mins <= 360:
+if queue_dropped and mins is not None and mins <= 360 and prep_window_active:
     print('  error=queue_dropped_in_prep_window')
     sys.exit(1)
 for row in data.get('checks') or []:
