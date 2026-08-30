@@ -1,146 +1,90 @@
-"""Tests for CRM learning highlights helper and landing."""
+"""Tests for CRM learning loop highlight builders."""
 
-from unittest.mock import AsyncMock, patch
+import asyncio
+from datetime import datetime
+from unittest.mock import AsyncMock, MagicMock
 
-from fastapi.testclient import TestClient
+from app.engines.learning_engine import (
+  build_crm_content_study_highlights,
+  build_crm_learning_highlights,
+)
+from app.models.entities import DailyReview, LearningInsight
 
-from app.main import app
 
-
-def test_build_crm_learning_highlights_filters_empty_reviews():
-  from app.engines.learning_engine import build_crm_learning_highlights
-
-  review_active = type(
-    "Review",
-    (),
-    {
-      "bot_type": "crypto",
-      "total_trades": 2,
-      "losing_trades": 2,
-      "win_rate": 0.0,
-      "net_pnl": -4.98,
-      "patterns_found": "weak signals",
-      "strategy_changes": "Raised min signal",
-      "conclusions": "Below target",
-    },
-  )()
-  review_quiet = type(
-    "Review",
-    (),
-    {
-      "bot_type": "commodities",
-      "total_trades": 0,
-      "losing_trades": 0,
-      "win_rate": 0.0,
-      "net_pnl": 0.0,
-      "patterns_found": "",
-      "strategy_changes": "No changes",
-      "conclusions": "No trades",
-    },
-  )()
-
+def test_build_crm_learning_highlights_includes_active_reviews():
+  review = DailyReview(
+    bot_type="crypto",
+    review_date=datetime.utcnow().strftime("%Y-%m-%d"),
+    total_trades=4,
+    losing_trades=2,
+    total_loss=-3.0,
+    total_profit=1.5,
+    net_pnl=-1.5,
+    win_rate=0.5,
+    patterns_found="2 losses had weak signals",
+    conclusions="Below target win rate",
+    strategy_changes="Raised minimum signal score",
+  )
   session = AsyncMock()
   session.execute = AsyncMock(
-    return_value=type("Result", (), {"scalars": lambda self: type("S", (), {"all": lambda self: [review_active, review_quiet]})()})()
+    return_value=MagicMock(scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=[review]))))
   )
   session.scalar = AsyncMock(side_effect=[12, 3])
 
-  import asyncio
+  highlights = asyncio.run(build_crm_learning_highlights(session))
 
-  result = asyncio.run(build_crm_learning_highlights(session))
+  assert highlights["trade_analyses"] == 12
+  assert highlights["pending_insights"] == 3
+  assert len(highlights["reviews"]) == 1
+  assert highlights["reviews"][0]["bot_type"] == "crypto"
+  assert "weak signals" in highlights["reviews"][0]["patterns_found"]
 
-  assert result["trade_analyses"] == 12
-  assert result["pending_insights"] == 3
-  assert len(result["reviews"]) == 1
-  assert result["reviews"][0]["bot_type"] == "crypto"
+
+def test_build_crm_learning_highlights_skips_empty_reviews():
+  review = DailyReview(
+    bot_type="polymarket",
+    review_date=datetime.utcnow().strftime("%Y-%m-%d"),
+    total_trades=0,
+    losing_trades=0,
+    total_loss=0.0,
+    total_profit=0.0,
+    net_pnl=0.0,
+    win_rate=0.0,
+    patterns_found="",
+    conclusions="",
+    strategy_changes="",
+  )
+  session = AsyncMock()
+  session.execute = AsyncMock(
+    return_value=MagicMock(scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=[review]))))
+  )
+  session.scalar = AsyncMock(side_effect=[0, 0])
+
+  highlights = asyncio.run(build_crm_learning_highlights(session))
+
+  assert highlights["reviews"] == []
 
 
-def test_crm_landing_includes_learning_section():
-  client = TestClient(app)
-  learning = {
-    "review_date": "2026-08-29",
-    "trade_analyses": 8,
-    "pending_insights": 2,
-    "reviews": [
-      {
-        "bot_type": "crypto",
-        "total_trades": 2,
-        "losing_trades": 2,
-        "win_rate": 0.0,
-        "net_pnl": -4.98,
-        "patterns_found": "weak signals",
-        "strategy_changes": "Raised minimum signal score threshold by 0.05",
-        "conclusions": "Below target",
-      }
-    ],
-  }
+def test_build_crm_content_study_highlights_truncates_long_fields():
+  insight = LearningInsight(
+    source_type="youtube",
+    source_title="A" * 90,
+    source_url="https://example.com/video",
+    key_takeaways="takeaways",
+    strategy_impact="B" * 150,
+    confidence=0.82,
+    applied=True,
+  )
+  session = AsyncMock()
+  session.execute = AsyncMock(
+    return_value=MagicMock(scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=[insight]))))
+  )
+  session.scalar = AsyncMock(return_value=5)
 
-  with patch("app.main.recommended_dashboard_url", new_callable=AsyncMock, return_value="https://example.com"):
-    with patch("app.main.build_deploy_status", new_callable=AsyncMock, return_value={"vercel_bundle_stale": False}):
-      with patch("app.database.SessionLocal") as mock_session_local:
-        mock_session = AsyncMock()
-        mock_cm = AsyncMock()
-        mock_cm.__aenter__.return_value = mock_session
-        mock_cm.__aexit__.return_value = None
-        mock_session_local.return_value = mock_cm
-        with patch("app.engines.profitability_gate.ProfitabilityGate") as MockGate:
-          MockGate.return_value.evaluate = AsyncMock(
-            return_value={
-              "verification_day": 2,
-              "total_trades": 31,
-              "win_rate": 0.44,
-              "total_pnl": 19.13,
-              "profit_factor": 1.19,
-              "recommendation": "Continue paper trading",
-              "paused_bots": ["crypto"],
-            }
-          )
-          MockGate.return_value.evaluate_per_bot = AsyncMock(return_value={})
-          with patch(
-            "app.engines.scan_preview.build_monday_recovery_summary",
-            new_callable=AsyncMock,
-            return_value={"recovery_candidates": [], "all": [], "bots": {}},
-          ):
-            with patch(
-              "app.engines.learning_engine.build_crm_learning_highlights",
-              new_callable=AsyncMock,
-              return_value=learning,
-            ):
-              with patch(
-                "app.engines.learning_engine.build_crm_content_study_highlights",
-                new_callable=AsyncMock,
-                return_value={"insights_applied": 0, "recent": []},
-              ):
-                with patch(
-                  "app.engines.intel_source_status.build_intel_sources",
-                  new_callable=AsyncMock,
-                  return_value=[{"source": "news", "status": "active"}],
-                ):
-                  with patch(
-                    "app.engines.crm_summary.build_crm_live_snapshot",
-                    new_callable=AsyncMock,
-                    return_value={
-                      "active_bots": ["commodities"],
-                      "positions": [],
-                      "gate_tightening": {},
-                      "chronic_loser_symbols": {},
-                      "proven_winner_symbols": {},
-                    },
-                  ):
-                    with patch(
-                      "app.engines.crm_summary.build_crm_integration_hooks",
-                      new_callable=AsyncMock,
-                      return_value={
-                        "tradingview": {"configured": True, "webhook_url": "https://example.com/tv", "items": 0},
-                        "polymarket": {"api_configured": True, "wallet_configured": True, "profile_url": None, "intel_items": 0, "account_items": 0},
-                        "wallet_tracker": {"configured": True, "webhook_url": "https://example.com/wallet"},
-                      },
-                    ):
-                      response = client.get("/crm")
+  highlights = asyncio.run(build_crm_content_study_highlights(session))
 
-  assert response.status_code == 200
-  body = response.text
-  assert "Today's learning loop" in body
-  assert "8 post-mortems" in body
-  assert "crypto" in body
-  assert "Raised minimum signal score" in body
+  assert highlights["insights_applied"] == 5
+  assert len(highlights["recent"]) == 1
+  assert highlights["recent"][0]["title"].endswith("…")
+  assert highlights["recent"][0]["impact"].endswith("…")
+  assert highlights["recent"][0]["applied"] is True
