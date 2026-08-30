@@ -115,6 +115,21 @@ async def crm_landing():
     except Exception:
       session_open_events = []
 
+    from app.engines.cme_reopen_checklist import (
+      build_cme_reopen_checklist,
+      format_cme_checklist_crm_html,
+      should_show_cme_checklist_on_crm,
+    )
+
+    try:
+      cme_checklist = await build_cme_reopen_checklist(session)
+    except Exception:
+      cme_checklist = None
+
+  cme_checklist_card = ""
+  if should_show_cme_checklist_on_crm(cme_checklist):
+    cme_checklist_card = format_cme_checklist_crm_html(cme_checklist)
+
   day = gate.get("verification_day", 0)
   trades = gate.get("total_trades", 0)
   wr = gate.get("win_rate", 0) or 0
@@ -722,6 +737,7 @@ async def crm_landing():
   {next_sessions_card}
   {cme_imminent_banner}
   {us_imminent_banner}
+  {cme_checklist_card}
   <div class="card">
     <p class="label">30-day verification gate · day {day}/30</p>
     <div class="grid">
