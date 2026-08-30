@@ -265,9 +265,10 @@ async def _commodities_cme_watch_tv_refresh(
       if row.get("bot_type") == "commodities" and row.get("symbol")
     ]
     prep_state = await get_prep_phase_state(session)
+    extended_watch = (prep_state.get("cme_reopen") or {}).get("extended_watch_symbols") or []
     prev_ready = (prep_state.get("cme_reopen") or {}).get("open_ready_symbols") or []
     watch_symbols = sorted(
-      set(open_ready_symbols) | set(near_floor_symbols) | set(prev_ready)
+      set(open_ready_symbols) | set(near_floor_symbols) | set(prev_ready) | set(extended_watch)
     )
     if not watch_symbols and max_minutes_until_open is not None:
       return []

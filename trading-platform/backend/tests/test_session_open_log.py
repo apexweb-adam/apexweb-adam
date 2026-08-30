@@ -243,3 +243,68 @@ def test_monitor_open_ready_queue_logs_remove_with_last_composite():
 
   asyncio.run(run())
 
+
+def test_monitor_open_ready_queue_persists_extended_watch_after_remove():
+  async def run():
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    async with engine.begin() as conn:
+      await conn.run_sync(Base.metadata.create_all)
+    factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+    async with factory() as session:
+      from app.engines.platform_settings import set_platform_setting
+      from app.engines.session_open_log import (
+        PREP_PHASE_STATE_KEY,
+        get_prep_phase_state,
+        monitor_open_ready_queue,
+      )
+
+      await set_platform_setting(
+        session,
+        SESSION_OPEN_EVENTS_KEY,
+        json.dumps(
+          [
+            {
+              "timestamp": "2026-08-30T15:55:49.081957",
+              "bot_type": "commodities",
+              "event_type": "queue_add",
+              "symbols": ["NG=F"],
+              "detail": "cme_reopen: auto-entry queued — NG=F (0.448)",
+            },
+          ]
+        ),
+      )
+      await set_platform_setting(
+        session,
+        PREP_PHASE_STATE_KEY,
+        json.dumps(
+          {
+            "cme_reopen": {
+              "open_ready_symbols": [],
+              "near_floor_symbols": ["NG=F"],
+              "open_ready_composites": {"NG=F": 0.397},
+            },
+          }
+        ),
+      )
+
+      with patch(
+        "app.engines.scan_preview.build_monday_recovery_summary",
+        new=AsyncMock(
+          return_value={
+            "stocks_trade_count_nudge": False,
+            "commodities_graduation_nudge": True,
+            "open_ready": [],
+            "near_floor": [
+              {"bot_type": "commodities", "symbol": "NG=F", "composite": 0.397},
+            ],
+          }
+        ),
+      ):
+        await monitor_open_ready_queue(session)
+
+      state = await get_prep_phase_state(session)
+      assert state["cme_reopen"]["extended_watch_symbols"] == ["NG=F"]
+    await engine.dispose()
+
+  asyncio.run(run())
+

@@ -203,6 +203,20 @@ async def monitor_session_prep_transitions(session: AsyncSession) -> list[dict[s
   return logged
 
 
+def _extended_watch_symbols_from_events(
+  events: list[dict[str, Any]],
+  *,
+  bot_type: str,
+) -> list[str]:
+  symbols: set[str] = set()
+  for event in events:
+    if event.get("bot_type") != bot_type:
+      continue
+    if event.get("event_type") == "queue_add":
+      symbols.update(event.get("symbols") or [])
+  return sorted(symbols)
+
+
 async def monitor_open_ready_queue(session: AsyncSession) -> list[dict[str, Any]]:
   """Log open-ready and near-floor queue changes (uses scan preview)."""
   from app.engines.gate_entry_guard import (
@@ -236,6 +250,7 @@ async def monitor_open_ready_queue(session: AsyncSession) -> list[dict[str, Any]
   ]
   state = await get_prep_phase_state(session)
   logged: list[dict[str, Any]] = []
+  session_events = await get_session_open_events(session)
 
   for session_key, bot_type, event in tracked:
     ready = list(event.get("open_ready_symbols") or [])
@@ -243,6 +258,9 @@ async def monitor_open_ready_queue(session: AsyncSession) -> list[dict[str, Any]
     entry_state = state.get(session_key) if isinstance(state.get(session_key), dict) else {}
 
     prev_ready = list(entry_state.get("open_ready_symbols") or [])
+    prev_extended = list(entry_state.get("extended_watch_symbols") or [])
+    if not prev_extended:
+      prev_extended = _extended_watch_symbols_from_events(session_events, bot_type=bot_type)
     if "open_ready_symbols" not in entry_state:
       if ready:
         logged.append(
@@ -258,6 +276,7 @@ async def monitor_open_ready_queue(session: AsyncSession) -> list[dict[str, Any]
         **entry_state,
         "open_ready_symbols": ready,
         "near_floor_symbols": near_floor,
+        "extended_watch_symbols": sorted(set(prev_extended) | set(ready)),
         "open_ready_composites": {
           str(row.get("symbol")): row.get("composite")
           for row in (event.get("open_ready_details") or [])
@@ -335,6 +354,7 @@ async def monitor_open_ready_queue(session: AsyncSession) -> list[dict[str, Any]
       **entry_state,
       "open_ready_symbols": ready,
       "near_floor_symbols": near_floor,
+      "extended_watch_symbols": sorted(set(prev_extended) | set(ready) | set(added)),
       "open_ready_composites": {
         **(entry_state.get("open_ready_composites") or {}),
         **details_map,
