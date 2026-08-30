@@ -115,6 +115,8 @@ def test_print_deploy_window_summary_script_exists():
   assert "deploy_credentials_ready" in text
   assert "fomo_bearer_nudge" in text
   assert "x_intel_collection_mode" in text
+  assert "deploy_json.py" in text
+  assert "Intel: sources API ready" in text
   assert "verify-cme-post-open.sh" in text
 
 
@@ -174,6 +176,8 @@ def test_watch_deploy_window_auto_deploy_uses_run_deploy_window():
   text = script.read_text(encoding="utf-8")
   marker = "Auto-deploy enabled — running full deploy window workflow"
   assert marker in text
+  block = text.split(marker, 1)[0]
+  assert "check-deploy-credentials.sh --strict" in block
   block = text.split(marker, 1)[1]
   assert 'bash "$ROOT/scripts/run-deploy-window.sh"' in block
   assert "sync-render-env.sh" not in block

@@ -166,6 +166,10 @@ while true; do
   if [[ $rc -eq 10 ]]; then
     if [[ "$AUTO_DEPLOY" == "true" ]]; then
       echo ""
+      if ! bash "$ROOT/scripts/check-deploy-credentials.sh" --strict; then
+        echo "Auto-deploy blocked — refresh credentials before deploy window run." >&2
+        exit 1
+      fi
       echo "Auto-deploy enabled — running full deploy window workflow..."
       if ! bash "$ROOT/scripts/run-deploy-window.sh"; then
         exit 1
