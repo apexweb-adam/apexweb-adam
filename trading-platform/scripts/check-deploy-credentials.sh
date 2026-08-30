@@ -28,10 +28,14 @@ if ready is None:
 print("=== Deploy credentials ===")
 if snap.get("fomo_bearer_configured") is not None:
     mins = snap.get("fomo_bearer_minutes_remaining")
+    tier = snap.get("fomo_bearer_nudge_tier")
+    nudge = snap.get("fomo_bearer_nudge_message")
     print(
         f"fomo: configured={snap.get('fomo_bearer_configured')} "
         f"polling={snap.get('fomo_bearer_polling_active')} mins={mins}"
     )
+    if nudge:
+        print(f"  nudge ({tier}): {nudge}")
 else:
     print("fomo: (snapshot pre-r371 — run check-fomo-bearer.sh)")
 

@@ -294,6 +294,16 @@ def apply_fomo_bearer_to_snapshot(
   merged["fomo_bearer_configured"] = configured
   merged["fomo_bearer_polling_active"] = polling
   merged["fomo_bearer_minutes_remaining"] = fomo.get("minutes_remaining")
+  minutes = fomo.get("minutes_remaining")
+  minutes_int = int(minutes) if isinstance(minutes, (int, float)) else None
+  tier = resolve_fomo_bearer_nudge_tier(
+    polling_active=polling,
+    minutes_remaining=minutes_int,
+  )
+  merged["fomo_bearer_nudge_tier"] = tier
+  merged["fomo_bearer_nudge_message"] = (
+    fomo_bearer_nudge_message(tier, minutes_remaining=minutes_int) if tier else None
+  )
   if configured and not polling:
     merged["fomo_bearer_refresh_hint"] = (
       "bash trading-platform/scripts/fomo-set-bearer.sh '<bearer>'"
@@ -322,7 +332,7 @@ PRODUCTION_DASHBOARD_URL = "https://apex-trading-dashboard-flame.vercel.app"
 DEFAULT_VERIFIED_DASHBOARD_URL = "https://apex-trading-dashboard-o7tb7wydk-apexweb-adams-projects.vercel.app"
 DEFAULT_VERIFIED_DEPLOYMENT_ID = "dpl_Cn62LPUnD83i28cydia12AKr3uUw"
 EXPECTED_DASHBOARD_BUNDLE = "2026-08-29-r98"
-EXPECTED_PLATFORM_REVISION = "2026-08-29-r378"
+EXPECTED_PLATFORM_REVISION = "2026-08-29-r379"
 GIT_MAIN_ALIAS = "apex-trading-dashboard-git-main"
 ACCEPTABLE_DASHBOARD_BUNDLES = frozenset({
   "2026-08-27-r9", "2026-08-27-r10", "2026-08-27-r11", "2026-08-27-r12",

@@ -103,10 +103,13 @@ if prod_rev == expected:
     if "fomo_bearer_configured" in snapshot:
         fomo_poll = snapshot.get("fomo_bearer_polling_active")
         fomo_mins = snapshot.get("fomo_bearer_minutes_remaining")
+        fomo_tier = snapshot.get("fomo_bearer_nudge_tier")
         print(
             f"  fomo_bearer configured={snapshot.get('fomo_bearer_configured')} "
-            f"polling={fomo_poll} mins={fomo_mins}"
+            f"polling={fomo_poll} mins={fomo_mins} nudge_tier={fomo_tier}"
         )
+        if fomo_tier is None and prod_rev == expected:
+            errors.append("snapshot_missing_fomo_bearer_nudge_tier")
     if snapshot.get("github_token_configured") is False:
         print("  note: GITHUB_TOKEN missing on Render — deploy staleness checks incomplete")
 
@@ -151,6 +154,8 @@ if bash "$ROOT/scripts/verify-dashboard-bundle.sh"; then
 else
   note "Dashboard bundle check failed (non-blocking)"
 fi
+
+bash "$ROOT/scripts/try-promote-vercel-dashboard.sh" || true
 
 CRM_TIME=$(curl -sS -o /dev/null -m 120 -w "%{time_total}" "$BACKEND/crm" 2>/dev/null || echo "")
 BASELINE_FILE="$ROOT/.crm-load-baseline"

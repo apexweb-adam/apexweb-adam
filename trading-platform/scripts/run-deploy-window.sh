@@ -75,6 +75,8 @@ fi
 echo ""
 bash "$ROOT/scripts/print-deploy-window-summary.sh" || true
 echo ""
+bash "$ROOT/scripts/try-promote-vercel-dashboard.sh" || true
+echo ""
 echo "After CME open (22:00 UTC):"
 echo "  bash trading-platform/scripts/verify-cme-post-open.sh"
 echo ""
