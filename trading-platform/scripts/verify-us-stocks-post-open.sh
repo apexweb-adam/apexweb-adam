@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Post-open verification after Monday US stocks open (13:30 UTC).
+# Post-open verification after Monday US stocks open (run after 13:30 UTC).
 set -euo pipefail
 
 BACKEND="${BACKEND_URL:-https://apex-trading-backend.onrender.com}"
@@ -17,24 +17,69 @@ echo "Backend: $BACKEND"
 echo ""
 
 CHECKLIST=$(curl -fsS -m 90 "$BACKEND/api/gate/us-stocks-open-checklist" 2>/dev/null || echo "{}")
+STATUS=$(curl -fsS -m 90 "$BACKEND/api/status" 2>/dev/null || echo "{}")
 
 python3 << PY
 import json, sys
-data = json.loads('''$CHECKLIST''')
-if not data:
+
+checklist = json.loads('''$CHECKLIST''')
+status = json.loads('''$STATUS''')
+if not checklist:
     print("  error=checklist_unreachable")
     sys.exit(1)
-events = data.get("session_open_events") or {}
-print(f"  phase={data.get('phase')} ready={data.get('ready')}")
+
+phase = checklist.get("phase")
+ready = checklist.get("ready")
+checks = checklist.get("checks") or []
+events = checklist.get("session_open_events") or {}
+open_ready = checklist.get("open_ready") or {}
+open_symbols = open_ready.get("symbols") or []
+sticky = open_ready.get("sticky_symbols") or []
+
+print(f"  phase={phase} ready={ready}")
+print(f"  prep_phase={checklist.get('prep_phase')} in_session={checklist.get('in_session')}")
+print(f"  open_ready={open_symbols} sticky={sticky}")
 print(f"  has_burst_scan={events.get('has_burst_scan')} has_auto_entry={events.get('has_auto_entry')}")
-for row in data.get("checks") or []:
+
+latest_burst = events.get("latest_burst_scan")
+if latest_burst:
+    print(f"  latest_burst_scan={latest_burst.get('detail')}")
+latest_entry = events.get("latest_auto_entry")
+if latest_entry:
+    print(f"  latest_auto_entry symbols={latest_entry.get('symbols')} detail={latest_entry.get('detail')}")
+
+status_events = status.get("session_open_events") or []
+if status_events:
+    stocks_events = [e for e in status_events if e.get("bot_type") == "stocks_futures"]
+    if stocks_events:
+        print(f"  status.stocks_open_events={[e.get('event_type') for e in stocks_events[:6]]}")
+
+summaries = (status.get("session_open_checklists") or {}).get("us_stocks_open") or {}
+if summaries:
+    print(
+        f"  status.checklist open_ready={summaries.get('open_ready_symbols')} "
+        f"composites={summaries.get('open_ready_composites')}"
+    )
+
+for row in checks:
     print(f"  check {row.get('id')}={row.get('status')}: {row.get('message')}")
-critical_fail = [c for c in (data.get("checks") or []) if c.get("critical") and c.get("status") == "fail"]
-if data.get("phase") not in ("post_open", "open"):
+
+critical_failures = [
+    c for c in checks
+    if c.get("critical") and c.get("status") == "fail"
+]
+errors = []
+if phase not in ("post_open", "open"):
     print("  warn=still in pre-open phase — rerun after US stocks open")
     sys.exit(2)
-if critical_fail:
-    print("  errors=" + ",".join(c["id"] for c in critical_fail))
+if not events.get("has_burst_scan"):
+    errors.append("burst_scan_missing")
+if not events.get("has_auto_entry") and open_symbols:
+    errors.append("auto_entry_missing")
+if critical_failures:
+    errors.extend(c["id"] for c in critical_failures)
+if errors:
+    print("  errors=" + ",".join(errors))
     sys.exit(1)
 sys.exit(0)
 PY

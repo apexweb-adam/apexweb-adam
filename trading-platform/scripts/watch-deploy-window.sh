@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Poll /api/status until the CME deploy window opens (4–6h before Sunday reopen).
+# Poll until the CME deploy window opens (4–6h before Sunday reopen).
 # Usage:
 #   watch-deploy-window.sh [--interval SECONDS] [--once]
 #   watch-deploy-window.sh --deploy   # run verify-pre-deploy + sync-render-env when window opens
@@ -32,27 +32,59 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+fetch_snapshot() {
+  local attempt=1
+  local raw=""
+  while [[ "$attempt" -le 3 ]]; do
+    raw=$(curl -fsS -m 30 "$BACKEND/api/deploy/snapshot" 2>/dev/null || true)
+    if [[ -n "$raw" && "$raw" != "{}" ]]; then
+      echo "$raw"
+      return 0
+    fi
+    raw=$(curl -fsS -m 90 "$BACKEND/api/status" 2>/dev/null || true)
+    if [[ -n "$raw" && "$raw" != "{}" ]]; then
+      python3 -c "import json,sys; d=json.load(sys.stdin); print(json.dumps(d.get('deploy') or {}))" <<<"$raw"
+      return 0
+    fi
+    attempt=$((attempt + 1))
+    sleep 2
+  done
+  echo "{}"
+  return 1
+}
+
 run_check() {
-  STATUS=$(curl -fsS -m 90 "$BACKEND/api/status" 2>/dev/null || echo "{}")
+  SNAPSHOT=$(fetch_snapshot || echo "{}")
   python3 << PY
 import json, sys
 
-status = json.loads('''$STATUS''')
-deploy = status.get("deploy") or {}
-window = deploy.get("cme_deploy_window")
-rev = deploy.get("platform_revision")
-current = deploy.get("platform_revision_current")
+payload = json.loads('''$SNAPSHOT''')
+# /api/status fallback wraps deploy block only
+if "cme_deploy_window" not in payload and payload.get("deploy"):
+    payload = payload["deploy"]
+window = payload.get("cme_deploy_window")
+rev = payload.get("platform_revision")
+current = payload.get("platform_revision_current")
+expected = payload.get("expected_platform_revision")
 
 print(f"=== Deploy Window Watch — $(date -u '+%Y-%m-%d %H:%M UTC') ===")
 print(f"Backend: $BACKEND")
-print(f"  platform_revision={rev} current={current}")
+print(f"  platform_revision={rev} expected={expected} current={current}")
+
+if not payload:
+    print("✗ Could not reach deploy snapshot or /api/status")
+    sys.exit(3)
 
 if current is True:
     print("✓ Production revision current — no deploy window needed")
     sys.exit(0)
 
 if not window:
-    print("○ No deploy window payload — CME timing unknown or revision check skipped")
+    mins = payload.get("cme_minutes_until_open")
+    if mins is not None:
+        print(f"○ CME open in {mins}min — deploy window payload missing (deploy r358+ for /api/deploy/snapshot)")
+    else:
+        print("○ No deploy window payload — CME timing unknown")
     sys.exit(0)
 
 print(f"  {window.get('message', '')}")
