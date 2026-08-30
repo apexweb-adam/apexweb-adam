@@ -105,3 +105,8 @@ echo "Results: $pass passed, $fail failed, $warn notes"
 if [[ "$fail" -gt 0 ]]; then
   exit 1
 fi
+echo ""
+echo "Monday before US open (13:30 UTC):"
+echo "  bash trading-platform/scripts/verify-us-stocks-open.sh --watch 120"
+echo "Monday after US open:"
+echo "  bash trading-platform/scripts/verify-us-stocks-post-open.sh"
