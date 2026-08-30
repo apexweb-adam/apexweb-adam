@@ -74,6 +74,31 @@ def build_cme_deploy_window(
   }
 
 
+DASHBOARD_BUNDLE_VERIFY_COMMAND = "bash trading-platform/scripts/verify-dashboard-bundle.sh"
+
+
+def format_dashboard_bundle_crm_html(
+  *,
+  prod_bundle: str,
+  expected_bundle: str,
+  promote_id: str | None = None,
+  verify_command: str = DASHBOARD_BUNDLE_VERIFY_COMMAND,
+) -> str:
+  """Render Vercel bundle lag warning for the /crm landing page."""
+  promote_line = ""
+  if promote_id:
+    promote_line = (
+      f"<p class='muted' style='margin-top:0;font-family:monospace;font-size:0.8rem;'>"
+      f"Promote: <code>bash trading-platform/scripts/promote-vercel-dashboard.sh {promote_id}</code></p>"
+    )
+  return f"""<div class="card" style="border-color:#4c1d95;background:#1a1033;">
+    <h2 style="color:#c4b5fd;">Dashboard bundle behind code</h2>
+    <p class="muted" style="margin-top:0;">Production Vercel reports <strong>{prod_bundle}</strong> but code expects <strong>{expected_bundle}</strong>. CRM proxy on -flame remains operational; promote or wait for Vercel build quota.</p>
+    <p class="muted" style="margin-top:0;font-family:monospace;font-size:0.8rem;">{verify_command}</p>
+    {promote_line}
+  </div>"""
+
+
 def format_cme_deploy_window_crm_html(window: dict[str, Any]) -> str:
   """Render deploy window countdown for the /crm landing page."""
   if window.get("window_closed"):
@@ -170,7 +195,7 @@ def build_deploy_snapshot() -> dict[str, Any]:
       cme_in_session=in_session,
     ),
     "expected_dashboard_bundle": EXPECTED_DASHBOARD_BUNDLE,
-    "dashboard_bundle_verify_command": "bash trading-platform/scripts/verify-dashboard-bundle.sh",
+    "dashboard_bundle_verify_command": DASHBOARD_BUNDLE_VERIFY_COMMAND,
   }
 
 
@@ -187,7 +212,7 @@ PRODUCTION_DASHBOARD_URL = "https://apex-trading-dashboard-flame.vercel.app"
 DEFAULT_VERIFIED_DASHBOARD_URL = "https://apex-trading-dashboard-o7tb7wydk-apexweb-adams-projects.vercel.app"
 DEFAULT_VERIFIED_DEPLOYMENT_ID = "dpl_Cn62LPUnD83i28cydia12AKr3uUw"
 EXPECTED_DASHBOARD_BUNDLE = "2026-08-29-r98"
-EXPECTED_PLATFORM_REVISION = "2026-08-29-r362"
+EXPECTED_PLATFORM_REVISION = "2026-08-29-r363"
 GIT_MAIN_ALIAS = "apex-trading-dashboard-git-main"
 ACCEPTABLE_DASHBOARD_BUNDLES = frozenset({
   "2026-08-27-r9", "2026-08-27-r10", "2026-08-27-r11", "2026-08-27-r12",

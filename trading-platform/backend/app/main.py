@@ -14,6 +14,7 @@ from app.engines.deploy_status import (
   build_cme_deploy_window,
   build_deploy_status,
   format_cme_deploy_window_crm_html,
+  format_dashboard_bundle_crm_html,
   recommended_dashboard_url,
 )
 from app.workers.scheduler import setup_scheduler, stop_bots
@@ -89,8 +90,11 @@ async def crm_landing():
   url = await recommended_dashboard_url()
   deploy = await build_deploy_status()
   stale = deploy.get("vercel_bundle_stale")
+  behind_expected = deploy.get("vercel_bundle_behind_expected")
   proxy_ok = deploy.get("production_proxy_operational")
   promote_id = deploy.get("vercel_promote_deployment_id") or "dpl_DMSgUEGsa2PTokNr99BXWoggczd7"
+  prod_bundle = deploy.get("vercel_bundle_revision") or "?"
+  expected_bundle = deploy.get("expected_dashboard_bundle") or EXPECTED_DASHBOARD_BUNDLE
 
   async with SessionLocal() as session:
     gate_engine = ProfitabilityGate(session)
@@ -674,6 +678,11 @@ async def crm_landing():
     )
   elif stale:
     deploy_note = f"Production Vercel bundle is stale. Promote {promote_id} in Vercel when ready."
+  elif behind_expected:
+    deploy_note = (
+      f"Dashboard bundle behind code ({prod_bundle} vs {expected_bundle}). "
+      f"CRM proxy on -flame is operational — promote {promote_id} when Vercel quota allows."
+    )
   else:
     deploy_note = "Production dashboard bundle is current."
 
@@ -704,6 +713,13 @@ async def crm_landing():
     )
     if deploy_window:
       deploy_window_card = format_cme_deploy_window_crm_html(deploy_window)
+  dashboard_bundle_card = ""
+  if behind_expected and prod_bundle != "?":
+    dashboard_bundle_card = format_dashboard_bundle_crm_html(
+      prod_bundle=str(prod_bundle),
+      expected_bundle=str(expected_bundle),
+      promote_id=str(promote_id) if promote_id else None,
+    )
   if (
     revision_current is False
     and cme_mins is not None
@@ -763,6 +779,7 @@ async def crm_landing():
   {cme_imminent_banner}
   {us_imminent_banner}
   {deploy_window_card}
+  {dashboard_bundle_card}
   {cme_checklist_card}
   {us_stocks_checklist_card}
   <div class="card">
