@@ -74,6 +74,24 @@ def _queue_delta(previous: list[str], current: list[str]) -> tuple[list[str], li
   return sorted(curr - prev), sorted(prev - curr)
 
 
+def _format_queue_symbols(event: dict[str, Any], symbols: list[str]) -> str:
+  """Include composite scores in queue event detail when available."""
+  details = {
+    row.get("symbol"): row
+    for row in (event.get("open_ready_details") or [])
+    if row.get("symbol")
+  }
+  parts: list[str] = []
+  for symbol in symbols:
+    row = details.get(symbol) or {}
+    composite = row.get("composite")
+    if composite is not None:
+      parts.append(f"{symbol} ({float(composite):.3f})")
+    else:
+      parts.append(symbol)
+  return ", ".join(parts)
+
+
 async def monitor_session_prep_transitions(session: AsyncSession) -> list[dict[str, Any]]:
   """Log prep phase changes (fast — no scan preview)."""
   from app.engines.gate_entry_guard import (
@@ -233,7 +251,7 @@ async def monitor_open_ready_queue(session: AsyncSession) -> list[dict[str, Any]
             bot_type=bot_type,
             event_type="queue_add",
             symbols=ready,
-            detail=f"{session_key}: auto-entry queued — {', '.join(ready)}",
+            detail=f"{session_key}: auto-entry queued — {_format_queue_symbols(event, ready)}",
           )
         )
       state[session_key] = {
@@ -251,7 +269,7 @@ async def monitor_open_ready_queue(session: AsyncSession) -> list[dict[str, Any]
           bot_type=bot_type,
           event_type="queue_add",
           symbols=added,
-          detail=f"{session_key}: auto-entry queued — {', '.join(added)}",
+          detail=f"{session_key}: auto-entry queued — {_format_queue_symbols(event, added)}",
         )
       )
     if removed:
@@ -346,7 +364,7 @@ async def backfill_open_ready_queue_events(session: AsyncSession) -> list[dict[s
         bot_type=bot_type,
         event_type="queue_add",
         symbols=missing,
-        detail=f"{session_key}: auto-entry queued — {', '.join(missing)}",
+        detail=f"{session_key}: auto-entry queued — {_format_queue_symbols(event, missing)}",
       )
     )
     logged_symbols.update(missing)
