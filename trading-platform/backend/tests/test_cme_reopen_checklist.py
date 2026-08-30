@@ -4,6 +4,24 @@ from app.engines.cme_reopen_checklist import (
   build_cme_reopen_checks,
   _symbols_below_floor,
 )
+from app.engines.gate_entry_guard import OPEN_READY_QUEUE_RELEASE_MARGIN
+
+
+def test_symbols_below_floor_honors_sticky_release_margin():
+  sticky = [{"symbol": "NG=F", "composite": 0.418, "sticky_queue": True}]
+  assert _symbols_below_floor(
+    sticky,
+    0.42,
+    release_margin=OPEN_READY_QUEUE_RELEASE_MARGIN,
+  ) == []
+  below = [{"symbol": "NG=F", "composite": 0.39, "sticky_queue": True}]
+  assert _symbols_below_floor(
+    below,
+    0.42,
+    release_margin=OPEN_READY_QUEUE_RELEASE_MARGIN,
+  ) == ["NG=F"]
+  fresh = [{"symbol": "CL=F", "composite": 0.418, "sticky_queue": False}]
+  assert _symbols_below_floor(fresh, 0.42) == ["CL=F"]
 
 
 def test_build_cme_reopen_checks_preflight_pass():
