@@ -13,6 +13,7 @@ from app.intelligence.political_signals import (
   format_political_content,
   political_category,
 )
+from app.intelligence.reddit_client import reddit_get_json
 from app.intelligence.scanner import (
   CRYPTO_KEYWORDS,
   COMMODITY_KEYWORDS,
@@ -409,12 +410,16 @@ class ExtendedIntelligenceScanner(IntelligenceScanner):
           print(f"Political scan error for '{query}': {e}")
 
       try:
-        response = await client.get(
-          "https://www.reddit.com/r/politics/search.json",
-          params={"q": "trump market OR trump tariff OR trump crypto", "sort": "new", "limit": 10},
-          headers={"User-Agent": "ApexTradingBot/1.0"},
+        data = await reddit_get_json(
+          client,
+          "https://oauth.reddit.com/r/politics/search.json",
+          params={
+            "q": "trump market OR trump tariff OR trump crypto",
+            "sort": "new",
+            "limit": 10,
+          },
         )
-        for post in response.json().get("data", {}).get("children", []):
+        for post in data.get("data", {}).get("children", []):
           data = post.get("data", {})
           title = data.get("title", "")
           selftext = data.get("selftext", "")

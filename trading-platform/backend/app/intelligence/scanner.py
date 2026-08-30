@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from textblob import TextBlob
 
 from app.config import settings
+from app.intelligence.reddit_client import get_reddit_headers, reddit_get_json
 from app.models.entities import IntelligenceItem
 
 CRYPTO_KEYWORDS = [
@@ -127,45 +128,23 @@ class IntelligenceScanner:
           print(f"RSS scan error for {url}: {e}")
     return count
 
-  async def _reddit_headers(self) -> dict[str, str]:
-    headers = {"User-Agent": "ApexTradingBot/1.0 by /u/apexweb"}
-    if settings.reddit_client_id and settings.reddit_client_secret:
-      try:
-        async with httpx.AsyncClient(timeout=10) as client:
-          token_resp = await client.post(
-            "https://www.reddit.com/api/v1/access_token",
-            auth=(settings.reddit_client_id, settings.reddit_client_secret),
-            data={"grant_type": "client_credentials"},
-            headers=headers,
-          )
-          token = token_resp.json().get("access_token")
-          if token:
-            headers["Authorization"] = f"Bearer {token}"
-      except Exception as e:
-        print(f"Reddit OAuth error: {e}")
-    return headers
-
   async def _scan_reddit_api(self) -> int:
     count = 0
     subreddits = [
       "cryptocurrency", "wallstreetbets", "CryptoMarkets", "StockMarket", "politics",
       "solana", "memecoin", "memecoins", "SatoshiStreetBets",
     ]
-    headers = await self._reddit_headers()
+    headers = await get_reddit_headers()
     async with httpx.AsyncClient(timeout=15) as client:
       for sub in subreddits:
         for listing in ("hot", "new"):
           try:
-            response = await client.get(
-              f"https://oauth.reddit.com/r/{sub}/{listing}.json?limit=8",
+            data = await reddit_get_json(
+              client,
+              f"https://oauth.reddit.com/r/{sub}/{listing}.json",
+              params={"limit": 8},
               headers=headers,
             )
-            if response.status_code == 401:
-              response = await client.get(
-                f"https://www.reddit.com/r/{sub}/{listing}.json?limit=8",
-                headers={"User-Agent": headers["User-Agent"]},
-              )
-            data = response.json()
             for post in data.get("data", {}).get("children", []):
               post_data = post.get("data", {})
               title = post_data.get("title", "")

@@ -842,7 +842,7 @@ def test_crm_landing_shows_deploy_window_countdown_when_revision_behind():
     "vercel_bundle_stale": False,
     "is_stale": False,
     "platform_revision": "2026-08-29-r336",
-    "expected_platform_revision": "2026-08-29-r358",
+    "expected_platform_revision": "2026-08-29-r359",
     "platform_revision_current": False,
   }
 
