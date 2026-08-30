@@ -264,3 +264,13 @@ def test_verify_platform_prints_intel_health_fields():
   assert "x_intel=" in text
   assert "Content study insights" in text
   assert "insights_applied" in text
+  assert "deploy_credentials_ready" in text
+  assert "check-deploy-credentials.sh" in text
+
+
+def test_watch_deploy_window_uses_fetch_json():
+  script = SCRIPTS / "watch-deploy-window.sh"
+  text = script.read_text(encoding="utf-8")
+  assert "fetch_json.sh" in text
+  assert "SNAPSHOT_JSON" in text
+  assert "'''$SNAPSHOT'''" not in text

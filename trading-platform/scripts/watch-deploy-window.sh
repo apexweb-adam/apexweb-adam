@@ -6,6 +6,8 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+# shellcheck source=lib/fetch_json.sh
+source "$ROOT/scripts/lib/fetch_json.sh"
 BACKEND="${BACKEND_URL:-https://apex-trading-backend.onrender.com}"
 CODE_REV="$(grep '^EXPECTED_PLATFORM_REVISION' "$ROOT/backend/app/engines/deploy_status.py" | sed -n 's/.*"\([^"]*\)".*/\1/p')"
 INTERVAL="${WATCH_INTERVAL:-300}"
@@ -34,59 +36,60 @@ while [[ $# -gt 0 ]]; do
 done
 
 fetch_snapshot() {
-  local tmp snap_code status_code
-  tmp="${TMPDIR:-/tmp}/apex-deploy-snap.$$"
-
-  snap_code=$(curl -sS -m 12 -o "$tmp" -w "%{http_code}" "$BACKEND/api/deploy/snapshot" 2>/dev/null || echo "000")
-  if [[ "$snap_code" == "200" && -s "$tmp" ]]; then
-    cat "$tmp"
-    rm -f "$tmp"
+  local snap status deploy
+  snap=$(fetch_json "$BACKEND/api/deploy/snapshot" 45 2 || echo "")
+  if [[ -n "$snap" && "$snap" != "{}" ]]; then
+    echo "$snap"
     return 0
   fi
 
-  # Pre-r358 backends return 404 — fall back once to /api/status deploy block.
-  status_code=$(curl -sS -m 45 -o "$tmp" -w "%{http_code}" "$BACKEND/api/status" 2>/dev/null || echo "000")
-  if [[ "$status_code" == "200" && -s "$tmp" ]]; then
-    if python3 -c "import json,sys; json.load(open(sys.argv[1]))" "$tmp" 2>/dev/null; then
-      python3 -c "import json,sys; d=json.load(open(sys.argv[1])); print(json.dumps(d.get('deploy') or {}))" "$tmp"
-      rm -f "$tmp"
+  status=$(fetch_json "$BACKEND/api/status" 60 2 || echo "")
+  if [[ -n "$status" && "$status" != "{}" ]]; then
+    deploy=$(echo "$status" | python3 -c "import json,sys; d=json.load(sys.stdin); print(json.dumps(d.get('deploy') or {}))" 2>/dev/null || echo "{}")
+    if [[ -n "$deploy" && "$deploy" != "{}" ]]; then
+      echo "$deploy"
       return 0
     fi
   fi
 
-  rm -f "$tmp"
+  if deploy=$(cd "$ROOT/backend" && PYTHONPATH=. python3 -c \
+    "from app.engines.deploy_status import build_deploy_snapshot; import json; print(json.dumps(build_deploy_snapshot()))" \
+    2>/dev/null); then
+    if [[ -n "$deploy" && "$deploy" != "{}" ]]; then
+      echo "○ Using local deploy snapshot (backend unavailable)" >&2
+      echo "$deploy"
+      return 0
+    fi
+  fi
+
   echo "{}"
   return 1
 }
 
 run_check() {
-  SNAPSHOT=$(fetch_snapshot) || SNAPSHOT="{}"
-  if [[ "$SNAPSHOT" == "{}" || "$SNAPSHOT" == "" ]]; then
-    SNAPSHOT=$(cd "$ROOT/backend" && PYTHONPATH=. python3 -c \
-      "from app.engines.deploy_status import build_deploy_snapshot; import json; print(json.dumps(build_deploy_snapshot()))" \
-      2>/dev/null || echo "{}")
-    if [[ "$SNAPSHOT" != "{}" ]]; then
-      echo "○ Using local deploy snapshot (backend /api/status unavailable)"
-    fi
-  fi
-  python3 << PY
-import json, sys
+  local snapshot
+  snapshot=$(fetch_snapshot || echo "{}")
+  SNAPSHOT_JSON="$snapshot" CODE_REV="$CODE_REV" BACKEND="$BACKEND" python3 << 'PY'
+import json, os, sys
+from datetime import datetime, timezone
 
-payload = json.loads('''$SNAPSHOT''')
-# /api/status fallback wraps deploy block only
-if "cme_deploy_window" not in payload and payload.get("deploy"):
-    payload = payload["deploy"]
+payload = json.loads(os.environ.get("SNAPSHOT_JSON") or "{}")
+code_rev = os.environ.get("CODE_REV") or "?"
+backend = os.environ.get("BACKEND") or ""
+
+now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+print(f"=== Deploy Window Watch — {now} ===")
+print(f"Backend: {backend}")
+print(f"  code_target={code_rev}")
+
 window = payload.get("cme_deploy_window")
 rev = payload.get("platform_revision")
 current = payload.get("platform_revision_current")
 expected = payload.get("expected_platform_revision")
 
-print(f"=== Deploy Window Watch — $(date -u '+%Y-%m-%d %H:%M UTC') ===")
-print(f"Backend: $BACKEND")
-print(f"  code_target=$CODE_REV")
 print(f"  platform_revision={rev} expected={expected} current={current}")
-if expected and "$CODE_REV" and expected != "$CODE_REV":
-    print(f"  deploy will advance prod expected {expected} → $CODE_REV")
+if expected and code_rev and expected != code_rev:
+    print(f"  deploy will advance prod expected {expected} → {code_rev}")
 
 x_mode = payload.get("x_intel_collection_mode")
 if x_mode:

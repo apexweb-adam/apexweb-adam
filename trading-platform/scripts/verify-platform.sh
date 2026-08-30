@@ -331,6 +331,33 @@ else
   note "Learning loop sparse — confirm trades and daily review scheduler"
 fi
 
+# Deploy credentials (snapshot — r370+)
+SNAPSHOT=$(fetch_json "$BACKEND/api/deploy/snapshot" 45 2)
+CRED_OUT=$(echo "$SNAPSHOT" | python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+ready = d.get('deploy_credentials_ready')
+warnings = d.get('deploy_credentials_warnings') or []
+if ready is True:
+    print('  github_token_configured=True')
+    sys.exit(0)
+if ready is False and warnings:
+    for item in warnings:
+        print(f'  - {item}')
+    sys.exit(2)
+sys.exit(1)
+" 2>&1) || CRED_RC=$?
+CRED_RC=${CRED_RC:-0}
+if [[ "$CRED_RC" -eq 0 ]]; then
+  echo "$CRED_OUT"
+  ok "Deploy credentials ready"
+elif [[ "$CRED_RC" -eq 2 ]]; then
+  echo "$CRED_OUT"
+  note "Deploy credentials not ready — run check-deploy-credentials.sh before deploy"
+else
+  note "Deploy credentials unknown (snapshot pre-r370)"
+fi
+
 # Deploy revision — compare code target to production
 REV=$(echo "$STATUS" | python3 -c "import json,sys; print(json.load(sys.stdin).get('deploy',{}).get('platform_revision',''))" 2>/dev/null || echo "")
 EXP=$(echo "$STATUS" | python3 -c "import json,sys; print(json.load(sys.stdin).get('deploy',{}).get('expected_platform_revision',''))" 2>/dev/null || echo "")
