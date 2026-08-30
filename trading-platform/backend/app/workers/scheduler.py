@@ -362,7 +362,10 @@ async def cme_deploy_reminder_job() -> None:
     return
 
   now = time.monotonic()
-  if now - _cme_deploy_reminder_last_at < CME_DEPLOY_REMINDER_INTERVAL_SECONDS:
+  if (
+    _cme_deploy_reminder_last_at > 0
+    and now - _cme_deploy_reminder_last_at < CME_DEPLOY_REMINDER_INTERVAL_SECONDS
+  ):
     return
 
   _cme_deploy_reminder_last_at = now
