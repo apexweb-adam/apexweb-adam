@@ -71,8 +71,8 @@ def test_build_intel_sources_includes_tiktok():
       (),
       {
         "all": lambda self: [
-          ("tiktok", now - timedelta(hours=1)),
-          ("news", now),
+          ("tiktok", 10, now - timedelta(hours=1)),
+          ("news", 5, now),
         ]
       },
     )()
@@ -124,7 +124,7 @@ def test_reddit_degraded_without_oauth():
       (),
       {
         "all": lambda self: [
-          ("reddit", now - timedelta(hours=1)),
+          ("reddit", 5, now - timedelta(hours=1)),
         ]
       },
     )()
@@ -178,7 +178,7 @@ def test_fomo_active_when_bearer_expired_but_recent_webhook_items():
       (),
       {
         "all": lambda self: [
-          ("fomo", now - timedelta(hours=2)),
+          ("fomo", 3, now - timedelta(hours=2)),
         ]
       },
     )()

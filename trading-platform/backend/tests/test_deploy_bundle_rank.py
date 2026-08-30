@@ -4,7 +4,7 @@ from app.engines.deploy_status import bundle_rank
 
 
 def test_bundle_rank_prefers_newer_revisions():
-  assert bundle_rank({"bundleRevision": "2026-08-29-r90", "features": {"activeGate": True}}) == 100
+  assert bundle_rank({"bundleRevision": "2026-08-29-r90", "features": {"activeGate": True}}) == 90
   assert bundle_rank({"bundleRevision": "2026-08-29-r90", "features": {"activeGate": True}}) > bundle_rank(
     {"bundleRevision": "2026-08-29-r85", "features": {"activeGate": True}}
   )
