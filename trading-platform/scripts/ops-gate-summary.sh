@@ -71,9 +71,16 @@ if not data:
 integrations = data.get("integrations") or {}
 deploy = data.get("deploy") or {}
 intel = data.get("intelligence") or {}
-sources = intel.get("sources") or []
+learning = data.get("learning") or {}
 lines = []
-degraded = [s.get("source") for s in sources if s.get("status") == "degraded"]
+if learning:
+    lines.append(
+        "Learning loop: "
+        f"analyses={learning.get('trade_analyses')} "
+        f"reviews={learning.get('daily_reviews')} "
+        f"pending_insights={learning.get('insights_pending')}"
+    )
+degraded = [s.get("source") for s in (intel.get("sources") or []) if s.get("status") == "degraded"]
 if degraded:
     lines.append(f"WARN: intel degraded: {', '.join(degraded)}")
 if deploy.get("vercel_bundle_behind_expected"):

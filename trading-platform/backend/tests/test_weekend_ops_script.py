@@ -15,6 +15,21 @@ def test_ops_gate_summary_script_exists():
   assert "intel degraded" in text
 
 
+def test_wait_for_render_deploy_script_exists():
+  script = SCRIPTS / "wait-for-render-deploy.sh"
+  text = script.read_text(encoding="utf-8")
+  assert "/api/deploy/snapshot" in text
+  assert "platform_revision_current" in text
+  assert "--verify" in text
+
+
+def test_ops_gate_summary_includes_learning_loop():
+  script = SCRIPTS / "ops-gate-summary.sh"
+  text = script.read_text(encoding="utf-8")
+  assert "Learning loop:" in text
+  assert "pending_insights" in text
+
+
 def test_verify_weekend_ops_includes_gate_and_revision_hints():
   script = SCRIPTS / "verify-weekend-ops.sh"
   text = script.read_text(encoding="utf-8")
