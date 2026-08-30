@@ -92,3 +92,37 @@ def test_analyze_losing_trade_flags_commodities_weekend():
     analysis = asyncio.run(learner.analyze_losing_trade(trade))
 
   assert "weekend" in analysis.root_cause.lower()
+
+
+def test_analyze_losing_trade_flags_polymarket_overbought():
+  session = AsyncMock()
+  session.execute = AsyncMock(
+    side_effect=[
+      MagicMock(scalar_one_or_none=MagicMock(return_value=None)),
+      MagicMock(scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=[])))),
+      MagicMock(scalar_one_or_none=MagicMock(return_value=None)),
+      MagicMock(scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=[])))),
+    ]
+  )
+  session.commit = AsyncMock()
+  session.add = MagicMock()
+
+  trade = _trade(
+    bot_type="polymarket",
+    symbol="PM:trump-tariff",
+    reason="PM:Yes price overbought (>0.72); Intel bullish (+0.35)",
+    signal_score=0.38,
+  )
+
+  learner = LearningEngine(session)
+  learner._get_market_context = AsyncMock(return_value="context")
+  learner._had_fomo_intel = AsyncMock(return_value=False)
+  learner._had_source_intel = AsyncMock(return_value=False)
+  learner._apply_adjustments = AsyncMock()
+  learner.run_daily_review = AsyncMock(return_value=MagicMock())
+
+  with patch("app.ws_manager.push_live_update", new_callable=AsyncMock):
+    analysis = asyncio.run(learner.analyze_losing_trade(trade))
+
+  assert "overbought" in analysis.root_cause.lower()
+  assert "0.72" in analysis.strategy_adjustment
