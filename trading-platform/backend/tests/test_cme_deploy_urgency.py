@@ -3,6 +3,21 @@
 from app.engines.deploy_status import build_cme_deploy_urgency, build_cme_deploy_window
 
 
+def test_format_dashboard_bundle_crm_html():
+  from app.engines.deploy_status import format_dashboard_bundle_crm_html
+
+  html = format_dashboard_bundle_crm_html(
+    prod_bundle="2026-08-29-r67",
+    expected_bundle="2026-08-29-r98",
+    promote_id="dpl_test123",
+  )
+  assert "Dashboard bundle behind code" in html
+  assert "2026-08-29-r67" in html
+  assert "2026-08-29-r98" in html
+  assert "verify-dashboard-bundle.sh" in html
+  assert "dpl_test123" in html
+
+
 def test_format_cme_deploy_window_crm_html():
   from app.engines.deploy_status import format_cme_deploy_window_crm_html
 
