@@ -143,6 +143,18 @@ else
   bad "Post-deploy verification failed — revision or session-open features missing"
 fi
 
+PROD_REV_CHECK=$(echo "$SNAPSHOT" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('platform_revision') or '')" 2>/dev/null || echo "")
+if [[ -z "$PROD_REV_CHECK" ]]; then
+  PROD_REV_CHECK=$(echo "$STATUS" | python3 -c "import json,sys; d=json.load(sys.stdin); print((d.get('deploy') or {}).get('platform_revision') or '')" 2>/dev/null || echo "")
+fi
+if [[ "$PROD_REV_CHECK" == "$EXPECTED_REVISION" ]]; then
+  if curl -fsS -m 20 "$BACKEND/openapi.json" 2>/dev/null | python3 -c "import json,sys; d=json.load(sys.stdin); sys.exit(0 if '/api/learning/apply-pending-insights' in (d.get('paths') or {}) else 1)" 2>/dev/null; then
+    ok "Learning apply endpoint registered (r380+)"
+  else
+    note "Learning apply endpoint not in OpenAPI — confirm r380+ revision live"
+  fi
+fi
+
 if bash "$ROOT/scripts/verify-cme-reopen.sh"; then
   ok "CME reopen preflight still passing"
 else

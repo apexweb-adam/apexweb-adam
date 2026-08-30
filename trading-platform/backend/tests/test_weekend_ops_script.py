@@ -176,3 +176,19 @@ def test_watch_deploy_window_auto_deploy_uses_run_deploy_window():
   block = text.split(marker, 1)[1]
   assert 'bash "$ROOT/scripts/run-deploy-window.sh"' in block
   assert "sync-render-env.sh" not in block
+  assert "if ! bash" in block
+
+
+def test_watch_deploy_window_shows_credentials_when_active():
+  script = SCRIPTS / "watch-deploy-window.sh"
+  text = script.read_text(encoding="utf-8")
+  assert "deploy_credentials_ready" in text
+  assert "fomo_bearer_nudge_message" in text
+  assert "check-deploy-credentials.sh --strict" in text
+
+
+def test_verify_post_deploy_checks_learning_endpoint():
+  script = SCRIPTS / "verify-post-deploy.sh"
+  text = script.read_text(encoding="utf-8")
+  assert "learning/apply-pending-insights" in text
+  assert "openapi.json" in text
