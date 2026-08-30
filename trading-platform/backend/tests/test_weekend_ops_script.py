@@ -30,6 +30,14 @@ def test_ops_gate_summary_includes_learning_loop():
   assert "pending_insights" in text
 
 
+def test_run_deploy_window_script_exists():
+  script = SCRIPTS / "run-deploy-window.sh"
+  text = script.read_text(encoding="utf-8")
+  assert "verify-pre-deploy.sh" in text
+  assert "wait-for-render-deploy.sh" in text
+  assert "sync-render-env.sh" in text
+
+
 def test_verify_weekend_ops_includes_gate_and_revision_hints():
   script = SCRIPTS / "verify-weekend-ops.sh"
   text = script.read_text(encoding="utf-8")

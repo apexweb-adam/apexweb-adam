@@ -21,10 +21,13 @@ def test_build_deploy_snapshot_includes_deploy_window_when_behind():
   assert snap["expected_dashboard_bundle"] == "2026-08-29-r98"
   assert "verify-dashboard-bundle" in snap["dashboard_bundle_verify_command"]
   assert "verify-weekend-ops" in snap["weekend_ops_verify_command"]
+  assert "run-deploy-window" in snap["run_deploy_window_command"]
+  assert "wait-for-render-deploy" in snap["wait_for_deploy_command"]
   window = snap["cme_deploy_window"]
   assert window is not None
   assert window.get("in_window") is True
   assert window.get("deploy_command")
+  assert "run-deploy-window" in (window.get("run_deploy_window_command") or "")
 
 
 def test_build_deploy_snapshot_no_window_when_current():

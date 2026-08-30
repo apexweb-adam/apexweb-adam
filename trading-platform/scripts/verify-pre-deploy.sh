@@ -134,10 +134,10 @@ fi
 
 echo ""
 echo "Deploy when ready:"
+echo "  bash trading-platform/scripts/run-deploy-window.sh"
+echo "  # or:"
 echo "  TRIGGER_DEPLOY=true bash trading-platform/scripts/sync-render-env.sh"
-echo ""
-echo "After deploy:"
-echo "  bash trading-platform/scripts/verify-post-deploy.sh"
+echo "  bash trading-platform/scripts/wait-for-render-deploy.sh --verify"
 echo ""
 echo "Monday US open (if stocks still paused, auto-entry stays blocked by design):"
 echo "  bash trading-platform/scripts/verify-us-stocks-open.sh --watch 120"

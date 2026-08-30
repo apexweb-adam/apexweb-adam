@@ -124,10 +124,16 @@ if window.get("window_closed"):
 
 if window.get("in_window"):
     print("")
-    print("*** DEPLOY WINDOW ACTIVE — run preflight then deploy ***")
-    print(f"  {window.get('verify_command', 'bash trading-platform/scripts/verify-pre-deploy.sh')}")
-    print(f"  {window.get('deploy_command', 'TRIGGER_DEPLOY=true bash trading-platform/scripts/sync-render-env.sh')}")
-    print(f"  bash trading-platform/scripts/verify-post-deploy.sh")
+    print("*** DEPLOY WINDOW ACTIVE ***")
+    run_all = payload.get("run_deploy_window_command") or window.get("run_deploy_window_command")
+    if run_all:
+        print(f"  {run_all}")
+    else:
+        print(f"  {window.get('verify_command', 'bash trading-platform/scripts/verify-pre-deploy.sh')}")
+        print(f"  {window.get('deploy_command', 'TRIGGER_DEPLOY=true bash trading-platform/scripts/sync-render-env.sh')}")
+        wait_cmd = payload.get("wait_for_deploy_command") or window.get("wait_for_deploy_command")
+        if wait_cmd:
+            print(f"  {wait_cmd}")
     print(f"  bash trading-platform/scripts/verify-dashboard-bundle.sh")
     weekend = payload.get("weekend_ops_verify_command")
     if weekend:
