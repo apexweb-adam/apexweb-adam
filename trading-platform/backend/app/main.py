@@ -646,6 +646,9 @@ async def crm_landing():
     deploy_note = "Production dashboard bundle is current."
 
   backend_stale = deploy.get("is_stale")
+  revision_current = deploy.get("platform_revision_current")
+  platform_rev = deploy.get("platform_revision") or "?"
+  expected_rev = deploy.get("expected_platform_revision") or "?"
   backend_note = ""
   if backend_stale:
     running = (deploy.get("git_commit") or "?")[:12]
@@ -653,6 +656,24 @@ async def crm_landing():
     backend_note = (
       f"<p class='muted' style='color:#fbbf24;'>Backend deploy stale — running {running}, main is {latest}. "
       "Manual deploy in Render or set RENDER_DEPLOY_HOOK.</p>"
+    )
+  elif revision_current is False:
+    backend_note = (
+      f"<p class='muted' style='color:#fbbf24;'>Backend revision behind — running {platform_rev}, "
+      f"code expects {expected_rev}. "
+      "Deploy: <code>TRIGGER_DEPLOY=true bash trading-platform/scripts/sync-render-env.sh</code></p>"
+    )
+  cme_mins = cme_session.get("minutes_until_open")
+  if (
+    revision_current is False
+    and cme_mins is not None
+    and cme_mins <= 360
+    and not cme_session.get("in_session")
+  ):
+    backend_note += (
+      f"<p class='muted' style='color:#f87171;font-weight:600;'>"
+      f"CME reopen in {_session_countdown(cme_mins)} — deploy before open for burst scan ordering "
+      "and session-open logging.</p>"
     )
 
   html = f"""<!DOCTYPE html>
