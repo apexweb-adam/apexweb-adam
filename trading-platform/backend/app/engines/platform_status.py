@@ -29,7 +29,7 @@ from app.engines.gate_entry_guard import (
   commodities_session_info,
   stocks_session_info,
 )
-from app.engines.intel_source_status import build_intel_sources
+from app.engines.intel_source_status import build_intel_sources, x_intel_collection_mode
 from app.engines.scan_preview import build_monday_recovery_summary
 from app.engines.learning_engine import build_crm_content_study_highlights
 from app.engines.session_open_log import get_session_open_events
@@ -299,6 +299,7 @@ async def _build_platform_status_uncached(session: AsyncSession) -> dict[str, An
       "env_configured": {
         "newsapi": bool(settings.newsapi_key),
         "twitter": bool(settings.twitter_bearer_token),
+        "x_intel_keyless": x_intel_collection_mode() == "google_news_rss",
         "tradingview": bool(settings.tradingview_webhook_secret),
         "polymarket_wallet": bool(
           settings.polymarket_wallet_address or settings.polymarket_deposit_address
@@ -404,6 +405,8 @@ def _build_integrations_payload(
     "polymarket_api_key": bool(settings.polymarket_api_key),
     "newsapi": bool(settings.newsapi_key),
     "twitter_x": bool(settings.twitter_bearer_token),
+    "x_intel_collection_mode": x_intel_collection_mode(),
+    "x_intel_keyless": x_intel_collection_mode() == "google_news_rss",
     "reddit_oauth": bool(settings.reddit_client_id and settings.reddit_client_secret),
     "wallet_tracker": wallet_tracker_configured(),
     "hyperliquid_enabled": settings.hyperliquid_enabled,

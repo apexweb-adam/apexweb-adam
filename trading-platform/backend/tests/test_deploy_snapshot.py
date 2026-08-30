@@ -40,6 +40,21 @@ def test_build_deploy_snapshot_includes_github_token_flag():
   assert snap["github_token_configured"] is True
 
 
+def test_build_deploy_snapshot_includes_x_intel_collection_mode():
+  with patch.dict("os.environ", {"PLATFORM_REVISION": "2026-08-29-r336"}, clear=False):
+    with patch(
+      "app.engines.gate_entry_guard.commodities_session_info",
+      return_value={"minutes_until_open": 500, "in_session": False},
+    ):
+      with patch(
+        "app.engines.intel_source_status.settings",
+      ) as mock_settings:
+        mock_settings.twitter_bearer_token = ""
+        mock_settings.newsapi_key = ""
+        snap = build_deploy_snapshot()
+  assert snap["x_intel_collection_mode"] == "google_news_rss"
+
+
 def test_build_deploy_snapshot_no_window_when_current():
   with patch.dict("os.environ", {"PLATFORM_REVISION": EXPECTED_PLATFORM_REVISION}, clear=False):
     with patch(

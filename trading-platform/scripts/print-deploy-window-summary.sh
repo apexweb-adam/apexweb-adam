@@ -62,6 +62,10 @@ else:
     if nudge:
         print(f"  note: {nudge}")
 
+x_mode = snap.get("x_intel_collection_mode")
+if x_mode:
+    print(f"X intel: {x_mode}")
+
 if baseline:
     print(f"CRM baseline: {baseline}s (target <30s after deploy)")
 

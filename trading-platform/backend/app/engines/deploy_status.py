@@ -184,6 +184,7 @@ def resolve_cme_deploy_reminder() -> dict[str, Any] | None:
 def build_deploy_snapshot() -> dict[str, Any]:
   """Lightweight deploy + CME window snapshot (no DB, no Vercel/GitHub probes)."""
   from app.engines.gate_entry_guard import commodities_session_info
+  from app.engines.intel_source_status import x_intel_collection_mode
 
   platform_revision = os.environ.get("PLATFORM_REVISION", "").strip() or None
   revision_current = (
@@ -215,6 +216,7 @@ def build_deploy_snapshot() -> dict[str, Any]:
     "weekend_ops_verify_command": WEEKEND_OPS_VERIFY_COMMAND,
     "wait_for_deploy_command": WAIT_FOR_DEPLOY_COMMAND,
     "run_deploy_window_command": RUN_DEPLOY_WINDOW_COMMAND,
+    "x_intel_collection_mode": x_intel_collection_mode(),
   }
 
 
@@ -332,7 +334,7 @@ PRODUCTION_DASHBOARD_URL = "https://apex-trading-dashboard-flame.vercel.app"
 DEFAULT_VERIFIED_DASHBOARD_URL = "https://apex-trading-dashboard-o7tb7wydk-apexweb-adams-projects.vercel.app"
 DEFAULT_VERIFIED_DEPLOYMENT_ID = "dpl_Cn62LPUnD83i28cydia12AKr3uUw"
 EXPECTED_DASHBOARD_BUNDLE = "2026-08-29-r98"
-EXPECTED_PLATFORM_REVISION = "2026-08-29-r384"
+EXPECTED_PLATFORM_REVISION = "2026-08-29-r385"
 GIT_MAIN_ALIAS = "apex-trading-dashboard-git-main"
 ACCEPTABLE_DASHBOARD_BUNDLES = frozenset({
   "2026-08-27-r9", "2026-08-27-r10", "2026-08-27-r11", "2026-08-27-r12",
