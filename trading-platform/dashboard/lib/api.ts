@@ -34,6 +34,23 @@ export async function fetchAPI<T>(endpoint: string): Promise<T> {
   return res.json();
 }
 
+export type ApplyPendingInsightsResult = {
+  status: string;
+  pending_insights_applied: number;
+  noise_insights_dismissed: number;
+  timestamp: string;
+};
+
+export async function applyPendingInsights(): Promise<ApplyPendingInsightsResult> {
+  const res = await fetch(`${DEFAULT_API}/learning/apply-pending-insights`, {
+    method: "POST",
+    headers: { Accept: "application/json" },
+    cache: "no-store",
+  });
+  if (!res.ok) throw new Error(`Apply insights failed: ${res.status}`);
+  return res.json() as Promise<ApplyPendingInsightsResult>;
+}
+
 export function getWebSocketUrl(): string {
   // Sync fallback for SSR; client reconnects after config loads.
   const fallback = process.env.NEXT_PUBLIC_WS_URL || DEFAULT_WS;

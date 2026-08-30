@@ -369,6 +369,28 @@ async def get_insights(
   ]
 
 
+@router.post("/learning/apply-pending-insights")
+async def apply_pending_learning_insights(
+  db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+  """Apply stored content-study insights to strategy configs (idempotent)."""
+  from app.engines.learning_engine import LEARNING_NOISE_DISMISS_MAX_CONFIDENCE, LearningEngine
+  from app.ws_manager import push_live_update
+
+  learner = LearningEngine(db)
+  applied = await learner.apply_pending_insights(min_confidence=0.55)
+  dismissed = await learner.dismiss_noise_insights(
+    max_confidence=LEARNING_NOISE_DISMISS_MAX_CONFIDENCE
+  )
+  await push_live_update()
+  return {
+    "status": "ok",
+    "pending_insights_applied": applied,
+    "noise_insights_dismissed": dismissed,
+    "timestamp": datetime.utcnow().isoformat(),
+  }
+
+
 @router.get("/strategies")
 async def get_strategies(db: AsyncSession = Depends(get_db)) -> list[dict[str, Any]]:
   from app.engines.intel_source_status import serialize_strategy_config
