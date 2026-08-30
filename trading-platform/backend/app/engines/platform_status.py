@@ -217,6 +217,9 @@ async def _build_platform_status_uncached(session: AsyncSession) -> dict[str, An
     stocks_session=us_sess,
   )
   session_open_events = await get_session_open_events(session)
+  from app.engines.session_open_checklist_summary import build_session_open_checklist_summaries
+
+  session_open_checklists = await build_session_open_checklist_summaries(session)
   gate_tightening_data = gate_payload["gate_entry_tightening"]
 
   fomo_bearer = await get_fomo_bearer_status(session)
@@ -251,6 +254,7 @@ async def _build_platform_status_uncached(session: AsyncSession) -> dict[str, An
     "open_ready_candidates": session_prep.get("open_ready_candidates") or [],
     "next_session_events": next_session_events,
     "session_open_events": session_open_events,
+    "session_open_checklists": session_open_checklists,
     "bots": bots,
     "intelligence": {
       "active_sources": active_sources,

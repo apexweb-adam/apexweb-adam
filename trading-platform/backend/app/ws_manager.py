@@ -87,6 +87,9 @@ async def build_live_payload(session: AsyncSession) -> dict:
   from app.engines.session_open_log import get_session_open_events
 
   session_open_events = await get_session_open_events(session)
+  from app.engines.session_open_checklist_summary import build_session_open_checklist_summaries
+
+  session_open_checklists = await build_session_open_checklist_summaries(session)
   from app.engines.deploy_status import (
     EXPECTED_PLATFORM_REVISION,
     build_cme_deploy_urgency,
@@ -263,6 +266,7 @@ async def build_live_payload(session: AsyncSession) -> dict:
     "session_prep": session_prep,
     "next_session_events": next_session_events,
     "session_open_events": session_open_events,
+    "session_open_checklists": session_open_checklists,
     "deploy": {
       "platform_revision": platform_revision,
       "expected_platform_revision": EXPECTED_PLATFORM_REVISION,
