@@ -222,6 +222,8 @@ def test_crm_landing_shows_open_ready_card():
         "bot_type": "commodities",
         "symbol": "NG=F",
         "composite": 0.645,
+        "direction": "buy",
+        "macd": "bullish",
         "blockers": ["weekend_futures_closed"],
         "minutes_until_open": 1260,
         "monday_gate_skip_ready": True,
@@ -298,6 +300,8 @@ def test_crm_landing_shows_open_ready_card():
   assert "NG=F" in body
   assert "AAPL" in body
   assert "gate-skip" in body
+  assert "bullish" in body
+  assert "prep scan" in body
   assert "21h 0m" in body
 
 
@@ -501,6 +505,7 @@ def test_crm_landing_shows_next_sessions_card():
   body = response.text
   assert "Next sessions" in body
   assert "Gate-skip eligible" in body
+  assert "prep scan" in body
   assert "CME reopen" in body
   assert "US stocks open" in body
   assert "NG=F, CL=F" in body

@@ -234,20 +234,23 @@ async def crm_landing():
       symbol = row.get("symbol", "")
       composite = row.get("composite")
       composite_label = f"{composite:.3f}" if composite is not None else "—"
+      direction = row.get("direction") or "—"
+      macd = row.get("macd") or "—"
       mins = row.get("minutes_until_open")
       countdown = f"{mins // 60}h {mins % 60}m" if mins is not None else "soon"
       blockers = ", ".join(row.get("blockers") or []) or "—"
       gate_skip = " · gate-skip" if row.get("monday_gate_skip_ready") else ""
       open_ready_table += (
         f"<tr><td>{bot_type}</td><td><strong>{symbol}</strong></td>"
-        f"<td>{composite_label}</td><td>{countdown}</td>"
+        f"<td>{composite_label}</td><td>{direction}</td><td>{macd}</td>"
+        f"<td>{countdown}</td>"
         f"<td>{blockers}{gate_skip}</td></tr>"
       )
     open_ready_card = f"""<div class="card recovery">
     <h2>Session open ready</h2>
     <p class="muted" style="margin-top:0;">Gate-skip eligible — auto-entry when session opens.</p>
     <table>
-      <thead><tr><th>Bot</th><th>Symbol</th><th>Composite</th><th>Opens in</th><th>Blockers</th></tr></thead>
+      <thead><tr><th>Bot</th><th>Symbol</th><th>Composite</th><th>Signal</th><th>MACD</th><th>Opens in</th><th>Blockers</th></tr></thead>
       <tbody>{open_ready_table}</tbody>
     </table>
   </div>"""
@@ -264,14 +267,20 @@ async def crm_landing():
   if not cme_session.get("in_session"):
     cme_mins = cme_session.get("minutes_until_open")
     comm_ready = ", ".join(commodities_prep.get("open_ready_symbols") or []) or "—"
+    comm_scan = "5s" if commodities_prep.get("gate_reopen_imminent") else (
+      "15s" if commodities_prep.get("gate_fast_scan_active") else "30s"
+    )
     next_session_lines.append(
-      f"<strong>CME reopen</strong> in {_session_countdown(cme_mins)} · open ready: {comm_ready}"
+      f"<strong>CME reopen</strong> in {_session_countdown(cme_mins)} · prep scan {comm_scan} · open ready: {comm_ready}"
     )
   if not stocks_session.get("in_session"):
     us_mins = stocks_session.get("minutes_until_open")
     stocks_ready = ", ".join(stocks_prep.get("open_ready_symbols") or []) or "—"
+    stocks_scan = "5s" if stocks_prep.get("gate_reopen_imminent") else (
+      "15s" if stocks_prep.get("gate_fast_scan_active") else "30s"
+    )
     next_session_lines.append(
-      f"<strong>US stocks open</strong> in {_session_countdown(us_mins)} · open ready: {stocks_ready}"
+      f"<strong>US stocks open</strong> in {_session_countdown(us_mins)} · prep scan {stocks_scan} · open ready: {stocks_ready}"
     )
   next_sessions_card = ""
   if next_session_lines:

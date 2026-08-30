@@ -297,6 +297,7 @@ export type NextSessionEvent = {
   open_ready_symbols?: string[];
   auto_gate_skip_at_open?: string[];
   auto_entry_queued?: boolean;
+  prep_scan_label?: string;
 };
 
 export type NextSessionEvents = {

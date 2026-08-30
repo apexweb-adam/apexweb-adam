@@ -1085,6 +1085,8 @@ async def build_monday_recovery_summary(session: AsyncSession) -> dict[str, Any]
           "bot_type": bot_type,
           "symbol": row["symbol"],
           "composite": row.get("composite"),
+          "direction": row.get("direction"),
+          "macd": row.get("macd"),
           "blockers": row.get("blockers") or [],
           "minutes_until_open": minutes_until_open,
           "monday_gate_skip_ready": bool(row.get("monday_gate_skip_ready")),

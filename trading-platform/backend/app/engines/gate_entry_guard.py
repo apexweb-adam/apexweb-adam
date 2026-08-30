@@ -3690,6 +3690,20 @@ def build_session_prep_status(
   return result
 
 
+def session_prep_scan_label(
+  *,
+  fast_scan_active: bool = False,
+  imminent: bool = False,
+  default: str = "30s",
+) -> str:
+  """Human-readable scan interval during session prep (5s imminent, 15s prep, else default)."""
+  if imminent:
+    return "5s"
+  if fast_scan_active:
+    return "15s"
+  return default
+
+
 def build_next_session_events(
   *,
   session_prep: dict[str, Any],
@@ -3701,6 +3715,14 @@ def build_next_session_events(
   stocks_prep = session_prep.get("stocks_futures") or {}
   comm_ready_symbols = comm_prep.get("open_ready_symbols") or []
   stocks_ready_symbols = stocks_prep.get("open_ready_symbols") or []
+  comm_scan_label = session_prep_scan_label(
+    fast_scan_active=bool(comm_prep.get("gate_fast_scan_active")),
+    imminent=bool(comm_prep.get("gate_reopen_imminent")),
+  )
+  stocks_scan_label = session_prep_scan_label(
+    fast_scan_active=bool(stocks_prep.get("gate_fast_scan_active")),
+    imminent=bool(stocks_prep.get("gate_reopen_imminent")),
+  )
   return {
     "cme_reopen": {
       "session_open_utc": commodities_session.get("session_open_utc"),
@@ -3710,6 +3732,7 @@ def build_next_session_events(
       "open_ready_symbols": comm_ready_symbols,
       "auto_gate_skip_at_open": comm_ready_symbols,
       "auto_entry_queued": bool(comm_ready_symbols),
+      "prep_scan_label": comm_scan_label,
     },
     "us_stocks_open": {
       "session_open_utc": stocks_session.get("session_open_utc"),
@@ -3718,6 +3741,7 @@ def build_next_session_events(
       "open_ready_symbols": stocks_ready_symbols,
       "auto_gate_skip_at_open": stocks_ready_symbols,
       "auto_entry_queued": bool(stocks_ready_symbols),
+      "prep_scan_label": stocks_scan_label,
     },
   }
 
