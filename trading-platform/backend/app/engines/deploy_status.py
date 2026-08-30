@@ -141,6 +141,37 @@ def resolve_cme_deploy_reminder() -> dict[str, Any] | None:
   )
 
 
+def build_deploy_snapshot() -> dict[str, Any]:
+  """Lightweight deploy + CME window snapshot (no DB, no Vercel/GitHub probes)."""
+  from app.engines.gate_entry_guard import commodities_session_info
+
+  platform_revision = os.environ.get("PLATFORM_REVISION", "").strip() or None
+  revision_current = (
+    platform_revision == EXPECTED_PLATFORM_REVISION if platform_revision else None
+  )
+  cme_session = commodities_session_info()
+  mins = cme_session.get("minutes_until_open")
+  in_session = bool(cme_session.get("in_session"))
+  return {
+    "timestamp": datetime.utcnow().isoformat(),
+    "platform_revision": platform_revision,
+    "expected_platform_revision": EXPECTED_PLATFORM_REVISION,
+    "platform_revision_current": revision_current,
+    "cme_minutes_until_open": mins,
+    "cme_in_session": in_session,
+    "cme_deploy_window": build_cme_deploy_window(
+      platform_revision_current=revision_current,
+      cme_minutes_until_open=mins,
+      cme_in_session=in_session,
+    ),
+    "cme_deploy_urgency": build_cme_deploy_urgency(
+      platform_revision_current=revision_current,
+      cme_minutes_until_open=mins,
+      cme_in_session=in_session,
+    ),
+  }
+
+
 def github_headers() -> dict[str, str]:
   headers = {
     "Accept": "application/vnd.github+json",
@@ -154,7 +185,7 @@ PRODUCTION_DASHBOARD_URL = "https://apex-trading-dashboard-flame.vercel.app"
 DEFAULT_VERIFIED_DASHBOARD_URL = "https://apex-trading-dashboard-o7tb7wydk-apexweb-adams-projects.vercel.app"
 DEFAULT_VERIFIED_DEPLOYMENT_ID = "dpl_Cn62LPUnD83i28cydia12AKr3uUw"
 EXPECTED_DASHBOARD_BUNDLE = "2026-08-29-r98"
-EXPECTED_PLATFORM_REVISION = "2026-08-29-r357"
+EXPECTED_PLATFORM_REVISION = "2026-08-29-r358"
 GIT_MAIN_ALIAS = "apex-trading-dashboard-git-main"
 ACCEPTABLE_DASHBOARD_BUNDLES = frozenset({
   "2026-08-27-r9", "2026-08-27-r10", "2026-08-27-r11", "2026-08-27-r12",

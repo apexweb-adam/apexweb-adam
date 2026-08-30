@@ -4,7 +4,7 @@
 set -euo pipefail
 
 BACKEND="${BACKEND_URL:-https://apex-trading-backend.onrender.com}"
-EXPECTED_REVISION="${EXPECTED_PLATFORM_REVISION:-2026-08-29-r357}"
+EXPECTED_REVISION="${EXPECTED_PLATFORM_REVISION:-2026-08-29-r358}"
 WATCH_INTERVAL=""
 
 if [[ "${1:-}" == "--watch" ]]; then

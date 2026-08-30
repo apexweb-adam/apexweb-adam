@@ -21,12 +21,14 @@ echo ""
 
 STATUS=$(curl -fsS -m 90 "$BACKEND/api/status" 2>/dev/null || echo "{}")
 CHECKLIST=$(curl -fsS -m 90 "$BACKEND/api/gate/cme-reopen-checklist" 2>/dev/null || echo "{}")
+SNAPSHOT=$(curl -fsS -m 20 "$BACKEND/api/deploy/snapshot" 2>/dev/null || echo "{}")
 
 python3 << PY
 import json, sys
 
 status = json.loads('''$STATUS''')
 checklist = json.loads('''$CHECKLIST''')
+snapshot = json.loads('''$SNAPSHOT''')
 expected = "$EXPECTED_REVISION"
 errors = []
 
@@ -71,6 +73,11 @@ if deploy_window:
     )
 else:
     errors.append("cme_deploy_window_missing")
+
+if snapshot.get("cme_deploy_window"):
+    print(f"  deploy_snapshot=ok revision={snapshot.get('platform_revision')}")
+elif snapshot:
+    errors.append("deploy_snapshot_missing_window")
 
 if errors:
     print("  errors=" + ",".join(errors))

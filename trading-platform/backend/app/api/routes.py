@@ -36,6 +36,14 @@ async def health() -> dict[str, str]:
   return {"status": "ok", "mode": "paper_trading", "timestamp": datetime.utcnow().isoformat()}
 
 
+@router.get("/deploy/snapshot")
+async def get_deploy_snapshot() -> dict[str, Any]:
+  """Fast deploy revision + CME window timing for ops scripts (no heavy status build)."""
+  from app.engines.deploy_status import build_deploy_snapshot
+
+  return build_deploy_snapshot()
+
+
 @router.get("/platform-urls")
 async def get_platform_urls() -> dict[str, Any]:
   """Public CRM/API URLs when running via Cloud Agent tunnels."""
