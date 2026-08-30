@@ -69,7 +69,8 @@ for row in near.get("details") or []:
     if sym and gap is not None:
         print(f"    near_floor {sym}: composite={comp} gap_to_floor={gap}")
 
-deploy_window = (status.get("deploy") or {}).get("cme_deploy_window") or snapshot.get("cme_deploy_window")
+deploy_info = status.get("deploy") or {}
+deploy_window = deploy_info.get("cme_deploy_window") or snapshot.get("cme_deploy_window")
 if deploy_window:
     print(
         "  cme_deploy_window "
@@ -78,6 +79,11 @@ if deploy_window:
     )
 else:
     errors.append("cme_deploy_window_missing")
+
+if deploy_info.get("vercel_bundle_behind_expected") is True:
+    exp = deploy_info.get("expected_dashboard_bundle") or "?"
+    act = deploy_info.get("vercel_bundle_revision") or "?"
+    print(f"  note: dashboard bundle behind expected ({act} vs {exp}) — non-blocking")
 
 if snapshot.get("cme_deploy_window") or snapshot.get("platform_revision"):
     print(f"  deploy_snapshot=ok revision={snapshot.get('platform_revision')}")

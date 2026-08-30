@@ -5,21 +5,32 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BACKEND="${BACKEND_URL:-https://apex-trading-backend.onrender.com}"
+CODE_REV="$(grep '^EXPECTED_PLATFORM_REVISION' "$ROOT/backend/app/engines/deploy_status.py" | sed -n 's/.*"\([^"]*\)".*/\1/p')"
 
 echo "=== Weekend Ops Checklist — $(date -u '+%Y-%m-%d %H:%M UTC') ==="
 echo "Backend: $BACKEND"
+echo "Code target: $CODE_REV"
 echo ""
 
 SNAPSHOT=$(curl -fsS -m 15 "$BACKEND/api/deploy/snapshot" 2>/dev/null || echo "{}")
 python3 << PY
 import json, sys
 snap = json.loads('''$SNAPSHOT''')
+code_rev = "$CODE_REV"
 if not snap:
     print("○ deploy snapshot unavailable")
+    if code_rev:
+        print(f"  code_target={code_rev}")
     sys.exit(0)
 rev = snap.get("platform_revision")
 exp = snap.get("expected_platform_revision")
-print(f"Platform: {rev} → expected {exp} (current={snap.get('platform_revision_current')})")
+print(f"Platform: {rev} → prod expected {exp} (current={snap.get('platform_revision_current')})")
+if code_rev and exp and code_rev != exp:
+    print(f"  deploy will advance prod expected {exp} → {code_rev}")
+elif code_rev and rev and code_rev != rev:
+    print(f"  production behind code: {rev} → {code_rev}")
+if snap.get("github_verified") is False:
+    print("WARN: GITHUB_TOKEN missing on Render — deploy staleness checks incomplete")
 window = snap.get("cme_deploy_window") or {}
 if window.get("message"):
     print(f"CME window: {window.get('message')}")
@@ -31,6 +42,69 @@ for key in ("dashboard_bundle_verify_command", "weekend_ops_verify_command"):
     if cmd:
         print(f"  {cmd}")
 PY
+
+PROFIT=$(curl -fsS -m 20 "$BACKEND/api/profitability" 2>/dev/null || echo "{}")
+GATE_NOTE=$(PROFIT_JSON="$PROFIT" python3 << 'PY'
+import json, os
+data = json.loads(os.environ.get("PROFIT_JSON") or "{}")
+if not data:
+    raise SystemExit(0)
+paused = data.get("paused_bots") or []
+day = data.get("verification_day")
+remaining = data.get("verification_days_remaining")
+wr = data.get("win_rate")
+pf = data.get("profit_factor")
+trades = data.get("total_trades")
+pnl = data.get("total_pnl")
+ready = data.get("live_trading_ready")
+parts = []
+if paused:
+    parts.append(f"paused={paused}")
+if day is not None:
+    parts.append(f"verification day {day}/30 ({remaining}d left)")
+if wr is not None and pf is not None:
+    parts.append(f"WR={wr:.0%} PF={pf:.2f} trades={trades}")
+if pnl is not None:
+    parts.append(f"PnL=${pnl:+.2f}")
+parts.append(f"live_ready={ready}")
+print("Profitability gate: " + "; ".join(parts))
+PY
+)
+if [[ -n "$GATE_NOTE" ]]; then
+  echo "$GATE_NOTE"
+fi
+
+STATUS=$(curl -fsS -m 45 "$BACKEND/api/status" 2>/dev/null || echo "{}")
+INTEG_NOTE=$(STATUS_JSON="$STATUS" python3 << 'PY'
+import json, os
+data = json.loads(os.environ.get("STATUS_JSON") or "{}")
+if not data:
+    raise SystemExit(0)
+integrations = data.get("integrations") or {}
+deploy = data.get("deploy") or {}
+lines = []
+if deploy.get("vercel_bundle_behind_expected"):
+    exp = deploy.get("expected_dashboard_bundle") or "?"
+    act = deploy.get("vercel_bundle_revision") or "?"
+    lines.append(f"WARN: dashboard bundle behind expected ({act} vs {exp})")
+mins = integrations.get("fomo_bearer_minutes_remaining")
+polling = integrations.get("fomo_bearer_polling_active")
+configured = integrations.get("fomo_bearer_configured")
+if configured and not polling:
+    if mins is not None and int(mins) < 0:
+        lines.append(f"WARN: fomo bearer expired ({mins}min) — refresh via userscript or fomo-set-bearer.sh")
+    else:
+        lines.append("WARN: fomo bearer polling inactive — intel may be degraded")
+hint = integrations.get("fomo_bearer_refresh_hint")
+if hint and lines:
+    lines.append(f"  {hint}")
+for line in lines:
+    print(line)
+PY
+)
+if [[ -n "$INTEG_NOTE" ]]; then
+  echo "$INTEG_NOTE"
+fi
 
 US_CHECKLIST=$(curl -fsS -m 30 "$BACKEND/api/gate/us-stocks-open-checklist" 2>/dev/null || echo "{}")
 US_NOTE=$(python3 << PY
