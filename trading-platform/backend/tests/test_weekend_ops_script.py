@@ -98,6 +98,7 @@ def test_print_deploy_window_summary_script_exists():
   assert "/api/deploy/snapshot" in text
   assert "cme-reopen-checklist" in text
   assert "deploy_credentials_ready" in text
+  assert "fomo_bearer_nudge" in text
   assert "verify-cme-post-open.sh" in text
 
 
@@ -105,6 +106,21 @@ def test_run_deploy_window_includes_summary_script():
   script = SCRIPTS / "run-deploy-window.sh"
   text = script.read_text(encoding="utf-8")
   assert "print-deploy-window-summary.sh" in text
+  assert "try-promote-vercel-dashboard.sh" in text
+
+
+def test_try_promote_vercel_dashboard_script_exists():
+  script = SCRIPTS / "try-promote-vercel-dashboard.sh"
+  text = script.read_text(encoding="utf-8")
+  assert "VERCEL_TOKEN" in text
+  assert "promote-vercel-dashboard.sh" in text
+  assert "/api/dashboard-url" in text
+
+
+def test_check_deploy_credentials_includes_fomo_nudge():
+  script = SCRIPTS / "check-deploy-credentials.sh"
+  text = script.read_text(encoding="utf-8")
+  assert "fomo_bearer_nudge_message" in text
 
 
 def test_check_deploy_credentials_script_exists():
