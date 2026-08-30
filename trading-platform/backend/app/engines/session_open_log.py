@@ -296,3 +296,58 @@ async def monitor_open_ready_queue(session: AsyncSession) -> list[dict[str, Any]
 
   await _set_json_setting(session, PREP_PHASE_STATE_KEY, state)
   return logged
+
+
+async def backfill_open_ready_queue_events(session: AsyncSession) -> list[dict[str, Any]]:
+  """Log queue_add for open-ready symbols not yet recorded in session events."""
+  from app.engines.gate_entry_guard import (
+    build_next_session_events,
+    build_session_prep_status,
+    commodities_session_info,
+    stocks_session_info,
+  )
+  from app.engines.scan_preview import build_monday_recovery_summary
+
+  monday_recovery = await build_monday_recovery_summary(session)
+  cme_session = commodities_session_info()
+  stocks_session = stocks_session_info()
+  session_prep = build_session_prep_status(
+    stocks_session=stocks_session,
+    commodities_session=cme_session,
+    stocks_trade_count_nudge=bool(monday_recovery.get("stocks_trade_count_nudge")),
+    commodities_graduation_nudge=bool(monday_recovery.get("commodities_graduation_nudge")),
+    open_ready_rows=monday_recovery.get("open_ready"),
+    near_floor_rows=monday_recovery.get("near_floor"),
+  )
+  next_events = build_next_session_events(
+    session_prep=session_prep,
+    commodities_session=cme_session,
+    stocks_session=stocks_session,
+  )
+
+  logged_symbols: set[str] = set()
+  for evt in await get_session_open_events(session):
+    if evt.get("event_type") == "queue_add":
+      logged_symbols.update(evt.get("symbols") or [])
+
+  tracked = [
+    ("cme_reopen", "commodities", next_events.get("cme_reopen") or {}),
+    ("us_stocks_open", "stocks_futures", next_events.get("us_stocks_open") or {}),
+  ]
+  logged: list[dict[str, Any]] = []
+  for session_key, bot_type, event in tracked:
+    ready = list(event.get("open_ready_symbols") or [])
+    missing = [symbol for symbol in ready if symbol not in logged_symbols]
+    if not missing:
+      continue
+    logged.append(
+      await record_session_open_event(
+        session,
+        bot_type=bot_type,
+        event_type="queue_add",
+        symbols=missing,
+        detail=f"{session_key}: auto-entry queued — {', '.join(missing)}",
+      )
+    )
+    logged_symbols.update(missing)
+  return logged

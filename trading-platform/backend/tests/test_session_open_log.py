@@ -117,3 +117,54 @@ def test_monitor_open_ready_queue_logs_initial_baseline():
 
   asyncio.run(run())
 
+
+def test_backfill_open_ready_queue_events_logs_missing_symbols():
+  async def run():
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    async with engine.begin() as conn:
+      await conn.run_sync(Base.metadata.create_all)
+    factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+    async with factory() as session:
+      await record_session_open_event(
+        session,
+        bot_type="commodities",
+        event_type="queue_remove",
+        symbols=["CL=F"],
+        detail="cme_reopen: removed from queue — CL=F",
+      )
+      from app.engines.session_open_log import backfill_open_ready_queue_events
+
+      with patch(
+        "app.engines.scan_preview.build_monday_recovery_summary",
+        new=AsyncMock(
+          return_value={
+            "stocks_trade_count_nudge": True,
+            "commodities_graduation_nudge": True,
+            "open_ready": [
+              {
+                "bot_type": "commodities",
+                "symbol": "NG=F",
+                "composite": 0.62,
+                "monday_gate_skip_ready": True,
+              },
+              {
+                "bot_type": "stocks_futures",
+                "symbol": "AAPL",
+                "composite": 0.49,
+                "monday_gate_skip_ready": True,
+              },
+            ],
+            "near_floor": [],
+          }
+        ),
+      ):
+        logged = await backfill_open_ready_queue_events(session)
+
+      assert len(logged) == 2
+      symbols = {tuple(entry["symbols"]) for entry in logged}
+      assert ("NG=F",) in symbols
+      assert ("AAPL",) in symbols
+    await engine.dispose()
+
+  asyncio.run(run())
+
