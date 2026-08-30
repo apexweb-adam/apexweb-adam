@@ -241,6 +241,8 @@ def build_cme_reopen_checks(
 def _symbols_below_floor(
   open_ready_details: list[dict[str, Any]],
   composite_floor: float | None,
+  *,
+  release_margin: float = 0.02,
 ) -> list[str]:
   if composite_floor is None:
     return []
@@ -248,7 +250,12 @@ def _symbols_below_floor(
   for row in open_ready_details:
     symbol = row.get("symbol")
     composite = row.get("composite")
-    if symbol and composite is not None and float(composite) < composite_floor:
+    if not symbol or composite is None:
+      continue
+    effective_floor = composite_floor
+    if row.get("sticky_queue"):
+      effective_floor = composite_floor - release_margin
+    if float(composite) < effective_floor:
       below.append(str(symbol))
   return below
 
@@ -276,6 +283,7 @@ async def build_cme_reopen_checklist(session: AsyncSession) -> dict[str, Any]:
     build_deploy_status,
   )
   from app.engines.gate_entry_guard import (
+    OPEN_READY_QUEUE_RELEASE_MARGIN,
     build_next_session_events,
     build_session_prep_status,
     commodities_session_info,
@@ -338,7 +346,11 @@ async def build_cme_reopen_checklist(session: AsyncSession) -> dict[str, Any]:
   near_floor_symbols = list(cme.get("near_floor_symbols") or [])
   composite_floor = cme.get("composite_floor")
   floor_value = float(composite_floor) if composite_floor is not None else None
-  below_floor = _symbols_below_floor(open_ready_details, floor_value)
+  below_floor = _symbols_below_floor(
+    open_ready_details,
+    floor_value,
+    release_margin=OPEN_READY_QUEUE_RELEASE_MARGIN,
+  )
 
   minutes_until_open = cme.get("minutes_until_open")
   prep_phase = cme.get("prep_phase") or commodities_prep.get("prep_phase")
@@ -391,7 +403,7 @@ async def build_cme_reopen_checklist(session: AsyncSession) -> dict[str, Any]:
       ],
       "auto_entry_queued": bool(cme.get("auto_entry_queued")),
       "composite_floor": composite_floor,
-      "release_margin": 0.02,
+      "release_margin": OPEN_READY_QUEUE_RELEASE_MARGIN,
     },
     "near_floor": {
       "symbols": near_floor_symbols,
