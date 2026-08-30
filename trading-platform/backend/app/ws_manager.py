@@ -73,6 +73,7 @@ async def build_live_payload(session: AsyncSession) -> dict:
     commodities_session=commodities_session_info(),
     stocks_trade_count_nudge=bool(monday_recovery.get("stocks_trade_count_nudge")),
     commodities_graduation_nudge=bool(monday_recovery.get("commodities_graduation_nudge")),
+    open_ready_rows=monday_recovery.get("open_ready"),
   )
   portfolios = (await session.execute(select(Portfolio))).scalars().all()
   sell_trades = (await session.execute(select(Trade).where(Trade.action == "sell"))).scalars().all()

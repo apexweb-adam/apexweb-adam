@@ -1164,6 +1164,36 @@ def test_build_session_prep_status_reopen_wake_active():
   assert status["stocks_futures"]["reopen_wake_active"] is True
 
 
+def test_build_session_prep_status_includes_open_ready():
+  from app.engines.gate_entry_guard import build_session_prep_status
+
+  status = build_session_prep_status(
+    stocks_session={"in_session": False, "minutes_until_open": 2220, "mode": "outside_session"},
+    commodities_session={"in_session": False, "minutes_until_open": 1290, "mode": "weekend_closed"},
+    stocks_trade_count_nudge=True,
+    commodities_graduation_nudge=True,
+    open_ready_rows=[
+      {
+        "bot_type": "commodities",
+        "symbol": "NG=F",
+        "composite": 0.57,
+        "monday_gate_skip_ready": True,
+        "blockers": ["weekend_futures_closed"],
+      },
+      {
+        "bot_type": "stocks_futures",
+        "symbol": "AAPL",
+        "composite": 0.53,
+        "monday_gate_skip_ready": True,
+        "blockers": ["stocks_session_closed"],
+      },
+    ],
+  )
+  assert status["commodities"]["open_ready_symbols"] == ["NG=F"]
+  assert status["stocks_futures"]["open_ready_symbols"] == ["AAPL"]
+  assert status["open_ready_candidates"] == ["NG=F", "AAPL"]
+
+
 def test_commodities_reopen_wake_active():
   from app.engines.gate_entry_guard import commodities_reopen_wake_active
 

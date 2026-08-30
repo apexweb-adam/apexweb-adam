@@ -1652,6 +1652,12 @@ function SessionPrepBanner({ sessionPrep }: { sessionPrep: SessionPrepStatus | n
                   · open wake
                 </span>
               ) : null}
+              {(entry.open_ready_symbols?.length ?? 0) > 0 ? (
+                <span className="text-lime-400/90" title="Will enter when session opens">
+                  {" "}
+                  · open ready: {entry.open_ready_symbols!.join(", ")}
+                </span>
+              ) : null}
               {!inSession && entry.prep_active ? (
                 <>
                   {" · "}

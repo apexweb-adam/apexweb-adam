@@ -3585,6 +3585,7 @@ def build_session_prep_status(
   commodities_session: dict[str, Any],
   stocks_trade_count_nudge: bool,
   commodities_graduation_nudge: bool,
+  open_ready_rows: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
   """Summarize whether extended weekend TV prep windows are active."""
   stocks_minutes = stocks_session.get("minutes_until_open")
@@ -3627,7 +3628,7 @@ def build_session_prep_status(
       "reopen_wake_active": reopen_wake_active,
     }
 
-  return {
+  result = {
     "stocks_futures": _prep_entry(
       "stocks_futures",
       stocks_session,
@@ -3661,6 +3662,32 @@ def build_session_prep_status(
       reopen_wake_active=commodities_reopen_wake_active(commodities_session),
     ),
   }
+
+  if open_ready_rows:
+    open_ready: list[dict[str, Any]] = []
+    for row in open_ready_rows:
+      bot_type = row.get("bot_type")
+      symbol = row.get("symbol")
+      if not bot_type or not symbol or bot_type not in result:
+        continue
+      entry = result[bot_type]
+      symbols = entry.setdefault("open_ready_symbols", [])
+      if symbol not in symbols:
+        symbols.append(symbol)
+      details = entry.setdefault("open_ready_details", [])
+      details.append(
+        {
+          "symbol": symbol,
+          "composite": row.get("composite"),
+          "monday_gate_skip_ready": bool(row.get("monday_gate_skip_ready")),
+          "blockers": row.get("blockers") or [],
+        }
+      )
+      open_ready.append(row)
+    result["open_ready"] = open_ready
+    result["open_ready_candidates"] = [row["symbol"] for row in open_ready]
+
+  return result
 
 
 def stocks_pre_session_prep_window_minutes(trade_count_nudge: bool) -> int:
