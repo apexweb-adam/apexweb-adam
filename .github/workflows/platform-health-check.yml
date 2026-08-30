@@ -29,6 +29,7 @@ jobs:
           with open("/tmp/dash-config.json") as f:
               cfg = json.load(f)
           acceptable = {
+              "2026-08-29-r98", "2026-08-29-r97", "2026-08-29-r96",
               "2026-08-29-r34", "2026-08-29-r33", "2026-08-29-r32", "2026-08-29-r31",
               "2026-08-28-r29", "2026-08-28-r28", "2026-08-28-r27",
           }
@@ -88,7 +89,11 @@ jobs:
           import json,sys
           d=json.load(sys.stdin)
           rev=d.get('bundleRevision','')
-          assert rev in ('2026-08-29-r34','2026-08-29-r33','2026-08-29-r32','2026-08-29-r31','2026-08-28-r29'), rev
+          assert rev in (
+              '2026-08-29-r98', '2026-08-29-r97', '2026-08-29-r96',
+              '2026-08-29-r34', '2026-08-29-r33', '2026-08-29-r32', '2026-08-29-r31',
+              '2026-08-28-r29',
+          ), rev
           assert (d.get('features') or {}).get('activeGate') is True
           print('OK: verified preview bundle', rev)
           "

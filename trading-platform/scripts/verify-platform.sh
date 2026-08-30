@@ -7,7 +7,7 @@ BACKEND="${BACKEND_URL:-https://apex-trading-backend.onrender.com}"
 DASHBOARD="${DASHBOARD_URL:-https://apex-trading-dashboard-flame.vercel.app}"
 FLAME="${FLAME_URL:-https://apex-trading-dashboard-flame.vercel.app}"
 GIT_MAIN="https://apex-trading-dashboard-git-main-apexweb-adams-projects.vercel.app"
-EXPECTED_BUNDLE="2026-08-29-r97"
+EXPECTED_BUNDLE="2026-08-29-r98"
 
 pass=0
 fail=0
@@ -224,7 +224,7 @@ print(f"  bundle={rev} api={str(d.get('apiUrl','?'))[:50]}")
 import sys; sys.exit(0 if ok else 1)
 PY
 if [[ $? -eq 0 ]]; then
-  ok "Verified dashboard /api/config (r97+ bundle, activeGate)"
+  ok "Verified dashboard /api/config (r98+ bundle, activeGate)"
 else
   note "Dashboard bundle stale at $DASHBOARD"
 fi

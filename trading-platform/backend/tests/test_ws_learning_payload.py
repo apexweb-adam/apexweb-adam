@@ -63,6 +63,7 @@ def test_build_live_payload_includes_learning_fields():
     assert "cme_reopen" in payload["session_open_checklists"]
     assert "deploy" in payload
     assert "cme_deploy_urgency" in payload["deploy"]
+    assert "cme_deploy_window" in payload["deploy"]
     assert "content_study" in payload
     assert isinstance(payload["analyses"], list)
     assert isinstance(payload["reviews"], list)
