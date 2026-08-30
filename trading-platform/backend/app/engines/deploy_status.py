@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
 import httpx
@@ -16,6 +16,62 @@ _deploy_status_cache: dict[str, Any] | None = None
 _deploy_status_cached_at: float = 0.0
 DEPLOY_STATUS_CACHE_TTL_SECONDS = 60
 CME_DEPLOY_REMINDER_MINUTES = 360
+CME_DEPLOY_WINDOW_START_MINUTES = 360
+CME_DEPLOY_WINDOW_END_MINUTES = 240
+DEPLOY_COMMAND = "TRIGGER_DEPLOY=true bash trading-platform/scripts/sync-render-env.sh"
+
+
+def build_cme_deploy_window(
+  *,
+  platform_revision_current: bool | None,
+  cme_minutes_until_open: int | None,
+  cme_in_session: bool = False,
+) -> dict[str, Any] | None:
+  """Countdown to the ideal Render deploy window (4–6h before CME reopen)."""
+  if platform_revision_current is not False:
+    return None
+  if cme_in_session or cme_minutes_until_open is None:
+    return None
+
+  mins = int(cme_minutes_until_open)
+  in_window = CME_DEPLOY_WINDOW_END_MINUTES <= mins <= CME_DEPLOY_WINDOW_START_MINUTES
+  until_opens = max(0, mins - CME_DEPLOY_WINDOW_START_MINUTES)
+  until_closes = max(0, mins - CME_DEPLOY_WINDOW_END_MINUTES)
+  now = datetime.utcnow()
+  window_opens_at = (now + timedelta(minutes=until_opens)).isoformat() if until_opens else None
+  window_closes_at = (now + timedelta(minutes=until_closes)).isoformat()
+
+  if in_window:
+    hours, rem = divmod(mins, 60)
+    message = (
+      f"Deploy window active — CME reopen in {hours}h {rem}m "
+      f"(deploy before {window_closes_at[:16].replace('T', ' ')} UTC)"
+    )
+  elif mins > CME_DEPLOY_WINDOW_START_MINUTES:
+    hours, rem = divmod(until_opens, 60)
+    message = (
+      f"Deploy window opens in {hours}h {rem}m "
+      f"({window_opens_at[:16].replace('T', ' ')} UTC)"
+    )
+  else:
+    hours, rem = divmod(mins, 60)
+    message = (
+      f"CME reopen in {hours}h {rem}m — deploy window closed, "
+      "risky to rotate this close to open"
+    )
+
+  return {
+    "in_window": in_window,
+    "window_closed": mins < CME_DEPLOY_WINDOW_END_MINUTES,
+    "minutes_until_open": mins,
+    "minutes_until_window_opens": until_opens,
+    "minutes_until_window_closes": until_closes if in_window else None,
+    "window_opens_at_utc": window_opens_at,
+    "window_closes_at_utc": window_closes_at,
+    "message": message,
+    "deploy_command": DEPLOY_COMMAND,
+    "verify_command": "bash trading-platform/scripts/verify-pre-deploy.sh",
+  }
 
 
 def build_cme_deploy_urgency(
@@ -39,7 +95,7 @@ def build_cme_deploy_urgency(
       f"CME reopen in {hours}h {mins}m — deploy before open for burst scan ordering "
       "and session-open auto-entry logging"
     ),
-    "deploy_command": "TRIGGER_DEPLOY=true bash trading-platform/scripts/sync-render-env.sh",
+    "deploy_command": DEPLOY_COMMAND,
   }
 
 
@@ -76,7 +132,7 @@ PRODUCTION_DASHBOARD_URL = "https://apex-trading-dashboard-flame.vercel.app"
 DEFAULT_VERIFIED_DASHBOARD_URL = "https://apex-trading-dashboard-o7tb7wydk-apexweb-adams-projects.vercel.app"
 DEFAULT_VERIFIED_DEPLOYMENT_ID = "dpl_Cn62LPUnD83i28cydia12AKr3uUw"
 EXPECTED_DASHBOARD_BUNDLE = "2026-08-29-r97"
-EXPECTED_PLATFORM_REVISION = "2026-08-29-r352"
+EXPECTED_PLATFORM_REVISION = "2026-08-29-r353"
 GIT_MAIN_ALIAS = "apex-trading-dashboard-git-main"
 ACCEPTABLE_DASHBOARD_BUNDLES = frozenset({
   "2026-08-27-r9", "2026-08-27-r10", "2026-08-27-r11", "2026-08-27-r12",

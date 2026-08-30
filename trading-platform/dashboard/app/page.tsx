@@ -66,7 +66,7 @@ import { IntelRoutingPanel } from "@/components/IntelRoutingPanel";
 type Tab = "overview" | "trades" | "positions" | "intelligence" | "learning" | "strategy";
 
 export default function Dashboard() {
-  const { stats, portfolios, bots, positions: livePositions, trades: liveTrades, recentIntel, analyses: liveAnalyses, reviews: liveReviews, insights: liveInsights, strategies: liveStrategies, intelSources: liveIntelSources, verificationHistory: liveVerificationHistory, connected, lastUpdate, lastTrade, profitabilityGate: liveProfitability, gateEntryTightening, botSessions, mondayRecovery, sessionPrep, nextSessionEvents, contentStudy, sessionOpenEvents, sessionOpenChecklists, cmeDeployUrgency } = useLiveData();
+  const { stats, portfolios, bots, positions: livePositions, trades: liveTrades, recentIntel, analyses: liveAnalyses, reviews: liveReviews, insights: liveInsights, strategies: liveStrategies, intelSources: liveIntelSources, verificationHistory: liveVerificationHistory, connected, lastUpdate, lastTrade, profitabilityGate: liveProfitability, gateEntryTightening, botSessions, mondayRecovery, sessionPrep, nextSessionEvents, contentStudy, sessionOpenEvents, sessionOpenChecklists, cmeDeployUrgency, cmeDeployWindow } = useLiveData();
   const { data: tradesRest } = useAPI<Trade[]>("/trades?limit=50", 30000);
   const { data: gateTradesRest } = useAPI<Trade[]>("/trades?limit=200", 30000);
   const { data: positionsRest } = useAPI<Position[]>("/positions", 30000);
@@ -322,6 +322,19 @@ export default function Dashboard() {
               <IntelAlertBanner platformStatus={platformStatus} intelSources={liveIntelSources} />
               <CmeDeployUrgencyBanner
                 urgency={cmeDeployUrgency ?? platformStatus?.deploy?.cme_deploy_urgency}
+              />
+              <CmeDeployWindowBanner
+                window={
+                  cmeDeployWindow ??
+                  platformStatus?.deploy?.cme_deploy_window ??
+                  null
+                }
+                urgencyActive={
+                  Boolean(
+                    cmeDeployUrgency?.active ??
+                      platformStatus?.deploy?.cme_deploy_urgency?.active
+                  )
+                }
               />
               <SessionOpenChecklistsCard
                 checklists={
@@ -1889,6 +1902,29 @@ function IntelAlertBanner({
       <p className="text-xs text-yellow-200/70 mt-1">
         Check integrations — trading continues on active sources.
       </p>
+    </div>
+  );
+}
+
+function CmeDeployWindowBanner({
+  window: deployWindow,
+  urgencyActive,
+}: {
+  window: PlatformStatus["deploy"] extends infer D
+    ? D extends { cme_deploy_window?: infer W }
+      ? W
+      : never
+    : never;
+  urgencyActive: boolean;
+}) {
+  if (!deployWindow || urgencyActive || deployWindow.window_closed) return null;
+  if (deployWindow.in_window) return null;
+
+  return (
+    <div className="rounded-lg border border-amber-500/40 bg-amber-950/30 p-4">
+      <p className="text-sm font-semibold text-amber-200">CME deploy window countdown</p>
+      <p className="text-xs text-amber-100/80 mt-1">{deployWindow.message}</p>
+      <p className="text-[11px] font-mono text-gray-400 mt-2 break-all">{deployWindow.verify_command}</p>
     </div>
   );
 }
