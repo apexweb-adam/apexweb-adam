@@ -515,6 +515,14 @@ export type PlatformDeployStatus = {
   stale_minutes?: number | null;
   commits_behind?: number;
   pending_changes?: { sha: string; message: string }[];
+  platform_revision_current?: boolean | null;
+  expected_platform_revision?: string | null;
+  cme_deploy_urgency?: {
+    active: boolean;
+    minutes_until_open: number;
+    message: string;
+    deploy_command: string;
+  } | null;
   next_steps: string[];
 };
 

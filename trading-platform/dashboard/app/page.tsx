@@ -319,6 +319,7 @@ export default function Dashboard() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-6">
               <IntelAlertBanner platformStatus={platformStatus} intelSources={liveIntelSources} />
+              <CmeDeployUrgencyBanner urgency={platformStatus?.deploy?.cme_deploy_urgency} />
               <SessionImminentBanners events={nextSessionEvents} sessionPrep={sessionPrep} />
               <NextSessionsCard events={nextSessionEvents} sessionPrep={sessionPrep} />
               <SessionOpenLogCard events={platformStatus?.session_open_events} />
@@ -1874,6 +1875,26 @@ function IntelAlertBanner({
       <p className="text-xs text-yellow-200/70 mt-1">
         Check integrations — trading continues on active sources.
       </p>
+    </div>
+  );
+}
+
+function CmeDeployUrgencyBanner({
+  urgency,
+}: {
+  urgency?: PlatformStatus["deploy"] extends infer D
+    ? D extends { cme_deploy_urgency?: infer U }
+      ? U
+      : never
+    : never;
+}) {
+  if (!urgency?.active) return null;
+
+  return (
+    <div className="rounded-lg border border-red-500/50 bg-red-950/40 p-4">
+      <p className="text-sm font-semibold text-red-300">Deploy before CME reopen</p>
+      <p className="text-xs text-red-200/80 mt-1">{urgency.message}</p>
+      <p className="text-[11px] font-mono text-gray-400 mt-2 break-all">{urgency.deploy_command}</p>
     </div>
   );
 }
