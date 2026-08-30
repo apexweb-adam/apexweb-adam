@@ -129,6 +129,9 @@ def test_print_deploy_window_summary_script_exists():
   assert "deploy_json.py" in text
   assert "Intel: sources API ready" in text
   assert "verify-cme-post-open.sh" in text
+  assert "sticky_symbols" in text
+  assert "near_floor" in text
+  assert "us-stocks-open-checklist" in text
 
 
 def test_run_deploy_window_includes_summary_script():

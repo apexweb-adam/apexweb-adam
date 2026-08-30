@@ -11,13 +11,14 @@ CODE_REV="$(grep '^EXPECTED_PLATFORM_REVISION' "$ROOT/backend/app/engines/deploy
 
 SNAPSHOT=$(fetch_json "$BACKEND/api/deploy/snapshot" 45 2)
 CME=$(fetch_json "$BACKEND/api/gate/cme-reopen-checklist" 60 2)
+US_CHECKLIST=$(fetch_json "$BACKEND/api/gate/us-stocks-open-checklist" 45 2)
 INTEL_SOURCES=$(fetch_json "$BACKEND/api/intelligence/sources" 30 2)
 BASELINE=""
 if [[ -f "$ROOT/.crm-load-baseline" ]]; then
   BASELINE=$(tr -d '[:space:]' < "$ROOT/.crm-load-baseline")
 fi
 
-CODE_REV="$CODE_REV" BASELINE="$BASELINE" SNAPSHOT_JSON="$SNAPSHOT" CME_JSON="$CME" INTEL_JSON="$INTEL_SOURCES" LIB="$LIB" python3 << 'PY'
+CODE_REV="$CODE_REV" BASELINE="$BASELINE" SNAPSHOT_JSON="$SNAPSHOT" CME_JSON="$CME" US_JSON="$US_CHECKLIST" INTEL_JSON="$INTEL_SOURCES" LIB="$LIB" python3 << 'PY'
 import json, os, subprocess, sys
 from pathlib import Path
 
@@ -25,6 +26,7 @@ code_rev = os.environ.get("CODE_REV") or "?"
 baseline = os.environ.get("BASELINE") or ""
 snap = json.loads(os.environ.get("SNAPSHOT_JSON") or "{}")
 cme = json.loads(os.environ.get("CME_JSON") or "{}")
+us = json.loads(os.environ.get("US_JSON") or "{}")
 intel_raw = os.environ.get("INTEL_JSON") or "[]"
 lib = os.environ.get("LIB") or ""
 
@@ -43,14 +45,53 @@ if window.get("message"):
     label = "ACTIVE" if window.get("in_window") else "pending"
     print(f"CME deploy window ({label}): {window.get('message')}")
 
-open_ready = (cme.get("open_ready") or {}).get("symbols") or []
-auto_entry = (cme.get("open_ready") or {}).get("auto_entry_queued")
+open_ready_block = cme.get("open_ready") or {}
+open_ready = open_ready_block.get("symbols") or []
+sticky = open_ready_block.get("sticky_symbols") or []
+auto_entry = open_ready_block.get("auto_entry_queued")
+release_margin = open_ready_block.get("release_margin")
 mins = cme.get("minutes_until_open")
-if open_ready or mins is not None:
-    print(
-        f"CME reopen: open_ready={open_ready or 'none'} "
-        f"auto_entry={auto_entry} open_in={mins}min"
-    )
+near_block = cme.get("near_floor") or {}
+near_symbols = near_block.get("symbols") or []
+if open_ready or sticky or near_symbols or mins is not None:
+    parts = [f"CME reopen: open_ready={open_ready or 'none'}"]
+    if sticky:
+        parts.append(f"sticky={sticky}")
+    if near_symbols:
+        parts.append(f"near_floor={near_symbols}")
+    parts.append(f"auto_entry={auto_entry}")
+    if release_margin is not None:
+        parts.append(f"release_margin={release_margin}")
+    if mins is not None:
+        parts.append(f"open_in={mins}min")
+    print(" ".join(parts))
+    for row in near_block.get("details") or []:
+        sym = row.get("symbol")
+        comp = row.get("composite")
+        gap = row.get("gap_to_floor")
+        if sym and gap is not None:
+            print(f"  near_floor {sym}: composite={comp} need +{gap}")
+
+if us:
+    checks = {c.get("id"): c for c in us.get("checks") or []}
+    stocks = checks.get("stocks_active") or {}
+    us_open = (us.get("open_ready") or {}).get("symbols") or []
+    us_sticky = (us.get("open_ready") or {}).get("sticky_symbols") or []
+    us_mins = us.get("minutes_until_open")
+    if stocks.get("status") == "fail":
+        syms = ", ".join(us_open) if us_open else "none"
+        print(
+            f"US stocks: bot paused — Monday auto-entry for {syms} "
+            f"blocked until profitability gate clears "
+            f"(open in {us_mins}min)"
+        )
+    elif us_open or us_sticky:
+        parts = [f"US stocks: open_ready={us_open or 'none'}"]
+        if us_sticky:
+            parts.append(f"sticky={us_sticky}")
+        if us_mins is not None:
+            parts.append(f"open_in={us_mins}min")
+        print(" ".join(parts))
 
 ready = snap.get("deploy_credentials_ready")
 warnings = snap.get("deploy_credentials_warnings") or []
