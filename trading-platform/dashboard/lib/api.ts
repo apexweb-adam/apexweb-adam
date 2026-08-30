@@ -282,6 +282,14 @@ export type SessionPrepEntry = {
     monday_gate_skip_ready?: boolean;
     blockers?: string[];
   }>;
+  near_floor_symbols?: string[];
+  near_floor_details?: Array<{
+    symbol: string;
+    composite?: number;
+    direction?: string;
+    macd?: string;
+    blockers?: string[];
+  }>;
 };
 
 export type SessionPrepStatus = {
@@ -311,6 +319,8 @@ export type NextSessionEvent = {
   auto_entry_queued?: boolean;
   prep_scan_label?: string;
   composite_floor?: number | null;
+  near_floor_symbols?: string[];
+  near_floor_details?: OpenReadyDetail[];
   prep_phase?: "extended" | "imminent" | "wake" | "open";
   minutes_until_imminent_scan?: number | null;
   minutes_until_wake?: number | null;

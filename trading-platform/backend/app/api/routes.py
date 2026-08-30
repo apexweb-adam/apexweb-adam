@@ -243,6 +243,7 @@ async def get_session_prep_status(db: AsyncSession = Depends(get_db)) -> dict[st
     stocks_trade_count_nudge=bool(recovery.get("stocks_trade_count_nudge")),
     commodities_graduation_nudge=bool(recovery.get("commodities_graduation_nudge")),
     open_ready_rows=recovery.get("open_ready"),
+    near_floor_rows=recovery.get("near_floor"),
   )
 
 
@@ -507,6 +508,7 @@ async def get_platform_status(db: AsyncSession = Depends(get_db)) -> dict[str, A
     stocks_trade_count_nudge=bool(monday_recovery.get("stocks_trade_count_nudge")),
     commodities_graduation_nudge=bool(monday_recovery.get("commodities_graduation_nudge")),
     open_ready_rows=monday_recovery.get("open_ready"),
+    near_floor_rows=monday_recovery.get("near_floor"),
   )
   next_session_events = build_next_session_events(
     session_prep=session_prep,

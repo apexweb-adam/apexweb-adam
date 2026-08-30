@@ -67,6 +67,7 @@ from app.engines.gate_entry_guard import (
   symbol_cooldown_remaining_seconds,
   commodities_monday_recovery_ready,
   commodities_monday_open_ready,
+  commodities_near_floor_candidate,
   commodities_monday_futures_gate_skip_bypass,
   commodities_session_info,
   commodities_gate_fast_scan_active,
@@ -84,6 +85,7 @@ from app.engines.gate_entry_guard import (
   shadow_requires_macd,
   stocks_monday_gate_skip_bypass,
   stocks_monday_open_ready,
+  stocks_near_floor_candidate,
   stocks_monday_recovery_ready,
   stocks_trade_count_entry_min_signal,
   stocks_trade_count_graduation_nudge,
@@ -810,6 +812,49 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
         last_exit_reason=last_exit_reasons.get(symbol),
       )
 
+    monday_open_ready = (
+      commodities_monday_open_ready(
+        bot_type=bot_type,
+        shadow_mode=shadow_mode,
+        symbol=symbol,
+        composite=composite,
+        signal_direction=signal.direction,
+        macd_signal=signal.macd_signal,
+        blockers=blockers,
+        graduation_nudge=graduation_nudge,
+      )
+      or stocks_monday_open_ready(
+        bot_type=bot_type,
+        shadow_mode=shadow_mode,
+        symbol=symbol,
+        proven_winners=proven_winners,
+        bot_win_rate=per_bot_stats.get("win_rate"),
+        composite=composite,
+        signal_direction=signal.direction,
+        macd_signal=signal.macd_signal,
+        blockers=blockers,
+        total_trades=int(per_bot_stats.get("total_trades") or 0),
+      )
+    )
+    near_floor = (
+      commodities_near_floor_candidate(
+        composite=composite,
+        signal_direction=signal.direction,
+        macd_signal=signal.macd_signal,
+        blockers=blockers,
+        graduation_nudge=graduation_nudge,
+        monday_open_ready=monday_open_ready,
+      )
+      or stocks_near_floor_candidate(
+        composite=composite,
+        signal_direction=signal.direction,
+        macd_signal=signal.macd_signal,
+        blockers=blockers,
+        trade_count_nudge=stocks_trade_count_nudge,
+        monday_open_ready=monday_open_ready,
+      )
+    )
+
     previews.append(
       {
         "symbol": symbol,
@@ -843,30 +888,8 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
             total_trades=int(per_bot_stats.get("total_trades") or 0),
           )
         ),
-        "monday_open_ready": (
-          commodities_monday_open_ready(
-            bot_type=bot_type,
-            shadow_mode=shadow_mode,
-            symbol=symbol,
-            composite=composite,
-            signal_direction=signal.direction,
-            macd_signal=signal.macd_signal,
-            blockers=blockers,
-            graduation_nudge=graduation_nudge,
-          )
-          or stocks_monday_open_ready(
-            bot_type=bot_type,
-            shadow_mode=shadow_mode,
-            symbol=symbol,
-            proven_winners=proven_winners,
-            bot_win_rate=per_bot_stats.get("win_rate"),
-            composite=composite,
-            signal_direction=signal.direction,
-            macd_signal=signal.macd_signal,
-            blockers=blockers,
-            total_trades=int(per_bot_stats.get("total_trades") or 0),
-          )
-        ),
+        "monday_open_ready": monday_open_ready,
+        "near_floor_candidate": near_floor,
         "monday_gate_skip_ready": monday_gate_skip_ready,
         "crypto_retreat_gate_skip_ready": crypto_retreat_gate_skip_ready,
         "crypto_retreat_cooldown_ready": crypto_retreat_cooldown_ready,
@@ -879,6 +902,7 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
   previews.sort(key=lambda row: row.get("composite", 0), reverse=True)
   recovery_candidates = [row["symbol"] for row in previews if row.get("recovery_ready")]
   open_ready_candidates = [row["symbol"] for row in previews if row.get("monday_open_ready")]
+  near_floor_candidates = [row["symbol"] for row in previews if row.get("near_floor_candidate")]
   session = (
     commodities_session_info()
     if bot_type == "commodities"
@@ -1040,6 +1064,7 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
     "session": session,
     "recovery_candidates": recovery_candidates,
     "open_ready_candidates": open_ready_candidates,
+    "near_floor_candidates": near_floor_candidates,
     "symbols": previews,
   }
 
@@ -1052,6 +1077,7 @@ async def build_monday_recovery_summary(session: AsyncSession) -> dict[str, Any]
   bots: dict[str, Any] = {}
   all_rows: list[dict[str, Any]] = []
   open_ready_rows: list[dict[str, Any]] = []
+  near_floor_rows: list[dict[str, Any]] = []
   stocks_trade_count_nudge = False
   commodities_graduation_nudge = False
 
@@ -1068,12 +1094,17 @@ async def build_monday_recovery_summary(session: AsyncSession) -> dict[str, Any]
     open_ready_symbols = [
       row for row in preview.get("symbols", []) if row.get("monday_open_ready")
     ]
+    near_floor_symbols = [
+      row for row in preview.get("symbols", []) if row.get("near_floor_candidate")
+    ]
     bot_entry: dict[str, Any] = {
       "recovery_candidates": candidates,
       "session": preview.get("session"),
       "symbols": [],
       "open_ready_candidates": preview.get("open_ready_candidates") or [],
       "open_ready_symbols": open_ready_symbols,
+      "near_floor_candidates": preview.get("near_floor_candidates") or [],
+      "near_floor_symbols": near_floor_symbols,
       "stocks_trade_count_nudge": preview.get("stocks_trade_count_nudge"),
       "graduation_nudge": preview.get("graduation_nudge"),
     }
@@ -1090,6 +1121,18 @@ async def build_monday_recovery_summary(session: AsyncSession) -> dict[str, Any]
           "blockers": row.get("blockers") or [],
           "minutes_until_open": minutes_until_open,
           "monday_gate_skip_ready": bool(row.get("monday_gate_skip_ready")),
+        }
+      )
+    for row in near_floor_symbols:
+      near_floor_rows.append(
+        {
+          "bot_type": bot_type,
+          "symbol": row["symbol"],
+          "composite": row.get("composite"),
+          "direction": row.get("direction"),
+          "macd": row.get("macd"),
+          "blockers": row.get("blockers") or [],
+          "minutes_until_open": minutes_until_open,
         }
       )
     if candidates:
@@ -1114,8 +1157,10 @@ async def build_monday_recovery_summary(session: AsyncSession) -> dict[str, Any]
     "bots": bots,
     "all": all_rows,
     "open_ready": open_ready_rows,
+    "near_floor": near_floor_rows,
     "recovery_candidates": [row["symbol"] for row in all_rows],
     "open_ready_candidates": [row["symbol"] for row in open_ready_rows],
+    "near_floor_candidates": [row["symbol"] for row in near_floor_rows],
     "stocks_trade_count_nudge": stocks_trade_count_nudge,
     "commodities_graduation_nudge": commodities_graduation_nudge,
   }
