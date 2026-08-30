@@ -120,7 +120,9 @@ fi
 
 if [[ "$rc" -eq 10 ]]; then
   echo ""
-  echo "*** Deploy window is ACTIVE — run:"
+  bash "$ROOT/scripts/print-deploy-window-summary.sh" || true
+  echo ""
+  echo "*** DEPLOY WINDOW ACTIVE — run:"
   echo "  bash trading-platform/scripts/run-deploy-window.sh"
   echo "  # preflight only:"
   echo "  bash trading-platform/scripts/run-deploy-window.sh --dry-run"

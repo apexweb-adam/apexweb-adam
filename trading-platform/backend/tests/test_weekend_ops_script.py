@@ -88,7 +88,23 @@ def test_run_deploy_window_includes_credentials_check():
   script = SCRIPTS / "run-deploy-window.sh"
   text = script.read_text(encoding="utf-8")
   assert "check-deploy-credentials.sh" in text
-  assert ".crm-load-baseline" in text
+  assert "print-deploy-window-summary.sh" in text
+
+
+def test_print_deploy_window_summary_script_exists():
+  script = SCRIPTS / "print-deploy-window-summary.sh"
+  text = script.read_text(encoding="utf-8")
+  assert "Deploy Window Operator Summary" in text
+  assert "/api/deploy/snapshot" in text
+  assert "cme-reopen-checklist" in text
+  assert "deploy_credentials_ready" in text
+  assert "verify-cme-post-open.sh" in text
+
+
+def test_run_deploy_window_includes_summary_script():
+  script = SCRIPTS / "run-deploy-window.sh"
+  text = script.read_text(encoding="utf-8")
+  assert "print-deploy-window-summary.sh" in text
 
 
 def test_check_deploy_credentials_script_exists():
@@ -109,6 +125,7 @@ def test_verify_weekend_ops_includes_gate_and_revision_hints():
   assert "Profitability gate:" not in text  # delegated to helper
   assert "deploy_credentials_ready" in text
   assert "deploy_credentials_warnings" in text
+  assert "print-deploy-window-summary.sh" in text
   assert "deploy will advance prod expected" in text
 
 
