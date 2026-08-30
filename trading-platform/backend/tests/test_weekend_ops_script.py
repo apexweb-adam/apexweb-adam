@@ -161,6 +161,8 @@ def test_verify_cme_post_open_supports_watch_mode():
   assert "--watch" in text
   assert "Watching for CME post-open" in text
   assert "run_verification" in text
+  assert "extended_watch" in text
+  assert "expected_platform_revision" in text
 
 
 def test_wait_for_render_deploy_waits_for_status_revision():
