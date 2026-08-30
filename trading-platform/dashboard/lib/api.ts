@@ -272,6 +272,7 @@ export type SessionPrepEntry = {
   session_mode: string | null;
   gate_fast_scan_active?: boolean;
   gate_reopen_imminent?: boolean;
+  reopen_wake_active?: boolean;
 };
 
 export type SessionPrepStatus = {

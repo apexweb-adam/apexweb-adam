@@ -120,6 +120,7 @@ class BaseBot(ABC):
     self._symbol_cooldown_until: dict[str, datetime] = {}
     self._last_exit_reason: dict[str, str] = {}
     self._last_exit_after_loss: dict[str, bool] = {}
+    self._prev_session_in_market: bool | None = None
 
   def _cooldown_seconds(self, *, after_loss: bool) -> int | None:
     if self.bot_type == "crypto":
@@ -1542,7 +1543,14 @@ class StocksFuturesBot(BaseBot):
       except Exception as e:
         print(f"[{self.bot_type}] Error in scan: {e}")
         await self._record_scan_failure(str(e))
-      await asyncio.sleep(await self._effective_scan_interval())
+      from app.engines.gate_entry_guard import stocks_session_info
+
+      session_info = stocks_session_info()
+      in_session = bool(session_info.get("in_session"))
+      burst = self._prev_session_in_market is False and in_session
+      self._prev_session_in_market = in_session
+      if not burst:
+        await asyncio.sleep(await self._effective_scan_interval())
 
   async def scan_and_trade(self) -> list[dict]:
     in_session = self._in_us_session()
@@ -1641,7 +1649,14 @@ class CommoditiesBot(BaseBot):
       except Exception as e:
         print(f"[{self.bot_type}] Error in scan: {e}")
         await self._record_scan_failure(str(e))
-      await asyncio.sleep(await self._effective_scan_interval())
+      from app.engines.gate_entry_guard import commodities_session_info
+
+      session_info = commodities_session_info()
+      in_session = bool(session_info.get("in_session"))
+      burst = self._prev_session_in_market is False and in_session
+      self._prev_session_in_market = in_session
+      if not burst:
+        await asyncio.sleep(await self._effective_scan_interval())
 
 
 class PolymarketBot(BaseBot):

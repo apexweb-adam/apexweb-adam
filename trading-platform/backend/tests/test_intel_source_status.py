@@ -6,11 +6,21 @@ from unittest.mock import AsyncMock, patch
 from app.engines.intel_source_status import _source_status
 
 
-def test_reddit_degraded_without_oauth_status():
+def test_reddit_active_via_rss_without_oauth_status():
   status = _source_status(
     "reddit",
     source_counts={"reddit": 5},
     source_latest={"reddit": datetime.now(timezone.utc)},
+    configured={"reddit": True, "reddit_oauth": False},
+  )
+  assert status == "active"
+
+
+def test_reddit_degraded_without_oauth_when_stale():
+  status = _source_status(
+    "reddit",
+    source_counts={"reddit": 5},
+    source_latest={"reddit": datetime.now(timezone.utc) - timedelta(hours=30)},
     configured={"reddit": True, "reddit_oauth": False},
   )
   assert status == "degraded"
@@ -151,8 +161,9 @@ def test_reddit_degraded_without_oauth():
           sources = asyncio.run(build_intel_sources(session))
 
   reddit = next(s for s in sources if s["source"] == "reddit")
-  assert reddit["status"] == "degraded"
+  assert reddit["status"] == "active"
   assert reddit["oauth_configured"] is False
+  assert reddit["collection_mode"] == "rss"
 
 
 def test_fomo_active_when_bearer_expired_but_recent_webhook_items():

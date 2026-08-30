@@ -3402,6 +3402,10 @@ COMMODITIES_MONDAY_SCAN_PREP_MINUTES = 90
 COMMODITIES_GRADUATION_PREP_MINUTES = 4320  # 72h — weekend TV refresh before CME reopen
 COMMODITIES_REOPEN_IMMINENT_SCAN_MINUTES = 60
 COMMODITIES_REOPEN_IMMINENT_SCAN_INTERVAL = 5
+CME_REOPEN_WAKE_MINUTES_BEFORE = 3
+CME_REOPEN_WAKE_MINUTES_AFTER = 5
+US_OPEN_WAKE_MINUTES_BEFORE = 3
+US_OPEN_WAKE_MINUTES_AFTER = 5
 # NG first — typical Sunday CME reopen leader; then energy/metals breadth.
 COMMODITIES_MONDAY_FUTURES_SCAN_ORDER = ("NG=F", "CL=F", "GC=F", "SI=F", "HG=F")
 
@@ -3599,6 +3603,7 @@ def build_session_prep_status(
     *,
     gate_fast_scan_active: bool,
     gate_reopen_imminent: bool = False,
+    reopen_wake_active: bool = False,
   ) -> dict[str, Any]:
     minutes_until = session_info.get("minutes_until_open")
     in_session = bool(session_info.get("in_session"))
@@ -3619,6 +3624,7 @@ def build_session_prep_status(
       "session_mode": session_info.get("mode"),
       "gate_fast_scan_active": gate_fast_scan_active,
       "gate_reopen_imminent": gate_reopen_imminent,
+      "reopen_wake_active": reopen_wake_active,
     }
 
   return {
@@ -3636,6 +3642,7 @@ def build_session_prep_status(
         stocks_session,
         trade_count_nudge=stocks_trade_count_nudge,
       ),
+      reopen_wake_active=stocks_open_wake_active(stocks_session),
     ),
     "commodities": _prep_entry(
       "commodities",
@@ -3651,6 +3658,7 @@ def build_session_prep_status(
         commodities_session,
         graduation_nudge=commodities_graduation_nudge,
       ),
+      reopen_wake_active=commodities_reopen_wake_active(commodities_session),
     ),
   }
 
@@ -3928,6 +3936,32 @@ def commodities_reopen_imminent_scan_active(
     minutes_until is not None
     and minutes_until <= COMMODITIES_REOPEN_IMMINENT_SCAN_MINUTES
   )
+
+
+def commodities_reopen_wake_active(session_info: dict[str, Any] | None = None) -> bool:
+  """Whether the CME reopen wake TV-refresh window is active (T-3m / T+5m)."""
+  session = session_info or commodities_session_info()
+  minutes_until = session.get("minutes_until_open")
+  minutes_since = session.get("minutes_since_open")
+  in_session = bool(session.get("in_session"))
+  if not in_session and minutes_until is not None:
+    return minutes_until <= CME_REOPEN_WAKE_MINUTES_BEFORE
+  if in_session and minutes_since is not None:
+    return minutes_since <= CME_REOPEN_WAKE_MINUTES_AFTER
+  return False
+
+
+def stocks_open_wake_active(session_info: dict[str, Any] | None = None) -> bool:
+  """Whether the US cash open wake TV-refresh window is active (T-3m / T+5m)."""
+  session = session_info or stocks_session_info()
+  minutes_until = session.get("minutes_until_open")
+  minutes_since = session.get("minutes_since_open")
+  in_session = bool(session.get("in_session"))
+  if not in_session and minutes_until is not None:
+    return minutes_until <= US_OPEN_WAKE_MINUTES_BEFORE
+  if in_session and minutes_since is not None:
+    return minutes_since <= US_OPEN_WAKE_MINUTES_AFTER
+  return False
 
 
 def commodities_effective_scan_interval(
