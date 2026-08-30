@@ -125,7 +125,31 @@ if [[ "$PROD_REV" == "$CODE_REV" ]]; then
   fi
 else
   ok "Production behind code ($PROD_REV → $CODE_REV)"
-  note "Post-deploy contract (cme_deploy_window, sticky_symbols) will verify after deploy"
+  note "Post-deploy: verify-post-deploy.sh checks r385+ intel (X mode, TV synthetic exclusion)"
+fi
+
+INTEL_SOURCES=$(curl -fsS -m 25 "$BACKEND/api/intelligence/sources" 2>/dev/null || echo "[]")
+INTEL_STATUS=$(echo "$INTEL_SOURCES" | python3 -c "
+import json, sys
+raw = json.load(sys.stdin)
+sources = raw.get('sources', raw) if isinstance(raw, dict) else raw
+if not isinstance(sources, list):
+    print('missing')
+    sys.exit(0)
+by = {s.get('source'): s for s in sources if isinstance(s, dict)}
+x = by.get('x') or {}
+tv = by.get('tradingview') or {}
+if x.get('collection_mode') and tv.get('scoring_excludes_synthetic') is True:
+    print('ok')
+else:
+    print('missing')
+" 2>/dev/null || echo "missing")
+if [[ "$INTEL_STATUS" == "ok" ]]; then
+  ok "Intel source health fields live (r385+)"
+elif [[ "$PROD_REV" != "$CODE_REV" ]]; then
+  note "Intel r385 fields not on production yet — activates after deploy"
+else
+  note "Intel r385 fields missing — confirm revision or run intelligence scan"
 fi
 
 CRM_TIME=$(curl -sS -o /dev/null -m 120 -w "%{time_total}" "$BACKEND/crm" 2>/dev/null || echo "")

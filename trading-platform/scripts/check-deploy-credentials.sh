@@ -22,12 +22,14 @@ while [[ $# -gt 0 ]]; do
 done
 
 SNAPSHOT=$(curl -fsS -m 15 "$BACKEND/api/deploy/snapshot" 2>/dev/null || echo "{}")
-STRICT_FLAG="$STRICT" SNAPSHOT_JSON="$SNAPSHOT" ENV_FILE="$ENV_FILE" python3 << 'PY'
+CODE_REV="$(grep '^EXPECTED_PLATFORM_REVISION' "$ROOT/backend/app/engines/deploy_status.py" | sed -n 's/.*"\([^"]*\)".*/\1/p')"
+STRICT_FLAG="$STRICT" SNAPSHOT_JSON="$SNAPSHOT" ENV_FILE="$ENV_FILE" CODE_REV="$CODE_REV" python3 << 'PY'
 import json, os, sys
 
 strict = os.environ.get("STRICT_FLAG") == "true"
 snap = json.loads(os.environ.get("SNAPSHOT_JSON") or "{}")
 env_file = os.environ.get("ENV_FILE") or ""
+code_rev = os.environ.get("CODE_REV") or ""
 
 warnings = list(snap.get("deploy_credentials_warnings") or [])
 ready = snap.get("deploy_credentials_ready")
@@ -42,6 +44,17 @@ if ready is None:
     ready = len(warnings) == 0
 
 print("=== Deploy credentials ===")
+prod_rev = snap.get("platform_revision") or "?"
+if code_rev:
+    print(f"revision: production={prod_rev} code_target={code_rev}")
+    if prod_rev != code_rev:
+        print(f"  → deploy advances {prod_rev} → {code_rev}")
+x_mode = snap.get("x_intel_collection_mode")
+if x_mode:
+    print(f"X intel (production): {x_mode}")
+elif code_rev and prod_rev != code_rev:
+    print("X intel: google_news_rss activates after deploy (r384+)")
+
 if snap.get("fomo_bearer_configured") is not None:
     mins = snap.get("fomo_bearer_minutes_remaining")
     tier = snap.get("fomo_bearer_nudge_tier")
@@ -62,11 +75,21 @@ else:
 
 if env_file and os.path.isfile(env_file):
     has_github = False
+    local_rev = None
     with open(env_file, encoding="utf-8") as fh:
         for line in fh:
             if line.startswith("GITHUB_TOKEN=") and line.strip() != "GITHUB_TOKEN=":
                 has_github = True
-                break
+            if line.startswith("PLATFORM_REVISION="):
+                val = line.split("=", 1)[1].strip().strip('"').strip("'")
+                if val:
+                    local_rev = val
+    if local_rev and code_rev and local_rev != code_rev:
+        print(f"local .env: PLATFORM_REVISION={local_rev} (code expects {code_rev})")
+        warnings.append(f"local PLATFORM_REVISION stale ({local_rev} vs {code_rev})")
+        ready = False
+    elif local_rev and code_rev:
+        print(f"local .env: PLATFORM_REVISION={local_rev}")
     if has_github:
         print("local .env: GITHUB_TOKEN present")
     else:

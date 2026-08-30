@@ -188,6 +188,22 @@ def test_watch_deploy_window_shows_credentials_when_active():
   assert "check-deploy-credentials.sh --strict" in text
 
 
+def test_check_deploy_credentials_shows_revision_gap():
+  script = SCRIPTS / "check-deploy-credentials.sh"
+  text = script.read_text(encoding="utf-8")
+  assert "code_target=" in text
+  assert "PLATFORM_REVISION" in text
+  assert "x_intel_collection_mode" in text or "google_news_rss activates" in text
+
+
+def test_verify_pre_deploy_intel_readiness():
+  script = SCRIPTS / "verify-pre-deploy.sh"
+  text = script.read_text(encoding="utf-8")
+  assert "Intel source health fields" in text
+  assert "r385" in text
+  assert "/api/intelligence/sources" in text
+
+
 def test_verify_post_deploy_checks_learning_endpoint():
   script = SCRIPTS / "verify-post-deploy.sh"
   text = script.read_text(encoding="utf-8")
