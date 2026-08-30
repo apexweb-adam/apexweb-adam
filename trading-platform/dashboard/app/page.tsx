@@ -1665,6 +1665,11 @@ function NextSessionsCard({
   if (rows.length === 0) return null;
 
   const hasAutoEntry = rows.some((row) => row.ready !== "—");
+  const detailRows = [
+    ...(cme?.open_ready_details ?? commPrep?.open_ready_details ?? []),
+    ...(us?.open_ready_details ?? stocksPrep?.open_ready_details ?? []),
+  ];
+  const compositeFloor = cme?.composite_floor;
 
   return (
     <div className="rounded-lg border border-sky-500/30 bg-sky-950/20 p-4">
@@ -1686,6 +1691,39 @@ function NextSessionsCard({
         <p className="text-[11px] text-lime-400/80 mt-2">
           Gate-skip eligible — bots auto-enter when session opens.
         </p>
+      ) : null}
+      {detailRows.length > 0 ? (
+        <div className="mt-3 overflow-x-auto">
+          <table className="w-full text-[11px] text-gray-300">
+            <thead>
+              <tr className="text-gray-500">
+                <th className="text-left pr-2">Symbol</th>
+                <th className="text-left pr-2">Comp</th>
+                <th className="text-left pr-2">Signal</th>
+                <th className="text-left pr-2">MACD</th>
+                <th className="text-left">Blockers</th>
+              </tr>
+            </thead>
+            <tbody>
+              {detailRows.map((row) => (
+                <tr key={row.symbol}>
+                  <td className="pr-2 font-medium text-white">{row.symbol}</td>
+                  <td className="pr-2">
+                    {row.composite != null ? row.composite.toFixed(3) : "—"}
+                  </td>
+                  <td className="pr-2">{row.direction ?? "—"}</td>
+                  <td className="pr-2">{row.macd ?? "—"}</td>
+                  <td>{formatScanBlockers(row.blockers)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {compositeFloor != null ? (
+            <p className="text-[10px] text-gray-500 mt-1.5">
+              Commodities composite floor: {compositeFloor.toFixed(2)}
+            </p>
+          ) : null}
+        </div>
       ) : null}
     </div>
   );
