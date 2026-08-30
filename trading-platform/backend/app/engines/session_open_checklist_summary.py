@@ -19,6 +19,11 @@ def summarize_session_open_checklist(checklist: dict[str, Any]) -> dict[str, Any
     "minutes_until_open": checklist.get("minutes_until_open"),
     "open_ready_symbols": list(open_ready.get("symbols") or []),
     "near_floor_symbols": list(near_floor.get("symbols") or []),
+    "near_floor_gaps": {
+      str(row.get("symbol")): row.get("gap_to_floor")
+      for row in (near_floor.get("details") or [])
+      if row.get("symbol") and row.get("gap_to_floor") is not None
+    },
     "sticky_symbols": list(open_ready.get("sticky_symbols") or []),
     "auto_entry_queued": bool(open_ready.get("auto_entry_queued")),
     "composite_floor": open_ready.get("composite_floor"),

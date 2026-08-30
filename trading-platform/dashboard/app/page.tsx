@@ -1954,6 +1954,11 @@ function SessionOpenChecklistsCard({
                 <span className="text-amber-300 ml-2">
                   · near floor {data.near_floor_symbols!.join(", ")}
                   {data.composite_floor != null ? ` (floor ${data.composite_floor})` : ""}
+                  {data.near_floor_gaps && Object.keys(data.near_floor_gaps).length > 0
+                    ? ` · need +${Object.entries(data.near_floor_gaps)
+                        .map(([sym, gap]) => `${sym} ${gap}`)
+                        .join(", ")}`
+                    : ""}
                 </span>
               ) : null}
               {(data.sticky_symbols?.length ?? 0) > 0 ? (

@@ -4,7 +4,7 @@
 set -euo pipefail
 
 BACKEND="${BACKEND_URL:-https://apex-trading-backend.onrender.com}"
-EXPECTED_REVISION="${EXPECTED_PLATFORM_REVISION:-2026-08-29-r350}"
+EXPECTED_REVISION="${EXPECTED_PLATFORM_REVISION:-2026-08-29-r351}"
 WATCH_INTERVAL=""
 
 if [[ "${1:-}" == "--watch" ]]; then
@@ -49,6 +49,12 @@ sticky = open_ready.get("sticky_symbols") or []
 if sticky:
     print(f"  sticky_queue={sticky} (release_margin={open_ready.get('release_margin')})")
 print(f"  near_floor={near.get('symbols')}")
+for row in near.get("details") or []:
+    sym = row.get("symbol")
+    comp = row.get("composite")
+    gap = row.get("gap_to_floor")
+    gap_label = f" need +{gap}" if gap is not None else ""
+    print(f"    near_floor {sym}: composite={comp}{gap_label}")
 for row in open_ready.get("details") or []:
     sym = row.get("symbol")
     comp = row.get("composite")

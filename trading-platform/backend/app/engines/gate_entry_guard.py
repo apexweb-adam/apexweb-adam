@@ -3591,6 +3591,40 @@ STOCKS_OPEN_IMMINENT_SCAN_MINUTES = 30
 STOCKS_OPEN_IMMINENT_SCAN_INTERVAL = 5
 
 
+def session_open_composite_floor(
+  bot_type: str,
+  *,
+  graduation_nudge: bool = False,
+  trade_count_nudge: bool = False,
+) -> float | None:
+  """Composite floor used for open-ready / near-floor session prep."""
+  if bot_type == "commodities" and graduation_nudge:
+    return commodities_recovery_composite_floor(graduation_nudge=True)
+  if bot_type == "stocks_futures" and trade_count_nudge:
+    return STOCKS_TRADE_COUNT_RECOVERY_MIN_COMPOSITE
+  return None
+
+
+def gap_to_open_composite_floor(
+  bot_type: str,
+  composite: float | None,
+  *,
+  graduation_nudge: bool = False,
+  trade_count_nudge: bool = False,
+) -> float | None:
+  """How much composite must rise before the symbol can queue for auto-entry."""
+  if composite is None:
+    return None
+  floor = session_open_composite_floor(
+    bot_type,
+    graduation_nudge=graduation_nudge,
+    trade_count_nudge=trade_count_nudge,
+  )
+  if floor is None:
+    return None
+  return round(max(0.0, float(floor) - float(composite)), 3)
+
+
 def build_session_prep_status(
   *,
   stocks_session: dict[str, Any],
@@ -3715,6 +3749,12 @@ def build_session_prep_status(
       if symbol not in symbols:
         symbols.append(symbol)
       details = entry.setdefault("near_floor_details", [])
+      gap = gap_to_open_composite_floor(
+        bot_type,
+        row.get("composite"),
+        graduation_nudge=bot_type == "commodities" and commodities_graduation_nudge,
+        trade_count_nudge=bot_type == "stocks_futures" and stocks_trade_count_nudge,
+      )
       details.append(
         {
           "symbol": symbol,
@@ -3722,6 +3762,7 @@ def build_session_prep_status(
           "direction": row.get("direction"),
           "macd": row.get("macd"),
           "blockers": row.get("blockers") or [],
+          "gap_to_floor": gap,
         }
       )
       near_floor.append(row)
