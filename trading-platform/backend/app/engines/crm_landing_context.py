@@ -8,13 +8,12 @@ from typing import Any, TypeVar
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import SessionLocal, is_postgres
-from app.engines.profitability_gate import ProfitabilityGate
-
 T = TypeVar("T")
 
 
 async def _with_session(fn: Callable[[AsyncSession], Awaitable[T]]) -> T:
+  from app.database import SessionLocal
+
   async with SessionLocal() as session:
     return await fn(session)
 
@@ -27,6 +26,7 @@ async def _safe_session(fn: Callable[[AsyncSession], Awaitable[T]]) -> T | None:
 
 
 async def _build_crm_landing_context_sequential() -> dict[str, Any]:
+  from app.database import SessionLocal
   from app.engines.cme_reopen_checklist import build_cme_reopen_checklist
   from app.engines.crm_summary import build_crm_integration_hooks, build_crm_live_snapshot
   from app.engines.intel_source_status import build_intel_sources
@@ -37,6 +37,8 @@ async def _build_crm_landing_context_sequential() -> dict[str, Any]:
   from app.engines.scan_preview import build_monday_recovery_summary
   from app.engines.session_open_log import get_session_open_events
   from app.engines.us_stocks_open_checklist import build_us_stocks_open_checklist
+
+  from app.engines.profitability_gate import ProfitabilityGate
 
   async with SessionLocal() as session:
     gate_engine = ProfitabilityGate(session)
@@ -82,12 +84,16 @@ async def build_crm_landing_context() -> dict[str, Any]:
   Postgres (production) uses parallel sessions; SQLite falls back to one session
   because concurrent file-backed SQLite connections are unreliable in tests.
   """
+  from app.database import is_postgres
+
   if is_postgres():
     return await _build_crm_landing_context_parallel()
   return await _build_crm_landing_context_sequential()
 
 
 async def _build_crm_landing_context_parallel() -> dict[str, Any]:
+  from app.engines.profitability_gate import ProfitabilityGate
+
   async def gate_bundle(session: AsyncSession) -> tuple[dict[str, Any], dict[str, Any]]:
     gate_engine = ProfitabilityGate(session)
     gate = await gate_engine.evaluate()
