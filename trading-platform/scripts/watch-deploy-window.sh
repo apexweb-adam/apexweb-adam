@@ -87,9 +87,10 @@ print(f"  platform_revision={rev} expected={expected} current={current}")
 bundle = payload.get("expected_dashboard_bundle")
 if bundle:
     print(f"  expected_dashboard_bundle={bundle}")
-    cmd = payload.get("dashboard_bundle_verify_command")
-    if cmd:
-        print(f"  {cmd}")
+    for key in ("dashboard_bundle_verify_command", "weekend_ops_verify_command"):
+        cmd = payload.get(key)
+        if cmd:
+            print(f"  {cmd}")
 
 if not payload:
     print("✗ Could not reach deploy snapshot or /api/status")

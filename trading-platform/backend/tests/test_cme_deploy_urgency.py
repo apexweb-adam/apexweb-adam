@@ -28,11 +28,13 @@ def test_format_cme_deploy_window_crm_html():
       "message": "Deploy window opens in 8h 20m (2026-08-30 16:00 UTC)",
       "verify_command": "bash trading-platform/scripts/verify-pre-deploy.sh",
       "deploy_command": "TRIGGER_DEPLOY=true bash trading-platform/scripts/sync-render-env.sh",
+      "weekend_ops_command": "bash trading-platform/scripts/verify-weekend-ops.sh",
     }
   )
   assert "CME deploy window countdown" in html
   assert "16:00 UTC" in html
   assert "verify-pre-deploy.sh" in html
+  assert "verify-weekend-ops.sh" in html
   assert (
     build_cme_deploy_urgency(
       platform_revision_current=True,
