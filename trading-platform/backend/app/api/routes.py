@@ -37,11 +37,14 @@ async def health() -> dict[str, str]:
 
 
 @router.get("/deploy/snapshot")
-async def get_deploy_snapshot() -> dict[str, Any]:
+async def get_deploy_snapshot(db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
   """Fast deploy revision + CME window timing for ops scripts (no heavy status build)."""
-  from app.engines.deploy_status import build_deploy_snapshot
+  from app.engines.deploy_status import apply_fomo_bearer_to_snapshot, build_deploy_snapshot
+  from app.intelligence.fomo_tracker import get_fomo_bearer_status
 
-  return build_deploy_snapshot()
+  snap = build_deploy_snapshot()
+  fomo = await get_fomo_bearer_status(db)
+  return apply_fomo_bearer_to_snapshot(snap, fomo)
 
 
 @router.get("/platform-urls")

@@ -30,6 +30,16 @@ def test_build_deploy_snapshot_includes_deploy_window_when_behind():
   assert "run-deploy-window" in (window.get("run_deploy_window_command") or "")
 
 
+def test_build_deploy_snapshot_includes_github_token_flag():
+  with patch.dict("os.environ", {"GITHUB_TOKEN": "ghp_test", "PLATFORM_REVISION": "2026-08-29-r336"}, clear=False):
+    with patch(
+      "app.engines.gate_entry_guard.commodities_session_info",
+      return_value={"minutes_until_open": 500, "in_session": False},
+    ):
+      snap = build_deploy_snapshot()
+  assert snap["github_token_configured"] is True
+
+
 def test_build_deploy_snapshot_no_window_when_current():
   with patch.dict("os.environ", {"PLATFORM_REVISION": EXPECTED_PLATFORM_REVISION}, clear=False):
     with patch(
@@ -41,7 +51,22 @@ def test_build_deploy_snapshot_no_window_when_current():
   assert snap["cme_deploy_window"] is None
 
 
+def test_apply_fomo_bearer_to_snapshot_marks_expired():
+  from app.engines.deploy_status import apply_fomo_bearer_to_snapshot
+
+  snap = apply_fomo_bearer_to_snapshot(
+    {"platform_revision": "2026-08-29-r336"},
+    {"configured": True, "polling_active": False, "minutes_remaining": -120},
+  )
+  assert snap["fomo_bearer_configured"] is True
+  assert snap["fomo_bearer_polling_active"] is False
+  assert snap["fomo_bearer_minutes_remaining"] == -120
+  assert "fomo-set-bearer" in snap["fomo_bearer_refresh_hint"]
+
+
 def test_deploy_snapshot_route():
+  from unittest.mock import AsyncMock
+
   from fastapi.testclient import TestClient
 
   from app.main import app
@@ -55,9 +80,16 @@ def test_deploy_snapshot_route():
       "cme_deploy_window": {"in_window": False, "message": "opens soon"},
     },
   ):
-    client = TestClient(app)
-    resp = client.get("/api/deploy/snapshot")
+    with patch(
+      "app.intelligence.fomo_tracker.get_fomo_bearer_status",
+      new_callable=AsyncMock,
+      return_value={"configured": True, "polling_active": False, "minutes_remaining": -5},
+    ):
+      client = TestClient(app)
+      resp = client.get("/api/deploy/snapshot")
   assert resp.status_code == 200
   body = resp.json()
   assert body["platform_revision"] == "2026-08-29-r336"
   assert body["cme_deploy_window"]["message"] == "opens soon"
+  assert body["fomo_bearer_polling_active"] is False
+  assert body["fomo_bearer_minutes_remaining"] == -5

@@ -197,6 +197,7 @@ def build_deploy_snapshot() -> dict[str, Any]:
     "platform_revision": platform_revision,
     "expected_platform_revision": EXPECTED_PLATFORM_REVISION,
     "platform_revision_current": revision_current,
+    "github_token_configured": bool(os.environ.get("GITHUB_TOKEN", "").strip()),
     "cme_minutes_until_open": mins,
     "cme_in_session": in_session,
     "cme_deploy_window": build_cme_deploy_window(
@@ -217,6 +218,24 @@ def build_deploy_snapshot() -> dict[str, Any]:
   }
 
 
+def apply_fomo_bearer_to_snapshot(
+  snap: dict[str, Any],
+  fomo: dict[str, Any],
+) -> dict[str, Any]:
+  """Merge fomo bearer polling state into deploy snapshot for ops scripts."""
+  merged = dict(snap)
+  configured = bool(fomo.get("configured"))
+  polling = bool(fomo.get("polling_active"))
+  merged["fomo_bearer_configured"] = configured
+  merged["fomo_bearer_polling_active"] = polling
+  merged["fomo_bearer_minutes_remaining"] = fomo.get("minutes_remaining")
+  if configured and not polling:
+    merged["fomo_bearer_refresh_hint"] = (
+      "bash trading-platform/scripts/fomo-set-bearer.sh '<bearer>'"
+    )
+  return merged
+
+
 def github_headers() -> dict[str, str]:
   headers = {
     "Accept": "application/vnd.github+json",
@@ -230,7 +249,7 @@ PRODUCTION_DASHBOARD_URL = "https://apex-trading-dashboard-flame.vercel.app"
 DEFAULT_VERIFIED_DASHBOARD_URL = "https://apex-trading-dashboard-o7tb7wydk-apexweb-adams-projects.vercel.app"
 DEFAULT_VERIFIED_DEPLOYMENT_ID = "dpl_Cn62LPUnD83i28cydia12AKr3uUw"
 EXPECTED_DASHBOARD_BUNDLE = "2026-08-29-r98"
-EXPECTED_PLATFORM_REVISION = "2026-08-29-r369"
+EXPECTED_PLATFORM_REVISION = "2026-08-29-r371"
 GIT_MAIN_ALIAS = "apex-trading-dashboard-git-main"
 ACCEPTABLE_DASHBOARD_BUNDLES = frozenset({
   "2026-08-27-r9", "2026-08-27-r10", "2026-08-27-r11", "2026-08-27-r12",
