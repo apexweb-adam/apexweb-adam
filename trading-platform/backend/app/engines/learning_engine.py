@@ -144,6 +144,29 @@ class LearningEngine:
         root_causes.append("Weak MACD/technical setup on commodities entry")
         adjustments.append("Raise min_signal_score for commodities during verification")
 
+    if trade.bot_type == "polymarket":
+      if "overbought" in reason_lower:
+        root_causes.append("Entered Yes position when share price was overbought (>0.72)")
+        adjustments.append("Skip Polymarket entries when Yes price exceeds 0.72 without fresh intel")
+        lessons.append("High Yes prices have poor risk/reward — wait for pullback or stronger intel")
+      if "momentum" in reason_lower and trade.side == "long" and "bearish" not in reason_lower:
+        if "-" in reason_lower or "momentum -" in reason_lower:
+          root_causes.append("Yes momentum turned negative after entry")
+          adjustments.append("Require stronger Yes momentum confirmation for Polymarket entries")
+          lessons.append("Prediction markets can reverse quickly — confirm momentum on real ticks")
+      if "intel bearish" in reason_lower and trade.side == "long":
+        root_causes.append("Long Yes entry against bearish prediction-market intel")
+        adjustments.append("Require positive sentiment for Polymarket Yes entries")
+        lessons.append("Align Polymarket direction with macro/political intel sentiment")
+      if trade.signal_score < 0.45 and "value zone" not in reason_lower:
+        root_causes.append("Weak Polymarket composite signal at entry")
+        adjustments.append("Raise min_signal_score for Polymarket during verification")
+        lessons.append("Wait for momentum + intel alignment before sizing prediction-market positions")
+      if await self._had_source_intel(trade.symbol, trade.executed_at, "political"):
+        if trade.sentiment_score < 0 and trade.side == "long":
+          root_causes.append("Political intel turned negative after macro Yes entry")
+          lessons.append("Re-check political headline risk before holding macro PM positions")
+
     if not root_causes:
       root_causes.append("Market moved against position - normal variance")
       lessons.append("Review if entry timing could be improved with additional confirmation")
@@ -205,6 +228,26 @@ class LearningEngine:
     low_signal_losses = [t for t in losing if t.signal_score < 0.5]
     if low_signal_losses:
       patterns.append(f"{len(low_signal_losses)} losses had weak signals (<0.5)")
+
+    if bot_type == "polymarket":
+      overbought_losses = [
+        t for t in losing if "overbought" in (t.reason or "").lower()
+      ]
+      if overbought_losses:
+        patterns.append(
+          f"{len(overbought_losses)} Polymarket losses on overbought Yes entries"
+        )
+      intel_mismatch = [
+        t
+        for t in losing
+        if "intel bearish" in (t.reason or "").lower() or (
+          t.sentiment_score < 0 and t.side == "long"
+        )
+      ]
+      if len(intel_mismatch) >= 2:
+        patterns.append(
+          f"{len(intel_mismatch)} Polymarket losses against bearish intel — tighten sentiment gate"
+        )
 
     conclusions = self._generate_conclusions(day_trades, losing, winning, patterns, breakeven)
     strategy_changes = await self._generate_strategy_changes(bot_type, patterns, losing)
