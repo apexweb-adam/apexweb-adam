@@ -1200,7 +1200,11 @@ async def _build_monday_recovery_summary(session: AsyncSession) -> dict[str, Any
     elif bot_type == "commodities" and commodities_graduation_nudge:
       bots[bot_type] = bot_entry
 
-  from app.engines.gate_entry_guard import commodities_monday_open_ready
+  from app.engines.gate_entry_guard import (
+    COMMODITIES_OPEN_READY_PREP_MINUTES,
+    commodities_monday_open_ready,
+    stocks_monday_open_ready,
+  )
   from app.engines.session_open_log import get_prep_phase_state
 
   state = await get_prep_phase_state(session)
@@ -1234,6 +1238,12 @@ async def _build_monday_recovery_summary(session: AsyncSession) -> dict[str, Any
       composite = row.get("composite")
       if composite is None:
         continue
+      extended_watch = (
+        bot_type == "commodities"
+        and minutes_until_open is not None
+        and minutes_until_open <= COMMODITIES_OPEN_READY_PREP_MINUTES
+        and symbol in prev_ready
+      )
       sticky_ready = False
       if bot_type == "commodities":
         sticky_ready = commodities_monday_open_ready(
@@ -1246,6 +1256,7 @@ async def _build_monday_recovery_summary(session: AsyncSession) -> dict[str, Any
           blockers=blockers,
           graduation_nudge=graduation_nudge,
           sticky_queue=True,
+          extended_sticky=extended_watch,
         )
       elif bot_type == "stocks_futures":
         sticky_ready = stocks_monday_open_ready(
@@ -1274,6 +1285,7 @@ async def _build_monday_recovery_summary(session: AsyncSession) -> dict[str, Any
           "minutes_until_open": minutes_until_open,
           "monday_gate_skip_ready": bool(row.get("monday_gate_skip_ready")),
           "sticky_queue": True,
+          "extended_sticky": extended_watch,
         }
       )
       existing_open_ready.add((bot_type, symbol))

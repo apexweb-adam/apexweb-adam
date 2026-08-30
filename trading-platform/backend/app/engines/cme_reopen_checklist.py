@@ -243,6 +243,7 @@ def _symbols_below_floor(
   composite_floor: float | None,
   *,
   release_margin: float = 0.02,
+  extended_margin: float = 0.06,
 ) -> list[str]:
   if composite_floor is None:
     return []
@@ -254,7 +255,8 @@ def _symbols_below_floor(
       continue
     effective_floor = composite_floor
     if row.get("sticky_queue"):
-      effective_floor = composite_floor - release_margin
+      margin = extended_margin if row.get("extended_sticky") else release_margin
+      effective_floor = composite_floor - margin
     if float(composite) < effective_floor:
       below.append(str(symbol))
   return below
@@ -283,6 +285,7 @@ async def build_cme_reopen_checklist(session: AsyncSession) -> dict[str, Any]:
     build_deploy_status,
   )
   from app.engines.gate_entry_guard import (
+    OPEN_READY_QUEUE_EXTENDED_MARGIN,
     OPEN_READY_QUEUE_RELEASE_MARGIN,
     build_next_session_events,
     build_session_prep_status,
@@ -350,6 +353,7 @@ async def build_cme_reopen_checklist(session: AsyncSession) -> dict[str, Any]:
     open_ready_details,
     floor_value,
     release_margin=OPEN_READY_QUEUE_RELEASE_MARGIN,
+    extended_margin=OPEN_READY_QUEUE_EXTENDED_MARGIN,
   )
 
   minutes_until_open = cme.get("minutes_until_open")

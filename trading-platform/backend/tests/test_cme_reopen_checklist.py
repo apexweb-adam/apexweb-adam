@@ -24,6 +24,29 @@ def test_symbols_below_floor_honors_sticky_release_margin():
   assert _symbols_below_floor(fresh, 0.42) == ["CL=F"]
 
 
+def test_symbols_below_floor_honors_extended_sticky_margin():
+  from app.engines.gate_entry_guard import OPEN_READY_QUEUE_EXTENDED_MARGIN
+
+  extended = [
+    {"symbol": "NG=F", "composite": 0.376, "sticky_queue": True, "extended_sticky": True},
+  ]
+  assert _symbols_below_floor(
+    extended,
+    0.42,
+    release_margin=OPEN_READY_QUEUE_RELEASE_MARGIN,
+    extended_margin=OPEN_READY_QUEUE_EXTENDED_MARGIN,
+  ) == []
+  too_low = [
+    {"symbol": "NG=F", "composite": 0.35, "sticky_queue": True, "extended_sticky": True},
+  ]
+  assert _symbols_below_floor(
+    too_low,
+    0.42,
+    release_margin=OPEN_READY_QUEUE_RELEASE_MARGIN,
+    extended_margin=OPEN_READY_QUEUE_EXTENDED_MARGIN,
+  ) == ["NG=F"]
+
+
 def test_build_cme_reopen_checks_preflight_pass():
   checks = build_cme_reopen_checks(
     platform_revision_current=True,

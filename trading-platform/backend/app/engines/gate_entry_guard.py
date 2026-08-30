@@ -719,6 +719,7 @@ COMMODITIES_HIGH_COMPOSITE_RECOVERY_FLOOR = 0.48
 COMMODITIES_GRADUATION_OPEN_COMPOSITE_FLOOR = 0.42
 OPEN_READY_NEAR_FLOOR_MARGIN = 0.05
 OPEN_READY_QUEUE_RELEASE_MARGIN = 0.02
+OPEN_READY_QUEUE_EXTENDED_MARGIN = 0.06  # CME deploy window — hold recently-queued symbols longer
 COMMODITIES_FUTURES_WEEKEND_FLAT_EXIT_BAND_USD = 1.0
 COMMODITIES_WEEKEND_SPOT_SYMBOLS = frozenset({"XAUUSDT", "PAXGUSDT"})
 COMMODITIES_GOLD_PROXY_PREFERRED = "XAUUSDT"
@@ -4446,6 +4447,18 @@ COMMODITIES_MONDAY_RECOVERY_SOFT_BLOCKERS = frozenset({
 COMMODITIES_MONDAY_OPEN_READY_BLOCKERS = frozenset({"weekend_futures_closed"})
 
 
+def open_ready_queue_release_margin(
+  *,
+  sticky_queue: bool,
+  extended_sticky: bool = False,
+) -> float:
+  if not sticky_queue:
+    return 0.0
+  if extended_sticky:
+    return OPEN_READY_QUEUE_EXTENDED_MARGIN
+  return OPEN_READY_QUEUE_RELEASE_MARGIN
+
+
 def commodities_monday_open_ready(
   *,
   bot_type: str,
@@ -4457,9 +4470,13 @@ def commodities_monday_open_ready(
   blockers: list[str],
   graduation_nudge: bool = False,
   sticky_queue: bool = False,
+  extended_sticky: bool = False,
 ) -> bool:
   """Bullish high-composite futures that will enter as soon as CME reopens."""
-  release_margin = OPEN_READY_QUEUE_RELEASE_MARGIN if sticky_queue else 0.0
+  release_margin = open_ready_queue_release_margin(
+    sticky_queue=sticky_queue,
+    extended_sticky=extended_sticky,
+  )
   if not commodities_high_composite_recovery_entry_ok(
     bot_type=bot_type,
     shadow_mode=shadow_mode,
