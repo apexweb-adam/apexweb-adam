@@ -253,19 +253,54 @@ async def crm_landing():
   </div>"""
 
   commodities_prep = session_prep.get("commodities") or {}
+  stocks_prep = session_prep.get("stocks_futures") or {}
+
+  def _session_countdown(mins: int | None) -> str:
+    if mins is None:
+      return "soon"
+    return f"{mins // 60}h {mins % 60}m"
+
+  next_session_lines: list[str] = []
+  if not cme_session.get("in_session"):
+    cme_mins = cme_session.get("minutes_until_open")
+    comm_ready = ", ".join(commodities_prep.get("open_ready_symbols") or []) or "—"
+    next_session_lines.append(
+      f"<strong>CME reopen</strong> in {_session_countdown(cme_mins)} · open ready: {comm_ready}"
+    )
+  if not stocks_session.get("in_session"):
+    us_mins = stocks_session.get("minutes_until_open")
+    stocks_ready = ", ".join(stocks_prep.get("open_ready_symbols") or []) or "—"
+    next_session_lines.append(
+      f"<strong>US stocks open</strong> in {_session_countdown(us_mins)} · open ready: {stocks_ready}"
+    )
+  next_sessions_card = ""
+  if next_session_lines:
+    body = "".join(f"<p class='muted' style='margin:0.35rem 0 0;'>{line}</p>" for line in next_session_lines)
+    next_sessions_card = f"""<div class="card" style="border-color:#1e3a5f;background:#0c1929;">
+    <h2 style="color:#60a5fa;font-size:1rem;margin:0 0 0.35rem;">Next sessions</h2>
+    {body}
+  </div>"""
+
   cme_mins = cme_session.get("minutes_until_open")
   cme_imminent_banner = ""
   if not cme_session.get("in_session") and cme_mins is not None and cme_mins <= 60:
-    ready = ", ".join(
-      commodities_prep.get("open_ready_symbols")
-      or session_prep.get("open_ready_candidates")
-      or []
-    )
+    ready = ", ".join(commodities_prep.get("open_ready_symbols") or []) or "—"
     scan_label = "5s" if commodities_prep.get("gate_reopen_imminent") else "15s"
     wake_note = " · TV wake active" if commodities_prep.get("reopen_wake_active") else ""
     cme_imminent_banner = f"""<div class="card" style="border-color:#b45309;background:#451a03;">
     <p style="color:#fbbf24;font-weight:600;margin:0;">CME reopen imminent — {cme_mins}m until open{wake_note}</p>
-    <p class="muted" style="margin-top:0.5rem;">Fast scan {scan_label} · open ready: {ready or "—"}</p>
+    <p class="muted" style="margin-top:0.5rem;">Fast scan {scan_label} · open ready: {ready}</p>
+  </div>"""
+
+  us_mins = stocks_session.get("minutes_until_open")
+  us_imminent_banner = ""
+  if not stocks_session.get("in_session") and us_mins is not None and us_mins <= 60:
+    ready = ", ".join(stocks_prep.get("open_ready_symbols") or []) or "—"
+    scan_label = "5s" if stocks_prep.get("gate_reopen_imminent") else "15s"
+    wake_note = " · TV wake active" if stocks_prep.get("reopen_wake_active") else ""
+    us_imminent_banner = f"""<div class="card" style="border-color:#b45309;background:#451a03;">
+    <p style="color:#fbbf24;font-weight:600;margin:0;">US stocks open imminent — {us_mins}m until open{wake_note}</p>
+    <p class="muted" style="margin-top:0.5rem;">Fast scan {scan_label} · open ready: {ready}</p>
   </div>"""
 
   learning_rows = ""
@@ -481,7 +516,9 @@ async def crm_landing():
   <p>Paper trading · 4 autonomous bots · Real-time WebSocket</p>
   <p class="muted" style="margin-top:0;">{session_summary}</p>
   {f"<p class='muted' style='margin-top:0;color:#fbbf24;'>{prep_summary}</p>" if prep_summary else ""}
+  {next_sessions_card}
   {cme_imminent_banner}
+  {us_imminent_banner}
   <div class="card">
     <p class="label">30-day verification gate · day {day}/30</p>
     <div class="grid">
