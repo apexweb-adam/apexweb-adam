@@ -3,7 +3,7 @@
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
@@ -83,14 +83,19 @@ def _source_status(
 
 
 async def build_intel_sources(session: AsyncSession) -> list[dict[str, Any]]:
-  result = await session.execute(select(IntelligenceItem.source, IntelligenceItem.fetched_at))
-  rows = result.all()
+  result = await session.execute(
+    select(
+      IntelligenceItem.source,
+      func.count(IntelligenceItem.id),
+      func.max(IntelligenceItem.fetched_at),
+    ).group_by(IntelligenceItem.source)
+  )
   source_counts: dict[str, int] = {}
   source_latest: dict[str, datetime] = {}
-  for source, fetched_at in rows:
-    source_counts[source] = source_counts.get(source, 0) + 1
-    if source not in source_latest or (fetched_at and fetched_at > source_latest[source]):
-      source_latest[source] = fetched_at
+  for source, count, latest in result.all():
+    source_counts[source] = int(count)
+    if latest is not None:
+      source_latest[source] = latest
 
   reddit_oauth = bool(settings.reddit_client_id and settings.reddit_client_secret)
   configured = {

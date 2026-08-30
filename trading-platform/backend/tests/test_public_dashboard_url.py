@@ -13,6 +13,9 @@ def test_configured_public_dashboard_url_from_env(monkeypatch):
 
 
 def test_recommended_dashboard_prefers_public_tunnel(monkeypatch):
+  from app.engines import deploy_status
+
+  deploy_status.clear_recommended_dashboard_cache()
   monkeypatch.setenv("PUBLIC_DASHBOARD_URL", "https://tunnel.example.com")
   cfg = {"bundleRevision": "2026-08-28-r25", "features": {"activeGate": True}}
 
@@ -22,3 +25,4 @@ def test_recommended_dashboard_prefers_public_tunnel(monkeypatch):
 
   url = asyncio.run(run())
   assert url == "https://tunnel.example.com"
+  deploy_status.clear_recommended_dashboard_cache()

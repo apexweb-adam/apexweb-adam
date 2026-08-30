@@ -30,7 +30,7 @@ PRODUCTION_DASHBOARD_URL = "https://apex-trading-dashboard-flame.vercel.app"
 DEFAULT_VERIFIED_DASHBOARD_URL = "https://apex-trading-dashboard-43tumxweh-apexweb-adams-projects.vercel.app"
 DEFAULT_VERIFIED_DEPLOYMENT_ID = "dpl_4fzZAaUaL2mBCEv1EewqeGci2A5a"
 EXPECTED_DASHBOARD_BUNDLE = "2026-08-29-r94"
-EXPECTED_PLATFORM_REVISION = "2026-08-29-r323"
+EXPECTED_PLATFORM_REVISION = "2026-08-29-r324"
 GIT_MAIN_ALIAS = "apex-trading-dashboard-git-main"
 ACCEPTABLE_DASHBOARD_BUNDLES = frozenset({
   "2026-08-27-r9", "2026-08-27-r10", "2026-08-27-r11", "2026-08-27-r12",
@@ -789,8 +789,34 @@ async def _build_deploy_status_uncached() -> dict[str, Any]:
   }
 
 
+_recommended_dashboard_cache: str | None = None
+_recommended_dashboard_cached_at: float = 0.0
+RECOMMENDED_DASHBOARD_CACHE_TTL_SECONDS = 120
+
+
+def clear_recommended_dashboard_cache() -> None:
+  global _recommended_dashboard_cache, _recommended_dashboard_cached_at
+  _recommended_dashboard_cache = None
+  _recommended_dashboard_cached_at = 0.0
+
+
 async def recommended_dashboard_url() -> str:
   """Return the best live CRM URL — public tunnel, then verified preview, then production."""
+  global _recommended_dashboard_cache, _recommended_dashboard_cached_at
+  now = time.monotonic()
+  if (
+    _recommended_dashboard_cache is not None
+    and (now - _recommended_dashboard_cached_at) < RECOMMENDED_DASHBOARD_CACHE_TTL_SECONDS
+  ):
+    return _recommended_dashboard_cache
+
+  result = await _recommended_dashboard_url_uncached()
+  _recommended_dashboard_cache = result
+  _recommended_dashboard_cached_at = now
+  return result
+
+
+async def _recommended_dashboard_url_uncached() -> str:
   public = configured_public_dashboard_url()
   if public:
     cfg = await probe_dashboard_config(public)
