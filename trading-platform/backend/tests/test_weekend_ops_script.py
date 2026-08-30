@@ -297,7 +297,8 @@ def test_verify_cme_reopen_uses_deploy_json_fallback():
   assert "CME_WATCH" in text
   assert "wake_backend" in text
   assert "status_endpoint_unreachable" in text
-  assert "checklist fallback" in text
+  assert "thin_queue_margin" in text
+  assert "extended_watch_not_queued" in text
 
 
 def test_deploy_json_lib_exists():
