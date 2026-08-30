@@ -39,6 +39,7 @@ SYNC_KEYS=(
   POLYMARKET_PROFILE_URL
   RENDER_DEPLOY_HOOK
   PLATFORM_REVISION
+  GITHUB_TOKEN
 )
 
 declare -A VALUES=()
@@ -139,4 +140,8 @@ print('deploy', dep.get('id','?'), 'status', dep.get('status','?'))
     cat /tmp/render-deploy-resp.json >&2 2>/dev/null || true
     exit 1
   fi
+  echo ""
+  echo "After deploy completes (~3-5 min):"
+  echo "  bash trading-platform/scripts/verify-post-deploy.sh"
+  echo "  bash trading-platform/scripts/verify-dashboard-bundle.sh"
 fi
