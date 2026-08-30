@@ -269,6 +269,21 @@ class BaseBot(ABC):
             )
           elif proven_winners:
             symbols = _prioritize_symbols(symbols, proven_winners)
+      if getattr(self, "_session_open_burst", False) and self.bot_type in (
+        "commodities",
+        "stocks_futures",
+      ):
+        from app.engines.gate_entry_guard import prioritize_open_ready_first
+        from app.engines.scan_preview import build_monday_recovery_summary
+
+        recovery = await build_monday_recovery_summary(session)
+        open_ready = [
+          row["symbol"]
+          for row in (recovery.get("open_ready") or [])
+          if row.get("bot_type") == self.bot_type and row.get("symbol")
+        ]
+        if open_ready:
+          symbols = prioritize_open_ready_first(symbols, open_ready)
       open_positions = await engine.get_open_positions()
       open_count = len(open_positions)
       held_symbols = [p.symbol for p in open_positions if p.symbol]

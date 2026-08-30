@@ -3411,6 +3411,16 @@ US_OPEN_WAKE_MINUTES_AFTER = 5
 COMMODITIES_MONDAY_FUTURES_SCAN_ORDER = ("NG=F", "CL=F", "GC=F", "SI=F", "HG=F")
 
 
+def prioritize_open_ready_first(symbols: list[str], open_ready: list[str]) -> list[str]:
+  """Move gate-skip open-ready symbols to the front of the scan queue."""
+  if not open_ready:
+    return symbols
+  ready_set = set(open_ready)
+  ready = [symbol for symbol in open_ready if symbol in symbols]
+  rest = [symbol for symbol in symbols if symbol not in ready_set]
+  return ready + rest
+
+
 def _apply_commodities_monday_futures_order(symbols: list[str]) -> list[str]:
   """Put CME futures ahead of spot proxies when Monday scan priority is active."""
   futures_first = [s for s in COMMODITIES_MONDAY_FUTURES_SCAN_ORDER if s in symbols]
