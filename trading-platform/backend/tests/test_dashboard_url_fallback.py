@@ -22,6 +22,7 @@ def test_verified_candidates_probe_configured_first():
 
 
 def test_discover_skips_stale_git_main_when_configured_is_newer():
+  deploy_status.clear_discover_verified_dashboard_cache()
   configured_url = "https://apex-trading-dashboard-73nruanbo-apexweb-adams-projects.vercel.app"
   git_main = "https://apex-trading-dashboard-git-main-apexweb-adams-projects.vercel.app"
 
@@ -46,6 +47,7 @@ def test_verified_candidates_include_r31_recovery_preview():
 
 
 def test_discover_prefers_r31_over_stale_git_main():
+  deploy_status.clear_discover_verified_dashboard_cache()
   r31 = "https://apex-trading-dashboard-4am3sz5kv-apexweb-adams-projects.vercel.app"
   git_main = "https://apex-trading-dashboard-git-main-apexweb-adams-projects.vercel.app"
 
@@ -83,3 +85,20 @@ def test_recommended_dashboard_url_uses_configured_probe():
       url = asyncio.run(deploy_status.recommended_dashboard_url())
 
   assert url == configured_url
+
+
+def test_discover_verified_dashboard_uses_cache():
+  deploy_status.clear_discover_verified_dashboard_cache()
+  cached = {
+    "verified_dashboard_url": "https://cached.example",
+    "vercel_bundle_revision": "2026-08-29-r67",
+    "discovered": False,
+  }
+  deploy_status._discover_verified_cache = dict(cached)
+  deploy_status._discover_verified_cached_at = __import__("time").monotonic()
+
+  with patch.object(deploy_status, "probe_configured_verified_dashboard", AsyncMock()) as probe:
+    result = asyncio.run(deploy_status.discover_verified_dashboard())
+
+  assert result == cached
+  probe.assert_not_called()
