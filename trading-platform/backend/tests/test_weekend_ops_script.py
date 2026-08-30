@@ -193,3 +193,19 @@ def test_verify_post_deploy_checks_learning_endpoint():
   text = script.read_text(encoding="utf-8")
   assert "learning/apply-pending-insights" in text
   assert "openapi.json" in text
+  assert "x_intel_collection_mode" in text
+  assert "scoring_excludes_synthetic" in text
+  assert "/api/intelligence/sources" in text
+
+
+def test_watch_deploy_window_shows_x_intel_mode():
+  script = SCRIPTS / "watch-deploy-window.sh"
+  text = script.read_text(encoding="utf-8")
+  assert "x_intel_collection_mode" in text
+
+
+def test_verify_platform_prints_intel_health_fields():
+  script = SCRIPTS / "verify-platform.sh"
+  text = script.read_text(encoding="utf-8")
+  assert "scoring_excludes_synthetic" in text
+  assert "x_intel=" in text

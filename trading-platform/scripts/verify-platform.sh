@@ -83,16 +83,36 @@ else
 fi
 
 # Intel sources
-SRC_COUNT=$(curl -fsS -m 20 "$BACKEND/api/intelligence/sources" 2>/dev/null | python3 -c "
+INTEL_RAW=$(curl -fsS -m 25 "$BACKEND/api/intelligence/sources" 2>/dev/null || echo "[]")
+SRC_COUNT=$(echo "$INTEL_RAW" | python3 -c "
 import json,sys
-d=json.load(sys.stdin)
-print(len(d.get('sources', d) if isinstance(d,dict) else d))
+raw=json.load(sys.stdin)
+sources=raw.get('sources', raw) if isinstance(raw, dict) else raw
+print(len(sources) if isinstance(sources, list) else 0)
 " 2>/dev/null || echo "0")
 if [[ "$SRC_COUNT" -ge 8 ]]; then
   ok "Intelligence sources ($SRC_COUNT active)"
 else
   bad "Intelligence sources ($SRC_COUNT — expected ≥8)"
 fi
+
+echo "$INTEL_RAW" | python3 -c "
+import json,sys
+raw=json.load(sys.stdin)
+sources=raw.get('sources', raw) if isinstance(raw, dict) else raw
+if not isinstance(sources, list):
+    sys.exit(0)
+by={s.get('source'): s for s in sources if isinstance(s, dict)}
+x=by.get('x') or {}
+tv=by.get('tradingview') or {}
+if x.get('collection_mode'):
+    print(f'  x_intel={x.get(\"collection_mode\")} status={x.get(\"status\")}')
+if tv.get('scoring_excludes_synthetic'):
+    print(
+        f'  tradingview webhook_24h={tv.get(\"webhook_items_24h\")} '
+        f'synthetic_24h={tv.get(\"synthetic_items_24h\")}'
+    )
+" 2>/dev/null || true
 
 # Verification snapshots
 VH=$(curl -s -o /dev/null -w "%{http_code}" -m 20 "$BACKEND/api/verification/history?limit=1")
