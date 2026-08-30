@@ -109,6 +109,24 @@ def test_reconcile_proxy_entry_levels_skips_small_drift():
   assert position.entry_price == 4460.0
 
 
+def test_fetch_yfinance_data_times_out_blocking_yfinance_fallback():
+  async def run():
+    with patch(
+      "app.engines.market_data.fetch_yahoo_chart",
+      new=AsyncMock(return_value=(0.0, None)),
+    ), patch(
+      "app.engines.market_data.asyncio.to_thread",
+      new=AsyncMock(side_effect=asyncio.TimeoutError()),
+    ):
+      from app.engines.market_data import fetch_yfinance_data
+
+      price, df = await fetch_yfinance_data("NG=F")
+      assert price == 0.0
+      assert df is None
+
+  asyncio.run(run())
+
+
 def test_fetch_yahoo_crypto_synthetic_when_chart_sparse():
   async def run():
     with patch(
