@@ -225,3 +225,82 @@ def test_build_platform_status_includes_content_study():
     assert result["content_study"] == highlights
 
   asyncio.run(run())
+
+
+def test_build_platform_status_deploy_includes_bundle_behind_expected():
+  async def run():
+    session = AsyncMock()
+    gate_payload = {
+      "profitability_gate": {},
+      "per_bot_gate": {},
+      "gate_entry_tightening": {"active": False},
+      "bot_sessions": {},
+    }
+    deploy_info = {
+      "vercel_bundle_stale": False,
+      "vercel_bundle_behind_expected": True,
+      "vercel_bundle_revision": "2026-08-29-r67",
+      "expected_dashboard_bundle": "2026-08-29-r98",
+      "dashboard_bundle_verify_command": "bash trading-platform/scripts/verify-dashboard-bundle.sh",
+      "weekend_ops_verify_command": "bash trading-platform/scripts/verify-weekend-ops.sh",
+      "platform_revision_current": False,
+    }
+    with patch(
+      "app.engines.platform_status._fetch_stats",
+      new=AsyncMock(return_value={}),
+    ):
+      with patch(
+        "app.engines.platform_status._fetch_bot_states",
+        new=AsyncMock(return_value=[]),
+      ):
+        with patch(
+          "app.engines.platform_status._fetch_learning_counts",
+          new=AsyncMock(return_value={}),
+        ):
+          with patch(
+            "app.engines.platform_status.build_gate_ws_payload",
+            new=AsyncMock(return_value=gate_payload),
+          ):
+            with patch(
+              "app.engines.platform_status.build_monday_recovery_summary",
+              new=AsyncMock(return_value={"open_ready": [], "near_floor": []}),
+            ):
+              with patch(
+                "app.engines.platform_status.build_intel_sources",
+                new=AsyncMock(return_value=[]),
+              ):
+                with patch(
+                  "app.engines.platform_status.build_deploy_status",
+                  new=AsyncMock(return_value=deploy_info),
+                ):
+                  with patch(
+                    "app.engines.platform_status.recommended_dashboard_url",
+                    new=AsyncMock(return_value="https://example.com"),
+                  ):
+                    with patch(
+                      "app.engines.platform_status.get_session_open_events",
+                      new=AsyncMock(return_value=[]),
+                    ):
+                      with patch(
+                        "app.engines.session_open_checklist_summary.build_session_open_checklist_summaries",
+                        new=AsyncMock(return_value=_CHECKLIST_SUMMARIES),
+                      ):
+                        with patch(
+                          "app.engines.platform_status.get_fomo_bearer_status",
+                          new=AsyncMock(return_value={}),
+                        ):
+                          with patch(
+                            "app.engines.platform_status.get_axiom_session_status",
+                            new=AsyncMock(return_value={}),
+                          ):
+                            with patch(
+                              "app.engines.platform_status.build_crm_content_study_highlights",
+                              new=AsyncMock(return_value={"insights_applied": 0, "recent": []}),
+                            ):
+                              result = await platform_status.build_platform_status(session)
+    deploy = result["deploy"]
+    assert deploy["vercel_bundle_behind_expected"] is True
+    assert deploy["expected_dashboard_bundle"] == "2026-08-29-r98"
+    assert "verify-weekend-ops" in deploy["weekend_ops_verify_command"]
+
+  asyncio.run(run())

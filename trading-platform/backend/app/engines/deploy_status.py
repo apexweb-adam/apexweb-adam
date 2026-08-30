@@ -71,10 +71,12 @@ def build_cme_deploy_window(
     "message": message,
     "deploy_command": DEPLOY_COMMAND,
     "verify_command": "bash trading-platform/scripts/verify-pre-deploy.sh",
+    "weekend_ops_command": WEEKEND_OPS_VERIFY_COMMAND,
   }
 
 
 DASHBOARD_BUNDLE_VERIFY_COMMAND = "bash trading-platform/scripts/verify-dashboard-bundle.sh"
+WEEKEND_OPS_VERIFY_COMMAND = "bash trading-platform/scripts/verify-weekend-ops.sh"
 
 
 def format_dashboard_bundle_crm_html(
@@ -113,11 +115,16 @@ def format_cme_deploy_window_crm_html(window: dict[str, Any]) -> str:
 
   verify_cmd = window.get("verify_command") or ""
   deploy_cmd = window.get("deploy_command") or ""
+  weekend_cmd = window.get("weekend_ops_command") or ""
+  weekend_line = ""
+  if weekend_cmd:
+    weekend_line = f"<p class='muted' style='margin-top:0;font-family:monospace;font-size:0.8rem;'>{weekend_cmd}</p>"
   return f"""<div class="card" style="border-color:#854d0e;background:#1c1408;">
     <h2 style="color:{color};">{title}</h2>
     <p class="muted" style="margin-top:0;">{window.get("message", "")}</p>
     <p class="muted" style="margin-top:0;font-family:monospace;font-size:0.8rem;">{verify_cmd}</p>
     <p class="muted" style="margin-top:0;font-family:monospace;font-size:0.8rem;">{deploy_cmd}</p>
+    {weekend_line}
   </div>"""
 
 
@@ -196,6 +203,7 @@ def build_deploy_snapshot() -> dict[str, Any]:
     ),
     "expected_dashboard_bundle": EXPECTED_DASHBOARD_BUNDLE,
     "dashboard_bundle_verify_command": DASHBOARD_BUNDLE_VERIFY_COMMAND,
+    "weekend_ops_verify_command": WEEKEND_OPS_VERIFY_COMMAND,
   }
 
 
@@ -212,7 +220,7 @@ PRODUCTION_DASHBOARD_URL = "https://apex-trading-dashboard-flame.vercel.app"
 DEFAULT_VERIFIED_DASHBOARD_URL = "https://apex-trading-dashboard-o7tb7wydk-apexweb-adams-projects.vercel.app"
 DEFAULT_VERIFIED_DEPLOYMENT_ID = "dpl_Cn62LPUnD83i28cydia12AKr3uUw"
 EXPECTED_DASHBOARD_BUNDLE = "2026-08-29-r98"
-EXPECTED_PLATFORM_REVISION = "2026-08-29-r363"
+EXPECTED_PLATFORM_REVISION = "2026-08-29-r364"
 GIT_MAIN_ALIAS = "apex-trading-dashboard-git-main"
 ACCEPTABLE_DASHBOARD_BUNDLES = frozenset({
   "2026-08-27-r9", "2026-08-27-r10", "2026-08-27-r11", "2026-08-27-r12",
@@ -777,6 +785,8 @@ async def fetch_vercel_dashboard_bundle() -> dict[str, Any]:
         "production_proxy_operational": proxy_ok,
         "dashboard_url": PRODUCTION_DASHBOARD_URL,
         "expected_dashboard_bundle": EXPECTED_DASHBOARD_BUNDLE,
+        "dashboard_bundle_verify_command": DASHBOARD_BUNDLE_VERIFY_COMMAND,
+        "weekend_ops_verify_command": WEEKEND_OPS_VERIFY_COMMAND,
       }
       if behind_expected:
         discovered = await discover_verified_dashboard()
@@ -802,6 +812,8 @@ async def fetch_vercel_dashboard_bundle() -> dict[str, Any]:
       "vercel_promote_url": promote_url,
       "dashboard_url": dashboard_url,
       "expected_dashboard_bundle": EXPECTED_DASHBOARD_BUNDLE,
+      "dashboard_bundle_verify_command": DASHBOARD_BUNDLE_VERIFY_COMMAND,
+      "weekend_ops_verify_command": WEEKEND_OPS_VERIFY_COMMAND,
     }
   except Exception:
     verified_url = configured_verified_dashboard_url()
@@ -815,6 +827,8 @@ async def fetch_vercel_dashboard_bundle() -> dict[str, Any]:
       "vercel_promote_url": promote_url,
       "dashboard_url": PRODUCTION_DASHBOARD_URL if proxy_ok else verified_url,
       "expected_dashboard_bundle": EXPECTED_DASHBOARD_BUNDLE,
+      "dashboard_bundle_verify_command": DASHBOARD_BUNDLE_VERIFY_COMMAND,
+      "weekend_ops_verify_command": WEEKEND_OPS_VERIFY_COMMAND,
     }
 
 
