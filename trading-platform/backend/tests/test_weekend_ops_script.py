@@ -361,3 +361,11 @@ def test_session_open_scripts_use_fetch_json_not_heredoc():
     assert "fetch_json.sh" in text
     assert "'''$CHECKLIST'''" not in text
     assert "'''$STATUS'''" not in text
+
+
+def test_render_keepalive_pings_cme_checklist_on_sunday_prep():
+  workflow = Path(__file__).resolve().parents[3] / ".github" / "workflows" / "render-keep-alive.yml"
+  text = workflow.read_text(encoding="utf-8")
+  assert "cme-reopen-checklist" in text
+  assert "prep-status" in text
+  assert 'DOW="$(date -u +%u)"' in text
