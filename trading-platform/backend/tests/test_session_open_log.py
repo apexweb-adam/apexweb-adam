@@ -70,6 +70,19 @@ def test_queue_delta():
   assert removed == ["CL=F"]
 
 
+def test_format_queue_symbols_includes_composite():
+  from app.engines.session_open_log import _format_queue_symbols
+
+  event = {
+    "open_ready_details": [
+      {"symbol": "NG=F", "composite": 0.624},
+      {"symbol": "AAPL", "composite": 0.498},
+    ]
+  }
+  assert _format_queue_symbols(event, ["NG=F", "AAPL"]) == "NG=F (0.624), AAPL (0.498)"
+  assert _format_queue_symbols(event, ["CL=F"]) == "CL=F"
+
+
 def test_monitor_open_ready_queue_logs_initial_baseline():
   async def run():
     engine = create_async_engine("sqlite+aiosqlite:///:memory:")
