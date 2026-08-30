@@ -18,7 +18,9 @@ from app.engines.deploy_status import (
   build_cme_deploy_window,
   build_deploy_credentials_warnings,
   dashboard_url_from_deploy,
+  fomo_bearer_nudge_message,
   recommended_dashboard_url,
+  resolve_fomo_bearer_nudge_tier,
 )
 from app.engines.gate_entry_guard import (
   build_gate_ws_payload,
@@ -431,6 +433,21 @@ def _build_integrations_payload(
     "fomo_bearer_polling_active": bool(fomo_bearer.get("polling_active")),
     "fomo_bearer_expires_at": fomo_bearer.get("expires_at"),
     "fomo_bearer_minutes_remaining": fomo_bearer.get("minutes_remaining"),
+    "fomo_bearer_nudge_tier": resolve_fomo_bearer_nudge_tier(
+      polling_active=bool(fomo_bearer.get("polling_active")),
+      minutes_remaining=fomo_bearer.get("minutes_remaining"),
+    ),
+    "fomo_bearer_nudge_message": (
+      fomo_bearer_nudge_message(
+        tier,
+        minutes_remaining=fomo_bearer.get("minutes_remaining"),
+      )
+      if (tier := resolve_fomo_bearer_nudge_tier(
+        polling_active=bool(fomo_bearer.get("polling_active")),
+        minutes_remaining=fomo_bearer.get("minutes_remaining"),
+      ))
+      else None
+    ),
     "fomo_bearer_refresh_hint": (
       "./trading-platform/scripts/fomo-set-bearer.sh 'eyJ...'"
       if fomo_bearer.get("configured") and not fomo_bearer.get("polling_active")

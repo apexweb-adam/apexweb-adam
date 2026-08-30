@@ -599,7 +599,11 @@ export type BotSessions = Record<string, BotSessionInfo>;
 export type PlatformStatus = {
   platform: string;
   database: { engine: string; persistent: boolean };
-  intelligence: { active_sources: number; total_sources: number };
+  intelligence: {
+    active_sources: number;
+    total_sources: number;
+    sources?: IntelligenceSource[];
+  };
   scheduler?: Record<string, string>;
   bot_sessions?: BotSessions;
   gate_entry_tightening?: GateEntryTightening;
@@ -622,6 +626,8 @@ export type PlatformStatus = {
     fomo_bearer_polling_active?: boolean;
     fomo_bearer_expires_at?: string | null;
     fomo_bearer_minutes_remaining?: number | null;
+    fomo_bearer_nudge_tier?: string | null;
+    fomo_bearer_nudge_message?: string | null;
     fomo_bearer_refresh_hint?: string | null;
     fomo_webhook_fallback_active?: boolean;
     fomo_setup?: string | null;
