@@ -32,6 +32,10 @@ def test_summarize_session_open_checklist():
         "auto_entry_queued": True,
         "composite_floor": 0.42,
         "release_margin": 0.02,
+        "details": [
+          {"symbol": "NG=F", "composite": 0.634},
+          {"symbol": "CL=F", "composite": 0.406, "sticky_queue": True},
+        ],
       },
       "near_floor": {
         "symbols": ["CL=F"],
@@ -47,6 +51,7 @@ def test_summarize_session_open_checklist():
   assert summary["ready"] is False
   assert summary["open_ready_symbols"] == ["NG=F"]
   assert summary["sticky_symbols"] == ["CL=F"]
+  assert summary["open_ready_composites"] == {"NG=F": 0.634, "CL=F": 0.406}
   assert summary["near_floor_symbols"] == ["CL=F"]
   assert summary["near_floor_gaps"] == {"CL=F": 0.014}
   assert summary["release_margin"] == 0.02

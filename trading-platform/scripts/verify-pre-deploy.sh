@@ -4,7 +4,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BACKEND="${BACKEND_URL:-https://apex-trading-backend.onrender.com}"
-EXPECTED_REVISION="${EXPECTED_PLATFORM_REVISION:-2026-08-29-r355}"
+EXPECTED_REVISION="${EXPECTED_PLATFORM_REVISION:-2026-08-29-r356}"
 MIN_HOURS_BEFORE_CME="${MIN_HOURS_BEFORE_CME:-4}"
 MAX_HOURS_BEFORE_CME="${MAX_HOURS_BEFORE_CME:-6}"
 
@@ -101,3 +101,6 @@ echo "  TRIGGER_DEPLOY=true bash trading-platform/scripts/sync-render-env.sh"
 echo ""
 echo "After deploy:"
 echo "  bash trading-platform/scripts/verify-post-deploy.sh"
+echo ""
+echo "Watch deploy window (opens ~4-6h before CME):"
+echo "  bash trading-platform/scripts/watch-deploy-window.sh --once"
