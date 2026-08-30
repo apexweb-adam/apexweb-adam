@@ -150,14 +150,8 @@ while true; do
   if [[ $rc -eq 10 ]]; then
     if [[ "$AUTO_DEPLOY" == "true" ]]; then
       echo ""
-      echo "Auto-deploy enabled — running preflight..."
-      if bash "$ROOT/scripts/verify-pre-deploy.sh"; then
-        TRIGGER_DEPLOY=true bash "$ROOT/scripts/sync-render-env.sh"
-        bash "$ROOT/scripts/wait-for-render-deploy.sh" --verify || true
-      else
-        echo "Preflight failed — deploy not triggered" >&2
-        exit 1
-      fi
+      echo "Auto-deploy enabled — running full deploy window workflow..."
+      bash "$ROOT/scripts/run-deploy-window.sh"
     fi
     exit 0
   fi

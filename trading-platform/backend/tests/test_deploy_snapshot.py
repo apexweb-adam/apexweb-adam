@@ -30,6 +30,16 @@ def test_build_deploy_snapshot_includes_deploy_window_when_behind():
   assert "run-deploy-window" in (window.get("run_deploy_window_command") or "")
 
 
+def test_build_deploy_snapshot_includes_github_token_flag():
+  with patch.dict("os.environ", {"GITHUB_TOKEN": "ghp_test", "PLATFORM_REVISION": "2026-08-29-r336"}, clear=False):
+    with patch(
+      "app.engines.gate_entry_guard.commodities_session_info",
+      return_value={"minutes_until_open": 500, "in_session": False},
+    ):
+      snap = build_deploy_snapshot()
+  assert snap["github_token_configured"] is True
+
+
 def test_build_deploy_snapshot_no_window_when_current():
   with patch.dict("os.environ", {"PLATFORM_REVISION": EXPECTED_PLATFORM_REVISION}, clear=False):
     with patch(

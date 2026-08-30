@@ -29,8 +29,9 @@ if code_rev and exp and code_rev != exp:
     print(f"  deploy will advance prod expected {exp} → {code_rev}")
 elif code_rev and rev and code_rev != rev:
     print(f"  production behind code: {rev} → {code_rev}")
-if snap.get("github_verified") is False:
+if snap.get("github_token_configured") is False or snap.get("github_verified") is False:
     print("WARN: GITHUB_TOKEN missing on Render — deploy staleness checks incomplete")
+    print("  Set in .env and run: bash trading-platform/scripts/sync-render-env.sh")
 window = snap.get("cme_deploy_window") or {}
 if window.get("message"):
     print(f"CME window: {window.get('message')}")
