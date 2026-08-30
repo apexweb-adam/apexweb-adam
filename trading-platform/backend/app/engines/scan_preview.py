@@ -1218,7 +1218,9 @@ async def _build_monday_recovery_summary(session: AsyncSession) -> dict[str, Any
       continue
     session_key = sticky_session_keys[bot_type]
     prev_ready = (state.get(session_key) or {}).get("open_ready_symbols") or []
-    if not prev_ready:
+    extended_watch_symbols = (state.get(session_key) or {}).get("extended_watch_symbols") or []
+    watch_symbols = extended_watch_symbols or prev_ready
+    if not watch_symbols:
       continue
     graduation_nudge = bool(preview.get("graduation_nudge"))
     shadow_mode = bool(preview.get("shadow_mode"))
@@ -1228,7 +1230,7 @@ async def _build_monday_recovery_summary(session: AsyncSession) -> dict[str, Any
     proven_winners = frozenset(preview.get("proven_winners") or [])
     bot_win_rate = preview.get("shadow_bot_wr")
     total_trades = int(preview.get("total_trades") or 0)
-    for symbol in prev_ready:
+    for symbol in watch_symbols:
       if (bot_type, symbol) in existing_open_ready:
         continue
       row = symbol_rows.get(symbol)
@@ -1242,7 +1244,7 @@ async def _build_monday_recovery_summary(session: AsyncSession) -> dict[str, Any
         bot_type == "commodities"
         and minutes_until_open is not None
         and minutes_until_open <= COMMODITIES_OPEN_READY_PREP_MINUTES
-        and symbol in prev_ready
+        and symbol in watch_symbols
       )
       sticky_ready = False
       if bot_type == "commodities":
