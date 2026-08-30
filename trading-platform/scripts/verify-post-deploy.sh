@@ -19,6 +19,9 @@ echo "Backend: $BACKEND"
 echo "Expected revision: $EXPECTED_REVISION"
 echo ""
 
+bash "$ROOT/scripts/ops-gate-summary.sh" || true
+echo ""
+
 STATUS=$(curl -fsS -m 45 "$BACKEND/api/status" 2>/dev/null || echo "{}")
 CHECKLIST=$(curl -fsS -m 45 "$BACKEND/api/gate/cme-reopen-checklist" 2>/dev/null || echo "{}")
 SNAPSHOT=$(curl -fsS -m 15 "$BACKEND/api/deploy/snapshot" 2>/dev/null || echo "{}")
@@ -85,6 +88,27 @@ if deploy_info.get("vercel_bundle_behind_expected") is True:
     act = deploy_info.get("vercel_bundle_revision") or "?"
     print(f"  note: dashboard bundle behind expected ({act} vs {exp}) — non-blocking")
 
+run_cmd = snapshot.get("run_deploy_window_command")
+wait_cmd = snapshot.get("wait_for_deploy_command")
+if prod_rev == expected:
+    if run_cmd:
+        print(f"  run_deploy_window_command=ok")
+    else:
+        print("  note: run_deploy_window_command missing on snapshot (pre-r366)")
+    if wait_cmd:
+        print(f"  wait_for_deploy_command=ok")
+
+learning = status.get("learning") or {}
+if learning:
+    print(
+        "  learning_loop "
+        f"analyses={learning.get('trade_analyses')} "
+        f"reviews={learning.get('daily_reviews')} "
+        f"pending_insights={learning.get('insights_pending')}"
+    )
+elif status != {}:
+    errors.append("learning_loop_missing")
+
 if snapshot.get("cme_deploy_window") or snapshot.get("platform_revision"):
     print(f"  deploy_snapshot=ok revision={snapshot.get('platform_revision')}")
 elif snapshot and snapshot != {}:
@@ -114,6 +138,25 @@ if bash "$ROOT/scripts/verify-dashboard-bundle.sh"; then
   :
 else
   note "Dashboard bundle check failed (non-blocking)"
+fi
+
+CRM_TIME=$(curl -sS -o /dev/null -m 120 -w "%{time_total}" "$BACKEND/crm" 2>/dev/null || echo "")
+if [[ -n "$CRM_TIME" ]]; then
+  CRM_SEC=$(python3 -c "print(f'{float('$CRM_TIME'):.1f}')")
+  if python3 -c "import sys; sys.exit(0 if float('$CRM_TIME') < 30 else 1)"; then
+    ok "CRM landing loaded in ${CRM_SEC}s"
+  else
+    note "CRM landing slow (${CRM_SEC}s) — check Vercel discovery cache"
+  fi
+else
+  note "CRM landing timing unavailable"
+fi
+
+REVIEWS=$(curl -fsS -m 20 "$BACKEND/api/reviews?limit=1" 2>/dev/null || echo "[]")
+if echo "$REVIEWS" | python3 -c "import json,sys; d=json.load(sys.stdin); sys.exit(0 if isinstance(d,list) and len(d)>0 else 1)" 2>/dev/null; then
+  ok "Daily review API has history"
+else
+  note "Daily review API empty — learning loop may need first trade day"
 fi
 
 echo ""
