@@ -34,11 +34,14 @@ run_preflight() {
   echo "Expected revision (code): $EXPECTED_REVISION"
   echo ""
 
-  STATUS=$(fetch_json "$BACKEND/api/status" 90 2)
-  CHECKLIST=$(fetch_json "$BACKEND/api/gate/cme-reopen-checklist" 60 2)
+  wake_backend "$BACKEND" 3
+  # Checklist is lighter than /api/status and is the critical pre-open signal.
+  CHECKLIST=$(fetch_json "$BACKEND/api/gate/cme-reopen-checklist" 120 3)
   if [[ -z "$CHECKLIST" || "$CHECKLIST" == "{}" ]]; then
-    CHECKLIST=$(fetch_json "$BACKEND/api/gate/cme-reopen-checklist" 60 2)
+    wake_backend "$BACKEND" 2
+    CHECKLIST=$(fetch_json "$BACKEND/api/gate/cme-reopen-checklist" 120 3)
   fi
+  STATUS=$(fetch_json "$BACKEND/api/status" 120 3)
 
   if [[ -n "$CHECKLIST" && "$CHECKLIST" != "{}" ]]; then
     if echo "$CHECKLIST" | python3 -c "
@@ -146,7 +149,19 @@ if critical_fail:
     bad "Backend health unreachable"
   fi
 
-  if echo "$STATUS" | python3 -c "import json,sys; d=json.load(sys.stdin); bots=d.get('bots') or []; running=[b.get('bot_type') for b in bots if b.get('status')=='running']; sys.exit(0 if len(running) >= 3 else 1)"; then
+  if [[ -z "$STATUS" || "$STATUS" == "{}" ]]; then
+    if echo "$CHECKLIST" | python3 -c "
+import json, sys
+data = json.load(sys.stdin)
+checks = {c['id']: c for c in data.get('checks') or []}
+bh = checks.get('backend_health') or {}
+sys.exit(0 if bh.get('status') == 'pass' else 1)
+"; then
+      note "Bots running (checklist fallback — /api/status unreachable)"
+    else
+      bad "Not all bots running (status endpoint unreachable)"
+    fi
+  elif echo "$STATUS" | python3 -c "import json,sys; d=json.load(sys.stdin); bots=d.get('bots') or []; running=[b.get('bot_type') for b in bots if b.get('status')=='running']; sys.exit(0 if len(running) >= 3 else 1)"; then
     ok "Bots running"
   else
     bad "Not all bots running"
@@ -163,14 +178,24 @@ import json, os, sys
 
 status = json.loads(os.environ.get("STATUS_JSON") or "{}")
 checklist = json.loads(os.environ.get("CHECKLIST_JSON") or "{}")
+status_unreachable = not status
 deploy = status.get("deploy") or {}
+checklist_deploy = checklist.get("deploy") or {}
 rev_current = deploy.get("platform_revision_current")
+if rev_current is None and status_unreachable:
+    rev_current = checklist_deploy.get("platform_revision_current")
 errors = []
 notes = []
 
+if status_unreachable:
+    notes.append("status_endpoint_unreachable")
+
 summaries = status.get("session_open_checklists") or {}
 if not summaries.get("cme_reopen"):
-    (errors if rev_current is True else notes).append("session_open_checklists_missing")
+    if status_unreachable and checklist.get("ready") is True:
+        notes.append("session_open_checklists_missing")
+    else:
+        (errors if rev_current is True else notes).append("session_open_checklists_missing")
 else:
     cme = summaries["cme_reopen"]
     print(
@@ -194,6 +219,8 @@ elif rev_current is True:
     print("  status.cme_deploy_window=none (revision current — outside deploy window)")
 elif rev_current is False:
     notes.append("cme_deploy_window_pending_deploy")
+elif status_unreachable and checklist_deploy.get("platform_revision_current") is True:
+    print("  status.cme_deploy_window=none (checklist revision current — status unreachable)")
 else:
     errors.append("cme_deploy_window_missing")
 

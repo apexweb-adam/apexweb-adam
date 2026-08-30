@@ -9,11 +9,12 @@ source "$ROOT/scripts/lib/fetch_json.sh"
 BACKEND="${BACKEND_URL:-https://apex-trading-backend.onrender.com}"
 CODE_REV="$(grep '^EXPECTED_PLATFORM_REVISION' "$ROOT/backend/app/engines/deploy_status.py" | sed -n 's/.*"\([^"]*\)".*/\1/p')"
 
-SNAPSHOT=$(fetch_json "$BACKEND/api/deploy/snapshot" 45 2)
-CME=$(fetch_json "$BACKEND/api/gate/cme-reopen-checklist" 60 2)
-US_CHECKLIST=$(fetch_json "$BACKEND/api/gate/us-stocks-open-checklist" 45 2)
-INTEL_SOURCES=$(fetch_json "$BACKEND/api/intelligence/sources" 30 2)
-PREP_STATUS=$(fetch_json "$BACKEND/api/gate/prep-status" 45 2)
+wake_backend "$BACKEND" 3
+SNAPSHOT=$(fetch_json "$BACKEND/api/deploy/snapshot" 60 3)
+CME=$(fetch_json "$BACKEND/api/gate/cme-reopen-checklist" 120 3)
+US_CHECKLIST=$(fetch_json "$BACKEND/api/gate/us-stocks-open-checklist" 60 3)
+INTEL_SOURCES=$(fetch_json "$BACKEND/api/intelligence/sources" 45 3)
+PREP_STATUS=$(fetch_json "$BACKEND/api/gate/prep-status" 60 3)
 BASELINE=""
 if [[ -f "$ROOT/.crm-load-baseline" ]]; then
   BASELINE=$(tr -d '[:space:]' < "$ROOT/.crm-load-baseline")
