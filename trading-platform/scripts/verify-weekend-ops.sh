@@ -137,7 +137,7 @@ fi
 
 echo ""
 echo "After CME open (22:00 UTC):"
-echo "  bash trading-platform/scripts/verify-cme-post-open.sh"
+echo "  bash trading-platform/scripts/verify-cme-post-open.sh --watch 120"
 echo ""
 echo "Monday before US open (13:30 UTC):"
 echo "  bash trading-platform/scripts/verify-us-stocks-open.sh --watch 120"

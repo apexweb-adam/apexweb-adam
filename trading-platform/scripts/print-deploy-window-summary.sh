@@ -164,7 +164,7 @@ print("")
 print("Deploy:")
 print("  bash trading-platform/scripts/run-deploy-window.sh")
 print("After CME open (22:00 UTC):")
-print("  bash trading-platform/scripts/verify-cme-post-open.sh")
+print("  bash trading-platform/scripts/verify-cme-post-open.sh --watch 120")
 print("Monday US open (13:30 UTC):")
 print("  bash trading-platform/scripts/verify-us-stocks-open.sh --watch 120")
 PY

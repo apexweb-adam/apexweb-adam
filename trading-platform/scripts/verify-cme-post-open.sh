@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Post-open verification after CME Sunday reopen (run after 22:00 UTC).
+# Usage: verify-cme-post-open.sh [--watch SECONDS]
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -7,6 +8,11 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 source "$ROOT/scripts/lib/fetch_json.sh"
 BACKEND="${BACKEND_URL:-https://apex-trading-backend.onrender.com}"
 CODE_REV="$(grep '^EXPECTED_PLATFORM_REVISION' "$ROOT/backend/app/engines/deploy_status.py" | sed -n 's/.*"\([^"]*\)".*/\1/p')"
+WATCH_INTERVAL=""
+
+if [[ "${1:-}" == "--watch" ]]; then
+  WATCH_INTERVAL="${2:-120}"
+fi
 
 pass=0
 fail=0
@@ -16,17 +22,22 @@ ok() { echo "✓ $*"; pass=$((pass + 1)); }
 bad() { echo "✗ $*"; fail=$((fail + 1)); }
 note() { echo "○ $*"; warn=$((warn + 1)); }
 
-echo "=== CME Post-Open Verification — $(date -u '+%Y-%m-%d %H:%M UTC') ==="
-echo "Backend: $BACKEND"
-echo ""
+run_verification() {
+  pass=0
+  fail=0
+  warn=0
 
-TMP=$(mktemp -d)
-trap 'rm -rf "$TMP"' EXIT
-fetch_json "$BACKEND/api/gate/cme-reopen-checklist" 90 2 > "$TMP/checklist.json" || echo "{}" > "$TMP/checklist.json"
-fetch_json "$BACKEND/api/status" 90 2 > "$TMP/status.json" || echo "{}" > "$TMP/status.json"
-fetch_json "$BACKEND/api/deploy/snapshot" 45 2 > "$TMP/snapshot.json" || echo "{}" > "$TMP/snapshot.json"
+  echo "=== CME Post-Open Verification — $(date -u '+%Y-%m-%d %H:%M UTC') ==="
+  echo "Backend: $BACKEND"
+  echo ""
 
-CHECKLIST_FILE="$TMP/checklist.json" STATUS_FILE="$TMP/status.json" SNAPSHOT_FILE="$TMP/snapshot.json" CODE_REV="$CODE_REV" python3 << 'PY'
+  TMP=$(mktemp -d)
+  trap 'rm -rf "$TMP"' RETURN
+  fetch_json "$BACKEND/api/gate/cme-reopen-checklist" 90 2 > "$TMP/checklist.json" || echo "{}" > "$TMP/checklist.json"
+  fetch_json "$BACKEND/api/status" 90 2 > "$TMP/status.json" || echo "{}" > "$TMP/status.json"
+  fetch_json "$BACKEND/api/deploy/snapshot" 45 2 > "$TMP/snapshot.json" || echo "{}" > "$TMP/snapshot.json"
+
+  CHECKLIST_FILE="$TMP/checklist.json" STATUS_FILE="$TMP/status.json" SNAPSHOT_FILE="$TMP/snapshot.json" CODE_REV="$CODE_REV" python3 << 'PY'
 import json, os, sys
 from pathlib import Path
 
@@ -136,22 +147,51 @@ if errors:
 sys.exit(0)
 PY
 
-rc=$?
-if [[ $rc -eq 0 ]]; then
-  ok "CME post-open checklist passed"
-elif [[ $rc -eq 2 ]]; then
-  note "CME not open yet — rerun after 22:00 UTC"
-else
-  bad "CME post-open checklist failed (see checks above)"
-fi
+  local rc=$?
+  if [[ $rc -eq 0 ]]; then
+    ok "CME post-open checklist passed"
+  elif [[ $rc -eq 2 ]]; then
+    note "CME not open yet — rerun after 22:00 UTC"
+  else
+    bad "CME post-open checklist failed (see checks above)"
+  fi
 
-echo ""
-echo "Results: $pass passed, $fail failed, $warn notes"
-if [[ "$fail" -gt 0 ]]; then
-  exit 1
+  echo ""
+  echo "Results: $pass passed, $fail failed, $warn notes"
+  return "$rc"
+}
+
+finish() {
+  local rc=$1
+  if [[ "$rc" -eq 1 ]]; then
+    exit 1
+  fi
+  if [[ "$rc" -eq 0 ]]; then
+    echo ""
+    echo "Monday before US open (13:30 UTC):"
+    echo "  bash trading-platform/scripts/verify-us-stocks-open.sh --watch 120"
+    echo "Monday after US open:"
+    echo "  bash trading-platform/scripts/verify-us-stocks-post-open.sh"
+  fi
+  exit "$rc"
+}
+
+if [[ -n "$WATCH_INTERVAL" ]]; then
+  while true; do
+    run_verification
+    rc=$?
+    if [[ $rc -eq 0 ]]; then
+      finish 0
+    fi
+    if [[ $rc -eq 1 ]]; then
+      finish 1
+    fi
+    echo ""
+    echo "Watching for CME post-open — next check in ${WATCH_INTERVAL}s (Ctrl+C to stop)"
+    sleep "$WATCH_INTERVAL"
+    echo ""
+  done
+else
+  run_verification
+  finish $?
 fi
-echo ""
-echo "Monday before US open (13:30 UTC):"
-echo "  bash trading-platform/scripts/verify-us-stocks-open.sh --watch 120"
-echo "Monday after US open:"
-echo "  bash trading-platform/scripts/verify-us-stocks-post-open.sh"

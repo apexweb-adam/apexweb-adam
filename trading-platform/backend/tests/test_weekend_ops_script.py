@@ -129,9 +129,26 @@ def test_print_deploy_window_summary_script_exists():
   assert "deploy_json.py" in text
   assert "Intel: sources API ready" in text
   assert "verify-cme-post-open.sh" in text
+  assert "verify-cme-post-open.sh --watch" in text
   assert "sticky_symbols" in text
   assert "near_floor" in text
   assert "us-stocks-open-checklist" in text
+
+
+def test_verify_cme_post_open_supports_watch_mode():
+  script = SCRIPTS / "verify-cme-post-open.sh"
+  text = script.read_text(encoding="utf-8")
+  assert "--watch" in text
+  assert "Watching for CME post-open" in text
+  assert "run_verification" in text
+
+
+def test_watch_deploy_window_shows_cme_prep_when_current():
+  script = SCRIPTS / "watch-deploy-window.sh"
+  text = script.read_text(encoding="utf-8")
+  assert "print_cme_prep" in text
+  assert "cme-reopen-checklist" in text
+  assert "cme_open_in=" in text
 
 
 def test_run_deploy_window_includes_summary_script():
