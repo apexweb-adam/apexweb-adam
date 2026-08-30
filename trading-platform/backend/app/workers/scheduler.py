@@ -339,12 +339,23 @@ _cme_deploy_reminder_last_at: float = 0.0
 CME_DEPLOY_REMINDER_INTERVAL_SECONDS = 1800
 
 
+def _resolve_cme_deploy_reminder():
+  from app.engines.deploy_status import resolve_cme_deploy_reminder
+
+  return resolve_cme_deploy_reminder()
+
+
+async def _push_cme_deploy_live_update() -> None:
+  from app.ws_manager import push_live_update
+
+  await push_live_update()
+
+
 async def cme_deploy_reminder_job() -> None:
   """Log and push CRM when Render revision is behind and CME reopen is within 6h."""
   global _cme_deploy_reminder_last_at
-  from app.engines import deploy_status
 
-  urgency = deploy_status.resolve_cme_deploy_reminder()
+  urgency = _resolve_cme_deploy_reminder()
   if not urgency:
     if not os.environ.get("PLATFORM_REVISION"):
       _cme_deploy_reminder_last_at = 0.0
@@ -355,14 +366,14 @@ async def cme_deploy_reminder_job() -> None:
     return
 
   _cme_deploy_reminder_last_at = now
+  from app.engines.deploy_status import EXPECTED_PLATFORM_REVISION
+
   platform_revision = os.environ.get("PLATFORM_REVISION", "").strip() or "?"
   print(
     f"[CmeDeploy] {urgency['message']} — running {platform_revision}, "
-    f"expected {deploy_status.EXPECTED_PLATFORM_REVISION}"
+    f"expected {EXPECTED_PLATFORM_REVISION}"
   )
-  from app.ws_manager import push_live_update
-
-  await push_live_update()
+  await _push_cme_deploy_live_update()
 
 
 async def commodities_cme_reopen_wake_job() -> None:

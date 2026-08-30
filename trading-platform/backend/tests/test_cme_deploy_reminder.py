@@ -17,12 +17,10 @@ _URGENCY = {
 def test_cme_deploy_reminder_logs_and_pushes_when_urgency_active():
   sched._cme_deploy_reminder_last_at = 0.0
 
-  with patch(
-    "app.engines.deploy_status.resolve_cme_deploy_reminder",
-    return_value=_URGENCY,
-  ):
-    with patch(
-      "app.ws_manager.push_live_update",
+  with patch.object(sched, "_resolve_cme_deploy_reminder", return_value=_URGENCY):
+    with patch.object(
+      sched,
+      "_push_cme_deploy_live_update",
       new_callable=AsyncMock,
     ) as push:
       asyncio.run(sched.cme_deploy_reminder_job())
@@ -34,12 +32,10 @@ def test_cme_deploy_reminder_logs_and_pushes_when_urgency_active():
 def test_cme_deploy_reminder_skips_when_no_urgency():
   sched._cme_deploy_reminder_last_at = 0.0
 
-  with patch(
-    "app.engines.deploy_status.resolve_cme_deploy_reminder",
-    return_value=None,
-  ):
-    with patch(
-      "app.ws_manager.push_live_update",
+  with patch.object(sched, "_resolve_cme_deploy_reminder", return_value=None):
+    with patch.object(
+      sched,
+      "_push_cme_deploy_live_update",
       new_callable=AsyncMock,
     ) as push:
       asyncio.run(sched.cme_deploy_reminder_job())
@@ -51,12 +47,10 @@ def test_cme_deploy_reminder_skips_when_no_urgency():
 def test_cme_deploy_reminder_rate_limited():
   sched._cme_deploy_reminder_last_at = time.monotonic()
 
-  with patch(
-    "app.engines.deploy_status.resolve_cme_deploy_reminder",
-    return_value=_URGENCY,
-  ):
-    with patch(
-      "app.ws_manager.push_live_update",
+  with patch.object(sched, "_resolve_cme_deploy_reminder", return_value=_URGENCY):
+    with patch.object(
+      sched,
+      "_push_cme_deploy_live_update",
       new_callable=AsyncMock,
     ) as push:
       asyncio.run(sched.cme_deploy_reminder_job())
