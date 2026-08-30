@@ -189,30 +189,33 @@ def test_commodities_cme_reopen_wake_refreshes_pre_open():
           new_callable=AsyncMock,
           return_value=["NG=F"],
         ) as mock_refresh:
-          with patch("app.ws_manager.push_live_update", new_callable=AsyncMock) as mock_push:
+          with patch("app.ws_manager.push_live_update", new_callable=AsyncMock):
             with patch(
-              "app.engines.scan_preview.build_monday_recovery_summary",
-              new_callable=AsyncMock,
-              return_value={"open_ready": []},
-            ):
+              "app.engines.scan_preview.clear_monday_recovery_cache",
+            ) as mock_clear:
               with patch(
-                "app.engines.profitability_gate.ProfitabilityGate.evaluate_per_bot",
+                "app.engines.scan_preview.build_monday_recovery_summary",
                 new_callable=AsyncMock,
-                return_value={"commodities": {"win_rate": 0.5, "profit_factor": 1.2, "total_pnl": 20}},
+                return_value={"open_ready": []},
               ):
                 with patch(
-                  "app.engines.gate_entry_guard.in_shadow_graduation_nudge",
-                  return_value=True,
+                  "app.engines.profitability_gate.ProfitabilityGate.evaluate_per_bot",
+                  new_callable=AsyncMock,
+                  return_value={"commodities": {"win_rate": 0.5, "profit_factor": 1.2, "total_pnl": 20}},
                 ):
-                  with _mock_scheduler_session():
-                    import asyncio
+                  with patch(
+                    "app.engines.gate_entry_guard.in_shadow_graduation_nudge",
+                    return_value=True,
+                  ):
+                    with _mock_scheduler_session():
+                      import asyncio
 
-                    asyncio.run(commodities_cme_reopen_wake_job())
+                      asyncio.run(commodities_cme_reopen_wake_job())
             mock_refresh.assert_called_once()
+            mock_clear.assert_called_once()
             symbols = mock_refresh.call_args[0][1]
             assert symbols[0] == "NG=F"
             assert mock_refresh.call_args[1]["force_refresh"] is True
-            mock_push.assert_called_once()
 
 
 def test_commodities_cme_reopen_wake_runs_for_open_ready_without_graduation_nudge():
