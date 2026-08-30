@@ -62,6 +62,19 @@ def test_apply_fomo_bearer_to_snapshot_marks_expired():
   assert snap["fomo_bearer_polling_active"] is False
   assert snap["fomo_bearer_minutes_remaining"] == -120
   assert "fomo-set-bearer" in snap["fomo_bearer_refresh_hint"]
+  assert snap["deploy_credentials_ready"] is False
+  assert any("fomo" in w for w in snap["deploy_credentials_warnings"])
+
+
+def test_apply_fomo_bearer_to_snapshot_ready_when_polling():
+  from app.engines.deploy_status import apply_fomo_bearer_to_snapshot
+
+  snap = apply_fomo_bearer_to_snapshot(
+    {"platform_revision": "2026-08-29-r336", "github_token_configured": True},
+    {"configured": True, "polling_active": True, "minutes_remaining": 90},
+  )
+  assert snap["deploy_credentials_ready"] is True
+  assert snap["deploy_credentials_warnings"] == []
 
 
 def test_deploy_snapshot_route():

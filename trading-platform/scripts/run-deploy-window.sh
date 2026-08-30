@@ -29,9 +29,7 @@ echo ""
 
 bash "$ROOT/scripts/ops-gate-summary.sh" || true
 echo ""
-bash "$ROOT/scripts/check-fomo-bearer.sh" || true
-echo ""
-bash "$ROOT/scripts/check-github-token.sh" || true
+bash "$ROOT/scripts/check-deploy-credentials.sh" || true
 echo ""
 
 if ! bash "$ROOT/scripts/verify-pre-deploy.sh"; then
