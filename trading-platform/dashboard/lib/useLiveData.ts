@@ -102,6 +102,23 @@ export function useLiveData(): LiveData {
         setSessionPrep((prev) => prev ?? ({ open_ready: recovery.open_ready } as SessionPrepStatus));
       }
       if (status.next_session_events) setNextSessionEvents(status.next_session_events);
+      if (status.profitability_gate) {
+        const gate = status.profitability_gate as ProfitabilityStatus;
+        if (status.per_bot_gate) {
+          gate.per_bot = status.per_bot_gate as Record<string, PerBotGateStatus>;
+        }
+        setProfitabilityGate(gate);
+      } else if (status.per_bot_gate) {
+        setProfitabilityGate((prev) =>
+          prev
+            ? { ...prev, per_bot: status.per_bot_gate as Record<string, PerBotGateStatus> }
+            : prev
+        );
+      }
+      if (status.gate_entry_tightening) {
+        setGateEntryTightening(status.gate_entry_tightening as GateEntryTightening);
+      }
+      if (status.bot_sessions) setBotSessions(status.bot_sessions as BotSessions);
       if (status.timestamp) setLastUpdate(status.timestamp);
     } catch {
       // keep last good snapshot

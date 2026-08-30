@@ -24,7 +24,23 @@ def _sell(bot: str, pnl: float, *, winner: bool, at: datetime) -> Trade:
   return t
 
 
-def test_evaluate_per_bot_graduation_ready():
+
+def test_profitability_endpoint_includes_per_bot():
+  async def run():
+    from app.api.routes import get_profitability
+
+    session = AsyncMock()
+    eval_result = {"total_trades": 40, "win_rate": 0.5}
+    per_bot = {"commodities": {"total_trades": 40, "graduation_ready": False}}
+    with patch("app.api.routes.ProfitabilityGate") as MockGate:
+      gate = MockGate.return_value
+      gate.evaluate = AsyncMock(return_value=dict(eval_result))
+      gate.evaluate_per_bot = AsyncMock(return_value=per_bot)
+      result = await get_profitability(session)
+    assert result["per_bot"] == per_bot
+    assert result["total_trades"] == 40
+
+  asyncio.run(run())
   gate = ProfitabilityGate(session=None)  # type: ignore[arg-type]
   start = datetime(2026, 8, 27, 15, 54, 5)
   sells = [

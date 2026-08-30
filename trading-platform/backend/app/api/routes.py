@@ -354,7 +354,9 @@ async def get_strategies(db: AsyncSession = Depends(get_db)) -> list[dict[str, A
 @router.get("/profitability")
 async def get_profitability(db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
   gate = ProfitabilityGate(db)
-  return await gate.evaluate()
+  result = await gate.evaluate()
+  result["per_bot"] = await gate.evaluate_per_bot()
+  return result
 
 
 @router.get("/gate/per-bot")
