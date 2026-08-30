@@ -2024,6 +2024,15 @@ function SessionPrepBanner({ sessionPrep }: { sessionPrep: SessionPrepStatus | n
                   · open ready: {entry.open_ready_symbols!.join(", ")}
                 </span>
               ) : null}
+              {entry.auto_entry_queued ? (
+                <span className="text-lime-300/90" title="Gate-skip auto-entry queued at session open">
+                  {" "}
+                  · auto-entry queued
+                  {entry.composite_floor != null
+                    ? ` (floor ${entry.composite_floor.toFixed(2)})`
+                    : ""}
+                </span>
+              ) : null}
               {!inSession && entry.prep_active ? (
                 <>
                   {" · "}

@@ -121,8 +121,77 @@ def test_build_platform_status_includes_per_bot_gate():
                           "app.engines.platform_status.get_axiom_session_status",
                           new=AsyncMock(return_value={}),
                         ):
-                          result = await platform_status.build_platform_status(session)
+                          with patch(
+                            "app.engines.platform_status.build_crm_content_study_highlights",
+                            new=AsyncMock(
+                              return_value={"insights_applied": 10, "recent": []}
+                            ),
+                          ):
+                            result = await platform_status.build_platform_status(session)
     assert result["per_bot_gate"]["commodities"]["total_trades"] == 40
     assert result["per_bot_gate"]["crypto"]["paused"] is True
+    assert result["content_study"]["insights_applied"] == 10
+
+
+def test_build_platform_status_includes_content_study():
+  async def run():
+    session = AsyncMock()
+    gate_payload = {
+      "profitability_gate": {},
+      "per_bot_gate": {},
+      "gate_entry_tightening": {"active": False},
+      "bot_sessions": {},
+    }
+    highlights = {"insights_applied": 42, "recent": [{"title": "Risk mgmt", "applied": True}]}
+    with patch(
+      "app.engines.platform_status._fetch_stats",
+      new=AsyncMock(return_value={}),
+    ):
+      with patch(
+        "app.engines.platform_status._fetch_bot_states",
+        new=AsyncMock(return_value=[]),
+      ):
+        with patch(
+          "app.engines.platform_status._fetch_learning_counts",
+          new=AsyncMock(return_value={}),
+        ):
+          with patch(
+            "app.engines.platform_status.build_gate_ws_payload",
+            new=AsyncMock(return_value=gate_payload),
+          ):
+            with patch(
+              "app.engines.platform_status.build_monday_recovery_summary",
+              new=AsyncMock(return_value={"open_ready": [], "near_floor": []}),
+            ):
+              with patch(
+                "app.engines.platform_status.build_intel_sources",
+                new=AsyncMock(return_value=[]),
+              ):
+                with patch(
+                  "app.engines.platform_status.build_deploy_status",
+                  new=AsyncMock(return_value={}),
+                ):
+                  with patch(
+                    "app.engines.platform_status.recommended_dashboard_url",
+                    new=AsyncMock(return_value="https://example.com"),
+                  ):
+                    with patch(
+                      "app.engines.platform_status.get_session_open_events",
+                      new=AsyncMock(return_value=[]),
+                    ):
+                      with patch(
+                        "app.engines.platform_status.get_fomo_bearer_status",
+                        new=AsyncMock(return_value={}),
+                      ):
+                        with patch(
+                          "app.engines.platform_status.get_axiom_session_status",
+                          new=AsyncMock(return_value={}),
+                        ):
+                          with patch(
+                            "app.engines.platform_status.build_crm_content_study_highlights",
+                            new=AsyncMock(return_value=highlights),
+                          ):
+                            result = await platform_status.build_platform_status(session)
+    assert result["content_study"] == highlights
 
   asyncio.run(run())

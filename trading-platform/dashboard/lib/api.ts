@@ -295,6 +295,8 @@ export type SessionPrepEntry = {
     macd?: string;
     blockers?: string[];
   }>;
+  auto_entry_queued?: boolean;
+  composite_floor?: number;
 };
 
 export const SESSION_PREP_BOT_TYPES = ["stocks_futures", "commodities"] as const;
@@ -617,6 +619,9 @@ export type PlatformStatus = {
     insights_total: number;
     insights_pending?: number;
   };
+  content_study?: ContentStudySummary;
+  profitability_gate?: ProfitabilityStatus;
+  per_bot_gate?: Record<string, PerBotGateStatus>;
   session_prep?: SessionPrepStatus;
   open_ready_candidates?: string[];
   next_session_events?: NextSessionEvents;

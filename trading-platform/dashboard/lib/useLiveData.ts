@@ -119,6 +119,7 @@ export function useLiveData(): LiveData {
         setGateEntryTightening(status.gate_entry_tightening as GateEntryTightening);
       }
       if (status.bot_sessions) setBotSessions(status.bot_sessions as BotSessions);
+      if (status.content_study) setContentStudy(status.content_study as ContentStudySummary);
       if (status.timestamp) setLastUpdate(status.timestamp);
     } catch {
       // keep last good snapshot

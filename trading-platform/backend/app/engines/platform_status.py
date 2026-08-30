@@ -22,6 +22,7 @@ from app.engines.gate_entry_guard import (
 )
 from app.engines.intel_source_status import build_intel_sources
 from app.engines.scan_preview import build_monday_recovery_summary
+from app.engines.learning_engine import build_crm_content_study_highlights
 from app.engines.session_open_log import get_session_open_events
 from app.engines.trade_stats import aggregate_win_rate
 from app.intelligence.axiom_tracker import get_axiom_session_status
@@ -220,6 +221,7 @@ async def _build_platform_status_uncached(session: AsyncSession) -> dict[str, An
 
   fomo_bearer = await get_fomo_bearer_status(session)
   axiom_session = await get_axiom_session_status(session)
+  content_study = await build_crm_content_study_highlights(session)
   tv_items = next((s["items_collected"] for s in sources if s["source"] == "tradingview"), 0)
   base_next_steps = (
     []
@@ -256,6 +258,7 @@ async def _build_platform_status_uncached(session: AsyncSession) -> dict[str, An
       "sources": sources,
     },
     "learning": learning,
+    "content_study": content_study,
     "integrations": _build_integrations_payload(fomo_bearer, axiom_session, tv_items),
     "scheduler": {
       "intelligence_scan": "every 5 min",

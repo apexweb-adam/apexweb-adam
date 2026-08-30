@@ -311,6 +311,28 @@ async def session_prep_queue_monitor_job() -> None:
     await push_live_update()
 
 
+_fomo_bearer_was_polling: bool | None = None
+
+
+async def fomo_bearer_monitor_job() -> None:
+  """Push CRM updates when fomo.family bearer expires or is restored."""
+  global _fomo_bearer_was_polling
+  from app.intelligence.fomo_tracker import get_fomo_bearer_status
+
+  async with SessionLocal() as session:
+    status = await get_fomo_bearer_status(session)
+  if not status.get("configured"):
+    return
+  polling = bool(status.get("polling_active"))
+  if _fomo_bearer_was_polling is not None and polling != _fomo_bearer_was_polling:
+    state = "restored" if polling else "expired"
+    print(f"[FomoBearer] bearer {state} — memecoin polling {'active' if polling else 'paused'}")
+    from app.ws_manager import push_live_update
+
+    await push_live_update()
+  _fomo_bearer_was_polling = polling
+
+
 async def commodities_cme_reopen_wake_job() -> None:
   """Force-refresh TV signals right before/after CME reopen so open-ready futures enter fast."""
   from app.engines.gate_entry_guard import (
@@ -762,6 +784,12 @@ async def setup_scheduler() -> None:
     "interval",
     minutes=30,
     id="held_positions_tv_refresh",
+  )
+  scheduler.add_job(
+    fomo_bearer_monitor_job,
+    "interval",
+    minutes=15,
+    id="fomo_bearer_monitor",
   )
   scheduler.add_job(daily_review_job, "cron", hour=22, minute=0, id="daily_review")
   scheduler.add_job(daily_review_refresh_job, "interval", hours=4, id="daily_review_refresh")
