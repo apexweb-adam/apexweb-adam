@@ -33,28 +33,41 @@ while [[ $# -gt 0 ]]; do
 done
 
 fetch_snapshot() {
-  local attempt=1
-  local raw=""
-  while [[ "$attempt" -le 3 ]]; do
-    raw=$(curl -fsS -m 30 "$BACKEND/api/deploy/snapshot" 2>/dev/null || true)
-    if [[ -n "$raw" && "$raw" != "{}" ]]; then
-      echo "$raw"
+  local tmp snap_code status_code
+  tmp="${TMPDIR:-/tmp}/apex-deploy-snap.$$"
+
+  snap_code=$(curl -sS -m 12 -o "$tmp" -w "%{http_code}" "$BACKEND/api/deploy/snapshot" 2>/dev/null || echo "000")
+  if [[ "$snap_code" == "200" && -s "$tmp" ]]; then
+    cat "$tmp"
+    rm -f "$tmp"
+    return 0
+  fi
+
+  # Pre-r358 backends return 404 — fall back once to /api/status deploy block.
+  status_code=$(curl -sS -m 45 -o "$tmp" -w "%{http_code}" "$BACKEND/api/status" 2>/dev/null || echo "000")
+  if [[ "$status_code" == "200" && -s "$tmp" ]]; then
+    if python3 -c "import json,sys; json.load(open(sys.argv[1]))" "$tmp" 2>/dev/null; then
+      python3 -c "import json,sys; d=json.load(open(sys.argv[1])); print(json.dumps(d.get('deploy') or {}))" "$tmp"
+      rm -f "$tmp"
       return 0
     fi
-    raw=$(curl -fsS -m 90 "$BACKEND/api/status" 2>/dev/null || true)
-    if [[ -n "$raw" && "$raw" != "{}" ]]; then
-      python3 -c "import json,sys; d=json.load(sys.stdin); print(json.dumps(d.get('deploy') or {}))" <<<"$raw"
-      return 0
-    fi
-    attempt=$((attempt + 1))
-    sleep 2
-  done
+  fi
+
+  rm -f "$tmp"
   echo "{}"
   return 1
 }
 
 run_check() {
-  SNAPSHOT=$(fetch_snapshot || echo "{}")
+  SNAPSHOT=$(fetch_snapshot) || SNAPSHOT="{}"
+  if [[ "$SNAPSHOT" == "{}" || "$SNAPSHOT" == "" ]]; then
+    SNAPSHOT=$(cd "$ROOT/backend" && PYTHONPATH=. python3 -c \
+      "from app.engines.deploy_status import build_deploy_snapshot; import json; print(json.dumps(build_deploy_snapshot()))" \
+      2>/dev/null || echo "{}")
+    if [[ "$SNAPSHOT" != "{}" ]]; then
+      echo "○ Using local deploy snapshot (backend /api/status unavailable)"
+    fi
+  fi
   python3 << PY
 import json, sys
 
