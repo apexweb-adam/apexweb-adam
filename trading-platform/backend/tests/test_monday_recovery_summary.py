@@ -113,7 +113,7 @@ def test_build_monday_recovery_summary_aggregates_bots():
   assert result["open_ready"][1]["monday_gate_skip_ready"] is True
 
 
-def test_build_monday_recovery_summary_keeps_sticky_open_ready():
+def test_build_monday_recovery_summary_keeps_sticky_open_ready(weekend_commodities_session):
   async def _run():
     session = AsyncMock()
 
