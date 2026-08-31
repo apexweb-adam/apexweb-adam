@@ -49,7 +49,14 @@ if outage.get("logged"):
     print("  platform_outage_recovery: logged")
 outage_events = status.get("platform_outage_events") or []
 if outage_events:
-    print(f"Platform outage events logged: {len(outage_events)} (newest gap {outage_events[0].get('gap_minutes')}m)")
+    newest = outage_events[0]
+    print(f"Platform outage events logged: {len(outage_events)} (newest gap {newest.get('gap_minutes')}m)")
+    held = newest.get("held_open_positions") or []
+    if held:
+        held_summary = ", ".join(
+            f"{row.get('symbol')}({row.get('bot_type')})" for row in held[:6]
+        )
+        print(f"  outage held at resume: {held_summary}")
 PY
   exit 0
 fi

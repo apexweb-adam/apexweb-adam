@@ -91,6 +91,7 @@ def test_recover_render_billing_triggers_deploy_when_behind():
   assert "force-refreshes held-position TV" in text
   assert "stocks scan preview" in text
   assert "outage catch-up" in text
+  assert "outage_held_at_resume" in text
 
 
 def test_verify_platform_includes_platform_outage_state():
@@ -111,6 +112,14 @@ def test_fetch_json_includes_deploy_trigger_helpers():
   assert "production_revision_behind" in text
 
 
+def test_scheduler_registers_post_outage_recovery_burst():
+  text = (SCRIPTS.parent / "backend" / "app" / "workers" / "scheduler.py").read_text(
+    encoding="utf-8"
+  )
+  assert "run_post_outage_recovery_bursts" in text
+  assert "_startup_outage_event" in text
+
+
 def test_print_outage_status_script():
   script = SCRIPTS / "print-outage-status.sh"
   assert script.is_file()
@@ -120,6 +129,7 @@ def test_print_outage_status_script():
   assert "recover-render-billing.sh" in text
   assert "CODE_REV" in text
   assert "r454 deploys" not in text
+  assert "held_open_positions" in text
 
 
 def test_verify_post_deploy_includes_crm_and_learning_checks():

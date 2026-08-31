@@ -97,10 +97,17 @@ if outage_events:
     gap = newest.get("gap_minutes")
     us = newest.get("us_open_ready_symbols") or []
     cme = newest.get("cme_open_ready_symbols") or []
+    held = newest.get("held_open_positions") or []
     print(
         f"  platform_outage_events={len(outage_events)} "
         f"newest_gap_min={gap} us_queued={us or 'none'} cme_queued={cme or 'none'}"
     )
+    if held:
+        held_summary = ", ".join(
+            f"{row.get('symbol')}({row.get('bot_type')})" for row in held[:6]
+        )
+        extra = f" +{len(held) - 6} more" if len(held) > 6 else ""
+        print(f"  outage_held_at_resume={held_summary}{extra}")
     print("  note=startup force-refreshes held-position TV when outage gap logged")
 else:
     print("  platform_outage_events=none (no gap logged yet or first heartbeat pending)")
