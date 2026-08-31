@@ -73,6 +73,7 @@ def test_verify_scripts_check_render_billing_suspension():
     "verify-us-stocks-open.sh",
     "verify-us-stocks-post-open.sh",
     "verify-cme-post-open.sh",
+    "verify-crypto-held.sh",
     "verify-platform.sh",
     "wait-for-render-deploy.sh",
     "recover-render-billing.sh",
@@ -98,6 +99,7 @@ def test_recover_render_billing_triggers_deploy_when_behind():
   assert "grace_remaining_min" in text
   assert "Crypto scan preview" in text
   assert "verify-cme-post-open.sh" in text
+  assert "verify-crypto-held.sh" in text
   assert "Monday outage grace" in text
   assert "urgent polling" in text
   assert 'GRACE_LEFT" -le 30' in text
@@ -305,6 +307,18 @@ def test_verify_cme_post_open_supports_watch_mode():
   assert "recovery_scan_pending_burst" in text
   assert "post_grace_catchup" in text
   assert "post_grace_outage_recovery_scan" in text
+
+
+def test_verify_crypto_held_supports_watch_mode():
+  script = SCRIPTS / "verify-crypto-held.sh"
+  text = script.read_text(encoding="utf-8")
+  assert "--watch" in text
+  assert "Watching for crypto held recovery" in text
+  assert "run_verification" in text
+  assert "check_backend_suspension" in text
+  assert "outage_recovery_scan" in text
+  assert "crypto_outage_recovery_pending" in text
+  assert "platform_outage_logged" in text
 
 
 def test_wait_for_render_deploy_waits_for_status_revision():
