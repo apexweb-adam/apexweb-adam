@@ -394,6 +394,18 @@ def test_monday_recovery_cache_ttl_short_during_cme_prep_watch():
       assert _monday_recovery_cache_ttl_seconds() == 15
 
 
+def test_monday_recovery_cache_ttl_short_during_us_stocks_imminent_window():
+  with patch(
+    "app.engines.gate_entry_guard.commodities_futures_weekend_closed",
+    return_value=False,
+  ):
+    with patch(
+      "app.engines.gate_entry_guard.stocks_session_info",
+      return_value={"in_session": False, "minutes_until_open": 20},
+    ):
+      assert _monday_recovery_cache_ttl_seconds() == 15
+
+
 def test_build_monday_recovery_summary_runs_scan_previews_in_parallel():
   async def _run():
     session = AsyncMock()
