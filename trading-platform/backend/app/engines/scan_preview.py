@@ -37,6 +37,7 @@ from app.engines.gate_entry_guard import (
   commodities_graduation_entry_min_signal,
   commodities_graduation_ease_active,
   commodities_verification_trade_count_nudge,
+  commodities_verification_entry_min_signal,
   commodities_verification_volume_required,
   crypto_graduation_entry_min_signal,
   crypto_momentum_retreat_entry_min_signal,
@@ -421,6 +422,15 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
       macd_signal=signal.macd_signal,
       symbol=symbol,
       proven_winners=proven_winners,
+    )
+    entry_min_signal = commodities_verification_entry_min_signal(
+      entry_min_signal,
+      bot_type=bot_type,
+      shadow_mode=shadow_mode,
+      symbol=symbol,
+      proven_winners=proven_winners,
+      gate_status=gate_status,
+      per_bot_stats=per_bot_stats,
     )
     entry_min_signal = crypto_graduation_entry_min_signal(
       entry_min_signal,
@@ -1204,6 +1214,7 @@ async def _build_monday_recovery_summary(session: AsyncSession) -> dict[str, Any
   near_floor_rows: list[dict[str, Any]] = []
   stocks_trade_count_nudge = False
   commodities_graduation_nudge = False
+  commodities_verification_nudge = False
 
   preview_results = await asyncio.gather(
     *[_scan_preview_for_bot(bot_type) for bot_type in MONDAY_RECOVERY_BOT_TYPES]
@@ -1215,7 +1226,12 @@ async def _build_monday_recovery_summary(session: AsyncSession) -> dict[str, Any
     if bot_type == "stocks_futures":
       stocks_trade_count_nudge = bool(preview.get("stocks_trade_count_nudge"))
     if bot_type == "commodities":
-      commodities_graduation_nudge = bool(preview.get("graduation_nudge"))
+      commodities_verification_nudge = bool(
+        preview.get("commodities_verification_trade_count_nudge")
+      )
+      commodities_graduation_nudge = bool(
+        preview.get("graduation_nudge") or commodities_verification_nudge
+      )
 
     candidates = preview.get("recovery_candidates") or []
     open_ready_symbols = [
@@ -1234,6 +1250,9 @@ async def _build_monday_recovery_summary(session: AsyncSession) -> dict[str, Any
       "near_floor_symbols": near_floor_symbols,
       "stocks_trade_count_nudge": preview.get("stocks_trade_count_nudge"),
       "graduation_nudge": preview.get("graduation_nudge"),
+      "commodities_verification_trade_count_nudge": preview.get(
+        "commodities_verification_trade_count_nudge"
+      ),
     }
     session_info = preview.get("session") or {}
     minutes_until_open = session_info.get("minutes_until_open")
@@ -1302,7 +1321,10 @@ async def _build_monday_recovery_summary(session: AsyncSession) -> dict[str, Any
     watch_symbols = extended_watch_symbols or prev_ready
     if not watch_symbols:
       continue
-    graduation_nudge = bool(preview.get("graduation_nudge"))
+    graduation_nudge = bool(
+      preview.get("graduation_nudge")
+      or preview.get("commodities_verification_trade_count_nudge")
+    )
     shadow_mode = bool(preview.get("shadow_mode"))
     session_info = preview.get("session") or {}
     minutes_until_open = session_info.get("minutes_until_open")
@@ -1382,4 +1404,5 @@ async def _build_monday_recovery_summary(session: AsyncSession) -> dict[str, Any
     "near_floor_candidates": [row["symbol"] for row in near_floor_rows],
     "stocks_trade_count_nudge": stocks_trade_count_nudge,
     "commodities_graduation_nudge": commodities_graduation_nudge,
+    "commodities_verification_trade_count_nudge": commodities_verification_nudge,
   }
