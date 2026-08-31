@@ -1568,6 +1568,9 @@ def test_stocks_open_imminent_scan_active():
   assert stocks_open_imminent_scan_active(session_imminent, trade_count_nudge=True) is True
   assert stocks_open_imminent_scan_active(session_open, trade_count_nudge=True) is True
   assert stocks_open_imminent_scan_active(session_imminent, trade_count_nudge=False) is False
+  assert stocks_open_imminent_scan_active(
+    session_imminent, trade_count_nudge=False, open_ready_active=True
+  ) is True
   assert stocks_effective_scan_interval(
     gate_active_interval=15,
     default_interval=30,
@@ -1936,6 +1939,44 @@ def test_stocks_gate_fast_scan_active_trade_count_prep():
   assert stocks_gate_fast_scan_active(session_far, trade_count_nudge=True) is False
   session_open = {"in_session": True}
   assert stocks_gate_fast_scan_active(session_open, trade_count_nudge=True) is True
+
+
+def test_stocks_gate_fast_scan_active_open_ready_queue():
+  from app.engines.gate_entry_guard import (
+    STOCKS_OPEN_IMMINENT_SCAN_MINUTES,
+    stocks_gate_fast_scan_active,
+  )
+
+  session_imminent = {
+    "in_session": False,
+    "minutes_until_open": STOCKS_OPEN_IMMINENT_SCAN_MINUTES - 5,
+  }
+  session_far = {"in_session": False, "minutes_until_open": 120}
+  session_post_open = {"in_session": True, "minutes_since_open": 30}
+
+  assert stocks_gate_fast_scan_active(
+    session_imminent, trade_count_nudge=False, open_ready_active=True
+  ) is True
+  assert stocks_gate_fast_scan_active(
+    session_far, trade_count_nudge=False, open_ready_active=True
+  ) is False
+  assert stocks_gate_fast_scan_active(
+    session_post_open, trade_count_nudge=False, open_ready_active=True
+  ) is True
+
+
+def test_build_session_prep_status_stocks_open_ready_fast_scan():
+  from app.engines.gate_entry_guard import build_session_prep_status
+
+  status = build_session_prep_status(
+    stocks_session={"in_session": False, "minutes_until_open": 20, "mode": "outside_session"},
+    commodities_session={"in_session": False, "minutes_until_open": 2400, "mode": "weekend_closed"},
+    stocks_trade_count_nudge=False,
+    commodities_graduation_nudge=False,
+    open_ready_rows=[{"bot_type": "stocks_futures", "symbol": "AAPL", "composite": 0.4}],
+  )
+  assert status["stocks_futures"]["gate_fast_scan_active"] is True
+  assert status["stocks_futures"]["gate_reopen_imminent"] is True
 
 
 def test_shadow_graduation_loss_wind_down():

@@ -176,6 +176,10 @@ async def monitor_session_prep_transitions(session: AsyncSession) -> list[dict[s
     stocks_stats.get("win_rate"),
     int(stocks_stats.get("total_trades") or 0),
   )
+  prep_state = await get_prep_phase_state(session)
+  stocks_open_ready_active = bool(
+    (prep_state.get("us_stocks_open") or {}).get("open_ready_symbols")
+  )
 
   tracked = [
     (
@@ -209,16 +213,18 @@ async def monitor_session_prep_transitions(session: AsyncSession) -> list[dict[s
         imminent_active=stocks_open_imminent_scan_active(
           stocks_session,
           trade_count_nudge=stocks_trade_count_nudge,
+          open_ready_active=stocks_open_ready_active,
         ),
       ),
       "15s" if stocks_gate_fast_scan_active(
         stocks_session,
         trade_count_nudge=stocks_trade_count_nudge,
+        open_ready_active=stocks_open_ready_active,
       ) else "30s",
     ),
   ]
 
-  state = await get_prep_phase_state(session)
+  state = prep_state
   logged: list[dict[str, Any]] = []
 
   for session_key, bot_type, phase_info, scan_default in tracked:

@@ -3653,6 +3653,9 @@ def build_session_prep_status(
       or [r for r in (near_floor_rows or []) if r.get("bot_type") == "commodities"]
     ),
   )
+  stocks_open_ready_active = bool(
+    [r for r in (open_ready_rows or []) if r.get("bot_type") == "stocks_futures"]
+  )
 
   def _prep_entry(
     bot_type: str,
@@ -3697,10 +3700,12 @@ def build_session_prep_status(
       gate_fast_scan_active=stocks_gate_fast_scan_active(
         stocks_session,
         trade_count_nudge=stocks_trade_count_nudge,
+        open_ready_active=stocks_open_ready_active,
       ),
       gate_reopen_imminent=stocks_open_imminent_scan_active(
         stocks_session,
         trade_count_nudge=stocks_trade_count_nudge,
+        open_ready_active=stocks_open_ready_active,
       ),
       reopen_wake_active=stocks_open_wake_active(stocks_session),
     ),
@@ -4061,6 +4066,7 @@ def prioritize_stocks_monday_scan(
   proven_winners: frozenset[str],
   session_info: dict[str, Any],
   trade_count_nudge: bool = False,
+  open_ready_active: bool = False,
 ) -> list[str]:
   """Scan chronic stock recovery symbols first ahead of Monday US open / open hour.
 
@@ -4068,10 +4074,11 @@ def prioritize_stocks_monday_scan(
   recovery so open-ready symbols enter as soon as US cash opens.
   """
   if (
-    trade_count_nudge
+    (trade_count_nudge or open_ready_active)
     and stocks_open_imminent_scan_active(
       session_info,
       trade_count_nudge=trade_count_nudge,
+      open_ready_active=open_ready_active,
     )
     and proven_winners
   ):
@@ -4337,19 +4344,31 @@ def stocks_gate_fast_scan_active(
   session_info: dict[str, Any] | None = None,
   *,
   trade_count_nudge: bool = False,
+  open_ready_active: bool = False,
 ) -> bool:
-  """Whether shadow stocks should scan at gate_active_scan_interval during trade-count prep."""
-  if not trade_count_nudge:
+  """Whether shadow stocks should scan at gate_active_scan_interval during prep."""
+  if not trade_count_nudge and not open_ready_active:
     return False
   session = session_info or stocks_session_info()
   if session.get("in_session"):
-    return True
-  if stocks_monday_scan_priority_active(session, trade_count_nudge=trade_count_nudge):
-    return True
+    if trade_count_nudge:
+      return True
+    if open_ready_active:
+      since = session.get("minutes_since_open")
+      return since is not None and since <= STOCKS_MONDAY_SCAN_OPEN_HOUR_MINUTES
+    return False
+  if trade_count_nudge:
+    if stocks_monday_scan_priority_active(session, trade_count_nudge=True):
+      return True
+    minutes_until = session.get("minutes_until_open")
+    return (
+      minutes_until is not None
+      and minutes_until <= STOCKS_TRADE_COUNT_PREP_MINUTES
+    )
   minutes_until = session.get("minutes_until_open")
   return (
     minutes_until is not None
-    and minutes_until <= STOCKS_TRADE_COUNT_PREP_MINUTES
+    and minutes_until <= STOCKS_OPEN_IMMINENT_SCAN_MINUTES
   )
 
 
@@ -4357,9 +4376,10 @@ def stocks_open_imminent_scan_active(
   session_info: dict[str, Any] | None = None,
   *,
   trade_count_nudge: bool = False,
+  open_ready_active: bool = False,
 ) -> bool:
   """Ultra-fast scan window in the last 30 minutes before US cash open."""
-  if not trade_count_nudge:
+  if not trade_count_nudge and not open_ready_active:
     return False
   session = session_info or stocks_session_info()
   if session.get("in_session"):
@@ -4378,6 +4398,7 @@ def stocks_effective_scan_interval(
   default_interval: int,
   session_info: dict[str, Any] | None = None,
   trade_count_nudge: bool = False,
+  open_ready_active: bool = False,
   gate_tightening_active: bool = False,
   fast_scan: bool = False,
   in_session: bool = False,
@@ -4388,6 +4409,7 @@ def stocks_effective_scan_interval(
   if stocks_open_imminent_scan_active(
     session_info,
     trade_count_nudge=trade_count_nudge,
+    open_ready_active=open_ready_active,
   ):
     return STOCKS_OPEN_IMMINENT_SCAN_INTERVAL
   if fast_scan or in_session or gate_tightening_active:
