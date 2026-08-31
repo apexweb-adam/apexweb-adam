@@ -15,6 +15,7 @@ jobs:
       - name: Recover after billing suspension
         env:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
         run: |
           set -euo pipefail
           ROOT="${{ github.workspace }}/trading-platform"
