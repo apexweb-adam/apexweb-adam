@@ -165,6 +165,40 @@ def test_tiktok_active_with_timezone_aware_latest():
   assert status == "active"
 
 
+def test_hyperliquid_degraded_when_stale():
+  latest = datetime.now(timezone.utc) - timedelta(hours=20)
+  status = _source_status(
+    "hyperliquid",
+    source_counts={"hyperliquid": 5},
+    source_latest={"hyperliquid": latest},
+    configured={"hyperliquid": True},
+  )
+  assert status == "degraded"
+
+
+def test_hyperliquid_active_with_recent_scan_heartbeat():
+  heartbeat = datetime.utcnow() - timedelta(hours=1)
+  status = _source_status(
+    "hyperliquid",
+    source_counts={"hyperliquid": 5},
+    source_latest={"hyperliquid": datetime.utcnow() - timedelta(days=2)},
+    configured={"hyperliquid": True},
+    scan_heartbeats={"hyperliquid": heartbeat},
+  )
+  assert status == "active"
+
+
+def test_dexscreener_degraded_when_stale():
+  latest = datetime.now(timezone.utc) - timedelta(hours=30)
+  status = _source_status(
+    "dexscreener",
+    source_counts={"dexscreener": 5},
+    source_latest={"dexscreener": latest},
+    configured={"dexscreener": True},
+  )
+  assert status == "degraded"
+
+
 def test_build_intel_sources_includes_tiktok():
   import asyncio
   from app.engines.intel_source_status import build_intel_sources

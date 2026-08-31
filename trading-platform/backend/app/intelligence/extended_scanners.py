@@ -122,6 +122,9 @@ class ExtendedIntelligenceScanner(IntelligenceScanner):
     await self._record_scan_heartbeats("wallet_tracker")
     count += await scan_solana_wallets(self.session)
     count += await scan_memecoin_intel(self.session)
+    await self._record_scan_heartbeats("dexscreener")
+    if settings.hyperliquid_enabled:
+      await self._record_scan_heartbeats("hyperliquid")
     count += await scan_fomo_trades(self.session)
     await self._record_scan_heartbeats("fomo")
     count += await scan_axiom_feed(self.session)

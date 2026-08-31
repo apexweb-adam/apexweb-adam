@@ -1,5 +1,6 @@
 """Tests for memecoin intelligence scanners."""
 
+from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import asyncio
@@ -56,3 +57,38 @@ def test_scan_hyperliquid_memecoins_mock():
       count = asyncio.run(scan_hyperliquid_memecoins(session))
   assert count >= 1
   session.add.assert_called()
+
+
+def test_scan_hyperliquid_memecoins_refreshes_existing_item():
+  existing = MagicMock()
+  existing.url = "hyperliquid:perp:WIF"
+  existing.fetched_at = datetime.utcnow() - timedelta(days=3)
+
+  session = AsyncMock()
+  session.execute = AsyncMock(
+    return_value=MagicMock(scalar_one_or_none=MagicMock(return_value=existing))
+  )
+  session.add = MagicMock()
+
+  mock_response = MagicMock()
+  mock_response.status_code = 200
+  mock_response.json.return_value = [
+    {"universe": [{"name": "WIF"}]},
+    [{"funding": "0.0001", "prevDayPx": "1.0", "markPx": "1.2", "openInterest": "100"}],
+  ]
+
+  mock_post = AsyncMock(return_value=mock_response)
+  mock_client = MagicMock()
+  mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+  mock_client.__aexit__ = AsyncMock(return_value=None)
+  mock_client.post = mock_post
+
+  with patch("app.intelligence.memecoin_scanner.settings") as mock_settings:
+    mock_settings.hyperliquid_enabled = True
+    with patch("app.intelligence.memecoin_scanner.httpx.AsyncClient", return_value=mock_client):
+      count = asyncio.run(scan_hyperliquid_memecoins(session))
+
+  assert count == 1
+  session.add.assert_not_called()
+  assert existing.fetched_at > datetime.utcnow() - timedelta(minutes=1)
+  assert "[Hyperliquid] WIF" in existing.title

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import httpx
+from datetime import datetime
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -79,6 +80,49 @@ async def _add_intel(
       sentiment=sentiment,
       relevance_score=relevance,
       symbols_mentioned=_normalize_symbols_field(symbols or extract_symbols(full_text)),
+    )
+  )
+  return True
+
+
+async def _upsert_intel(
+  session: AsyncSession,
+  *,
+  source: str,
+  title: str,
+  content: str,
+  url: str,
+  sentiment: float,
+  symbols: str,
+  relevance: float,
+) -> bool:
+  """Insert or refresh an intel row keyed by URL (for stable per-source feeds like HL perps)."""
+  existing = await session.execute(
+    select(IntelligenceItem).where(IntelligenceItem.url == url[:1000])
+  )
+  item = existing.scalar_one_or_none()
+  now = datetime.utcnow()
+  full_text = f"{title} {content}"
+  symbols_value = _normalize_symbols_field(symbols or extract_symbols(full_text))
+  if item:
+    item.title = title[:500]
+    item.content = content[:2000]
+    item.sentiment = sentiment
+    item.relevance_score = relevance
+    item.symbols_mentioned = symbols_value
+    item.fetched_at = now
+    return True
+  session.add(
+    IntelligenceItem(
+      source=source,
+      category=categorize(full_text) or "crypto",
+      title=title[:500],
+      content=content[:2000],
+      url=url[:1000],
+      sentiment=sentiment,
+      relevance_score=relevance,
+      symbols_mentioned=symbols_value,
+      fetched_at=now,
     )
   )
   return True
@@ -205,7 +249,7 @@ async def scan_hyperliquid_memecoins(session: AsyncSession) -> int:
         elif funding < -0.0001:
           sentiment -= 0.1
         url = f"hyperliquid:perp:{name}"
-        if await _add_intel(
+        if await _upsert_intel(
           session,
           source="hyperliquid",
           title=title,
