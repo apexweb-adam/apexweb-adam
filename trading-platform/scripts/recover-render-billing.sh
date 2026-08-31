@@ -40,6 +40,28 @@ echo "Backend: $BACKEND"
 echo "Max wait for resume: ${MAX_WAIT}s (poll every ${INTERVAL}s)"
 echo ""
 
+GRACE_LEFT="$(python3 - << 'PY' 2>/dev/null || true
+from datetime import datetime, timezone
+now = datetime.now(timezone.utc)
+if now.isoweekday() != 1:
+    raise SystemExit(0)
+open_at = now.replace(hour=13, minute=30, second=0, microsecond=0)
+ext_left = max(0, int((open_at.timestamp() + 270 * 60 - now.timestamp()) // 60))
+if ext_left > 0:
+    print(ext_left)
+PY
+)"
+if [[ -n "$GRACE_LEFT" && "$GRACE_LEFT" -gt 0 && "$GRACE_LEFT" -le 45 ]]; then
+  if [[ "$INTERVAL" -ge 30 ]]; then
+    INTERVAL=15
+  fi
+  if [[ "$MAX_WAIT" -le 1800 ]]; then
+    MAX_WAIT=3600
+  fi
+  echo "Monday outage grace: ${GRACE_LEFT} min left — urgent polling (${INTERVAL}s interval, max wait ${MAX_WAIT}s)"
+  echo ""
+fi
+
 if check_backend_suspension "$BACKEND" 2>/dev/null; then
   echo "Backend is online — proceeding to deploy verification."
 else
@@ -270,6 +292,6 @@ if [[ "$DOW" == "1" && "$HOUR" -ge 13 && "$HOUR" -le 18 ]]; then
   echo ""
   echo "Note: stocks burst-recovery runs within 60 min of US open (13:30 UTC)."
   echo "Platform-outage recovery extends to 270 min when open-ready symbols were queued (e.g. AAPL)."
-  echo "Stocks/crypto/commodities held + US open-ready get post-outage scans on startup (r464+)."
+  echo "Stocks/crypto/commodities held + US open-ready get post-outage scans on startup (r465+)."
   echo "Check us-stocks-open-checklist for has_burst_scan / has_auto_entry."
 fi

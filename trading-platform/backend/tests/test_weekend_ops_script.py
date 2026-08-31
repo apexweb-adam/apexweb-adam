@@ -97,9 +97,14 @@ def test_recover_render_billing_triggers_deploy_when_behind():
   assert "grace_remaining_min" in text
   assert "Crypto scan preview" in text
   assert "verify-cme-post-open.sh" in text
+  assert "Monday outage grace" in text
+  assert "urgent polling" in text
 
 
-def test_verify_platform_prints_outage_status_when_suspended():
+def test_render_billing_recovery_workflow_monday_urgent_poll():
+  workflow = Path(__file__).resolve().parents[3] / ".github" / "workflows" / "render-billing-recovery.yml"
+  text = workflow.read_text(encoding="utf-8")
+  assert "*/5 13-18 * * 1" in text
   text = (SCRIPTS / "verify-platform.sh").read_text(encoding="utf-8")
   assert "print-outage-status.sh" in text
 
@@ -172,7 +177,7 @@ def test_print_outage_status_script():
   assert "held_open_positions" in text
   assert "cme-reopen-checklist" in text
   assert "outage_grace_urgency" in text
-  assert "r464+" in text
+  assert "r465+" in text
 
 
 def test_verify_post_deploy_includes_crm_and_learning_checks():

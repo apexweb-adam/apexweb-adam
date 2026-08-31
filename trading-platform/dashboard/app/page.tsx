@@ -2024,6 +2024,18 @@ function BillingOutageRecoveryCard({
                   </>
                 ) : null}
                 {" — "}AAPL catch-up still possible if prep state preserved.
+                {graceUrgent ? (
+                  <>
+                    {" "}
+                    Deploy{" "}
+                    <span className="font-mono text-red-200">
+                      {health.expected_platform_revision ?? "r465"}
+                    </span>{" "}
+                    before grace expires; verify{" "}
+                    <span className="font-mono">outage_recovery_scan</span> then{" "}
+                    <span className="font-mono">burst_scan</span> in checklist.
+                  </>
+                ) : null}
               </>
             ) : (
               <>Platform outage grace expired — only normal scan intervals after resume.</>
