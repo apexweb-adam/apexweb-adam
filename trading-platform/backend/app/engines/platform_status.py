@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import os
 import time
 from datetime import datetime
@@ -60,13 +61,14 @@ PLATFORM_STATUS_CACHE_TTL_SECONDS = 45
 PLATFORM_STATUS_PREP_CACHE_TTL_SECONDS = 60
 _platform_status_cache: dict[str, Any] | None = None
 _platform_status_cached_at: float = 0.0
+_platform_status_build_lock = asyncio.Lock()
 
 
 def _platform_status_cache_ttl_seconds() -> int:
-  """Longer cache during CME weekend prep when /api/status is polled heavily."""
-  from app.engines.gate_entry_guard import commodities_futures_weekend_closed
+  """Longer cache during session prep when /api/status is polled heavily."""
+  from app.engines.gate_entry_guard import status_cache_prewarm_active
 
-  if commodities_futures_weekend_closed():
+  if status_cache_prewarm_active():
     return PLATFORM_STATUS_PREP_CACHE_TTL_SECONDS
   return PLATFORM_STATUS_CACHE_TTL_SECONDS
 
@@ -88,6 +90,23 @@ def platform_status_cache_fresh(max_age_seconds: float) -> bool:
   return age is not None and age < max_age_seconds
 
 
+def _serve_cached_platform_status(
+  *,
+  cache_hit: bool,
+  stale_served: bool = False,
+) -> dict[str, Any]:
+  cached = dict(_platform_status_cache or {})
+  cached["timestamp"] = datetime.utcnow().isoformat()
+  cached["status_cache_hit"] = cache_hit
+  cached["status_cache_age_seconds"] = round(
+    time.monotonic() - _platform_status_cached_at,
+    1,
+  )
+  if stale_served:
+    cached["status_cache_stale"] = True
+  return cached
+
+
 async def build_platform_status(session: AsyncSession) -> dict[str, Any]:
   global _platform_status_cache, _platform_status_cached_at
   now = time.monotonic()
@@ -95,18 +114,26 @@ async def build_platform_status(session: AsyncSession) -> dict[str, Any]:
     _platform_status_cache is not None
     and (now - _platform_status_cached_at) < _platform_status_cache_ttl_seconds()
   ):
-    cached = dict(_platform_status_cache)
-    cached["timestamp"] = datetime.utcnow().isoformat()
-    cached["status_cache_hit"] = True
-    cached["status_cache_age_seconds"] = round(now - _platform_status_cached_at, 1)
-    return cached
+    return _serve_cached_platform_status(cache_hit=True)
 
-  result = await _build_platform_status_uncached(session)
-  _platform_status_cache = result
-  _platform_status_cached_at = now
-  result["status_cache_hit"] = False
-  result["status_cache_age_seconds"] = 0.0
-  return result
+  if _platform_status_build_lock.locked() and _platform_status_cache is not None:
+    return _serve_cached_platform_status(cache_hit=False, stale_served=True)
+
+  async with _platform_status_build_lock:
+    now = time.monotonic()
+    if (
+      _platform_status_cache is not None
+      and (now - _platform_status_cached_at) < _platform_status_cache_ttl_seconds()
+    ):
+      return _serve_cached_platform_status(cache_hit=True)
+
+    result = await _build_platform_status_uncached(session)
+    _platform_status_cache = result
+    _platform_status_cached_at = time.monotonic()
+    fresh = dict(result)
+    fresh["status_cache_hit"] = False
+    fresh["status_cache_age_seconds"] = 0.0
+    return fresh
 
 
 async def _fetch_bot_states(session: AsyncSession) -> list[dict[str, Any]]:

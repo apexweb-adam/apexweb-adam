@@ -23,10 +23,10 @@ _gate_prep_cached_at: float = 0.0
 
 
 def _gate_prep_status_cache_ttl_seconds() -> int:
-  """Longer cache during CME weekend prep when prep-status is polled heavily."""
-  from app.engines.gate_entry_guard import commodities_futures_weekend_closed
+  """Longer cache during session prep when prep-status is polled heavily."""
+  from app.engines.gate_entry_guard import status_cache_prewarm_active
 
-  if commodities_futures_weekend_closed():
+  if status_cache_prewarm_active():
     return GATE_PREP_STATUS_PREP_CACHE_TTL_SECONDS
   return GATE_PREP_STATUS_CACHE_TTL_SECONDS
 
