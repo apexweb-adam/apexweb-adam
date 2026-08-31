@@ -212,3 +212,34 @@ def test_run_post_outage_recovery_bursts_prioritizes_stocks_when_us_queued():
               asyncio.run(sched.run_post_outage_recovery_bursts())
 
   assert call_order == ["stocks_futures", "commodities"]
+
+
+def test_run_post_outage_recovery_bursts_scans_stocks_when_us_queued_not_in_burst():
+  stocks_bot = MagicMock()
+  stocks_bot.scan_and_trade = AsyncMock(return_value=[])
+
+  sched._startup_outage_event = {
+    "gap_minutes": 120,
+    "us_open_ready_symbols": ["AAPL"],
+    "held_open_positions": [],
+  }
+  sched.bots = {"stocks_futures": stocks_bot}
+
+  with patch(
+    "app.engines.gate_entry_guard.stocks_session_info",
+    return_value={"in_session": False},
+  ):
+    with patch(
+      "app.engines.gate_entry_guard.commodities_session_info",
+      return_value={"in_session": False},
+    ):
+      with patch(
+        "app.ws_manager.push_live_update",
+        new_callable=AsyncMock,
+      ) as mock_push:
+        import asyncio
+
+        asyncio.run(sched.run_post_outage_recovery_bursts())
+
+  stocks_bot.scan_and_trade.assert_awaited_once()
+  mock_push.assert_awaited_once()

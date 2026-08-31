@@ -44,7 +44,7 @@ bash trading-platform/scripts/recover-render-billing.sh
 
 Polls until the backend resumes, then **auto-triggers a Render deploy** if production revision is behind main, runs deploy wait, platform verify, and Monday US stocks post-open checks.
 
-**Platform-outage recovery (r462+):** If billing suspension caused a missed US open but open-ready symbols (e.g. AAPL) were queued in prep state, burst scan/auto-entry still runs on resume for up to **270 minutes** after session open (13:30 UTC Monday). On startup the platform:
+**Platform-outage recovery (r463+):** If billing suspension caused a missed US open but open-ready symbols (e.g. AAPL) were queued in prep state, burst scan/auto-entry still runs on resume for up to **270 minutes** after session open (13:30 UTC Monday). On startup the platform:
 
 - Logs outage gap + held open positions
 - Force-refreshes TradingView for held positions

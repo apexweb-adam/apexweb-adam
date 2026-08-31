@@ -93,7 +93,7 @@ def test_recover_render_billing_triggers_deploy_when_behind():
   assert "stocks scan preview" in text
   assert "outage catch-up" in text
   assert "outage_held_at_resume" in text
-  assert "Crypto + commodities held" in text
+  assert "Crypto + commodities held" in text or "Stocks/crypto/commodities held" in text
   assert "grace_remaining_min" in text
   assert "Crypto scan preview" in text
   assert "verify-cme-post-open.sh" in text
@@ -145,6 +145,21 @@ def test_deferred_startup_runs_outage_burst_after_prep_backfill():
   assert prep_idx < backfill_idx < burst_idx < intel_idx
 
 
+def test_deferred_startup_triggers_review_after_outage():
+  text = (SCRIPTS.parent / "backend" / "app" / "workers" / "scheduler.py").read_text(
+    encoding="utf-8"
+  )
+  deferred = text.split("async def _deferred_startup_jobs", 1)[1].split(
+    "async def setup_scheduler", 1
+  )[0]
+  burst_idx = deferred.find("run_post_outage_recovery_bursts")
+  review_idx = deferred.find("ensure_daily_review_on_startup")
+  intel_idx = deferred.find("intelligence_job")
+  assert burst_idx != -1 and review_idx != -1
+  assert burst_idx < review_idx < intel_idx
+  assert "_startup_outage_event" in deferred.split("ensure_daily_review_on_startup", 1)[0]
+
+
 def test_print_outage_status_script():
   script = SCRIPTS / "print-outage-status.sh"
   assert script.is_file()
@@ -157,7 +172,7 @@ def test_print_outage_status_script():
   assert "held_open_positions" in text
   assert "cme-reopen-checklist" in text
   assert "outage_grace_urgency" in text
-  assert "r461+" in text
+  assert "r462+" in text
 
 
 def test_verify_post_deploy_includes_crm_and_learning_checks():

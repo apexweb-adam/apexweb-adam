@@ -959,6 +959,13 @@ async def run_post_outage_recovery_bursts() -> None:
     for row in held
     if row.get("bot_type") == "commodities" and row.get("symbol")
   ]
+  stocks_held = [
+    row.get("symbol")
+    for row in held
+    if row.get("bot_type") == "stocks_futures" and row.get("symbol")
+  ]
+  stocks_symbols = list(dict.fromkeys([*stocks_held, *us_queued]))
+  await _run_held_bot_scan("stocks_futures", stocks_symbols, "stocks")
   await _run_held_bot_scan("commodities", commodities_held, "commodities")
   await _run_held_bot_scan("crypto", crypto_held, "crypto")
 
@@ -997,6 +1004,11 @@ async def _deferred_startup_jobs() -> None:
         await push_live_update()
 
     await run_post_outage_recovery_bursts()
+
+    if _startup_outage_event:
+      gap = int(_startup_outage_event.get("gap_minutes") or 0)
+      print(f"[PlatformOutage] Triggering daily review backfill after {gap}min outage gap")
+      await ensure_daily_review_on_startup()
 
     await intelligence_job()
     await content_study_job()
