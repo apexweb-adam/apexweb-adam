@@ -1225,6 +1225,13 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
     "min_signal": round(effective_min_signal, 3),
     "open_count": open_count,
     "effective_open_cap": effective_open_cap,
+    "cap_pressure_active": (
+      bot_type == "commodities"
+      and not shadow_mode
+      and commodities_verification_nudge
+      and isinstance(effective_open_cap, int)
+      and open_count >= effective_open_cap
+    ),
     "shadow_open_cap": shadow_cap,
     "held_symbols": sorted(held_symbols),
     "session": session,
@@ -1353,6 +1360,9 @@ async def _build_monday_recovery_summary(session: AsyncSession) -> dict[str, Any
       "commodities_verification_trade_count_nudge": preview.get(
         "commodities_verification_trade_count_nudge"
       ),
+      "open_count": preview.get("open_count"),
+      "effective_open_cap": preview.get("effective_open_cap"),
+      "cap_pressure_active": preview.get("cap_pressure_active"),
     }
     session_info = preview.get("session") or {}
     minutes_until_open = session_info.get("minutes_until_open")

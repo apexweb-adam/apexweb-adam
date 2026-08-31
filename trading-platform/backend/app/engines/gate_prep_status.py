@@ -114,6 +114,13 @@ async def _build_gate_prep_status_uncached(session: AsyncSession) -> dict[str, A
     open_ready_rows=recovery.get("open_ready"),
     near_floor_rows=recovery.get("near_floor"),
   )
+  comm_bot = (recovery.get("bots") or {}).get("commodities") or {}
+  if comm_bot:
+    commodities_entry = dict(session_prep.get("commodities") or {})
+    for key in ("open_count", "effective_open_cap", "cap_pressure_active"):
+      if key in comm_bot:
+        commodities_entry[key] = comm_bot[key]
+    session_prep["commodities"] = commodities_entry
   next_session_events = build_next_session_events(
     session_prep=session_prep,
     commodities_session=cme_session,
@@ -144,6 +151,9 @@ def _enrich_prep_with_session_events(
       "open_ready_details": cme.get("open_ready_details") or commodities.get("open_ready_details"),
       "near_floor_symbols": cme.get("near_floor_symbols") or commodities.get("near_floor_symbols"),
       "near_floor_details": cme.get("near_floor_details") or commodities.get("near_floor_details"),
+      "open_count": commodities.get("open_count"),
+      "effective_open_cap": commodities.get("effective_open_cap"),
+      "cap_pressure_active": commodities.get("cap_pressure_active"),
     }
   )
   stocks.update(
