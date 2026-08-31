@@ -35,6 +35,9 @@ from app.engines.gate_entry_guard import (
   hard_skip_blocks_shadow_entry,
   bot_win_rate_for_graduation_nudge,
   commodities_graduation_entry_min_signal,
+  commodities_graduation_ease_active,
+  commodities_verification_trade_count_nudge,
+  commodities_verification_volume_required,
   crypto_graduation_entry_min_signal,
   crypto_momentum_retreat_entry_min_signal,
   crypto_momentum_retreat_active,
@@ -170,11 +173,20 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
       profit_factor=per_bot_stats.get("profit_factor"),
       total_pnl=per_bot_stats.get("total_pnl"),
     )
-  elif bot_type == "commodities" and in_shadow_graduation_nudge(
-    bot_type,
-    bot_wr,
-    profit_factor=per_bot_stats.get("profit_factor"),
-    total_pnl=per_bot_stats.get("total_pnl"),
+  elif bot_type == "commodities" and (
+    in_shadow_graduation_nudge(
+      bot_type,
+      bot_wr,
+      profit_factor=per_bot_stats.get("profit_factor"),
+      total_pnl=per_bot_stats.get("total_pnl"),
+    )
+    or commodities_graduation_ease_active(
+      bot_type,
+      shadow_mode,
+      False,
+      gate_status,
+      per_bot_stats,
+    )
   ):
     min_signal = shadow_entry_min_signal(
       bot_type,
@@ -196,6 +208,19 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
     bot_wr,
     profit_factor=per_bot_stats.get("profit_factor"),
     total_pnl=per_bot_stats.get("total_pnl"),
+  )
+  commodities_verification_nudge = commodities_verification_trade_count_nudge(
+    bot_type,
+    shadow_mode,
+    gate_status,
+    per_bot_stats,
+  )
+  commodities_ease_active = commodities_graduation_ease_active(
+    bot_type,
+    shadow_mode,
+    graduation_nudge,
+    gate_status,
+    per_bot_stats,
   )
   stocks_trade_count_nudge = stocks_trade_count_graduation_nudge(
     bot_type,
@@ -229,14 +254,14 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
   )
   commodities_fast_scan_active = commodities_gate_fast_scan_active(
     commodities_session_info() if bot_type == "commodities" else None,
-    graduation_nudge=graduation_nudge if bot_type == "commodities" else False,
+    graduation_nudge=commodities_ease_active if bot_type == "commodities" else False,
   )
   commodities_reopen_imminent = (
     commodities_reopen_imminent_scan_active(
       commodities_session_info(),
-      graduation_nudge=graduation_nudge,
+      graduation_nudge=commodities_ease_active,
     )
-    if bot_type == "commodities" and graduation_nudge
+    if bot_type == "commodities" and commodities_ease_active
     else False
   )
   crypto_strong_momentum = crypto_strong_momentum_nudge(
@@ -256,7 +281,7 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
   min_sentiment = graduation_nudge_min_sentiment(
     bot_type,
     min_sentiment,
-    graduation_nudge=graduation_nudge,
+    graduation_nudge=graduation_nudge or commodities_ease_active,
     shadow_mode=shadow_mode,
     bot_win_rate=bot_wr,
     profit_factor=per_bot_stats.get("profit_factor"),
@@ -389,7 +414,7 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
     entry_min_signal = commodities_graduation_entry_min_signal(
       entry_min_signal,
       bot_type=bot_type,
-      graduation_nudge=graduation_nudge,
+      graduation_nudge=commodities_ease_active,
       shadow_mode=shadow_mode,
       signal_direction=signal.direction,
       macd_signal=signal.macd_signal,
@@ -459,7 +484,7 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
         or signal.macd_signal == "bullish"
         or bool(integration_reason and "tradingview" in integration_reason.lower())
       )
-    if graduation_nudge and bot_type == "commodities":
+    if commodities_ease_active and bot_type == "commodities":
       volume_required = (
         signal.volume_confirmed
         or composite >= entry_min_signal + 0.02
@@ -486,6 +511,19 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
       macd_signal=signal.macd_signal,
       integration_boost=integration_boost,
       integration_reason=integration_reason,
+    )
+    volume_required = commodities_verification_volume_required(
+      volume_required,
+      bot_type=bot_type,
+      shadow_mode=shadow_mode,
+      symbol=symbol,
+      proven_winners=proven_winners,
+      gate_status=gate_status,
+      per_bot_stats=per_bot_stats,
+      composite=composite,
+      entry_min_signal=entry_min_signal,
+      macd_signal=signal.macd_signal,
+      integration_boost=integration_boost,
     )
 
     intel_override = shadow_intel_composite_override(
@@ -971,6 +1009,7 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
     "bot_type": bot_type,
     "shadow_mode": shadow_mode,
     "graduation_nudge": graduation_nudge,
+    "commodities_verification_trade_count_nudge": commodities_verification_nudge,
     "stocks_trade_count_nudge": stocks_trade_count_nudge,
     "stocks_gate_fast_scan_active": stocks_fast_scan_active,
     "stocks_open_imminent_scan": stocks_open_imminent,
