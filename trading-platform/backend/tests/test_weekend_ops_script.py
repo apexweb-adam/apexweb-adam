@@ -92,6 +92,15 @@ def test_fetch_json_includes_deploy_trigger_helpers():
   assert "production_revision_behind" in text
 
 
+def test_print_outage_status_script():
+  script = SCRIPTS / "print-outage-status.sh"
+  assert script.is_file()
+  text = script.read_text(encoding="utf-8")
+  assert "check_backend_suspension" in text
+  assert "platform_outage_recovery" in text
+  assert "recover-render-billing.sh" in text
+
+
 def test_verify_post_deploy_includes_crm_and_learning_checks():
   script = SCRIPTS / "verify-post-deploy.sh"
   text = script.read_text(encoding="utf-8")
