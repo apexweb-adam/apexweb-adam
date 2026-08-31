@@ -2,6 +2,7 @@ import asyncio
 import os
 import time
 from datetime import datetime
+from typing import Any
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
@@ -15,6 +16,7 @@ from app.engines.learning_engine import LEARNING_NOISE_DISMISS_MAX_CONFIDENCE, L
 scheduler = AsyncIOScheduler()
 bots: dict[str, object] = {}
 bot_tasks: list[asyncio.Task] = []
+_startup_outage_event: dict | None = None
 
 
 async def intelligence_job() -> None:
@@ -868,9 +870,60 @@ async def refresh_status_caches_job() -> None:
       await build_monday_recovery_summary(session)
 
 
+async def run_post_outage_recovery_bursts() -> None:
+  """Run immediate burst scans after billing/outage resume when catch-up window is active."""
+  if not _startup_outage_event:
+    return
+
+  from app.engines.gate_entry_guard import commodities_session_info, stocks_session_info
+  from app.engines.session_open_log import (
+    needs_session_open_burst_recovery,
+    platform_outage_burst_recovery_active,
+  )
+
+  targets: list[tuple[str, object, Any]] = []
+  async with SessionLocal() as session:
+    for bot_type, session_info in (
+      ("stocks_futures", stocks_session_info()),
+      ("commodities", commodities_session_info()),
+    ):
+      if not session_info.get("in_session"):
+        continue
+      if not await needs_session_open_burst_recovery(
+        session,
+        bot_type=bot_type,
+        session_info=session_info,
+      ):
+        continue
+      bot = bots.get(bot_type)
+      if bot is None:
+        continue
+      outage_recovery = await platform_outage_burst_recovery_active(
+        session,
+        bot_type=bot_type,
+        session_info=session_info,
+      )
+      targets.append((bot_type, bot, outage_recovery))
+
+  for bot_type, bot, outage_recovery in targets:
+    try:
+      bot._session_open_burst = True
+      bot._session_open_outage_recovery = outage_recovery
+      print(f"[PlatformOutage] Running post-outage recovery scan for {bot_type}")
+      await asyncio.wait_for(bot.scan_and_trade(), timeout=120)
+    except asyncio.TimeoutError:
+      print(f"[PlatformOutage] {bot_type} recovery scan timed out after 120s")
+    except Exception as exc:
+      print(f"[PlatformOutage] {bot_type} recovery scan error: {exc}")
+    finally:
+      bot._session_open_burst = False
+      bot._session_open_outage_recovery = False
+
+
 async def _deferred_startup_jobs() -> None:
   """Heavy intel/learning jobs — run in background so /api/health is ready quickly on Render."""
   try:
+    await run_post_outage_recovery_bursts()
     # TV refresh before intel scan so post-deploy composites use fresh signals.
     await commodities_pre_session_prep_job()
     await intelligence_job()
@@ -1019,8 +1072,10 @@ async def setup_scheduler() -> None:
       print(f"[Strategy] Synced strategy version on {synced} bot(s)")
     from app.engines.platform_outage_log import detect_and_log_platform_outage
 
+    global _startup_outage_event
     outage = await detect_and_log_platform_outage(session)
     if outage:
+      _startup_outage_event = outage
       print(
         f"[PlatformOutage] Logged {outage.get('gap_minutes')}min gap — "
         f"US queued={outage.get('us_open_ready_symbols')}"
