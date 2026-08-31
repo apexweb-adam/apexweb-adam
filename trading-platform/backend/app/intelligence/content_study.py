@@ -251,10 +251,17 @@ def _extract_live_intel_impact(source: str, title: str, content: str, symbols: s
     return None
 
   if source == "tiktok":
-    if relevance > 0.45 and any(k in text for k in ("meme", "crypto", "bitcoin", "stock", "trading")):
+    if relevance > 0.45 and any(k in text for k in ("meme", "crypto", "bitcoin", "solana", "pump")):
       return (
         f"TikTok viral trading sentiment on {sym} — crypto bot: require volume confirmation on social-driven entries",
         min(0.76, relevance * 0.88),
+      )
+    if relevance > 0.45 and any(
+      k in text for k in ("stock", "aapl", "nvda", "tsla", "spy", "qqq", "day trad", "earnings", "options")
+    ):
+      return (
+        f"TikTok viral stock sentiment on {sym} — stocks_futures bot: require MACD + volume at session open",
+        min(0.74, relevance * 0.85),
       )
     return None
 
