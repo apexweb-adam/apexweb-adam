@@ -146,6 +146,12 @@ if dow == 1:
             )
         else:
             print("Platform outage grace expired — extended burst window closed")
+            session_end = open_at.replace(hour=21, minute=0, second=0, microsecond=0)
+            catchup_left = max(0, int((session_end.timestamp() - now_ts) // 60))
+            if catchup_left > 0:
+                print(
+                    f"  us_cash_session_catchup={catchup_left} min until 21:00 UTC (forced open-ready scan still runs)"
+                )
             print(
                 "  note=post-outage startup still runs forced open-ready scan if prep state preserved"
             )
