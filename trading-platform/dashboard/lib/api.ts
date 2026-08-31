@@ -413,6 +413,13 @@ export type SessionOpenChecklistSummary = {
   critical_failures: string[];
   has_burst_scan: boolean;
   has_auto_entry: boolean;
+  platform_outage_recovery?: {
+    window_active?: boolean;
+    logged?: boolean;
+    grace_minutes_remaining?: number | null;
+    standard_grace_minutes?: number;
+    extended_grace_minutes?: number;
+  };
 };
 
 export type SessionOpenChecklists = {

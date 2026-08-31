@@ -2160,6 +2160,15 @@ function SessionOpenChecklistsCard({
               {data.has_burst_scan ? (
                 <span className="text-lime-400 ml-2">· burst scan logged</span>
               ) : null}
+              {data.platform_outage_recovery?.logged ? (
+                <span className="text-cyan-300 ml-2">· platform outage recovery logged</span>
+              ) : null}
+              {data.platform_outage_recovery?.window_active ? (
+                <span className="text-amber-300 ml-2">
+                  · outage recovery window (
+                  {data.platform_outage_recovery.grace_minutes_remaining ?? "?"}m left)
+                </span>
+              ) : null}
             </p>
             {data.critical_failures.length > 0 ? (
               <p className="text-red-300 mt-1">Failed: {data.critical_failures.join(", ")}</p>
