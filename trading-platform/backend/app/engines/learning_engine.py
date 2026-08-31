@@ -139,6 +139,13 @@ class LearningEngine:
       adjustments.append("Require TA confirmation when acting on Phantom portfolio moves")
       lessons.append("Phantom wallet changes are sentiment input — not a standalone entry trigger")
 
+    if trade.bot_type == "crypto":
+      if await self._had_source_intel(trade.symbol, trade.executed_at, "political"):
+        if trade.sentiment_score < 0 and trade.side == "long":
+          root_causes.append("Political or crypto-policy intel turned negative during crypto hold")
+          adjustments.append("Reduce crypto exposure when policy headlines flip bearish")
+          lessons.append("Watch Fed/crypto executive orders and geopolitical risk on BTC/ETH positions")
+
     if trade.bot_type == "stocks_futures":
       if "macd" in reason_lower and "bearish" in reason_lower:
         root_causes.append("Entered against bearish MACD confirmation")
