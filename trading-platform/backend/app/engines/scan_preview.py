@@ -1231,9 +1231,7 @@ async def _build_monday_recovery_summary(session: AsyncSession) -> dict[str, Any
       commodities_verification_nudge = bool(
         preview.get("commodities_verification_trade_count_nudge")
       )
-      commodities_graduation_nudge = bool(
-        preview.get("graduation_nudge") or commodities_verification_nudge
-      )
+      commodities_graduation_nudge = bool(preview.get("graduation_nudge"))
 
     candidates = preview.get("recovery_candidates") or []
     open_ready_symbols = [
@@ -1298,7 +1296,9 @@ async def _build_monday_recovery_summary(session: AsyncSession) -> dict[str, Any
         )
     elif bot_type == "stocks_futures" and stocks_trade_count_nudge:
       bots[bot_type] = bot_entry
-    elif bot_type == "commodities" and commodities_graduation_nudge:
+    elif bot_type == "commodities" and (
+      commodities_graduation_nudge or commodities_verification_nudge
+    ):
       bots[bot_type] = bot_entry
 
   from app.engines.gate_entry_guard import (
