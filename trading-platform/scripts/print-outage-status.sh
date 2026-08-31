@@ -174,6 +174,7 @@ if dow == 1:
             print(
                 "  note=post-outage startup still runs forced open-ready scan if prep state preserved"
             )
+            print("  note=prep_phase_state persists in database across billing suspension")
 else:
     print("Not Monday — US stocks outage grace window N/A today")
 

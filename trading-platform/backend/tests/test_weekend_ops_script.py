@@ -198,6 +198,7 @@ def test_print_outage_status_script():
   assert "has_outage_recovery_scan" in text or "outage_recovery_scan" in text
   assert "post_grace_catchup_active" in text
   assert "post_grace_catchup_urgency" in text
+  assert "prep_phase_state persists" in text
   assert "verify-post-outage-recovery.sh" in text
 
 
@@ -347,6 +348,8 @@ def test_render_billing_recovery_workflow_uses_verify_once():
   assert "--verify-once" in text
   assert "r467+" in text
   assert "CATCHUP_LEFT" in text
+  assert "Billing suspended — waiting for resume" in text
+  assert "US cash session closed" in text
 
 
 def test_wait_for_render_deploy_waits_for_status_revision():
