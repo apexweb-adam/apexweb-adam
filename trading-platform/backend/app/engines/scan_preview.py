@@ -322,16 +322,24 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
     "stocks_futures": gate_tightening.max_stocks_open_positions,
     "polymarket": gate_tightening.max_pm_open_positions,
   }
+  from app.engines.gate_entry_guard import ACTIVE_GATE_GRADUATION_NUDGE_MAX_OPEN
+
   effective_open_cap = shadow_cap
   if not shadow_mode:
     base_cap = gate_caps.get(bot_type)
-    effective_open_cap = commodities_effective_open_cap(
-      base_cap,
-      bot_type=bot_type,
-      graduation_nudge=graduation_nudge,
-      shadow_mode=shadow_mode,
-      verification_nudge=commodities_verification_nudge,
-    ) if bot_type == "commodities" else base_cap
+    if bot_type == "commodities" and base_cap is None:
+      base_cap = ACTIVE_GATE_GRADUATION_NUDGE_MAX_OPEN
+    effective_open_cap = (
+      commodities_effective_open_cap(
+        base_cap,
+        bot_type=bot_type,
+        graduation_nudge=graduation_nudge,
+        shadow_mode=shadow_mode,
+        verification_nudge=commodities_verification_nudge,
+      )
+      if bot_type == "commodities"
+      else base_cap
+    )
   loss_exposure_block = shadow_graduation_loss_exposure_blocks_entry(
     open_positions,
     graduation_nudge=graduation_nudge,
