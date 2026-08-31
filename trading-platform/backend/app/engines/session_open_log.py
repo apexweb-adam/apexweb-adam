@@ -14,6 +14,8 @@ SESSION_OPEN_EVENTS_KEY = "session_open_events"
 PREP_PHASE_STATE_KEY = "prep_phase_state"
 MAX_SESSION_OPEN_EVENTS = 30
 SESSION_OPEN_BURST_RECOVERY_GRACE_MINUTES = 60
+# Extended grace when open-ready symbols were queued but platform was offline (e.g. billing).
+SESSION_OPEN_PLATFORM_OUTAGE_GRACE_MINUTES = 270
 
 
 def _parse_iso_utc(value: str | None) -> datetime | None:
@@ -28,19 +30,46 @@ def _parse_iso_utc(value: str | None) -> datetime | None:
       return None
 
 
+def _session_key_for_bot(bot_type: str) -> str | None:
+  if bot_type == "commodities":
+    return "cme_reopen"
+  if bot_type == "stocks_futures":
+    return "us_stocks_open"
+  return None
+
+
+async def _has_open_ready_queued(session: AsyncSession, bot_type: str) -> bool:
+  session_key = _session_key_for_bot(bot_type)
+  if not session_key:
+    return False
+  prep_state = await get_prep_phase_state(session)
+  entry_state = prep_state.get(session_key) if isinstance(prep_state.get(session_key), dict) else {}
+  ready = list(entry_state.get("open_ready_symbols") or [])
+  if ready:
+    return True
+  for event in await get_session_open_events(session):
+    if event.get("bot_type") != bot_type or event.get("event_type") != "queue_add":
+      continue
+    if event.get("symbols"):
+      return True
+  return False
+
+
 async def needs_session_open_burst_recovery(
   session: AsyncSession,
   *,
   bot_type: str,
   session_info: dict[str, Any],
   grace_minutes_after_open: int = SESSION_OPEN_BURST_RECOVERY_GRACE_MINUTES,
+  platform_outage_grace_minutes: int = SESSION_OPEN_PLATFORM_OUTAGE_GRACE_MINUTES,
 ) -> bool:
   """True when bot restarted in-session but missed logging burst_scan/auto_entry at open."""
   if not session_info.get("in_session"):
     return False
   since = session_info.get("minutes_since_open")
-  if since is None or int(since) > grace_minutes_after_open:
+  if since is None:
     return False
+  since_minutes = int(since)
   open_at = _parse_iso_utc(str(session_info.get("session_open_utc") or ""))
   if open_at is None:
     return False
@@ -53,7 +82,33 @@ async def needs_session_open_burst_recovery(
     at = _parse_iso_utc(str(event.get("timestamp") or ""))
     if at is not None and at >= open_at:
       return False
-  return True
+  if since_minutes <= grace_minutes_after_open:
+    return True
+  if since_minutes > platform_outage_grace_minutes:
+    return False
+  return await _has_open_ready_queued(session, bot_type)
+
+
+async def platform_outage_burst_recovery_active(
+  session: AsyncSession,
+  *,
+  bot_type: str,
+  session_info: dict[str, Any],
+  grace_minutes_after_open: int = SESSION_OPEN_BURST_RECOVERY_GRACE_MINUTES,
+  platform_outage_grace_minutes: int = SESSION_OPEN_PLATFORM_OUTAGE_GRACE_MINUTES,
+) -> bool:
+  """True when burst recovery is running due to missed open during platform outage."""
+  if not session_info.get("in_session"):
+    return False
+  since = session_info.get("minutes_since_open")
+  if since is None:
+    return False
+  since_minutes = int(since)
+  if since_minutes <= grace_minutes_after_open:
+    return False
+  if since_minutes > platform_outage_grace_minutes:
+    return False
+  return await _has_open_ready_queued(session, bot_type)
 
 
 async def _get_json_setting(session: AsyncSession, key: str) -> Any:

@@ -75,12 +75,30 @@ if [[ "$SKIP_STOCKS" == false && "$DOW" == "1" && "$HOUR" -ge 13 && "$HOUR" -le 
   bash "$ROOT/scripts/verify-us-stocks-post-open.sh" --watch 120 || true
 fi
 
+if [[ "$SKIP_STOCKS" == false && "$DOW" -ge 1 && "$DOW" -le 5 ]]; then
+  echo ""
+  echo "=== Commodities scan preview (CME weekday session) ==="
+  fetch_json "$BACKEND/api/bots/commodities/scan-preview" 120 3 > /tmp/commodities-scan.json 2>/dev/null || true
+  if [[ -f /tmp/commodities-scan.json ]]; then
+    python3 - << 'PY'
+import json
+from pathlib import Path
+data = json.loads(Path("/tmp/commodities-scan.json").read_text(encoding="utf-8") or "{}")
+symbols = data.get("symbols") or []
+held = [row["symbol"] for row in symbols if row.get("held")]
+open_ready = [row["symbol"] for row in symbols if row.get("would_enter")]
+print(f"  commodities symbols={len(symbols)} held={held or 'none'} would_enter={open_ready or 'none'}")
+PY
+  fi
+fi
+
 echo ""
 echo "Recovery complete. Check CRM dashboard and gate metrics."
 DOW="$(date -u +%u)"
 HOUR="$(date -u +%H)"
-if [[ "$DOW" == "1" && "$HOUR" -ge 13 && "$HOUR" -le 14 ]]; then
+if [[ "$DOW" == "1" && "$HOUR" -ge 13 && "$HOUR" -le 18 ]]; then
   echo ""
   echo "Note: stocks burst-recovery runs within 60 min of US open (13:30 UTC)."
-  echo "If resumed in this window, check us-stocks-open-checklist for has_burst_scan / has_auto_entry."
+  echo "Platform-outage recovery extends to 270 min when open-ready symbols were queued (e.g. AAPL)."
+  echo "Check us-stocks-open-checklist for has_burst_scan / has_auto_entry."
 fi
