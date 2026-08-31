@@ -86,8 +86,18 @@ jobs:
             fi
           else
             bash "$ROOT/scripts/print-outage-status.sh" || true
-            echo "::error::Render backend billing-suspended — fix at https://dashboard.render.com/web/srv-da848ms9v7es739k38jg"
-            exit 1
+            DOW="$(date -u +%u)"
+            if [[ "$DOW" -ge 1 && "$DOW" -le 7 ]]; then
+              echo "Billing suspended — waiting for resume (CME/crypto 24/7 recovery on startup)"
+              WAIT=900
+              POLL=30
+              if [[ "$DOW" == "1" && "$(date -u +%H)" -ge 21 ]]; then
+                echo "US cash session closed — stocks catch-up window ended; commodities/crypto still recover on resume"
+              fi
+            else
+              echo "::error::Render backend billing-suspended — fix at https://dashboard.render.com/web/srv-da848ms9v7es739k38jg"
+              exit 1
+            fi
           fi
 
           VERIFY_ONCE=1 bash "$ROOT/scripts/recover-render-billing.sh" --wait "$WAIT" --interval "$POLL" --verify-once
