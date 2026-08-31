@@ -199,6 +199,34 @@ case "$INTEGRATIONS_RC" in
     ;;
 esac
 
+INTEL_RAW=$(fetch_json "$BACKEND/api/intelligence/sources" 30 2)
+if echo "$INTEL_RAW" | python3 -c "
+import json,sys
+raw=json.load(sys.stdin)
+sources=raw.get('sources', raw) if isinstance(raw, dict) else raw
+if not isinstance(sources, list):
+    sys.exit(1)
+by={s.get('source'): s for s in sources if isinstance(s, dict)}
+for key in ('political', 'youtube', 'tiktok', 'newsapi', 'x', 'reddit'):
+    if key not in by:
+        print(f'missing_intel_source={key}')
+        sys.exit(2)
+print(
+    f'intel_sources political={by[\"political\"].get(\"status\")} '
+    f'youtube={by[\"youtube\"].get(\"status\")} tiktok={by[\"tiktok\"].get(\"status\")}'
+)
+sys.exit(0)
+" 2>/dev/null; then
+  ok "Intel sources include political, YouTube, TikTok (multi-source objective)"
+else
+  INTEL_RC=$?
+  if [[ "${INTEL_RC:-1}" -eq 2 ]]; then
+    bad "Intel sources missing political/YouTube/TikTok — confirm r133+ revision"
+  else
+    note "Intel sources API unavailable"
+  fi
+fi
+
 echo ""
 echo "--- WebSocket live CRM ---"
 bash "$ROOT/scripts/verify-ws-live.sh" || true

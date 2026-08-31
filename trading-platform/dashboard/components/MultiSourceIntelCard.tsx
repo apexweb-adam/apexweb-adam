@@ -62,12 +62,23 @@ function lookupSource(
 export function MultiSourceIntelCard({
   integrations,
   sources,
+  backendOffline,
 }: {
   integrations?: PlatformStatus["integrations"];
   sources?: IntelligenceSource[] | null;
+  backendOffline?: boolean;
 }) {
-  if (!integrations && !sources?.length) {
+  if (!integrations && !sources?.length && !backendOffline) {
     return null;
+  }
+
+  if (backendOffline && !integrations && !sources?.length) {
+    return (
+      <p className="text-xs text-apex-red border border-apex-red/30 bg-apex-red/10 rounded px-2 py-1.5">
+        Intel scanners offline — news, X, Reddit, political, TikTok, and YouTube feeds resume when
+        Render billing is restored.
+      </p>
+    );
   }
 
   const newsapi = lookupSource(sources, "newsapi");
@@ -99,6 +110,11 @@ export function MultiSourceIntelCard({
 
   return (
     <div className="rounded-lg border border-apex-border bg-apex-dark px-3 py-2 text-xs text-gray-400">
+      {backendOffline ? (
+        <p className="text-[10px] text-apex-red border border-apex-red/30 bg-apex-red/10 rounded px-2 py-1 mb-2">
+          Backend offline — source counts below may be stale until Render resumes.
+        </p>
+      ) : null}
       <p className="text-apex-gold font-medium mb-2">Multi-source intel (news · X · social · political)</p>
       <div className="space-y-0">
         <IntelSourceRow

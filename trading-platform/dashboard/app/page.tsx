@@ -27,6 +27,7 @@ import { fetchAPI, applyPendingInsights, getSessionPrepEntry } from "@/lib/api";
 import {
   VERIFIED_PREVIEW_URL,
   VERIFIED_PROMOTE_DEPLOYMENT_ID,
+  DEFAULT_PLATFORM_SCHEDULER,
 } from "@/lib/deploy-health";
 import { detectIntelPostMortemSources, intelFeedSourceBadge, intelSourceBadge } from "@/lib/intel-postmortem";
 import {
@@ -207,6 +208,8 @@ export default function Dashboard() {
 
   const paperTradingDisplay =
     livePaperTradingOnly ?? platformStatus?.paper_trading_only ?? gateStatus?.paper_trading_only;
+  const backendOffline = dashConfig?.backendHealth?.suspended === true;
+  const schedulerDisplay = platformStatus?.scheduler ?? DEFAULT_PLATFORM_SCHEDULER;
 
   const liveGateTightening =
     gateEntryTightening ?? platformStatus?.gate_entry_tightening;
@@ -446,7 +449,7 @@ export default function Dashboard() {
                   botSessions={botSessions ?? platformStatus?.bot_sessions}
                   profitability={gateStatus}
                   paperTradingOnly={paperTradingDisplay}
-                  backendOffline={dashConfig?.backendHealth?.suspended === true}
+                  backendOffline={backendOffline}
                 />
               </Card>
               <Card title="Bot Status">
@@ -496,54 +499,62 @@ export default function Dashboard() {
               </Card>
             </div>
             <div className="space-y-6">
-              {platformStatus?.scheduler && (
-                <Card title="Autonomous Operations">
-                  <div className="space-y-2">
-                    {Object.entries(platformStatus.scheduler).map(([key, value]) => (
-                      <div key={key} className="flex justify-between text-xs">
-                        <span className="text-gray-500">{key.replace(/_/g, " ")}</span>
-                        <span className="text-apex-green font-medium">{value}</span>
-                      </div>
-                    ))}
-                  </div>
-                  {learningStats && (
-                    <div className="mt-4 pt-4 border-t border-apex-border space-y-1 text-xs text-gray-500">
-                      <p>
-                        Learning: {learningStats.trade_analyses} post-mortems ·{" "}
-                        {learningStats.daily_reviews} daily reviews ·{" "}
-                        {learningStats.insights_applied}/{learningStats.insights_total}{" "}
-                        insights applied
-                        {(learningStats.insights_pending ?? 0) > 0 && (
-                          <span className="text-apex-gold">
-                            {" "}
-                            · {learningStats.insights_pending} pending
-                          </span>
-                        )}
-                        {(learningStats.intel_pattern_count ?? 0) > 0 && (
-                          <span className="text-purple-300">
-                            {" "}
-                            · {learningStats.intel_pattern_count} intel pattern alert(s)
-                          </span>
-                        )}
-                      </p>
-                      <p className="font-mono text-[10px] text-gray-600 break-all">
-                        {crmLearningVerifyCommand}
-                      </p>
+              <Card title="Autonomous Operations">
+                <div className="space-y-2">
+                  {backendOffline ? (
+                    <p className="text-[10px] text-apex-red border border-apex-red/30 bg-apex-red/10 rounded px-2 py-1.5 mb-2">
+                      Schedulers paused while Render billing is suspended — bots and intel scans
+                      resume on recovery.
+                    </p>
+                  ) : null}
+                  {Object.entries(schedulerDisplay).map(([key, value]) => (
+                    <div key={key} className="flex justify-between text-xs gap-3">
+                      <span className="text-gray-500 shrink-0">{key.replace(/_/g, " ")}</span>
+                      <span className="text-apex-green font-medium text-right">{value}</span>
                     </div>
-                  )}
-                </Card>
-              )}
-              {(integrationsDisplay || intelSourcesDisplay) && (
+                  ))}
+                </div>
+                {learningStats && (
+                  <div className="mt-4 pt-4 border-t border-apex-border space-y-1 text-xs text-gray-500">
+                    <p>
+                      Learning: {learningStats.trade_analyses} post-mortems ·{" "}
+                      {learningStats.daily_reviews} daily reviews ·{" "}
+                      {learningStats.insights_applied}/{learningStats.insights_total}{" "}
+                      insights applied
+                      {(learningStats.insights_pending ?? 0) > 0 && (
+                        <span className="text-apex-gold">
+                          {" "}
+                          · {learningStats.insights_pending} pending
+                        </span>
+                      )}
+                      {(learningStats.intel_pattern_count ?? 0) > 0 && (
+                        <span className="text-purple-300">
+                          {" "}
+                          · {learningStats.intel_pattern_count} intel pattern alert(s)
+                        </span>
+                      )}
+                    </p>
+                    <p className="font-mono text-[10px] text-gray-600 break-all">
+                      {crmLearningVerifyCommand}
+                    </p>
+                  </div>
+                )}
+              </Card>
+              {(integrationsDisplay || intelSourcesDisplay || backendOffline) && (
                 <Card title="Multi-Source Intel">
                   <MultiSourceIntelCard
                     integrations={integrationsDisplay ?? undefined}
                     sources={intelSourcesDisplay}
+                    backendOffline={backendOffline}
                   />
                 </Card>
               )}
-              {integrationsDisplay && (
+              {(integrationsDisplay || backendOffline) && (
                 <Card title="Trading & Wallet Hooks">
-                  <IntegrationHooksPanel integrations={integrationsDisplay} />
+                  <IntegrationHooksPanel
+                    integrations={integrationsDisplay ?? undefined}
+                    backendOffline={backendOffline}
+                  />
                 </Card>
               )}
               {(vercelStale ||
@@ -938,7 +949,16 @@ export default function Dashboard() {
                 )}
               </Card>
               <Card title="Latest Intelligence">
-                {(intelFeed ?? []).slice(0, 5).map((item) => {
+                {backendOffline && (intelFeed ?? []).length === 0 ? (
+                  <p className="text-xs text-apex-red py-4 text-center">
+                    Intel feed offline — scanners resume when Render billing is restored.
+                  </p>
+                ) : (intelFeed ?? []).length === 0 ? (
+                  <p className="text-xs text-gray-500 py-4 text-center">
+                    No intelligence items yet — scanners run every 5 minutes when backend is online.
+                  </p>
+                ) : (
+                (intelFeed ?? []).slice(0, 5).map((item) => {
                   const sourceBadge = intelFeedSourceBadge(item.source);
                   return (
                   <div key={item.id} className="py-2 border-b border-apex-border last:border-0">
@@ -959,7 +979,8 @@ export default function Dashboard() {
                     <p className="text-xs text-gray-300 line-clamp-2">{item.title}</p>
                   </div>
                   );
-                })}
+                })
+                )}
               </Card>
             </div>
           </div>

@@ -381,6 +381,7 @@ bash "$ROOT/scripts/verify-post-outage-recovery.sh" "${VERIFY_ARGS[@]}" || true
 
 echo ""
 echo "Recovery complete. Check CRM dashboard and gate metrics."
+echo "Verify WebSocket live CRM: bash trading-platform/scripts/verify-ws-live.sh --strict"
 DOW="$(date -u +%u)"
 HOUR="$(date -u +%H)"
 if [[ "$DOW" == "1" && "$HOUR" -ge 13 && "$HOUR" -le 21 ]]; then

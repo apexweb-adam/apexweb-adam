@@ -535,6 +535,8 @@ def test_verify_crm_learning_script_exists():
   assert "tradingview_webhook" in text
   assert "polymarket_account_hook" in text
   assert "verify-ws-live.sh" in text
+  assert "/api/intelligence/sources" in text
+  assert "political" in text
 
 
 def test_verify_ws_live_script_exists():

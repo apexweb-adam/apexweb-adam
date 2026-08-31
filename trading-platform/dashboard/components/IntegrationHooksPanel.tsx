@@ -7,9 +7,27 @@ type Integrations = NonNullable<PlatformStatus["integrations"]>;
 
 export function IntegrationHooksPanel({
   integrations,
+  backendOffline,
 }: {
-  integrations: Integrations;
+  integrations?: Integrations;
+  backendOffline?: boolean;
 }) {
+  if (!integrations) {
+    if (backendOffline) {
+      return (
+        <p className="text-xs text-apex-red border border-apex-red/30 bg-apex-red/10 rounded px-2 py-1.5">
+          TradingView, Polymarket, and wallet hooks unavailable until Render billing is restored.
+        </p>
+      );
+    }
+    return (
+      <p className="text-xs text-gray-500">
+        No trading hooks configured yet — set TRADINGVIEW_WEBHOOK_SECRET on Render for
+        TradingView, wallet, fomo, axiom, and Phantom bridges.
+      </p>
+    );
+  }
+
   const hasAny =
     integrations.tradingview_webhook ||
     integrations.tradingview_setup ||
@@ -36,6 +54,11 @@ export function IntegrationHooksPanel({
 
   return (
     <div className="space-y-3">
+      {backendOffline ? (
+        <p className="text-[10px] text-apex-red border border-apex-red/30 bg-apex-red/10 rounded px-2 py-1.5">
+          Hook status cached from last /api/status — webhook delivery requires an online backend.
+        </p>
+      ) : null}
       {(integrations.tradingview_webhook || integrations.tradingview_setup) && (
         <div className="rounded-lg border border-apex-border bg-apex-dark px-3 py-2 text-xs text-gray-400">
           <p className="text-apex-gold font-medium mb-1">TradingView webhook ready</p>
