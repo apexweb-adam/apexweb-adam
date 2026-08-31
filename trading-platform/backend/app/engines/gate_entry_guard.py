@@ -3598,6 +3598,8 @@ STOCKS_TRADE_COUNT_PREP_MINUTES = 4320  # 72h — weekend TV refresh before Mond
 STOCKS_OPEN_IMMINENT_SCAN_MINUTES = 30
 STOCKS_OPEN_IMMINENT_SCAN_INTERVAL = 5
 STOCKS_OPEN_READY_WATCH_INTERVAL_SECONDS = 60
+SESSION_PREP_QUEUE_MONITOR_INTERVAL_SECONDS = 60
+SESSION_PREP_QUEUE_MONITOR_SLOW_INTERVAL_SECONDS = 300
 
 
 def session_open_composite_floor(
@@ -4382,6 +4384,25 @@ def stocks_open_ready_watch_active(session_info: dict[str, Any] | None = None) -
   return (
     minutes_until is not None
     and minutes_until <= STOCKS_OPEN_IMMINENT_SCAN_MINUTES
+  )
+
+
+def session_prep_queue_monitor_active(
+  *,
+  stocks_session: dict[str, Any] | None = None,
+  commodities_session: dict[str, Any] | None = None,
+) -> bool:
+  """Whether session prep queue monitor should run on the 60s cadence."""
+  if stocks_open_ready_watch_active(stocks_session):
+    return True
+  cme = commodities_session if commodities_session is not None else commodities_session_info()
+  if cme.get("in_session"):
+    since = cme.get("minutes_since_open")
+    return since is not None and since <= COMMODITIES_REOPEN_IMMINENT_SCAN_MINUTES
+  minutes_until = cme.get("minutes_until_open")
+  return (
+    minutes_until is not None
+    and minutes_until <= COMMODITIES_REOPEN_IMMINENT_SCAN_MINUTES
   )
 
 

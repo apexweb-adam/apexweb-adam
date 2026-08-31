@@ -440,9 +440,17 @@ async def session_prep_phase_monitor_job() -> None:
     await push_live_update()
 
 
+_last_session_prep_queue_monitor_at: float = 0.0
+
+
 async def session_prep_queue_monitor_job() -> None:
   """Log open-ready and near-floor queue changes from scan preview."""
-  from app.engines.gate_entry_guard import status_cache_prewarm_active
+  global _last_session_prep_queue_monitor_at
+  from app.engines.gate_entry_guard import (
+    SESSION_PREP_QUEUE_MONITOR_SLOW_INTERVAL_SECONDS,
+    session_prep_queue_monitor_active,
+    status_cache_prewarm_active,
+  )
   from app.engines.session_open_log import (
     backfill_open_ready_queue_events,
     monitor_open_ready_queue,
@@ -450,6 +458,13 @@ async def session_prep_queue_monitor_job() -> None:
 
   if not status_cache_prewarm_active():
     return
+
+  now = time.monotonic()
+  if not session_prep_queue_monitor_active():
+    if now - _last_session_prep_queue_monitor_at < SESSION_PREP_QUEUE_MONITOR_SLOW_INTERVAL_SECONDS:
+      return
+
+  _last_session_prep_queue_monitor_at = now
 
   async with SessionLocal() as session:
     logged = await monitor_open_ready_queue(session)
@@ -1051,10 +1066,15 @@ async def setup_scheduler() -> None:
     minutes=1,
     id="session_prep_phase_monitor",
   )
+  from app.engines.gate_entry_guard import (
+    SESSION_PREP_QUEUE_MONITOR_INTERVAL_SECONDS,
+    STATUS_CACHE_WATCH_TTL_SECONDS,
+  )
+
   scheduler.add_job(
     session_prep_queue_monitor_job,
     "interval",
-    minutes=5,
+    seconds=SESSION_PREP_QUEUE_MONITOR_INTERVAL_SECONDS,
     id="session_prep_queue_monitor",
   )
   from app.engines.gate_entry_guard import STATUS_CACHE_WATCH_TTL_SECONDS
