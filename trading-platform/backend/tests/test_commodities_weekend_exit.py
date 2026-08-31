@@ -198,9 +198,13 @@ def test_commodities_weekend_spot_gate_skip_bypass():
       signal_direction="buy",
       macd_signal="bullish",
     ) is False
+    db_row = MagicMock()
+    db_row.first.return_value = None
+    session = AsyncMock()
+    session.execute = AsyncMock(return_value=db_row)
     remaining = asyncio.run(
       symbol_cooldown_remaining_seconds(
-        AsyncMock(),
+        session,
         "commodities",
         "XAUUSDT",
         graduation_nudge=True,

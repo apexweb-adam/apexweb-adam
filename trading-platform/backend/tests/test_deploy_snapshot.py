@@ -3,6 +3,7 @@
 from unittest.mock import patch
 
 from app.engines.deploy_status import (
+  EXPECTED_DASHBOARD_BUNDLE,
   EXPECTED_PLATFORM_REVISION,
   build_deploy_snapshot,
 )
@@ -18,7 +19,7 @@ def test_build_deploy_snapshot_includes_deploy_window_when_behind():
   assert snap["platform_revision"] == "2026-08-29-r336"
   assert snap["platform_revision_current"] is False
   assert snap["expected_platform_revision"] == EXPECTED_PLATFORM_REVISION
-  assert snap["expected_dashboard_bundle"] == "2026-08-29-r98"
+  assert snap["expected_dashboard_bundle"] == EXPECTED_DASHBOARD_BUNDLE
   assert "verify-dashboard-bundle" in snap["dashboard_bundle_verify_command"]
   assert "verify-weekend-ops" in snap["weekend_ops_verify_command"]
   assert "run-deploy-window" in snap["run_deploy_window_command"]

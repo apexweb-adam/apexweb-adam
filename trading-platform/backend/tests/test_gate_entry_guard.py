@@ -1082,7 +1082,7 @@ def test_commodities_verification_cooldown_bypass_db_remaining():
 
   import asyncio
 
-  remaining = asyncio.get_event_loop().run_until_complete(
+  remaining = asyncio.run(
     symbol_cooldown_remaining_seconds(
       session,
       "commodities",
