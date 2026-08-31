@@ -62,7 +62,7 @@ jobs:
             POLL=10
           elif [[ -n "$POST_GRACE_US_SESSION" ]]; then
             bash "$ROOT/scripts/print-outage-status.sh" || true
-            echo "Monday post-grace US session — waiting for billing resume (forced open-ready scan on r466+)"
+            echo "Monday post-grace US session — waiting for billing resume (forced open-ready scan on r467+)"
             WAIT=1200
             POLL=15
           else
@@ -71,4 +71,4 @@ jobs:
             exit 1
           fi
 
-          bash "$ROOT/scripts/recover-render-billing.sh" --wait "$WAIT" --interval "$POLL"
+          VERIFY_ONCE=1 bash "$ROOT/scripts/recover-render-billing.sh" --wait "$WAIT" --interval "$POLL" --verify-once
