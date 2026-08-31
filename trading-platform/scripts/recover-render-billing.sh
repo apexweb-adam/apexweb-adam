@@ -77,3 +77,10 @@ fi
 
 echo ""
 echo "Recovery complete. Check CRM dashboard and gate metrics."
+DOW="$(date -u +%u)"
+HOUR="$(date -u +%H)"
+if [[ "$DOW" == "1" && "$HOUR" -ge 13 && "$HOUR" -le 14 ]]; then
+  echo ""
+  echo "Note: stocks burst-recovery runs within 60 min of US open (13:30 UTC)."
+  echo "If resumed in this window, check us-stocks-open-checklist for has_burst_scan / has_auto_entry."
+fi
