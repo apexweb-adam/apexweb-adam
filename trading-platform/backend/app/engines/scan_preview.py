@@ -390,19 +390,9 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
   symbols = await bot.get_symbols()
   previews: list[dict[str, Any]] = []
 
-  last_exit_reasons: dict[str, str] = {}
-  if bot_type in ("crypto", "commodities"):
-    from app.models.entities import Trade
-    from sqlalchemy import select
+  from app.engines.gate_entry_guard import load_last_exit_reasons
 
-    sell_rows = await session.execute(
-      select(Trade.symbol, Trade.reason)
-      .where(Trade.bot_type == bot_type, Trade.action == "sell")
-      .order_by(Trade.executed_at.desc())
-    )
-    for sym, exit_reason in sell_rows:
-      if sym and sym not in last_exit_reasons:
-        last_exit_reasons[sym] = exit_reason or ""
+  last_exit_reasons = await load_last_exit_reasons(session, bot_type)
 
   for symbol in symbols:
     price, df = await bot.fetch_price_data(symbol)

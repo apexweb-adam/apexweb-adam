@@ -3094,6 +3094,35 @@ def _bot_cooldown_seconds(bot_type: str, *, after_loss: bool) -> int:
   return 900
 
 
+def resolve_last_exit_reason(
+  symbol: str,
+  *,
+  in_memory: dict[str, str],
+  persisted: dict[str, str],
+) -> str | None:
+  """Prefer in-scan exit reason, fall back to DB after deploy restarts."""
+  return in_memory.get(symbol) or persisted.get(symbol)
+
+
+async def load_last_exit_reasons(
+  session: AsyncSession,
+  bot_type: str,
+) -> dict[str, str]:
+  """Most recent sell reason per symbol — survives deploy restarts."""
+  from app.models.entities import Trade
+
+  reasons: dict[str, str] = {}
+  sell_rows = await session.execute(
+    select(Trade.symbol, Trade.reason)
+    .where(Trade.bot_type == bot_type, Trade.action == "sell")
+    .order_by(Trade.executed_at.desc())
+  )
+  for sym, exit_reason in sell_rows:
+    if sym and sym not in reasons:
+      reasons[sym] = exit_reason or ""
+  return reasons
+
+
 async def is_symbol_in_trade_cooldown(
   session: AsyncSession,
   bot_type: str,

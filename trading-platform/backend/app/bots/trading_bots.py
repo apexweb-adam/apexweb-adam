@@ -358,12 +358,25 @@ class BaseBot(ABC):
         gate_status,
         per_bot_stats,
       )
-      commodities_verification_nudge = commodities_verification_trade_count_nudge(
+  commodities_verification_nudge = commodities_verification_trade_count_nudge(
         self.bot_type,
         shadow_mode,
         gate_status,
         per_bot_stats,
       )
+      from app.engines.gate_entry_guard import load_last_exit_reasons, resolve_last_exit_reason
+
+      persisted_exit_reasons: dict[str, str] = {}
+      if self.bot_type in ("crypto", "commodities"):
+        persisted_exit_reasons = await load_last_exit_reasons(session, self.bot_type)
+
+      def last_exit_reason_for(sym: str) -> str | None:
+        return resolve_last_exit_reason(
+          sym,
+          in_memory=self._last_exit_reason,
+          persisted=persisted_exit_reasons,
+        )
+
       bypass_nudge = graduation_nudge or commodities_ease_active
       if gate_tightening.active and self.bot_type != "stocks_futures":
         min_signal = apply_gate_tightening_min_signal(
@@ -921,7 +934,7 @@ class BaseBot(ABC):
           composite=composite,
           open_count=open_count,
           shadow_open_cap=shadow_open_cap,
-          last_exit_reason=self._last_exit_reason.get(symbol),
+          last_exit_reason=last_exit_reason_for(symbol),
           last_exit_after_loss=self._last_exit_after_loss.get(symbol),
         )
         verification_cooldown_waived = commodities_verification_cooldown_bypass(
@@ -934,7 +947,7 @@ class BaseBot(ABC):
           signal_direction=signal.direction,
           macd_signal=signal.macd_signal,
           composite=composite,
-          last_exit_reason=self._last_exit_reason.get(symbol),
+          last_exit_reason=last_exit_reason_for(symbol),
         )
         if (
           not weekend_spot_cooldown_waived
@@ -1391,7 +1404,7 @@ class BaseBot(ABC):
           open_count=open_count,
           gate_tightening=gate_tightening,
           composite=composite,
-          last_exit_reason=self._last_exit_reason.get(symbol),
+          last_exit_reason=last_exit_reason_for(symbol),
         ):
           continue
 
