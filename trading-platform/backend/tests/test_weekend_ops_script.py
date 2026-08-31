@@ -177,7 +177,9 @@ def test_print_outage_status_script():
   assert "held_open_positions" in text
   assert "cme-reopen-checklist" in text
   assert "outage_grace_urgency" in text
-  assert "r465+" in text
+  assert "--watch" in text
+  assert "every 5 min Mon 13-18 UTC" in text
+  assert "has_outage_recovery_scan" in text or "outage_recovery_scan" in text
 
 
 def test_verify_post_deploy_includes_crm_and_learning_checks():
@@ -288,6 +290,8 @@ def test_verify_cme_post_open_supports_watch_mode():
   assert "run_verification" in text
   assert "extended_watch" in text
   assert "expected_platform_revision" in text
+  assert "outage_recovery_scan" in text
+  assert "recovery_scan_pending_burst" in text
 
 
 def test_wait_for_render_deploy_waits_for_status_revision():
