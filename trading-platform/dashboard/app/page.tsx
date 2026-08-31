@@ -2029,7 +2029,7 @@ function BillingOutageRecoveryCard({
                     {" "}
                     Deploy{" "}
                     <span className="font-mono text-red-200">
-                      {health.expected_platform_revision ?? "r465"}
+                      {health.expected_platform_revision ?? "r466"}
                     </span>{" "}
                     before grace expires; verify{" "}
                     <span className="font-mono">outage_recovery_scan</span> then{" "}
