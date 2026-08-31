@@ -534,6 +534,17 @@ def test_verify_crm_learning_script_exists():
   assert "run-daily-review-now.sh" in text
   assert "tradingview_webhook" in text
   assert "polymarket_account_hook" in text
+  assert "verify-ws-live.sh" in text
+
+
+def test_verify_ws_live_script_exists():
+  script = SCRIPTS / "verify-ws-live.sh"
+  text = script.read_text(encoding="utf-8")
+  assert script.is_file()
+  assert "paper_trading_only" in text
+  assert "intel_sources" in text
+  assert "political" in text
+  assert "websockets.connect" in text
 
 
 def test_verify_post_outage_recovery_runs_crm_learning():

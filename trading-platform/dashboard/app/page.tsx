@@ -117,6 +117,7 @@ export default function Dashboard() {
       ? liveLearning.intel_pattern_alerts
       : platformStatus?.learning?.intel_pattern_alerts;
   const learningStats = liveLearning ?? platformStatus?.learning;
+  const contentStudyDisplay = contentStudy ?? platformStatus?.content_study ?? null;
   const integrationsDisplay = liveIntegrations ?? platformStatus?.integrations ?? null;
   const crmLearningVerifyCommand =
     platformStatus?.deploy?.crm_learning_verify_command ??
@@ -445,6 +446,7 @@ export default function Dashboard() {
                   botSessions={botSessions ?? platformStatus?.bot_sessions}
                   profitability={gateStatus}
                   paperTradingOnly={paperTradingDisplay}
+                  backendOffline={dashConfig?.backendHealth?.suspended === true}
                 />
               </Card>
               <Card title="Bot Status">
@@ -1166,7 +1168,7 @@ export default function Dashboard() {
               />
             ) : null}
             <LearningPendingBanner
-              pending={platformStatus?.learning?.insights_pending ?? 0}
+              pending={learningStats?.insights_pending ?? 0}
             />
             <IntelPatternAlertBanner
               alerts={intelPatternAlerts}
@@ -1289,13 +1291,13 @@ export default function Dashboard() {
             </Card>
             <Card title="External Content Study">
               <div className="space-y-3 max-h-[320px] overflow-y-auto">
-                {(contentStudy?.recent ?? []).length === 0 ? (
+                {(contentStudyDisplay?.recent ?? []).length === 0 ? (
                   <p className="text-sm text-gray-500 py-4">
                     No content-study highlights yet — runs hourly from YouTube, Reddit, live intel
                     (political, TikTok, news, TradingView), and wallet hooks.
                   </p>
                 ) : (
-                  (contentStudy?.recent ?? []).map((row, idx) => {
+                  (contentStudyDisplay?.recent ?? []).map((row, idx) => {
                     const sourceBadge = intelSourceBadge(row.source_type);
                     const sourceLabel = row.source_label ?? sourceBadge?.label ?? row.source_type;
                     const badgeClass = sourceBadge?.className;
@@ -1338,9 +1340,9 @@ export default function Dashboard() {
                   })
                 )}
               </div>
-              {contentStudy && (
+              {contentStudyDisplay && (
                 <p className="text-[10px] text-gray-500 mt-3">
-                  {contentStudy.insights_applied} insights applied to strategy parameters
+                  {contentStudyDisplay.insights_applied} insights applied to strategy parameters
                 </p>
               )}
             </Card>

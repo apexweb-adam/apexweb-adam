@@ -183,6 +183,26 @@ if tv.get('scoring_excludes_synthetic'):
     )
 " 2>/dev/null || true
 
+# Multi-source intel sources (political, YouTube, TikTok)
+if echo "$INTEL_RAW" | python3 -c "
+import json,sys
+raw=json.load(sys.stdin)
+sources=raw.get('sources', raw) if isinstance(raw, dict) else raw
+if not isinstance(sources, list):
+    sys.exit(1)
+by={s.get('source'): s for s in sources if isinstance(s, dict)}
+for key in ('political', 'youtube', 'tiktok'):
+    if key not in by:
+        print(f'  missing_intel_source={key}')
+        sys.exit(2)
+print(f'  political={by[\"political\"].get(\"status\")} youtube={by[\"youtube\"].get(\"status\")} tiktok={by[\"tiktok\"].get(\"status\")}')
+sys.exit(0)
+" 2>/dev/null; then
+  ok "Multi-source social/political intel sources present"
+else
+  note "Political/YouTube/TikTok intel sources missing from /api/intelligence/sources"
+fi
+
 # Verification snapshots
 VH=$(curl -s -o /dev/null -w "%{http_code}" -m 20 "$BACKEND/api/verification/history?limit=1")
 if [[ "$VH" == "200" ]]; then
@@ -489,6 +509,10 @@ fi
 echo ""
 echo "--- CRM learning loop ---"
 bash "$ROOT/scripts/verify-crm-learning.sh" || true
+
+echo ""
+echo "--- WebSocket live CRM ---"
+bash "$ROOT/scripts/verify-ws-live.sh" || true
 
 echo ""
 echo "Results: $pass passed, $fail failed, $warn notes"

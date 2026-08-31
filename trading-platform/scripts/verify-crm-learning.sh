@@ -200,6 +200,10 @@ case "$INTEGRATIONS_RC" in
 esac
 
 echo ""
+echo "--- WebSocket live CRM ---"
+bash "$ROOT/scripts/verify-ws-live.sh" || true
+
+echo ""
 echo "Results: $pass passed, $fail failed, $warn notes"
 if [[ "$fail" -gt 0 ]]; then
   if [[ "$STRICT" == "true" ]]; then

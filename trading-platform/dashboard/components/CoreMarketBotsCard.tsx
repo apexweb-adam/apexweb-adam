@@ -37,16 +37,24 @@ export function CoreMarketBotsCard({
   botSessions,
   profitability,
   paperTradingOnly,
+  backendOffline,
 }: {
   bots: BotRow[];
   botSessions?: BotSessions | null;
   profitability?: ProfitabilityStatus | null;
   paperTradingOnly?: boolean;
+  backendOffline?: boolean;
 }) {
   const botMap = new Map(bots.map((row) => [row.bot_type, row]));
 
   return (
     <div className="space-y-3">
+      {backendOffline ? (
+        <p className="text-[10px] text-apex-red border border-apex-red/30 bg-apex-red/10 rounded px-2 py-1.5">
+          Backend offline — bot scans, intel, and learning are paused until Render billing is restored.
+          Last snapshot below may be stale.
+        </p>
+      ) : null}
       <p className="text-[10px] text-gray-500">
         {paperTradingOnly === false
           ? "Live trading enabled — profitability gate bypassed."
