@@ -94,17 +94,23 @@ class ExtendedIntelligenceScanner(IntelligenceScanner):
   async def scan_all(self) -> int:
     count = await super().scan_all()
     count += await self._scan_youtube()
+    await self._record_scan_heartbeats("youtube")
     count += await self._scan_polymarket()
+    await self._record_scan_heartbeats("polymarket")
     if settings.polymarket_wallet_address or settings.polymarket_deposit_address:
       count += await self._scan_polymarket_account()
+      await self._record_scan_heartbeats("polymarket_account")
     count += await self._scan_political()
+    await self._record_scan_heartbeats("political")
     count += await self._scan_tiktok_news()
+    await self._record_scan_heartbeats("tiktok")
     if settings.twitter_bearer_token:
       count += await self._scan_x_twitter()
     elif settings.newsapi_key:
       count += await self._scan_x_social_news_fallback()
     else:
       count += await self._scan_x_google_news_fallback()
+    await self._record_scan_heartbeats("x")
     from app.intelligence.wallet_tracker import scan_wallet_tracker
     from app.intelligence.solana_wallet_tracker import scan_solana_wallets
     from app.intelligence.memecoin_scanner import scan_memecoin_intel
@@ -113,11 +119,15 @@ class ExtendedIntelligenceScanner(IntelligenceScanner):
     from app.intelligence.phantom_tracker import scan_phantom_portfolios
 
     count += await scan_wallet_tracker(self.session)
+    await self._record_scan_heartbeats("wallet_tracker")
     count += await scan_solana_wallets(self.session)
     count += await scan_memecoin_intel(self.session)
     count += await scan_fomo_trades(self.session)
+    await self._record_scan_heartbeats("fomo")
     count += await scan_axiom_feed(self.session)
+    await self._record_scan_heartbeats("axiom")
     count += await scan_phantom_portfolios(self.session)
+    await self._record_scan_heartbeats("phantom")
     await self.session.commit()
     return count
 

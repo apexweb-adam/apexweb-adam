@@ -31,6 +31,8 @@ def test_scan_all_uses_google_news_when_no_x_keys():
     "app.intelligence.axiom_tracker.scan_axiom_feed", AsyncMock(return_value=0)
   ), patch(
     "app.intelligence.phantom_tracker.scan_phantom_portfolios", AsyncMock(return_value=0)
+  ), patch(
+    "app.intelligence.scan_heartbeats.record_intel_scan_heartbeats", AsyncMock()
   ):
     mock_settings.twitter_bearer_token = ""
     mock_settings.newsapi_key = ""

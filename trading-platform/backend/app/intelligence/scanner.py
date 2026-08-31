@@ -87,11 +87,19 @@ class IntelligenceScanner:
   async def scan_all(self) -> int:
     count = 0
     count += await self._scan_rss_feeds()
+    await self._record_scan_heartbeats("news", "reddit")
     count += await self._scan_reddit_api()
+    await self._record_scan_heartbeats("reddit")
     if settings.newsapi_key:
       count += await self._scan_newsapi()
+      await self._record_scan_heartbeats("newsapi")
     await self.session.commit()
     return count
+
+  async def _record_scan_heartbeats(self, *sources: str) -> None:
+    from app.intelligence.scan_heartbeats import record_intel_scan_heartbeats
+
+    await record_intel_scan_heartbeats(self.session, *sources)
 
   async def _scan_rss_feeds(self) -> int:
     count = 0

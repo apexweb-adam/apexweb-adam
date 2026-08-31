@@ -30,6 +30,35 @@ INTEL_WEIGHT_MULTIPLIERS_TTL_SECONDS = 60
 _INTEL_WEIGHT_MULTIPLIERS_CACHE: tuple[float, dict[str, float]] | None = None
 
 
+def _latest_activity_at(
+  source: str,
+  *,
+  source_latest: dict[str, datetime],
+  scan_heartbeats: dict[str, datetime],
+) -> datetime | None:
+  latest = source_latest.get(source)
+  heartbeat = scan_heartbeats.get(source)
+  if latest is None:
+    return heartbeat
+  if heartbeat is None:
+    return latest
+  return max(latest, heartbeat)
+
+
+def _is_recent_activity(
+  when: datetime | None,
+  *,
+  hours: float,
+) -> bool:
+  if when is None:
+    return False
+  now = datetime.now(timezone.utc)
+  when_utc = when if when.tzinfo else when.replace(tzinfo=timezone.utc)
+  if when_utc.tzinfo != timezone.utc:
+    when_utc = when_utc.astimezone(timezone.utc)
+  return now - when_utc <= timedelta(hours=hours)
+
+
 def x_intel_collection_mode() -> str:
   """How X/social intel is collected (twitter API, NewsAPI, or keyless Google News RSS)."""
   if settings.twitter_bearer_token:
@@ -43,28 +72,26 @@ def _x_source_status(
   *,
   source_counts: dict[str, int],
   source_latest: dict[str, datetime],
+  scan_heartbeats: dict[str, datetime] | None = None,
 ) -> str:
+  heartbeats = scan_heartbeats or {}
   has_items = source_counts.get("x", 0) > 0
   mode = x_intel_collection_mode()
+  activity_at = _latest_activity_at("x", source_latest=source_latest, scan_heartbeats=heartbeats)
   if mode == "newsapi":
-    if not has_items:
+    if not has_items and not _is_recent_activity(activity_at, hours=12):
       return "degraded"
     return "active"
   if mode == "google_news_rss":
-    if not has_items:
+    if not has_items and not _is_recent_activity(activity_at, hours=12):
       return "pending"
-    latest = source_latest.get("x")
-    if latest is None:
+    if not _is_recent_activity(activity_at, hours=12):
       return "degraded"
-    now = datetime.now(timezone.utc)
-    latest_utc = latest if latest.tzinfo else latest.replace(tzinfo=timezone.utc)
-    if latest_utc.tzinfo != timezone.utc:
-      latest_utc = latest_utc.astimezone(timezone.utc)
-    if now - latest_utc <= timedelta(hours=12):
-      return "active"
-    return "degraded"
+    return "active"
   # twitter_api
-  if not has_items:
+  if not has_items and not _is_recent_activity(activity_at, hours=12):
+    return "degraded"
+  if not _is_recent_activity(activity_at, hours=12):
     return "degraded"
   return "active"
 
@@ -95,26 +122,30 @@ def _source_status(
   source_counts: dict[str, int],
   source_latest: dict[str, datetime],
   configured: dict[str, bool],
+  scan_heartbeats: dict[str, datetime] | None = None,
 ) -> str:
+  heartbeats = scan_heartbeats or {}
   has_items = source_counts.get(source, 0) > 0
   is_configured = configured.get(source, has_items)
+  activity_at = _latest_activity_at(source, source_latest=source_latest, scan_heartbeats=heartbeats)
   if source == "tradingview" and is_configured:
     return "active"
   if source == "x":
-    return _x_source_status(source_counts=source_counts, source_latest=source_latest)
+    return _x_source_status(
+      source_counts=source_counts,
+      source_latest=source_latest,
+      scan_heartbeats=heartbeats,
+    )
   if source == "tiktok" and (is_configured or has_items):
-    latest = source_latest.get(source)
-    if latest and has_items:
-      now = datetime.now(timezone.utc)
-      latest_utc = latest if latest.tzinfo else latest.replace(tzinfo=timezone.utc)
-      if latest_utc.tzinfo != timezone.utc:
-        latest_utc = latest_utc.astimezone(timezone.utc)
-      age = now - latest_utc
-      if age <= timedelta(hours=12):
-        return "active"
+    if _is_recent_activity(activity_at, hours=12):
+      return "active"
+    return "degraded"
+  if source == "youtube" and (is_configured or has_items):
+    if _is_recent_activity(activity_at, hours=24):
+      return "active"
     return "degraded"
   if source == "reddit" and has_items and not configured.get("reddit_oauth"):
-    latest = source_latest.get(source)
+    latest = activity_at
     if latest is not None:
       now = datetime.now(timezone.utc)
       latest_utc = latest if latest.tzinfo else latest.replace(tzinfo=timezone.utc)
@@ -294,6 +325,9 @@ async def build_intel_sources(session: AsyncSession) -> list[dict[str, Any]]:
   fomo_bearer = await get_fomo_bearer_status(session)
   axiom_session = await get_axiom_session_status(session)
   tv_breakdown = await tradingview_item_breakdown(session)
+  from app.intelligence.scan_heartbeats import get_intel_scan_heartbeats
+
+  scan_heartbeats = await get_intel_scan_heartbeats(session)
 
   rows: list[dict[str, Any]] = []
   for source in INTEL_SOURCE_ORDER:
@@ -302,6 +336,7 @@ async def build_intel_sources(session: AsyncSession) -> list[dict[str, Any]]:
       source_counts=source_counts,
       source_latest=source_latest,
       configured=configured,
+      scan_heartbeats=scan_heartbeats,
     )
     if source == "fomo" and fomo_bearer.get("configured") and not fomo_bearer.get("polling_active"):
       latest = source_latest.get("fomo")
@@ -319,11 +354,16 @@ async def build_intel_sources(session: AsyncSession) -> list[dict[str, Any]]:
       status = "degraded"
     if source == "phantom" and settings.phantom_portfolio_poll_enabled and not phantom_portfolio_poll_active():
       status = "degraded"
+    activity_at = _latest_activity_at(
+      source,
+      source_latest=source_latest,
+      scan_heartbeats=scan_heartbeats,
+    )
     row: dict[str, Any] = {
       "source": source,
       "status": status,
       "items_collected": source_counts.get(source, 0),
-      "last_fetched": source_latest.get(source).isoformat() if source in source_latest else None,
+      "last_fetched": activity_at.isoformat() if activity_at is not None else None,
     }
     if source == "reddit":
       row["oauth_configured"] = reddit_oauth
