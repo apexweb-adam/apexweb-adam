@@ -652,6 +652,8 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
       total_pnl=per_bot_stats.get("total_pnl"),
       open_count=open_count,
       shadow_open_cap=shadow_cap,
+      gate_status=gate_status,
+      per_bot_stats=per_bot_stats,
     ):
       blockers.append("gate_skip")
     if chronic_loser_blocks_shadow_entry(

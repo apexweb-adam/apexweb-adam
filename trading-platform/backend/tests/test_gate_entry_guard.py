@@ -586,6 +586,73 @@ def test_commodities_verification_trade_count_nudge():
   ) == 0.42
 
 
+def test_commodities_verification_gate_skip_bypass():
+  from app.engines.gate_entry_guard import (
+    COMMODITIES_VERIFICATION_TRADE_COUNT_MIN_COMPOSITE,
+    commodities_verification_gate_skip_bypass,
+    hard_skip_blocks_shadow_entry,
+  )
+
+  gate_ok = {
+    "total_trades": 56,
+    "win_rate": 0.56,
+    "profit_factor": 1.5,
+    "total_pnl": 61.13,
+  }
+  per_bot_ready = {"graduation_ready": True, "total_trades": 56, "win_rate": 0.56}
+  base = dict(
+    bot_type="commodities",
+    shadow_mode=False,
+    symbol="XAUUSDT",
+    proven_winners=frozenset({"XAUUSDT", "CL=F"}),
+    gate_status=gate_ok,
+    per_bot_stats=per_bot_ready,
+    signal_direction="buy",
+    macd_signal="bullish",
+    composite=COMMODITIES_VERIFICATION_TRADE_COUNT_MIN_COMPOSITE + 0.02,
+  )
+  assert commodities_verification_gate_skip_bypass(**base) is True
+  assert commodities_verification_gate_skip_bypass(
+    **{**base, "composite": COMMODITIES_VERIFICATION_TRADE_COUNT_MIN_COMPOSITE - 0.05}
+  ) is False
+  assert commodities_verification_gate_skip_bypass(
+    **{**base, "symbol": "HG=F"}
+  ) is False
+
+  assert hard_skip_blocks_shadow_entry(
+    "XAUUSDT",
+    bot_type="commodities",
+    recent_skip=frozenset({"XAUUSDT"}),
+    large_skip=frozenset(),
+    review_skip=frozenset(),
+    graduation_nudge=True,
+    shadow_mode=False,
+    intel_override=False,
+    composite=COMMODITIES_VERIFICATION_TRADE_COUNT_MIN_COMPOSITE + 0.02,
+    integration_boost=0.0,
+    signal_direction="buy",
+    macd_signal="bullish",
+    proven_winners=frozenset({"XAUUSDT", "CL=F"}),
+    gate_status=gate_ok,
+    per_bot_stats=per_bot_ready,
+  ) is False
+  assert hard_skip_blocks_shadow_entry(
+    "XAUUSDT",
+    bot_type="commodities",
+    recent_skip=frozenset({"XAUUSDT"}),
+    large_skip=frozenset(),
+    review_skip=frozenset(),
+    graduation_nudge=True,
+    shadow_mode=False,
+    intel_override=False,
+    composite=COMMODITIES_VERIFICATION_TRADE_COUNT_MIN_COMPOSITE + 0.02,
+    integration_boost=0.0,
+    signal_direction="buy",
+    macd_signal="bullish",
+    proven_winners=frozenset({"XAUUSDT", "CL=F"}),
+  ) is True
+
+
 def test_stocks_proven_winner_recovery_bypasses_large_loss_skip():
   from app.engines.gate_entry_guard import (
     chronic_loser_blocks_shadow_entry,
