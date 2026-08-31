@@ -194,7 +194,14 @@ class BaseBot(ABC):
 
     async with SessionLocal() as session:
       await self._touch_scan_heartbeat(session)
-      symbols = await self.get_symbols(session=session)
+      scan_symbols = await self.get_symbols(session=session)
+
+    price_frames: dict[str, tuple[float, pd.DataFrame | None]] = {}
+    for symbol in scan_symbols:
+      price_frames[symbol] = await self.fetch_price_data(symbol)
+
+    async with SessionLocal() as session:
+      symbols = scan_symbols
       from app.engines.gate_entry_guard import (
         SHADOW_MAX_OPEN,
         SHADOW_MIN_SENTIMENT_BOOST,
@@ -410,7 +417,7 @@ class BaseBot(ABC):
       prices: dict[str, float] = {}
 
       for symbol in symbols:
-        price, df = await self.fetch_price_data(symbol)
+        price, df = price_frames.get(symbol, (0.0, None))
         if price <= 0 or not is_price_sane(symbol, price):
           continue
         prices[symbol] = price
