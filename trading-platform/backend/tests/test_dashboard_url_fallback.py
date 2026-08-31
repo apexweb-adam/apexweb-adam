@@ -148,7 +148,7 @@ def test_resolve_vercel_promote_deployment_id_falls_back_without_token():
       )
     )
   assert result == deploy_status.DEFAULT_VERIFIED_DEPLOYMENT_ID
-  assert result == "dpl_FapXAbo4Dv8WKU8ZEtDYtC7FryU7"
+  assert result == "dpl_CYnStyurwSb3VDMnfAUVG8KNc4Gs"
 
 
 def test_fetch_vercel_behind_expected_uses_verified_promote_id():

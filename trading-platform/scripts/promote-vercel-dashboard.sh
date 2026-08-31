@@ -6,8 +6,8 @@ set -euo pipefail
 
 TEAM_ID="${VERCEL_ORG_ID:-team_K7OUE7uroVXeVUf42cUAQvAl}"
 PROJECT_ID="${VERCEL_PROJECT_ID:-prj_HGbG5vHgfutHi31QfXDqSsTnTAGv}"
-DEPLOYMENT_ID="${1:-dpl_FapXAbo4Dv8WKU8ZEtDYtC7FryU7}"
-PREVIEW_URL="${2:-https://apex-trading-dashboard-git-main-apexweb-adams-projects.vercel.app}"
+DEPLOYMENT_ID="${1:-dpl_CYnStyurwSb3VDMnfAUVG8KNc4Gs}"
+PREVIEW_URL="${2:-https://apex-trading-dashboard-8km83vat5-apexweb-adams-projects.vercel.app}"
 PROD_URL="https://apex-trading-dashboard-flame.vercel.app"
 PROD_ALIAS="apex-trading-dashboard-flame.vercel.app"
 
