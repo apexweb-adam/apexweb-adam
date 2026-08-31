@@ -75,6 +75,23 @@ if [[ "$SKIP_STOCKS" == false && "$DOW" == "1" && "$HOUR" -ge 13 && "$HOUR" -le 
   bash "$ROOT/scripts/verify-us-stocks-post-open.sh" --watch 120 || true
 fi
 
+if [[ "$SKIP_STOCKS" == false && "$DOW" -ge 1 && "$DOW" -le 5 ]]; then
+  echo ""
+  echo "=== Commodities scan preview (CME weekday session) ==="
+  fetch_json "$BACKEND/api/bots/commodities/scan-preview" 120 3 > /tmp/commodities-scan.json 2>/dev/null || true
+  if [[ -f /tmp/commodities-scan.json ]]; then
+    python3 - << 'PY'
+import json
+from pathlib import Path
+data = json.loads(Path("/tmp/commodities-scan.json").read_text(encoding="utf-8") or "{}")
+symbols = data.get("symbols") or []
+held = [row["symbol"] for row in symbols if row.get("held")]
+open_ready = [row["symbol"] for row in symbols if row.get("would_enter")]
+print(f"  commodities symbols={len(symbols)} held={held or 'none'} would_enter={open_ready or 'none'}")
+PY
+  fi
+fi
+
 echo ""
 echo "Recovery complete. Check CRM dashboard and gate metrics."
 DOW="$(date -u +%u)"

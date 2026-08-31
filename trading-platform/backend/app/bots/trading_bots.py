@@ -132,6 +132,7 @@ class BaseBot(ABC):
     self._last_exit_after_loss: dict[str, bool] = {}
     self._prev_session_in_market: bool | None = None
     self._session_open_burst: bool = False
+    self._session_open_outage_recovery: bool = False
 
   def _cooldown_seconds(self, *, after_loss: bool) -> int | None:
     if self.bot_type == "crypto":
@@ -1598,6 +1599,8 @@ class BaseBot(ABC):
     else:
       summary = f"Session open burst scan — {symbol_count} symbols, no entry yet{order_note}"
       event_type = "burst_scan"
+    if getattr(self, "_session_open_outage_recovery", False):
+      summary = f"Platform outage recovery — {summary}"
     async with SessionLocal() as session:
       result = await session.execute(
         select(BotState).where(BotState.bot_type == self.bot_type)
@@ -1770,13 +1773,24 @@ class StocksFuturesBot(BaseBot):
       in_session = bool(session_info.get("in_session"))
       burst = self._prev_session_in_market is False and in_session
       if not burst and self._prev_session_in_market is None and in_session:
-        from app.engines.session_open_log import needs_session_open_burst_recovery
+        from app.engines.session_open_log import (
+          needs_session_open_burst_recovery,
+          platform_outage_burst_recovery_active,
+        )
 
         async with SessionLocal() as session:
           burst = await needs_session_open_burst_recovery(
             session,
             bot_type=self.bot_type,
             session_info=session_info,
+          )
+          self._session_open_outage_recovery = (
+            burst
+            and await platform_outage_burst_recovery_active(
+              session,
+              bot_type=self.bot_type,
+              session_info=session_info,
+            )
           )
       self._prev_session_in_market = in_session
       self._session_open_burst = burst
@@ -1790,6 +1804,7 @@ class StocksFuturesBot(BaseBot):
         await self._record_scan_failure(str(e))
       finally:
         self._session_open_burst = False
+        self._session_open_outage_recovery = False
       if not burst:
         await asyncio.sleep(await self._effective_scan_interval())
 
@@ -1902,13 +1917,24 @@ class CommoditiesBot(BaseBot):
       in_session = bool(session_info.get("in_session"))
       burst = self._prev_session_in_market is False and in_session
       if not burst and self._prev_session_in_market is None and in_session:
-        from app.engines.session_open_log import needs_session_open_burst_recovery
+        from app.engines.session_open_log import (
+          needs_session_open_burst_recovery,
+          platform_outage_burst_recovery_active,
+        )
 
         async with SessionLocal() as session:
           burst = await needs_session_open_burst_recovery(
             session,
             bot_type=self.bot_type,
             session_info=session_info,
+          )
+          self._session_open_outage_recovery = (
+            burst
+            and await platform_outage_burst_recovery_active(
+              session,
+              bot_type=self.bot_type,
+              session_info=session_info,
+            )
           )
       self._prev_session_in_market = in_session
       self._session_open_burst = burst
@@ -1922,6 +1948,7 @@ class CommoditiesBot(BaseBot):
         await self._record_scan_failure(str(e))
       finally:
         self._session_open_burst = False
+        self._session_open_outage_recovery = False
       if not burst:
         await asyncio.sleep(await self._effective_scan_interval())
 

@@ -89,6 +89,28 @@ async def needs_session_open_burst_recovery(
   return await _has_open_ready_queued(session, bot_type)
 
 
+async def platform_outage_burst_recovery_active(
+  session: AsyncSession,
+  *,
+  bot_type: str,
+  session_info: dict[str, Any],
+  grace_minutes_after_open: int = SESSION_OPEN_BURST_RECOVERY_GRACE_MINUTES,
+  platform_outage_grace_minutes: int = SESSION_OPEN_PLATFORM_OUTAGE_GRACE_MINUTES,
+) -> bool:
+  """True when burst recovery is running due to missed open during platform outage."""
+  if not session_info.get("in_session"):
+    return False
+  since = session_info.get("minutes_since_open")
+  if since is None:
+    return False
+  since_minutes = int(since)
+  if since_minutes <= grace_minutes_after_open:
+    return False
+  if since_minutes > platform_outage_grace_minutes:
+    return False
+  return await _has_open_ready_queued(session, bot_type)
+
+
 async def _get_json_setting(session: AsyncSession, key: str) -> Any:
   raw = await get_platform_setting(session, key)
   if not raw:

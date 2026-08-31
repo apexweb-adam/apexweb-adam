@@ -107,6 +107,37 @@ async def test_needs_session_open_burst_recovery_platform_outage_with_queued(ses
 
 
 @pytest.mark.asyncio
+async def test_platform_outage_burst_recovery_active(session: AsyncSession):
+  from app.engines.platform_settings import set_platform_setting
+  from app.engines.session_open_log import (
+    PREP_PHASE_STATE_KEY,
+    platform_outage_burst_recovery_active,
+  )
+
+  await set_platform_setting(
+    session,
+    PREP_PHASE_STATE_KEY,
+    json.dumps({"us_stocks_open": {"open_ready_symbols": ["AAPL"]}}),
+  )
+  session_info = {
+    "in_session": True,
+    "minutes_since_open": 90,
+    "session_open_utc": "2026-08-31T13:30:00",
+  }
+  assert await platform_outage_burst_recovery_active(
+    session,
+    bot_type="stocks_futures",
+    session_info=session_info,
+  )
+  session_info["minutes_since_open"] = 30
+  assert not await platform_outage_burst_recovery_active(
+    session,
+    bot_type="stocks_futures",
+    session_info=session_info,
+  )
+
+
+@pytest.mark.asyncio
 async def test_needs_session_open_burst_recovery_platform_outage_no_queue(session: AsyncSession):
   session_info = {
     "in_session": True,
