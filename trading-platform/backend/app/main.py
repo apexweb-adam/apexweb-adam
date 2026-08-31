@@ -291,11 +291,16 @@ async def crm_landing():
       countdown = f"{mins // 60}h {mins % 60}m" if mins is not None else "soon"
       blockers = ", ".join(row.get("blockers") or []) or "—"
       gate_skip = " · gate-skip" if row.get("monday_gate_skip_ready") else ""
+      cd_bypass = (
+        " · cd-bypass"
+        if row.get("verification_cooldown_bypass_ready")
+        else ""
+      )
       open_ready_table += (
         f"<tr><td>{bot_type}</td><td><strong>{symbol}</strong></td>"
         f"<td>{composite_label}</td><td>{direction}</td><td>{macd}</td>"
         f"<td>{countdown}</td>"
-        f"<td>{blockers}{gate_skip}</td></tr>"
+        f"<td>{blockers}{gate_skip}{cd_bypass}</td></tr>"
       )
     open_ready_card = f"""<div class="card recovery">
     <h2>Session open ready</h2>
