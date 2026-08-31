@@ -1327,6 +1327,9 @@ async def _build_monday_recovery_summary(session: AsyncSession) -> dict[str, Any
           "blockers": row.get("blockers") or [],
           "minutes_until_open": minutes_until_open,
           "monday_gate_skip_ready": bool(row.get("monday_gate_skip_ready")),
+          "verification_cooldown_bypass_ready": bool(
+            row.get("verification_cooldown_bypass_ready")
+          ),
         }
       )
     for row in near_floor_symbols:

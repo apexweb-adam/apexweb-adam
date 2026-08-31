@@ -2360,6 +2360,12 @@ function MondayRecoveryBanner({ summary }: { summary: MondayRecoverySummary | nu
                       · gate-skip
                     </span>
                   )}
+                  {row.verification_cooldown_bypass_ready && (
+                    <span className="text-violet-400/80" title="Verification cooldown bypass active">
+                      {" "}
+                      · cd-bypass
+                    </span>
+                  )}
                   {(row.blockers?.length ?? 0) > 0 && (
                     <span className="text-gray-500">
                       {" "}
@@ -2649,6 +2655,11 @@ function BotScanPreview({ botType }: { botType: string }) {
               {row.monday_gate_skip_ready && (
                 <span className="ml-1 text-sky-400/80" title="Gate-skip bypass eligible pre-open">
                   M
+                </span>
+              )}
+              {row.verification_cooldown_bypass_ready && (
+                <span className="ml-1 text-violet-400/80" title="Verification cooldown bypass active">
+                  C
                 </span>
               )}
             </span>

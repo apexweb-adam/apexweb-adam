@@ -231,6 +231,7 @@ export type ScanPreviewSymbol = {
   recovery_ready?: boolean;
   monday_open_ready?: boolean;
   monday_gate_skip_ready?: boolean;
+  verification_cooldown_bypass_ready?: boolean;
   raw_signal?: number;
   integration_boost?: number;
   skip?: string;
@@ -304,6 +305,7 @@ export type SessionPrepEntry = {
     direction?: string;
     macd?: string;
     monday_gate_skip_ready?: boolean;
+  verification_cooldown_bypass_ready?: boolean;
     blockers?: string[];
   }>;
   near_floor_symbols?: string[];
@@ -351,6 +353,7 @@ export type OpenReadyDetail = {
   direction?: string;
   macd?: string;
   monday_gate_skip_ready?: boolean;
+  verification_cooldown_bypass_ready?: boolean;
   blockers?: string[];
 };
 
@@ -419,6 +422,7 @@ export type MondayRecoverySummary = {
     blockers?: string[];
     minutes_until_open?: number | null;
     monday_gate_skip_ready?: boolean;
+  verification_cooldown_bypass_ready?: boolean;
   }>;
   stocks_trade_count_nudge?: boolean;
   commodities_graduation_nudge?: boolean;
