@@ -504,3 +504,38 @@ def test_analyze_losing_trade_flags_tiktok_intel_on_stocks():
 
   assert "tiktok" in analysis.root_cause.lower()
   assert "macd" in analysis.strategy_adjustment.lower() or "volume" in analysis.strategy_adjustment.lower()
+
+
+def test_analyze_losing_trade_flags_x_bearish_intel():
+  session = AsyncMock()
+  session.execute = AsyncMock(
+    side_effect=[
+      MagicMock(scalar_one_or_none=MagicMock(return_value=None)),
+      MagicMock(scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=[])))),
+      MagicMock(scalar_one_or_none=MagicMock(return_value=None)),
+      MagicMock(scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=[])))),
+    ]
+  )
+  session.commit = AsyncMock()
+  session.add = MagicMock()
+
+  trade = _trade(
+    bot_type="crypto",
+    symbol="SOLUSDT",
+    sentiment_score=-0.35,
+    reason="Long on social buzz",
+  )
+
+  learner = LearningEngine(session)
+  learner._get_market_context = AsyncMock(return_value="context")
+  learner._had_source_intel = AsyncMock(
+    side_effect=lambda symbol, at_time, source: source == "x"
+  )
+  learner._apply_adjustments = AsyncMock()
+  learner.run_daily_review = AsyncMock(return_value=MagicMock())
+
+  with patch("app.ws_manager.push_live_update", new_callable=AsyncMock):
+    analysis = asyncio.run(learner.analyze_losing_trade(trade))
+
+  assert "x/twitter" in analysis.root_cause.lower() or "twitter" in analysis.root_cause.lower()
+  assert "bearish" in analysis.root_cause.lower() or "sentiment" in analysis.strategy_adjustment.lower()

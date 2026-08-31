@@ -8,6 +8,17 @@ from app.models.entities import DailyReview, IntelligenceItem, LearningInsight, 
 
 LEARNING_NOISE_DISMISS_MAX_CONFIDENCE = 0.54
 
+_INTEL_LOSS_PATTERN_KEYWORDS: list[tuple[tuple[str, ...], str]] = [
+  (("tiktok",), "TikTok/social hype"),
+  (("reddit",), "Reddit retail buzz"),
+  (("tradingview",), "TradingView webhook"),
+  (("youtube",), "YouTube strategy content"),
+  (("political", "geopolitical", "tariff"), "Political/macro intel"),
+  (("fomo",), "fomo copy-trade"),
+  (("axiom",), "axiom wallet signal"),
+  (("x/twitter", "twitter"), "X/Twitter sentiment"),
+]
+
 
 def _target_bot_types_from_impact(impact: str) -> set[str] | None:
   """Return bot types mentioned in impact text; None means apply to all configs."""
@@ -157,6 +168,19 @@ class LearningEngine:
         root_causes.append("YouTube strategy content influenced entry without local confirmation")
         adjustments.append("Treat YouTube insights as study material — require live signal alignment")
         lessons.append("Apply YouTube playbooks only when composite score and sentiment agree")
+
+    x_driven = "twitter" in reason_lower or " x " in f" {reason_lower} " or await self._had_source_intel(
+      trade.symbol, trade.executed_at, "x"
+    )
+    if x_driven:
+      if trade.side == "long" and trade.sentiment_score < 0:
+        root_causes.append("X/Twitter bearish chatter preceded loss on long position")
+        adjustments.append("Reduce long exposure when X sentiment flips bearish on the symbol")
+        lessons.append("X/Twitter sentiment is fast-moving — honor bearish social intel on open longs")
+      elif trade.side == "long" and trade.signal_score < 0.5:
+        root_causes.append("X/Twitter sentiment drove entry without technical confirmation")
+        adjustments.append("Require composite signal floor when acting on X/Twitter buzz")
+        lessons.append("Social buzz on X needs local TA alignment before sizing entries")
 
     if trade.bot_type == "crypto":
       if await self._had_source_intel(trade.symbol, trade.executed_at, "political"):
@@ -318,6 +342,7 @@ class LearningEngine:
     from app.engines.platform_outage_log import platform_outage_patterns_for_review
 
     patterns.extend(await platform_outage_patterns_for_review(self.session, review_date))
+    patterns.extend(await self._intel_loss_patterns_for_review(losing))
 
     if bot_type == "polymarket":
       overbought_losses = [
@@ -447,6 +472,36 @@ class LearningEngine:
     if dismissed:
       await self.session.commit()
     return dismissed
+
+  async def _intel_loss_patterns_for_review(self, losing: list) -> list[str]:
+    """Surface recurring intel-driven loss themes in daily post-mortems."""
+    if len(losing) < 2:
+      return []
+    trade_ids = [
+      t.id for t in losing if isinstance(getattr(t, "id", None), int)
+    ]
+    analyses_by_trade: dict[int, str] = {}
+    if trade_ids:
+      result = await self.session.execute(
+        select(TradeAnalysis).where(TradeAnalysis.trade_id.in_(trade_ids))
+      )
+      for analysis in result.scalars().all():
+        analyses_by_trade[analysis.trade_id] = (
+          f"{analysis.root_cause} {analysis.lessons_learned}".lower()
+        )
+
+    counts: dict[str, int] = {}
+    for trade in losing:
+      blob = f"{trade.reason or ''} {analyses_by_trade.get(trade.id, '')}".lower()
+      for keywords, label in _INTEL_LOSS_PATTERN_KEYWORDS:
+        if any(keyword in blob for keyword in keywords):
+          counts[label] = counts.get(label, 0) + 1
+
+    patterns: list[str] = []
+    for label, count in counts.items():
+      if count >= 2:
+        patterns.append(f"{count} losses tied to {label} — tighten intel confirmation gates")
+    return patterns
 
   async def _had_source_intel(self, symbol: str, at_time: datetime | None, source: str) -> bool:
     """True when recent intel from a source mentioned this symbol near trade time."""
@@ -582,6 +637,16 @@ class LearningEngine:
     if any("weak signals" in p for p in patterns):
       changes.append("Raised minimum signal score threshold by 0.05")
       await self._apply_adjustments(bot_type, ["Increase min_signal_score threshold"])
+
+    if any("intel confirmation" in p for p in patterns):
+      changes.append("Tightened intel confirmation gates after recurring social/macro-driven losses")
+      await self._apply_adjustments(
+        bot_type,
+        [
+          "Require positive sentiment for long entries",
+          "Increase min_signal_score threshold",
+        ],
+      )
 
     if len(losing) > 3:
       changes.append("Reduced max position size due to elevated daily losses")

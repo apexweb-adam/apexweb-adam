@@ -150,3 +150,52 @@ def test_run_daily_review_includes_platform_outage_patterns():
 
   assert "Platform downtime 95min" in (review.patterns_found or "")
   assert "AAPL" in (review.patterns_found or "")
+
+
+def test_run_daily_review_detects_recurring_intel_loss_patterns():
+  trades = [
+    _sell_trade(
+      id=1,
+      pnl=-1.0,
+      is_winner=False,
+      reason="TikTok viral momentum buy",
+    ),
+    _sell_trade(
+      id=2,
+      symbol="PEPEUSDT",
+      pnl=-0.9,
+      is_winner=False,
+      reason="Social hype entry after TikTok trend",
+    ),
+    _sell_trade(id=3, symbol="ETHUSDT", pnl=1.2, is_winner=True, signal_score=0.7),
+  ]
+  analysis_one = MagicMock(
+    trade_id=1,
+    root_cause="TikTok viral sentiment drove entry",
+    lessons_learned="confirm with volume",
+  )
+  analysis_two = MagicMock(
+    trade_id=2,
+    root_cause="Weak technical signal at entry",
+    lessons_learned="wait for confirmation",
+  )
+  session = AsyncMock()
+  session.execute = AsyncMock(
+    side_effect=[
+      MagicMock(scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=trades)))),
+      MagicMock(scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=[analysis_one, analysis_two])))),
+      MagicMock(scalar_one_or_none=MagicMock(return_value=None)),
+    ]
+  )
+  session.commit = AsyncMock()
+  session.add = MagicMock()
+
+  learner = LearningEngine(session)
+  learner._apply_adjustments = AsyncMock()
+
+  with patch(OUTAGE_PATCH, new=AsyncMock(return_value=[])):
+    review = asyncio.run(learner.run_daily_review("crypto", "2026-08-30"))
+
+  assert "tiktok" in (review.patterns_found or "").lower()
+  assert "intel confirmation" in (review.patterns_found or "").lower()
+  learner._apply_adjustments.assert_awaited()
