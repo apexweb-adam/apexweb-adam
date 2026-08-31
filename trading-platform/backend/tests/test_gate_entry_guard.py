@@ -1014,6 +1014,24 @@ def test_commodities_verification_open_ready():
     blockers=["gate_skip"],
   ) is False
   assert commodities_verification_open_ready(
+    **{
+      **base,
+      "symbol": "SI=F",
+      "proven_winners": frozenset({"XAUUSDT", "CL=F"}),
+      "composite": 0.50,
+    },
+    blockers=["symbol_cooldown"],
+  ) is True
+  assert commodities_verification_open_ready(
+    **{
+      **base,
+      "symbol": "SI=F",
+      "proven_winners": frozenset({"XAUUSDT", "CL=F"}),
+      "composite": 0.45,
+    },
+    blockers=["symbol_cooldown"],
+  ) is False
+  assert commodities_verification_open_ready(
     **{**base, "composite": COMMODITIES_VERIFICATION_TRADE_COUNT_MIN_COMPOSITE - 0.05},
     blockers=["gate_skip"],
   ) is False

@@ -976,13 +976,16 @@ def commodities_verification_open_ready(
       return False
   elif not verification_nudge_active:
     return False
-  if symbol not in proven_winners:
-    return False
   if signal_direction != "buy" or macd_signal != "bullish":
     return False
-  floor = COMMODITIES_VERIFICATION_TRADE_COUNT_MIN_COMPOSITE
-  if sticky_queue:
-    floor -= OPEN_READY_QUEUE_RELEASE_MARGIN
+  if symbol in proven_winners:
+    floor = COMMODITIES_VERIFICATION_TRADE_COUNT_MIN_COMPOSITE
+    if sticky_queue:
+      floor -= OPEN_READY_QUEUE_RELEASE_MARGIN
+  elif composite >= COMMODITIES_HIGH_COMPOSITE_RECOVERY_FLOOR:
+    floor = COMMODITIES_HIGH_COMPOSITE_RECOVERY_FLOOR
+  else:
+    return False
   if composite < floor:
     return False
   if not blockers:
