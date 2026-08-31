@@ -4566,6 +4566,7 @@ def stocks_monday_gate_skip_bypass(
   signal_direction: str,
   macd_signal: str,
   composite: float,
+  sticky_queue: bool = False,
 ) -> bool:
   """Proven stock shadow winners bypass gate_skip/chronic blocks pre-US open and first hour."""
   if not shadow_mode or bot_type != "stocks_futures":
@@ -4583,7 +4584,10 @@ def stocks_monday_gate_skip_bypass(
     return False
   if signal_direction != "buy" or macd_signal != "bullish":
     return False
-  return composite >= STOCKS_TRADE_COUNT_RECOVERY_MIN_COMPOSITE
+  floor = STOCKS_TRADE_COUNT_RECOVERY_MIN_COMPOSITE
+  if sticky_queue:
+    floor -= OPEN_READY_QUEUE_RELEASE_MARGIN
+  return composite >= floor
 
 
 def commodities_high_composite_recovery_entry_ok(
