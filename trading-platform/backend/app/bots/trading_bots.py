@@ -62,6 +62,7 @@ from app.engines.gate_entry_guard import (
   gate_cap_pressure_proxy_entry_blocked,
   gate_cap_pressure_proxy_wind_down,
   commodities_cap_pressure_loser_wind_down,
+  commodities_cap_pressure_reentry_blocked,
   commodities_monday_cap_pressure_flat_wind_down,
   EARLY_VERIFICATION_LOSS_WIND_DOWN_SECONDS,
   EARLY_VERIFICATION_LOSS_WIND_DOWN_USD,
@@ -933,6 +934,7 @@ class BaseBot(ABC):
           signal_direction=signal.direction,
           macd_signal=signal.macd_signal,
           composite=composite,
+          last_exit_reason=self._last_exit_reason.get(symbol),
         )
         if (
           not weekend_spot_cooldown_waived
@@ -1377,6 +1379,19 @@ class BaseBot(ABC):
           open_count=open_count,
           gate_tightening=gate_tightening,
           verification_nudge=commodities_verification_nudge,
+        ):
+          continue
+
+        if commodities_cap_pressure_reentry_blocked(
+          bot_type=self.bot_type,
+          shadow_mode=shadow_mode,
+          graduation_nudge=graduation_nudge,
+          verification_nudge=commodities_verification_nudge,
+          symbol=symbol,
+          open_count=open_count,
+          gate_tightening=gate_tightening,
+          composite=composite,
+          last_exit_reason=self._last_exit_reason.get(symbol),
         ):
           continue
 

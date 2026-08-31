@@ -90,6 +90,7 @@ from app.engines.gate_entry_guard import (
   commodities_gold_proxy_duplicate_entry_blocked,
   commodities_weekend_spot_post_profit_lock_entry_blocked,
   gate_cap_pressure_proxy_entry_blocked,
+  commodities_cap_pressure_reentry_blocked,
   shadow_entry_min_signal,
   shadow_graduation_min_composite,
   shadow_graduation_loss_exposure_blocks_entry,
@@ -390,7 +391,7 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
   previews: list[dict[str, Any]] = []
 
   last_exit_reasons: dict[str, str] = {}
-  if bot_type == "crypto" and shadow_mode:
+  if bot_type in ("crypto", "commodities"):
     from app.models.entities import Trade
     from sqlalchemy import select
 
@@ -649,6 +650,18 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
       verification_nudge=commodities_verification_nudge,
     ):
       blockers.append("open_cap_proxy")
+    if commodities_cap_pressure_reentry_blocked(
+      bot_type=bot_type,
+      shadow_mode=shadow_mode,
+      graduation_nudge=graduation_nudge,
+      verification_nudge=commodities_verification_nudge,
+      symbol=symbol,
+      open_count=open_count,
+      gate_tightening=gate_tightening,
+      composite=composite,
+      last_exit_reason=last_exit_reasons.get(symbol),
+    ):
+      blockers.append("cap_pressure_reentry")
     if stocks_negative_pf_blocks_entry(
       bot_type=bot_type,
       symbol=symbol,
@@ -914,6 +927,7 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
         signal_direction=signal.direction,
         macd_signal=signal.macd_signal,
         composite=composite,
+        last_exit_reason=last_exit_reasons.get(symbol),
       )
       verification_chronic_bypass_ready = commodities_verification_chronic_loser_bypass(
         bot_type=bot_type,
