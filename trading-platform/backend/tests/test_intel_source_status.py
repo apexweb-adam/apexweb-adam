@@ -12,6 +12,15 @@ from app.engines.intel_source_status import (
 
 
 @pytest.fixture(autouse=True)
+def _stub_intel_scan_heartbeats():
+  with patch(
+    "app.intelligence.scan_heartbeats.get_intel_scan_heartbeats",
+    AsyncMock(return_value={}),
+  ):
+    yield
+
+
+@pytest.fixture(autouse=True)
 def _stub_tradingview_breakdown(request):
   """Default stub unless test name exercises TV breakdown."""
   if request.node.name in (
@@ -65,6 +74,29 @@ def test_x_google_news_degraded_when_stale():
       source_latest={"x": latest},
     )
   assert status == "degraded"
+
+
+def test_x_twitter_active_with_recent_scan_heartbeat():
+  heartbeat = datetime.utcnow() - timedelta(minutes=10)
+  with patch("app.engines.intel_source_status.x_intel_collection_mode", return_value="twitter_api"):
+    status = _x_source_status(
+      source_counts={"x": 100},
+      source_latest={"x": datetime.utcnow() - timedelta(days=2)},
+      scan_heartbeats={"x": heartbeat},
+    )
+  assert status == "active"
+
+
+def test_youtube_active_with_recent_scan_heartbeat():
+  heartbeat = datetime.utcnow() - timedelta(hours=2)
+  status = _source_status(
+    "youtube",
+    source_counts={"youtube": 5},
+    source_latest={"youtube": datetime.utcnow() - timedelta(days=2)},
+    configured={"youtube": True},
+    scan_heartbeats={"youtube": heartbeat},
+  )
+  assert status == "active"
 
 
 def test_reddit_active_via_rss_without_oauth_status():
