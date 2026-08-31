@@ -99,6 +99,13 @@ if learning:
         f"reviews={learning.get('daily_reviews')} "
         f"pending_insights={learning.get('insights_pending')}"
     )
+    intel_count = learning.get("intel_pattern_count") or 0
+    if intel_count:
+        lines.append(
+            f"WARN: intel pattern alerts={intel_count} — recurring intel-driven losses flagged in daily reviews"
+        )
+        for alert in (learning.get("intel_pattern_alerts") or [])[:3]:
+            lines.append(f"  {alert}")
 degraded = [s.get("source") for s in (intel.get("sources") or []) if s.get("status") == "degraded"]
 if degraded:
     lines.append(f"WARN: intel degraded: {', '.join(degraded)}")

@@ -78,6 +78,18 @@ def test_collect_intel_pattern_alerts_extracts_confirmation_lines():
   assert "intel confirmation" in alerts[0].lower()
 
 
+def test_collect_intel_pattern_alerts_extracts_hyperliquid_lines():
+  from app.engines.learning_engine import collect_intel_pattern_alerts
+
+  patterns = (
+    "2 losses had weak signals; "
+    "2 losses tied to Hyperliquid perp intel — tighten intel confirmation gates"
+  )
+  alerts = collect_intel_pattern_alerts(patterns)
+  assert len(alerts) == 1
+  assert "hyperliquid" in alerts[0].lower()
+
+
 def test_build_crm_learning_highlights_includes_intel_pattern_alerts():
   review = DailyReview(
     bot_type="crypto",

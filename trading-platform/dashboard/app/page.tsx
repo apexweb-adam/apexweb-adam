@@ -2244,10 +2244,30 @@ function IntelPatternAlertBanner({ alerts }: { alerts?: string[] }) {
   return (
     <div className="lg:col-span-2 rounded-lg border border-purple-500/40 bg-purple-950/30 p-4">
       <p className="text-sm font-semibold text-purple-300">Recurring intel-driven losses today</p>
-      <ul className="text-xs text-purple-200/80 mt-2 list-disc pl-4 space-y-1">
-        {alerts.map((alert) => (
-          <li key={alert}>{alert}</li>
-        ))}
+      <ul className="text-xs text-purple-200/80 mt-2 list-disc pl-4 space-y-2">
+        {alerts.map((alert) => {
+          const tags = detectIntelPostMortemSources(alert);
+          return (
+            <li key={alert}>
+              {tags.length > 0 ? (
+                <span className="inline-flex flex-wrap gap-1 mr-2 align-middle">
+                  {tags.map((tag) => (
+                    <span
+                      key={`${alert}-${tag.id}`}
+                      className={cn(
+                        "text-[10px] px-2 py-0.5 rounded-full border list-none",
+                        tag.className
+                      )}
+                    >
+                      {tag.label}
+                    </span>
+                  ))}
+                </span>
+              ) : null}
+              <span>{alert}</span>
+            </li>
+          );
+        })}
       </ul>
       <p className="text-[11px] text-purple-200/60 mt-2">
         Strategy gates were tightened automatically — see daily review strategy changes below.

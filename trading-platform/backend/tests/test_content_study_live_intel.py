@@ -428,3 +428,39 @@ def test_study_live_intel_sources_applies_hyperliquid_item():
   call_kwargs = learner.apply_external_insight.await_args.kwargs
   assert "hyperliquid" in call_kwargs["impact"].lower()
   assert "crypto bot" in call_kwargs["impact"].lower()
+
+
+def test_study_live_intel_sources_applies_wallet_tracker_item():
+  item = SimpleNamespace(
+    id=8,
+    source="wallet_tracker",
+    title="Whale accumulation on PEPE",
+    content="large wallet buy detected",
+    url="https://wallet.example/pepe",
+    symbols_mentioned="PEPEUSDT",
+    sentiment=0.38,
+    relevance_score=0.79,
+    applied=False,
+  )
+
+  session = AsyncMock()
+  session.execute = AsyncMock(
+    return_value=MagicMock(scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=[item]))))
+  )
+  session.commit = AsyncMock()
+
+  insight = MagicMock(applied=True)
+  learner = MagicMock()
+  learner.apply_external_insight = AsyncMock(return_value=insight)
+
+  engine = ContentStudyEngine(session)
+  engine.learner = learner
+
+  applied = asyncio.run(engine._study_live_intel_sources())
+
+  assert applied == 1
+  learner.apply_external_insight.assert_awaited_once()
+  assert item.applied is True
+  call_kwargs = learner.apply_external_insight.await_args.kwargs
+  assert "whale" in call_kwargs["impact"].lower()
+  assert "crypto bot" in call_kwargs["impact"].lower()

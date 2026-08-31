@@ -38,6 +38,8 @@ def test_ops_gate_summary_includes_learning_loop():
   text = script.read_text(encoding="utf-8")
   assert "Learning loop:" in text
   assert "pending_insights" in text
+  assert "intel_pattern_count" in text
+  assert "intel pattern alerts" in text
 
 
 def test_run_deploy_window_script_exists():
