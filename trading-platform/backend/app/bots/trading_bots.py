@@ -660,6 +660,7 @@ class BaseBot(ABC):
             open_count=open_count,
             gate_tightening=gate_tightening,
             signal_direction=signal.direction,
+            verification_nudge=commodities_verification_nudge,
           ):
             unrealized = (price - position.entry_price) * position.quantity
             reason = (
@@ -685,6 +686,7 @@ class BaseBot(ABC):
             min_hold_seconds=min_hold,
             open_count=open_count,
             gate_tightening=gate_tightening,
+            verification_nudge=commodities_verification_nudge,
           ):
             unrealized = (price - position.entry_price) * position.quantity
             reason = (
@@ -710,6 +712,7 @@ class BaseBot(ABC):
             min_hold_seconds=min_hold,
             open_count=open_count,
             gate_tightening=gate_tightening,
+            verification_nudge=commodities_verification_nudge,
           ):
             unrealized = (price - position.entry_price) * position.quantity
             reason = (
@@ -1358,6 +1361,7 @@ class BaseBot(ABC):
           symbol=symbol,
           open_count=open_count,
           gate_tightening=gate_tightening,
+          verification_nudge=commodities_verification_nudge,
         ):
           continue
 

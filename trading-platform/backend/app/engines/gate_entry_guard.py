@@ -2214,9 +2214,14 @@ def gate_cap_pressure_proxy_wind_down(
   open_count: int,
   gate_tightening: GateEntryTightening,
   signal_direction: str | None = None,
+  verification_nudge: bool = False,
 ) -> bool:
   """Free gate slots by exiting losing crypto proxy marks when commodities is at open cap."""
-  if shadow_mode or bot_type not in ACTIVE_GATE_GRADUATION_NUDGE_BOTS or not graduation_nudge:
+  if (
+    shadow_mode
+    or bot_type not in ACTIVE_GATE_GRADUATION_NUDGE_BOTS
+    or (not graduation_nudge and not verification_nudge)
+  ):
     return False
   if symbol not in _commodities_cap_pressure_proxy_symbols():
     return False
@@ -2225,6 +2230,7 @@ def gate_cap_pressure_proxy_wind_down(
     bot_type=bot_type,
     graduation_nudge=graduation_nudge,
     shadow_mode=shadow_mode,
+    verification_nudge=verification_nudge,
   )
   if not isinstance(cap, int) or open_count < cap:
     return False
@@ -2247,9 +2253,14 @@ def gate_cap_pressure_proxy_entry_blocked(
   symbol: str,
   open_count: int,
   gate_tightening: GateEntryTightening,
+  verification_nudge: bool = False,
 ) -> bool:
   """Block new proxy marks at open cap — avoids cap-pressure churn on immediate wind-down."""
-  if shadow_mode or bot_type not in ACTIVE_GATE_GRADUATION_NUDGE_BOTS or not graduation_nudge:
+  if (
+    shadow_mode
+    or bot_type not in ACTIVE_GATE_GRADUATION_NUDGE_BOTS
+    or (not graduation_nudge and not verification_nudge)
+  ):
     return False
   if symbol not in _commodities_cap_pressure_proxy_symbols():
     return False
@@ -2258,6 +2269,7 @@ def gate_cap_pressure_proxy_entry_blocked(
     bot_type=bot_type,
     graduation_nudge=graduation_nudge,
     shadow_mode=shadow_mode,
+    verification_nudge=verification_nudge,
   )
   if not isinstance(cap, int) or open_count < cap:
     return False
@@ -2398,9 +2410,14 @@ def commodities_cap_pressure_loser_wind_down(
   min_hold_seconds: int,
   open_count: int,
   gate_tightening: GateEntryTightening,
+  verification_nudge: bool = False,
 ) -> bool:
   """Free gate slots by exiting small futures/forex losers when commodities is at open cap."""
-  if shadow_mode or bot_type not in ACTIVE_GATE_GRADUATION_NUDGE_BOTS or not graduation_nudge:
+  if (
+    shadow_mode
+    or bot_type not in ACTIVE_GATE_GRADUATION_NUDGE_BOTS
+    or (not graduation_nudge and not verification_nudge)
+  ):
     return False
   if symbol in COMMODITIES_WEEKEND_SPOT_SYMBOLS:
     return False
@@ -2409,6 +2426,7 @@ def commodities_cap_pressure_loser_wind_down(
     bot_type=bot_type,
     graduation_nudge=graduation_nudge,
     shadow_mode=shadow_mode,
+    verification_nudge=verification_nudge,
   )
   if not isinstance(cap, int) or open_count < cap:
     return False
@@ -2428,9 +2446,10 @@ def commodities_monday_cap_pressure_flat_wind_down(
   min_hold_seconds: int,
   open_count: int,
   gate_tightening: GateEntryTightening,
+  verification_nudge: bool = False,
 ) -> bool:
   """Flatten idle forex holds near cap ahead of CME reopen / during weekend prep."""
-  if shadow_mode or bot_type != "commodities" or not graduation_nudge:
+  if shadow_mode or bot_type != "commodities" or (not graduation_nudge and not verification_nudge):
     return False
   if is_commodities_futures_symbol(symbol):
     return False
@@ -2441,6 +2460,7 @@ def commodities_monday_cap_pressure_flat_wind_down(
     bot_type=bot_type,
     graduation_nudge=graduation_nudge,
     shadow_mode=shadow_mode,
+    verification_nudge=verification_nudge,
   )
   if not isinstance(cap, int):
     return False
