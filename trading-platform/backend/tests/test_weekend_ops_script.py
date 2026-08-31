@@ -305,6 +305,8 @@ def test_print_deploy_window_summary_script_exists():
   assert "CME prep watch:" in text
   assert "queue dropped" in text
   assert "us-stocks-open-checklist" in text
+  assert "intel_pattern_alerts" in text
+  assert "content_study [" in text
 
 
 def test_verify_us_stocks_post_open_supports_watch_mode():
@@ -431,6 +433,8 @@ def test_verify_weekend_ops_includes_gate_and_revision_hints():
   assert "deploy_credentials_warnings" in text
   assert "print-deploy-window-summary.sh" in text
   assert "deploy will advance prod expected" in text
+  assert "intel_pattern_alerts" in text
+  assert "content_study [" in text
 
 
 def test_check_github_token_script_exists():
@@ -533,6 +537,8 @@ def test_watch_deploy_window_shows_x_intel_mode():
   script = SCRIPTS / "watch-deploy-window.sh"
   text = script.read_text(encoding="utf-8")
   assert "x_intel_collection_mode" in text
+  assert "intel_pattern_alerts" in text
+  assert "content_study [" in text
 
 
 def test_watch_deploy_window_uses_fetch_json():

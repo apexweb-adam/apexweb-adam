@@ -95,6 +95,20 @@ x_mode = payload.get("x_intel_collection_mode")
 if x_mode:
     print(f"  x_intel_collection_mode={x_mode}")
 
+learning = payload.get("learning") or {}
+content = payload.get("content_study") or {}
+if learning:
+    print(
+        f"  learning analyses={learning.get('trade_analyses')} "
+        f"reviews={learning.get('daily_reviews')} "
+        f"intel_pattern_alerts={learning.get('intel_pattern_count') or 0}"
+    )
+if content.get("recent"):
+    for row in (content.get("recent") or [])[:2]:
+        label = row.get("source_label") or row.get("source_type") or "unknown"
+        title = (row.get("title") or "")[:40]
+        print(f"  content_study [{label}] {title}")
+
 bundle = payload.get("expected_dashboard_bundle")
 if bundle:
     print(f"  expected_dashboard_bundle={bundle}")

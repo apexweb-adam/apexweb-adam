@@ -156,6 +156,27 @@ else:
 x_mode = snap.get("x_intel_collection_mode")
 if x_mode:
     print(f"X intel (snapshot): {x_mode}")
+learning = snap.get("learning") or {}
+content = snap.get("content_study") or {}
+if learning:
+    print(
+        f"Learning: analyses={learning.get('trade_analyses')} "
+        f"reviews={learning.get('daily_reviews')} "
+        f"insights_applied={learning.get('insights_applied')} "
+        f"intel_pattern_alerts={learning.get('intel_pattern_count') or 0}"
+    )
+    for alert in (learning.get("intel_pattern_alerts") or [])[:3]:
+        print(f"  intel_alert={alert}")
+if content.get("recent"):
+    print(
+        f"Content study: applied={content.get('insights_applied') or 0} "
+        f"recent={len(content.get('recent') or [])}"
+    )
+    for row in (content.get("recent") or [])[:3]:
+        label = row.get("source_label") or row.get("source_type") or "unknown"
+        title = (row.get("title") or "")[:48]
+        state = "applied" if row.get("applied") else "pending"
+        print(f"  content_study [{label}] {title} ({state})")
 elif lib and Path(lib).is_file():
     tmp_sources = Path("/tmp") / f"apex-intel-sources-{os.getpid()}.json"
     tmp_snap = Path("/tmp") / f"apex-intel-snap-{os.getpid()}.json"

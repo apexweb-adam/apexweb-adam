@@ -596,7 +596,7 @@ async def crm_landing():
 
   for row in content_study.get("recent") or []:
     source_type = row.get("source_type", "")
-    source_label = intel_source_label(source_type)
+    source_label = row.get("source_label") or intel_source_label(source_type)
     title = row.get("title", "")
     impact = row.get("impact") or "—"
     confidence = row.get("confidence") or 0

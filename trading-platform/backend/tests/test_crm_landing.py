@@ -749,6 +749,7 @@ def test_crm_landing_shows_labeled_content_study_sources():
       "recent": [
         {
           "source_type": "wallet_tracker",
+          "source_label": "Whale",
           "title": "Whale accumulation on PEPE",
           "impact": "crypto bot: follow wallet intel with volume confirmation",
           "confidence": 0.82,
