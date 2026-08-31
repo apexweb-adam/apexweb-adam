@@ -532,6 +532,8 @@ def test_verify_crm_learning_script_exists():
   assert "source_label" in text
   assert "Today's learning loop" in text
   assert "run-daily-review-now.sh" in text
+  assert "tradingview_webhook" in text
+  assert "polymarket_account_hook" in text
 
 
 def test_verify_post_outage_recovery_runs_crm_learning():

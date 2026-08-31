@@ -154,6 +154,20 @@ else
   note "CRM landing HTTP $CRM_CODE"
 fi
 
+STATUS_JSON="$STATUS" python3 << 'PY'
+import json, os
+
+data = json.loads(os.environ.get("STATUS_JSON") or "{}")
+integrations = data.get("integrations") or {}
+tv = bool(integrations.get("tradingview_webhook"))
+tv_items = integrations.get("tradingview_items")
+pm_hook = bool(integrations.get("polymarket_account_hook"))
+pm_api = bool(integrations.get("polymarket_api_key"))
+pm_scan = bool(integrations.get("polymarket_market_scanner"))
+print(f"integrations tradingview_webhook={tv} items={tv_items}")
+print(f"integrations polymarket_account_hook={pm_hook} api_key={pm_api} scanner={pm_scan}")
+PY
+
 echo ""
 echo "Results: $pass passed, $fail failed, $warn notes"
 if [[ "$fail" -gt 0 ]]; then

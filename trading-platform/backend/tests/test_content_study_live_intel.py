@@ -216,6 +216,22 @@ def test_extract_tradingview_alert_impact():
   assert impact is not None
   assert "tradingview" in impact.lower()
   assert "technical_weight" in impact.lower()
+  assert "stocks_futures" in impact.lower()
+  assert confidence >= 0.6
+
+
+def test_extract_tradingview_commodities_impact():
+  impact, confidence = _extract_live_intel_impact(
+    "tradingview",
+    "TradingView alert: GC=F buy",
+    "gold futures strategy buy signal",
+    "GC=F",
+    0.28,
+    0.82,
+  )
+  assert impact is not None
+  assert "tradingview" in impact.lower()
+  assert "commodities" in impact.lower()
   assert confidence >= 0.6
 
 

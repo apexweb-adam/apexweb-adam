@@ -442,14 +442,34 @@ def _extract_live_intel_impact(source: str, title: str, content: str, symbols: s
     return None
 
   if source == "tradingview":
+    targets: list[str] = []
+    sym_lower = sym.lower()
+    if any(k in text or k in sym_lower for k in ("usdt", "btc", "eth", "sol", "meme", "crypto")):
+      targets.append("crypto")
+    if any(
+      k in text or k in sym_lower
+      for k in ("aapl", "nvda", "tsla", "spy", "qqq", "stock", "=x")
+    ):
+      targets.append("stocks_futures")
+    if any(
+      k in text or k in sym_lower
+      for k in ("=f", "gold", "gc", "oil", "cl", "ng", "xau", "commodit", "forex", "eurusd")
+    ):
+      targets.append("commodities")
+    bot_hint = (
+      f" — target bots: {', '.join(dict.fromkeys(targets))}" if targets else ""
+    )
+
     if sentiment > 0 or any(k in text for k in ("buy", "long", "bullish")):
       return (
-        f"TradingView alert on {sym} — require webhook signal alignment before entry; increase technical_weight",
+        f"TradingView alert on {sym}: require webhook signal alignment before entry; "
+        f"increase technical_weight{bot_hint}",
         min(0.8, relevance * 0.9),
       )
     if sentiment < 0 or any(k in text for k in ("sell", "short", "bearish")):
       return (
-        f"TradingView exit signal on {sym} — honor TV alerts for wind-down; avoid fighting the alert",
+        f"TradingView exit signal on {sym}: honor TV alerts for wind-down; "
+        f"avoid fighting the alert{bot_hint}",
         min(0.78, relevance * 0.85),
       )
     return None
