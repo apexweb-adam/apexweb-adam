@@ -660,6 +660,69 @@ def test_crm_landing_shows_fomo_bearer_alert():
   assert "fomo-set-bearer.sh" in body
 
 
+def test_crm_landing_shows_intel_pattern_alerts():
+  client = TestClient(app)
+  ctx = {
+    "gate": {
+      "verification_day": 2,
+      "total_trades": 20,
+      "win_rate": 0.45,
+      "total_pnl": 5.0,
+      "profit_factor": 1.1,
+      "recommendation": "Continue paper trading",
+      "paused_bots": [],
+    },
+    "per_bot": {},
+    "monday_recovery": {"recovery_candidates": [], "all": [], "bots": {}},
+    "learning": {
+      "review_date": "2026-08-31",
+      "trade_analyses": 12,
+      "pending_insights": 2,
+      "intel_pattern_alerts": [
+        "crypto: 3 losses tied to TikTok/social hype — tighten intel confirmation gates",
+        "stocks_futures: 2 losses tied to Political/macro intel — tighten intel confirmation gates",
+      ],
+      "reviews": [
+        {
+          "bot_type": "crypto",
+          "total_trades": 5,
+          "losing_trades": 3,
+          "win_rate": 0.4,
+          "net_pnl": -12.5,
+          "patterns_found": "3 losses tied to TikTok/social hype — tighten intel confirmation gates",
+          "strategy_changes": "Raised min_signal_score",
+          "conclusions": "Wait for volume",
+        }
+      ],
+    },
+    "content_study": {"insights_applied": 0, "recent": []},
+    "intel_sources": [{"source": "tiktok", "status": "active"}],
+    "live_snapshot": {
+      "active_bots": [],
+      "positions": [],
+      "gate_tightening": {},
+      "chronic_loser_symbols": {},
+      "proven_winner_symbols": {},
+    },
+    "integrations": {"tradingview": {}, "polymarket": {}, "wallet_tracker": {}},
+    "session_open_events": [],
+    "cme_checklist": None,
+    "us_stocks_checklist": None,
+  }
+
+  with patch("app.main.resolve_crm_dashboard_url", new_callable=AsyncMock, return_value="https://example.com"):
+    with patch("app.main.build_deploy_status", new_callable=AsyncMock, return_value={"vercel_bundle_stale": False}):
+      with patch("app.engines.crm_landing_context.build_crm_landing_context", new_callable=AsyncMock, return_value=ctx):
+        response = client.get("/crm")
+
+  assert response.status_code == 200
+  body = response.text
+  assert "Intel-driven loss patterns" in body
+  assert "TikTok/social hype" in body
+  assert "Political/macro intel" in body
+  assert "Today's learning loop" in body
+
+
 def test_crm_landing_shows_deploy_credentials_card():
   client = TestClient(app)
   with patch("app.main.resolve_crm_dashboard_url", new_callable=AsyncMock, return_value="https://example.com"):

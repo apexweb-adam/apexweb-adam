@@ -1,6 +1,7 @@
 import asyncio
 import os
 from contextlib import asynccontextmanager
+from html import escape
 from typing import Any
 
 from fastapi import FastAPI
@@ -571,6 +572,25 @@ async def crm_landing():
     f"review date {learning.get('review_date', '')}"
   )
 
+  intel_pattern_alerts = learning.get("intel_pattern_alerts") or []
+  intel_pattern_banner = ""
+  if intel_pattern_alerts:
+    alert_items = "".join(
+      f"<li style='margin:0.25rem 0;color:#fca5a5;'>{escape(alert)}</li>"
+      for alert in intel_pattern_alerts[:8]
+    )
+    overflow = ""
+    if len(intel_pattern_alerts) > 8:
+      overflow = (
+        f"<p class='muted' style='margin:0.35rem 0 0;'>"
+        f"+{len(intel_pattern_alerts) - 8} more intel pattern alerts in dashboard</p>"
+      )
+    intel_pattern_banner = f"""<div class="card" style="border-color:#7f1d1d;background:#450a0a;">
+    <p style="color:#fca5a5;font-weight:600;margin:0;">Intel-driven loss patterns — tighten confirmation gates</p>
+    <ul style="margin:0.5rem 0 0;padding-left:1.25rem;font-size:0.85rem;">{alert_items}</ul>
+    {overflow}
+  </div>"""
+
   content_rows = ""
   for row in content_study.get("recent") or []:
     source_type = row.get("source_type", "")
@@ -878,6 +898,7 @@ async def crm_landing():
       <tbody>{recovery_table_body}</tbody>
     </table>
   </div>""" if recovery_table_body or recovery_nudge_note else ""}
+  {intel_pattern_banner}
   {f"""<div class="card learning">
     <h2>Today's learning loop</h2>
     <p class="muted" style="margin-top:0;">{learning_summary}</p>
