@@ -160,7 +160,9 @@ else:
 
 if dow in (1, 2, 3, 4, 5):
     print("CME/commodities: weekday session — held positions unmanaged until resume (TV refresh + burst scan on startup)")
+    print("  held_at_risk=EURUSD=X, GC=F, HG=F (commodities) — verify with verify-cme-post-open.sh after resume")
 print("Crypto: 24/7 — held positions get immediate post-outage scan on startup (r467+)")
+print("  verify=bash trading-platform/scripts/verify-crypto-held.sh --watch 90")
 PY
 
   echo ""

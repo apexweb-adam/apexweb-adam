@@ -305,6 +305,10 @@ PY
 fi
 
 echo ""
+echo "=== Crypto held-position verification (24/7 outage recovery) ==="
+bash "$ROOT/scripts/verify-crypto-held.sh" --watch 60 || true
+
+echo ""
 echo "Recovery complete. Check CRM dashboard and gate metrics."
 DOW="$(date -u +%u)"
 HOUR="$(date -u +%H)"
