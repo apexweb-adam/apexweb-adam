@@ -40,8 +40,23 @@ async def lifespan(app: FastAPI):
       "[Startup] WARNING: Render is using ephemeral SQLite — gate data resets on every deploy. "
       "Set DATABASE_URL to Supabase (see SUPABASE_SETUP.md) and run scripts/sync-render-env.sh"
     )
-  await setup_scheduler()
+
+  async def _run_startup() -> None:
+    try:
+      await setup_scheduler()
+    except Exception as exc:
+      print(f"[Startup] setup_scheduler failed: {exc}")
+      raise
+
+  startup_task = asyncio.create_task(_run_startup())
+  app.state.startup_task = startup_task
   yield
+  if not startup_task.done():
+    startup_task.cancel()
+    try:
+      await startup_task
+    except asyncio.CancelledError:
+      pass
   stop_bots()
 
 

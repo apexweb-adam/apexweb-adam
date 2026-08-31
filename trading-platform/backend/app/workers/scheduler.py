@@ -913,20 +913,23 @@ async def setup_scheduler() -> None:
   await init_db()
   from app.engines.deploy_trigger import auto_redeploy_enabled, maybe_trigger_stale_redeploy
 
-  if auto_redeploy_enabled():
-    redeploy = await maybe_trigger_stale_redeploy()
-    if redeploy.get("triggered"):
-      print(f"[Deploy] {redeploy.get('message')}")
-    elif redeploy.get("deploy", {}).get("is_stale"):
-      reason = redeploy.get("reason", "unknown")
-      if reason not in ("cooldown", "deploy_in_progress", "recent_deploy_failed"):
-        print(f"[Deploy] Stale ({reason}) — manual deploy or set RENDER_API_KEY on Render")
-  else:
-    redeploy = await maybe_trigger_stale_redeploy()
-    if redeploy.get("triggered"):
-      print(f"[Deploy] Stale API redeploy (DISABLE_AUTO_REDEPLOY bypass): {redeploy.get('message')}")
-    elif redeploy.get("deploy", {}).get("is_stale"):
-      print("[Deploy] Auto-redeploy disabled (DISABLE_AUTO_REDEPLOY) — stale; set RENDER_API_KEY for API recovery")
+  async def _check_stale_redeploy() -> None:
+    if auto_redeploy_enabled():
+      redeploy = await maybe_trigger_stale_redeploy()
+      if redeploy.get("triggered"):
+        print(f"[Deploy] {redeploy.get('message')}")
+      elif redeploy.get("deploy", {}).get("is_stale"):
+        reason = redeploy.get("reason", "unknown")
+        if reason not in ("cooldown", "deploy_in_progress", "recent_deploy_failed"):
+          print(f"[Deploy] Stale ({reason}) — manual deploy or set RENDER_API_KEY on Render")
+    else:
+      redeploy = await maybe_trigger_stale_redeploy()
+      if redeploy.get("triggered"):
+        print(f"[Deploy] Stale API redeploy (DISABLE_AUTO_REDEPLOY bypass): {redeploy.get('message')}")
+      elif redeploy.get("deploy", {}).get("is_stale"):
+        print("[Deploy] Auto-redeploy disabled (DISABLE_AUTO_REDEPLOY) — stale; set RENDER_API_KEY for API recovery")
+
+  asyncio.create_task(_check_stale_redeploy())
 
   from app.engines.deploy_status import EXPECTED_PLATFORM_REVISION, build_cme_deploy_urgency
   from app.engines.gate_entry_guard import commodities_session_info
