@@ -145,6 +145,7 @@ async def _stocks_us_watch_tv_refresh(
 ) -> list[str]:
   """Refresh TradingView for US open-ready / near-floor watch symbols."""
   from app.engines.gate_entry_guard import (
+    STOCKS_TRADE_COUNT_PREP_MINUTES,
     get_chronic_loser_symbols,
     get_proven_winner_symbols,
     prioritize_stocks_monday_scan,
@@ -164,6 +165,14 @@ async def _stocks_us_watch_tv_refresh(
 
   minutes_until_open = session_info.get("minutes_until_open")
   if minutes_until_open is None:
+    return []
+
+  max_window = (
+    max_minutes_until_open
+    if max_minutes_until_open is not None
+    else STOCKS_TRADE_COUNT_PREP_MINUTES
+  )
+  if minutes_until_open > max_window:
     return []
 
   async with SessionLocal() as session:
