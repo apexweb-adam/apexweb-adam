@@ -49,9 +49,9 @@ def test_dashboard_url_from_deploy_uses_prod_when_fresh():
   assert platform_status._dashboard_url_from_deploy(deploy) == "https://prod.example"
 
 
-def test_platform_status_cache_ttl_extended_during_cme_weekend():
+def test_platform_status_cache_ttl_extended_during_prewarm():
   with patch(
-    "app.engines.gate_entry_guard.commodities_futures_weekend_closed",
+    "app.engines.gate_entry_guard.status_cache_prewarm_active",
     return_value=True,
   ):
     assert platform_status._platform_status_cache_ttl_seconds() == 60
@@ -79,12 +79,50 @@ _CHECKLIST_SUMMARIES = {
 }
 
 
-def test_platform_status_cache_ttl_short_outside_cme_weekend():
+def test_platform_status_cache_ttl_short_outside_prewarm():
   with patch(
-    "app.engines.gate_entry_guard.commodities_futures_weekend_closed",
+    "app.engines.gate_entry_guard.status_cache_prewarm_active",
     return_value=False,
   ):
     assert platform_status._platform_status_cache_ttl_seconds() == 45
+
+
+def test_build_platform_status_serves_stale_while_rebuild_in_progress():
+  async def run():
+    session = AsyncMock()
+    payload = {"platform": "Apex Trading Platform", "stats": {"total_trades": 1}}
+    build_started = asyncio.Event()
+    release_build = asyncio.Event()
+    build_count = 0
+
+    async def slow_build(_session):
+      nonlocal build_count
+      build_count += 1
+      if build_count == 1:
+        return dict(payload)
+      build_started.set()
+      await release_build.wait()
+      return {**payload, "stats": {"total_trades": 2}}
+
+    with patch(
+      "app.engines.platform_status._build_platform_status_uncached",
+      new=AsyncMock(side_effect=slow_build),
+    ) as builder:
+      await platform_status.build_platform_status(session)
+      platform_status._platform_status_cached_at = 0.0
+      rebuild_task = asyncio.create_task(platform_status.build_platform_status(session))
+      await build_started.wait()
+      stale = await platform_status.build_platform_status(session)
+      release_build.set()
+      rebuilt = await rebuild_task
+
+    assert builder.await_count == 2
+    assert stale["status_cache_stale"] is True
+    assert stale["status_cache_hit"] is False
+    assert stale["stats"]["total_trades"] == 1
+    assert rebuilt["stats"]["total_trades"] == 2
+
+  asyncio.run(run())
 
 
 def test_build_platform_status_includes_per_bot_gate():
