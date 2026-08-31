@@ -472,6 +472,8 @@ def test_check_deploy_credentials_shows_revision_gap():
   assert "code_target=" in text
   assert "PLATFORM_REVISION" in text
   assert "x_intel_collection_mode" in text or "google_news_rss activates" in text
+  assert "intel_pattern_alerts" in text
+  assert "content_study [" in text
 
 
 def test_check_deploy_credentials_treats_github_as_nudge():
@@ -490,6 +492,8 @@ def test_verify_pre_deploy_intel_readiness():
   assert "/api/intelligence/sources" in text
   assert "deploy_json.py" in text
   assert "Intel sources API ready" in text
+  assert "intel_pattern_alerts" in text
+  assert "content_study [" in text
 
 
 def test_verify_cme_reopen_uses_deploy_json_fallback():

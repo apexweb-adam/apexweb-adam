@@ -86,6 +86,28 @@ if snap.get("github_token_configured") is not None:
 else:
     print("github: (snapshot pre-r370 — run check-github-token.sh)")
 
+learning = snap.get("learning") or {}
+content = snap.get("content_study") or {}
+if learning:
+    print(
+        f"learning: analyses={learning.get('trade_analyses')} "
+        f"reviews={learning.get('daily_reviews')} "
+        f"pending_insights={learning.get('insights_pending')} "
+        f"intel_pattern_alerts={learning.get('intel_pattern_count') or 0}"
+    )
+    for alert in (learning.get("intel_pattern_alerts") or [])[:3]:
+        print(f"  intel_alert={alert}")
+if content.get("recent") or content.get("insights_applied"):
+    print(
+        f"content_study: applied={content.get('insights_applied') or 0} "
+        f"recent={len(content.get('recent') or [])}"
+    )
+    for row in (content.get("recent") or [])[:3]:
+        label = row.get("source_label") or row.get("source_type") or "unknown"
+        title = (row.get("title") or "")[:48]
+        state = "applied" if row.get("applied") else "pending"
+        print(f"  content_study [{label}] {title} ({state})")
+
 if env_file and os.path.isfile(env_file):
     has_github = False
     local_rev = None
