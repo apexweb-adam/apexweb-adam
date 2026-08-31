@@ -64,6 +64,17 @@ if [[ -n "$GRACE_LEFT" && "$GRACE_LEFT" -gt 0 && "$GRACE_LEFT" -le 45 ]]; then
   fi
   echo "Monday outage grace: ${GRACE_LEFT} min left — urgent polling (${INTERVAL}s interval, max wait ${MAX_WAIT}s)"
   echo ""
+elif python3 - << 'PY' 2>/dev/null | grep -q post_grace; then
+from datetime import datetime, timezone
+now = datetime.now(timezone.utc)
+if now.isoweekday() == 1 and now.hour >= 13:
+    open_at = now.replace(hour=13, minute=30, second=0, microsecond=0)
+    ext_left = max(0, int((open_at.timestamp() + 270 * 60 - now.timestamp()) // 60))
+    if ext_left == 0 and now.hour < 21:
+        print("post_grace")
+PY
+  echo "Monday extended burst grace expired — post-outage startup still forces open-ready scan (r466+)."
+  echo ""
 fi
 
 if check_backend_suspension "$BACKEND" 2>/dev/null; then
@@ -291,10 +302,11 @@ echo ""
 echo "Recovery complete. Check CRM dashboard and gate metrics."
 DOW="$(date -u +%u)"
 HOUR="$(date -u +%H)"
-if [[ "$DOW" == "1" && "$HOUR" -ge 13 && "$HOUR" -le 18 ]]; then
+if [[ "$DOW" == "1" && "$HOUR" -ge 13 && "$HOUR" -le 21 ]]; then
   echo ""
   echo "Note: stocks burst-recovery runs within 60 min of US open (13:30 UTC)."
   echo "Platform-outage recovery extends to 270 min when open-ready symbols were queued (e.g. AAPL)."
-  echo "Stocks/crypto/commodities held + US open-ready get post-outage scans on startup (r465+)."
-  echo "Check us-stocks-open-checklist for has_burst_scan / has_auto_entry."
+  echo "After grace expires, r466+ still forces open-ready scan from prep state on post-outage startup."
+  echo "Stocks/crypto/commodities held + US open-ready get post-outage scans on startup (r466+)."
+  echo "Check us-stocks-open-checklist for has_burst_scan / has_auto_entry / has_outage_recovery_scan."
 fi
