@@ -316,6 +316,11 @@ class LearningEngine:
           root_causes.append("TikTok viral stock sentiment drove entry without MACD/volume confirmation")
           adjustments.append("Require MACD + volume on TikTok-hype stock entries at session open")
           lessons.append("TikTok stock trends need session-open technical confirmation before day-trade entries")
+      if await self._had_source_intel(trade.symbol, trade.executed_at, "reddit"):
+        if trade.side == "long" and (trade.signal_score < 0.5 or trade.sentiment_score < 0.35):
+          root_causes.append("Reddit retail hype preceded loss without MACD/volume confirmation")
+          adjustments.append("Require MACD + volume on Reddit-hype stock entries at session open")
+          lessons.append("WSB/meme-stock Reddit buzz needs session-open technical confirmation")
 
     if trade.bot_type == "commodities":
       if "weekend" in reason_lower:
@@ -340,6 +345,16 @@ class LearningEngine:
           root_causes.append("Political intel turned negative during commodities hold")
           adjustments.append("Reduce commodities exposure when political headlines flip bearish")
           lessons.append("Weight geopolitical news higher — tighten stops on tariff/geopolitics risk")
+      if await self._had_source_intel(trade.symbol, trade.executed_at, "tiktok"):
+        if trade.side == "long" and (trade.signal_score < 0.5 or trade.sentiment_score < 0.35):
+          root_causes.append("TikTok viral commodities sentiment drove entry without MACD confirmation")
+          adjustments.append("Require MACD + composite floor on TikTok-hype commodities entries")
+          lessons.append("TikTok gold/oil trends need CME technical confirmation before futures entries")
+      if await self._had_source_intel(trade.symbol, trade.executed_at, "reddit"):
+        if trade.side == "long" and (trade.signal_score < 0.5 or trade.sentiment_score < 0.35):
+          root_causes.append("Reddit commodities hype preceded loss without technical confirmation")
+          adjustments.append("Raise min_signal_score when Reddit buzz is primary intel driver on futures")
+          lessons.append("Reddit commodities chatter is sentiment input — confirm with MACD/momentum")
 
     if trade.bot_type == "polymarket":
       if "overbought" in reason_lower:

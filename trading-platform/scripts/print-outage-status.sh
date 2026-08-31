@@ -115,6 +115,7 @@ if learning:
     )
     for alert in (learning.get("intel_pattern_alerts") or [])[:3]:
         print(f"  intel_alert={alert}")
+    print("  verify_learning=bash trading-platform/scripts/verify-crm-learning.sh --strict")
 if content.get("recent"):
     print(f"Content study: applied={content.get('insights_applied') or 0} recent={len(content.get('recent') or [])}")
     for row in (content.get("recent") or [])[:3]:
