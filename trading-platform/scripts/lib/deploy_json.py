@@ -173,6 +173,9 @@ def evaluate_post_deploy(
       print("  note: run_deploy_window_command missing on snapshot (pre-r366)")
     if snapshot.get("wait_for_deploy_command"):
       print("  wait_for_deploy_command=ok")
+    crm_verify = snapshot.get("crm_learning_verify_command")
+    if crm_verify:
+      print(f"  crm_learning_verify_command={crm_verify}")
     for key in ("github_token_configured", "fomo_bearer_configured"):
       if key not in snapshot:
         errors.append(f"snapshot_missing_{key}")

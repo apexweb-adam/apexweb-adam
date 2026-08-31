@@ -2113,7 +2113,7 @@ function BillingOutageRecoveryCard({
           <span className="font-mono text-orange-200">
             {health.expected_platform_revision ?? "latest main"}
           </span>{" "}
-          then run automated recovery for all three bots.
+          then run automated recovery for all three bots and the learning loop.
         </p>
         {grace !== null && grace !== undefined && (
           <p
@@ -2178,7 +2178,7 @@ function BillingOutageRecoveryCard({
           </p>
         )}
         {bots.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2 mb-3">
             {bots.map((bot) => (
               <div
                 key={bot.bot_type}

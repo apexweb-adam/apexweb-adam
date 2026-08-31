@@ -437,6 +437,16 @@ def test_verify_weekend_ops_includes_gate_and_revision_hints():
   assert "deploy will advance prod expected" in text
   assert "intel_pattern_alerts" in text
   assert "content_study [" in text
+  assert "crm_learning_verify_command" in text
+  assert "verify-crm-learning.sh" in text
+
+
+def test_dashboard_backend_suspension_includes_learning_recovery():
+  suspension = SCRIPTS.parent / "dashboard" / "lib" / "backend-suspension.ts"
+  text = suspension.read_text(encoding="utf-8")
+  assert "verify-crm-learning.sh --strict" in text
+  assert 'bot_type: "learning"' in text
+  assert "verify-post-outage-recovery.sh" in text
 
 
 def test_check_github_token_script_exists():

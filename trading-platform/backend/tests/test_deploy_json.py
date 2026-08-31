@@ -131,6 +131,7 @@ def test_post_deploy_ok_when_revision_current_without_deploy_window():
     "fomo_bearer_configured": False,
     "fomo_bearer_nudge_tier": "expired",
     "x_intel_collection_mode": "twitter_api",
+    "crm_learning_verify_command": "bash trading-platform/scripts/verify-crm-learning.sh",
     "deploy_credentials_nudges": ["GITHUB_TOKEN missing on Render — deploy staleness checks incomplete"],
   }
   errors = evaluate_post_deploy(status, checklist, snapshot, expected="2026-08-29-r392")

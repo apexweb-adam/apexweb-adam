@@ -55,7 +55,7 @@ if content.get("recent"):
 bundle = snap.get("expected_dashboard_bundle")
 if bundle:
     print(f"Dashboard bundle target: {bundle}")
-for key in ("dashboard_bundle_verify_command", "weekend_ops_verify_command"):
+for key in ("dashboard_bundle_verify_command", "weekend_ops_verify_command", "crm_learning_verify_command"):
     cmd = snap.get(key)
     if cmd:
         print(f"  {cmd}")
@@ -159,3 +159,6 @@ echo "Monday before US open (13:30 UTC):"
 echo "  bash trading-platform/scripts/verify-us-stocks-open.sh --watch 120"
 echo "Monday after US open:"
 echo "  bash trading-platform/scripts/verify-us-stocks-post-open.sh --watch 120"
+echo ""
+echo "--- CRM learning loop ---"
+bash "$ROOT/scripts/verify-crm-learning.sh" || true

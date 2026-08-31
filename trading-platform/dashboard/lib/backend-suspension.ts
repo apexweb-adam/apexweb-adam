@@ -95,6 +95,12 @@ export function outageRecoveryBots(): OutageRecoveryBot[] {
       action: "Immediate held-position scan on startup",
       verify_script: "verify-crypto-held.sh --watch 90",
     },
+    {
+      bot_type: "learning",
+      label: "Learning loop",
+      action: "Post-mortems, content study, intel pattern alerts, strategy adaptation",
+      verify_script: "verify-crm-learning.sh --strict",
+    },
   ];
 }
 
@@ -165,6 +171,7 @@ export function buildBackendSuspensionPayload(
       "Run: bash trading-platform/scripts/recover-render-billing.sh",
       graceNote,
       "Or verify all bots: bash trading-platform/scripts/verify-post-outage-recovery.sh --watch 90",
+      "Verify learning loop: bash trading-platform/scripts/verify-crm-learning.sh --strict",
       `After resume, confirm outage_recovery_scan then burst_scan (deploy ${EXPECTED_PLATFORM_REVISION}).`,
     ],
     us_cash_session_catchup_minutes_remaining: catchupRemaining,
