@@ -267,6 +267,11 @@ print(
     f"  content_study_applied={content.get('insights_applied') or 0} "
     f"recent_highlights={len(content.get('recent') or [])}"
 )
+for row in (content.get("recent") or [])[:4]:
+    label = row.get("source_label") or row.get("source_type") or "unknown"
+    title = (row.get("title") or "")[:52]
+    applied = "applied" if row.get("applied") else "pending"
+    print(f"    content_study [{label}] {title} ({applied})")
 
 session_events = data.get("session_open_events") or []
 stocks_outage = [

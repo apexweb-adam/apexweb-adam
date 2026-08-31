@@ -117,6 +117,7 @@ def test_recover_render_billing_triggers_deploy_when_behind():
   assert 'data.get("session_open_events")' in text
   assert "content_study_applied" in text
   assert "learning_intel_pattern_alerts" in text
+  assert "content_study [" in text
   assert "us_cash_session_closed" in text or "US cash session closed" in text
 
 
@@ -538,6 +539,8 @@ def test_verify_platform_prints_intel_health_fields():
   assert "Content study insights" in text
   assert "insights_applied" in text
   assert "intel_pattern_alerts" in text
+  assert "content_study_recent" in text
+  assert "source_label" in text
   assert "deploy_credentials_ready" in text
   assert "check-deploy-credentials.sh" in text
 

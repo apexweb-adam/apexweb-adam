@@ -373,6 +373,20 @@ sys.exit(0 if applied > 0 else 1)
   else
     note "Content study insights not applied yet — hourly job or POST /api/admin/run-content-study"
   fi
+  if echo "$STATUS" | python3 -c "
+import json, sys
+recent = (json.load(sys.stdin).get('content_study') or {}).get('recent') or []
+labeled = [row for row in recent if row.get('source_label')]
+if labeled:
+    print('  content_study_recent:')
+    for row in labeled[:5]:
+        applied = 'applied' if row.get('applied') else 'pending'
+        print(f\"    - [{row.get('source_label')}] {row.get('title', '')[:56]} ({applied})\")
+    sys.exit(0)
+sys.exit(1)
+"; then
+    note "Content study highlights (labeled sources above)"
+  fi
 else
   note "Learning loop sparse — confirm trades and daily review scheduler"
 fi
