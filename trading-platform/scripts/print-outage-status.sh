@@ -34,10 +34,12 @@ gate = snap.get("gate") or {}
 print(f"Gate: trades={gate.get('total_trades')} WR={gate.get('win_rate')} ready={gate.get('live_trading_ready')}")
 PY
   CHECKLIST=$(fetch_json "$BACKEND/api/gate/us-stocks-open-checklist" 90 2)
+  CME_CHECKLIST=$(fetch_json "$BACKEND/api/gate/cme-reopen-checklist" 90 2)
   STATUS=$(fetch_json "$BACKEND/api/status" 60 2)
-  CHECKLIST="$CHECKLIST" STATUS="$STATUS" python3 << 'PY'
+  CHECKLIST="$CHECKLIST" CME_CHECKLIST="$CME_CHECKLIST" STATUS="$STATUS" python3 << 'PY'
 import json, os
 d = json.loads(os.environ.get("CHECKLIST") or "{}")
+cme = json.loads(os.environ.get("CME_CHECKLIST") or "{}")
 status = json.loads(os.environ.get("STATUS") or "{}")
 outage = d.get("platform_outage_recovery") or {}
 orx = d.get("open_ready") or {}
@@ -47,6 +49,11 @@ if outage.get("window_active"):
     print(f"  platform_outage_recovery: window_active grace_remaining_min={outage.get('grace_minutes_remaining')}")
 if outage.get("logged"):
     print("  platform_outage_recovery: logged")
+cme_outage = cme.get("platform_outage_recovery") or {}
+cme_ready = (cme.get("open_ready") or {}).get("symbols") or []
+print(f"CME: phase={cme.get('phase')} open_ready={cme_ready or 'none'}")
+if cme_outage.get("window_active"):
+    print(f"  cme_platform_outage_recovery: grace_remaining_min={cme_outage.get('grace_minutes_remaining')}")
 outage_events = status.get("platform_outage_events") or []
 if outage_events:
     newest = outage_events[0]
@@ -54,9 +61,22 @@ if outage_events:
     held = newest.get("held_open_positions") or []
     if held:
         held_summary = ", ".join(
-            f"{row.get('symbol')}({row.get('bot_type')})" for row in held[:6]
+            f"{row.get('symbol')}({row.get('bot_type')})" for row in held[:8]
         )
-        print(f"  outage held at resume: {held_summary}")
+        extra = f" +{len(held) - 8} more" if len(held) > 8 else ""
+        print(f"  outage held at resume: {held_summary}{extra}")
+open_positions = status.get("open_positions") or []
+if open_positions:
+    by_bot: dict[str, list[str]] = {}
+    for row in open_positions:
+        if not isinstance(row, dict):
+            continue
+        bot = str(row.get("bot_type") or "?")
+        sym = row.get("symbol")
+        if sym:
+            by_bot.setdefault(bot, []).append(str(sym))
+    if by_bot:
+        print("Open positions:", ", ".join(f"{bot}={syms}" for bot, syms in sorted(by_bot.items())))
 PY
   exit 0
 fi
@@ -99,6 +119,10 @@ if dow == 1:
             print("Platform outage grace expired — only normal scan intervals after resume")
 else:
     print("Not Monday — US stocks outage grace window N/A today")
+
+if dow in (1, 2, 3, 4, 5):
+    print("CME/commodities: weekday session — held positions unmanaged until resume (TV refresh + burst scan on startup)")
+print("Crypto: 24/7 — held positions get immediate post-outage scan on startup (r460+)")
 PY
 
 echo ""
