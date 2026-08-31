@@ -93,6 +93,8 @@ def test_recover_render_billing_triggers_deploy_when_behind():
   assert "stocks scan preview" in text
   assert "outage catch-up" in text
   assert "outage_held_at_resume" in text
+  assert "Crypto + commodities held" in text
+  assert "grace_remaining_min" in text
   assert "Crypto scan preview" in text
   assert "verify-cme-post-open.sh" in text
 
@@ -154,7 +156,8 @@ def test_print_outage_status_script():
   assert "r454 deploys" not in text
   assert "held_open_positions" in text
   assert "cme-reopen-checklist" in text
-  assert "crypto: 24/7" in text.lower() or "Crypto: 24/7" in text
+  assert "outage_grace_urgency" in text
+  assert "r461+" in text
 
 
 def test_verify_post_deploy_includes_crm_and_learning_checks():
