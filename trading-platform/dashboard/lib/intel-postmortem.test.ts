@@ -47,7 +47,19 @@ describe("detectIntelPostMortemSources", () => {
     const tv = intelSourceBadge("tradingview");
     assert.ok(tv);
     assert.equal(tv?.label, "TradingView");
+    const whale = intelSourceBadge("wallet_tracker");
+    assert.ok(whale);
+    assert.equal(whale?.label, "Whale");
     assert.equal(intelSourceBadge("unknown_source"), null);
+  });
+
+  it("detects crypto wallet intel sources in post-mortem text", () => {
+    const sources = detectIntelPostMortemSources(
+      "DexScreener trending signal drove entry without volume confirmation",
+      "Hyperliquid perp signals need TA alignment"
+    );
+    const ids = sources.map((source) => source.id);
+    assert.deepEqual(ids, ["dexscreener", "hyperliquid"]);
   });
 
   it("returns empty list when no intel keywords are present", () => {

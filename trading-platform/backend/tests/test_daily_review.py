@@ -260,3 +260,65 @@ def test_run_daily_review_detects_recurring_newsapi_intel_loss_patterns():
 
   assert "news headline" in (review.patterns_found or "").lower()
   assert "intel confirmation" in (review.patterns_found or "").lower()
+
+
+def test_run_daily_review_detects_recurring_axiom_intel_loss_patterns():
+  trade_day = datetime(2026, 8, 31, 16, 0, 0)
+  trades = [
+    _sell_trade(
+      id=21,
+      bot_type="crypto",
+      symbol="PEPEUSDT",
+      pnl=-1.0,
+      is_winner=False,
+      reason="axiom wallet mirror buy",
+      executed_at=trade_day,
+    ),
+    _sell_trade(
+      id=22,
+      bot_type="crypto",
+      symbol="BONKUSDT",
+      pnl=-0.9,
+      is_winner=False,
+      reason="axiom multi-wallet signal",
+      executed_at=trade_day,
+    ),
+    _sell_trade(
+      id=23,
+      bot_type="crypto",
+      symbol="ETHUSDT",
+      pnl=1.1,
+      is_winner=True,
+      signal_score=0.7,
+      executed_at=trade_day,
+    ),
+  ]
+  analysis_one = MagicMock(
+    trade_id=21,
+    root_cause="Entry aligned with axiom.trade multi-wallet smart-money signal",
+    lessons_learned="confirm liquidity",
+  )
+  analysis_two = MagicMock(
+    trade_id=22,
+    root_cause="Weak technical signal at entry",
+    lessons_learned="wait for confirmation",
+  )
+  session = AsyncMock()
+  session.execute = AsyncMock(
+    side_effect=[
+      MagicMock(scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=trades)))),
+      MagicMock(scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=[analysis_one, analysis_two])))),
+      MagicMock(scalar_one_or_none=MagicMock(return_value=None)),
+    ]
+  )
+  session.commit = AsyncMock()
+  session.add = MagicMock()
+
+  learner = LearningEngine(session)
+  learner._apply_adjustments = AsyncMock()
+
+  with patch(OUTAGE_PATCH, new=AsyncMock(return_value=[])):
+    review = asyncio.run(learner.run_daily_review("crypto", "2026-08-31"))
+
+  assert "axiom" in (review.patterns_found or "").lower()
+  assert "intel confirmation" in (review.patterns_found or "").lower()

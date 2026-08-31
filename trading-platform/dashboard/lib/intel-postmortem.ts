@@ -15,6 +15,11 @@ const INTEL_POSTMORTEM_SOURCES: { id: string; label: string; className: string; 
   { id: "youtube", label: "YouTube", className: "bg-red-500/15 text-red-300 border-red-500/30", pattern: /youtube/i },
   { id: "tradingview", label: "TradingView", className: "bg-blue-500/15 text-blue-300 border-blue-500/30", pattern: /tradingview/i },
   { id: "fomo", label: "fomo", className: "bg-amber-500/15 text-amber-300 border-amber-500/30", pattern: /fomo/i },
+  { id: "axiom", label: "axiom", className: "bg-cyan-500/15 text-cyan-300 border-cyan-500/30", pattern: /axiom/i },
+  { id: "phantom", label: "Phantom", className: "bg-violet-500/15 text-violet-300 border-violet-500/30", pattern: /phantom/i },
+  { id: "dexscreener", label: "DexScreener", className: "bg-lime-500/15 text-lime-300 border-lime-500/30", pattern: /dexscreener/i },
+  { id: "hyperliquid", label: "Hyperliquid", className: "bg-teal-500/15 text-teal-300 border-teal-500/30", pattern: /hyperliquid|hl perp/i },
+  { id: "wallet", label: "Whale", className: "bg-yellow-500/15 text-yellow-300 border-yellow-500/30", pattern: /whale wallet|wallet tracker/i },
   { id: "polymarket", label: "Polymarket", className: "bg-indigo-500/15 text-indigo-300 border-indigo-500/30", pattern: /polymarket/i },
 ];
 
@@ -31,7 +36,7 @@ export function detectIntelPostMortemSources(
 const INTEL_SOURCE_TYPE_ALIASES: Record<string, string> = {
   newsapi: "news",
   polymarket_account: "polymarket",
-  wallet_tracker: "fomo",
+  wallet_tracker: "wallet",
 };
 
 /** Map content-study / intel source_type values to badge styling. */

@@ -17,6 +17,10 @@ _INTEL_LOSS_PATTERN_KEYWORDS: list[tuple[tuple[str, ...], str]] = [
   (("newsapi", "news headline", "breaking news"), "News headline intel"),
   (("fomo",), "fomo copy-trade"),
   (("axiom",), "axiom wallet signal"),
+  (("phantom",), "Phantom wallet intel"),
+  (("dexscreener",), "DexScreener trending"),
+  (("hyperliquid",), "Hyperliquid perp intel"),
+  (("wallet_tracker", "whale wallet"), "Whale wallet signal"),
   (("x/twitter", "twitter"), "X/Twitter sentiment"),
   (("polymarket",), "Polymarket account hook"),
 ]
@@ -226,6 +230,21 @@ class LearningEngine:
           root_causes.append("Reddit retail hype preceded loss without strong local confirmation")
           adjustments.append("Raise min_signal_score when Reddit retail buzz is the primary intel driver")
           lessons.append("WSB/crypto subreddit hype is not a standalone entry — wait for TA alignment")
+      if await self._had_source_intel(trade.symbol, trade.executed_at, "dexscreener"):
+        if trade.side == "long" and (trade.signal_score < 0.5 or trade.sentiment_score < 0.35):
+          root_causes.append("DexScreener trending signal drove entry without volume confirmation")
+          adjustments.append("Require volume + liquidity floor on DexScreener hype entries")
+          lessons.append("DexScreener boosts are sentiment input — confirm on-chain volume before sizing")
+      if await self._had_source_intel(trade.symbol, trade.executed_at, "hyperliquid"):
+        if trade.side == "long" and trade.signal_score < 0.5:
+          root_causes.append("Hyperliquid perp intel influenced entry without local confirmation")
+          adjustments.append("Cross-check HL funding/momentum with local composite before entries")
+          lessons.append("Hyperliquid perp signals need TA alignment — watch funding rate flips")
+      if await self._had_source_intel(trade.symbol, trade.executed_at, "wallet_tracker"):
+        if trade.side == "long" and (trade.signal_score < 0.5 or trade.sentiment_score < 0.35):
+          root_causes.append("Whale wallet tracker signal preceded loss without TA confirmation")
+          adjustments.append("Require stronger composite score when mirroring whale wallet buys")
+          lessons.append("Wallet tracker buys are intel — wait for local signal alignment")
 
     if trade.bot_type == "stocks_futures":
       if "macd" in reason_lower and "bearish" in reason_lower:

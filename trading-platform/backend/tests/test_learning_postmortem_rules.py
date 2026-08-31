@@ -645,3 +645,74 @@ def test_analyze_losing_trade_flags_newsapi_weak_signal():
 
   assert "news headline" in analysis.root_cause.lower()
   assert "technical" in analysis.root_cause.lower() or "confirmation" in analysis.lessons_learned.lower()
+
+
+def test_analyze_losing_trade_flags_dexscreener_intel_on_crypto():
+  session = AsyncMock()
+  session.execute = AsyncMock(
+    side_effect=[
+      MagicMock(scalar_one_or_none=MagicMock(return_value=None)),
+      MagicMock(scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=[])))),
+      MagicMock(scalar_one_or_none=MagicMock(return_value=None)),
+      MagicMock(scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=[])))),
+    ]
+  )
+  session.commit = AsyncMock()
+  session.add = MagicMock()
+
+  trade = _trade(
+    bot_type="crypto",
+    symbol="WIFUSDT",
+    signal_score=0.42,
+    sentiment_score=0.2,
+    reason="DexScreener boost entry",
+  )
+
+  learner = LearningEngine(session)
+  learner._get_market_context = AsyncMock(return_value="context")
+  learner._had_source_intel = AsyncMock(
+    side_effect=lambda symbol, at_time, source: source == "dexscreener"
+  )
+  learner._apply_adjustments = AsyncMock()
+  learner.run_daily_review = AsyncMock(return_value=MagicMock())
+
+  with patch("app.ws_manager.push_live_update", new_callable=AsyncMock):
+    analysis = asyncio.run(learner.analyze_losing_trade(trade))
+
+  assert "dexscreener" in analysis.root_cause.lower()
+  assert "volume" in analysis.strategy_adjustment.lower() or "liquidity" in analysis.strategy_adjustment.lower()
+
+
+def test_analyze_losing_trade_flags_phantom_intel_on_crypto():
+  session = AsyncMock()
+  session.execute = AsyncMock(
+    side_effect=[
+      MagicMock(scalar_one_or_none=MagicMock(return_value=None)),
+      MagicMock(scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=[])))),
+      MagicMock(scalar_one_or_none=MagicMock(return_value=None)),
+      MagicMock(scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=[])))),
+    ]
+  )
+  session.commit = AsyncMock()
+  session.add = MagicMock()
+
+  trade = _trade(
+    bot_type="crypto",
+    symbol="SOLUSDT",
+    signal_score=0.62,
+    reason="Phantom portfolio mirror",
+  )
+
+  learner = LearningEngine(session)
+  learner._get_market_context = AsyncMock(return_value="context")
+  learner._had_source_intel = AsyncMock(
+    side_effect=lambda symbol, at_time, source: source == "phantom"
+  )
+  learner._apply_adjustments = AsyncMock()
+  learner.run_daily_review = AsyncMock(return_value=MagicMock())
+
+  with patch("app.ws_manager.push_live_update", new_callable=AsyncMock):
+    analysis = asyncio.run(learner.analyze_losing_trade(trade))
+
+  assert "phantom" in analysis.root_cause.lower()
+  assert "confirmation" in analysis.strategy_adjustment.lower() or "sentiment" in analysis.lessons_learned.lower()
