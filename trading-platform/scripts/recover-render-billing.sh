@@ -61,6 +61,21 @@ else
   fi
 fi
 
+EXPECTED_REVISION="$(grep '^EXPECTED_PLATFORM_REVISION' "$ROOT/backend/app/engines/deploy_status.py" | sed -n 's/.*"\([^"]*\)".*/\1/p')"
+wake_backend "$BACKEND" 3
+RUNNING_REV="$(production_platform_revision "$BACKEND")"
+echo "Production revision: ${RUNNING_REV:-unknown} (target $EXPECTED_REVISION)"
+
+if [[ -n "$EXPECTED_REVISION" ]] && production_revision_behind "$BACKEND" "$EXPECTED_REVISION"; then
+  echo ""
+  echo "=== Trigger deploy (billing recovery — revision behind main) ==="
+  if trigger_render_deploy; then
+    echo "Waiting for deploy to reach $EXPECTED_REVISION..."
+  else
+    echo "Manual deploy required: Render dashboard → Manual Deploy → latest main"
+  fi
+fi
+
 echo ""
 bash "$ROOT/scripts/wait-for-render-deploy.sh" --verify --max-wait "$MAX_WAIT" --interval "$INTERVAL"
 

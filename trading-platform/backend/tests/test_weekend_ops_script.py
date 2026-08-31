@@ -80,6 +80,18 @@ def test_verify_scripts_check_render_billing_suspension():
     assert "check_backend_suspension" in text, name
 
 
+def test_recover_render_billing_triggers_deploy_when_behind():
+  text = (SCRIPTS / "recover-render-billing.sh").read_text(encoding="utf-8")
+  assert "production_revision_behind" in text
+  assert "trigger_render_deploy" in text
+
+
+def test_fetch_json_includes_deploy_trigger_helpers():
+  text = (SCRIPTS / "lib" / "fetch_json.sh").read_text(encoding="utf-8")
+  assert "trigger_render_deploy" in text
+  assert "production_revision_behind" in text
+
+
 def test_verify_post_deploy_includes_crm_and_learning_checks():
   script = SCRIPTS / "verify-post-deploy.sh"
   text = script.read_text(encoding="utf-8")
