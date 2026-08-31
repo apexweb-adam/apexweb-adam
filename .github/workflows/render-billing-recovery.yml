@@ -24,6 +24,7 @@ jobs:
           URL="https://apex-trading-backend.onrender.com"
 
           if ! check_backend_suspension "$URL"; then
+            bash "$ROOT/scripts/print-outage-status.sh" || true
             echo "::error::Render backend billing-suspended — fix at https://dashboard.render.com/web/srv-da848ms9v7es739k38jg"
             exit 1
           fi

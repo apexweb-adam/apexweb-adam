@@ -97,6 +97,11 @@ def test_recover_render_billing_triggers_deploy_when_behind():
   assert "verify-cme-post-open.sh" in text
 
 
+def test_verify_platform_prints_outage_status_when_suspended():
+  text = (SCRIPTS / "verify-platform.sh").read_text(encoding="utf-8")
+  assert "print-outage-status.sh" in text
+
+
 def test_verify_platform_includes_platform_outage_state():
   text = (SCRIPTS / "verify-platform.sh").read_text(encoding="utf-8")
   assert "platform_outage_events" in text
