@@ -172,6 +172,7 @@ export function buildBackendSuspensionPayload(
       graceNote,
       "Or verify all bots: bash trading-platform/scripts/verify-post-outage-recovery.sh --watch 90",
       "Verify learning loop: bash trading-platform/scripts/verify-crm-learning.sh --strict",
+      "Verify WebSocket live CRM: bash trading-platform/scripts/verify-ws-live.sh --strict",
       `After resume, confirm outage_recovery_scan then burst_scan (deploy ${EXPECTED_PLATFORM_REVISION}).`,
     ],
     us_cash_session_catchup_minutes_remaining: catchupRemaining,

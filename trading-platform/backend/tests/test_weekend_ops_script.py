@@ -549,6 +549,16 @@ def test_verify_ws_live_script_exists():
   assert "websockets.connect" in text
 
 
+def test_backend_suspension_recovery_steps_include_ws_verify():
+  suspension = (
+    Path(__file__).resolve().parents[2] / "dashboard/lib/backend-suspension.ts"
+  )
+  text = suspension.read_text(encoding="utf-8")
+  assert "verify-ws-live.sh" in text
+  assert "verify-crm-learning.sh" in text
+  assert "outageRecoveryBots" in text
+
+
 def test_verify_post_outage_recovery_runs_crm_learning():
   script = SCRIPTS / "verify-post-outage-recovery.sh"
   text = script.read_text(encoding="utf-8")

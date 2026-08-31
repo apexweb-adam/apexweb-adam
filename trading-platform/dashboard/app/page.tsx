@@ -1051,9 +1051,35 @@ export default function Dashboard() {
 
         {tab === "intelligence" && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {backendOffline ? (
+              <div className="lg:col-span-2 rounded-lg border border-apex-red/40 bg-apex-red/10 px-4 py-3 text-xs text-apex-red">
+                Intel scanners offline — news, X, Reddit, political, TikTok, and YouTube feeds resume
+                when Render billing is restored. Cached items below may be stale.
+              </div>
+            ) : null}
+            {(integrationsDisplay || intelSourcesDisplay || backendOffline) && (
+              <div className="lg:col-span-2">
+                <Card title="Multi-Source Intel">
+                  <MultiSourceIntelCard
+                    integrations={integrationsDisplay ?? undefined}
+                    sources={intelSourcesDisplay}
+                    backendOffline={backendOffline}
+                  />
+                </Card>
+              </div>
+            )}
             <Card title="Market Intelligence Feed">
               <div className="space-y-3 max-h-[700px] overflow-y-auto">
-                {(intelFeed ?? []).map((item) => {
+                {backendOffline && (intelFeed ?? []).length === 0 ? (
+                  <p className="text-xs text-apex-red py-8 text-center">
+                    Intel feed offline — scanners run every 5 minutes when backend is online.
+                  </p>
+                ) : (intelFeed ?? []).length === 0 ? (
+                  <p className="text-xs text-gray-500 py-8 text-center">
+                    No intelligence items yet — bots are collecting multi-source headlines.
+                  </p>
+                ) : (
+                (intelFeed ?? []).map((item) => {
                   const sourceBadge = intelFeedSourceBadge(item.source);
                   return (
                   <div
@@ -1089,12 +1115,17 @@ export default function Dashboard() {
                     </p>
                   </div>
                   );
-                })}
+                })
+                )}
               </div>
             </Card>
             <Card title="Intelligence Sources">
               <div className="space-y-4">
-                {intelSourcesDisplay ? (
+                {backendOffline && !intelSourcesDisplay ? (
+                  <p className="text-xs text-apex-red py-4 text-center">
+                    Source health unavailable — reconnect Render to refresh scanner status.
+                  </p>
+                ) : intelSourcesDisplay ? (
                 intelSourcesDisplay.map((src) => {
                   const sourceBadge = intelFeedSourceBadge(src.source);
                   return (
@@ -1172,18 +1203,24 @@ export default function Dashboard() {
               </div>
             </Card>
             <Card title="Intel Source Routing">
-              <IntelRoutingPanel routing={intelRouting} />
+              {backendOffline && !intelRouting ? (
+                <p className="text-xs text-apex-red py-4 text-center">
+                  Political and per-bot intel routing unavailable while backend is offline.
+                </p>
+              ) : (
+                <IntelRoutingPanel routing={intelRouting} />
+              )}
             </Card>
           </div>
         )}
 
         {tab === "learning" && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {dashConfig?.backendHealth?.suspended ? (
+            {backendOffline ? (
               <LearningOfflineBanner
                 verifyCommand={crmLearningVerifyCommand}
                 renderUrl={
-                  dashConfig.backendHealth.render_dashboard_url ??
+                  dashConfig?.backendHealth?.render_dashboard_url ??
                   "https://dashboard.render.com/web/srv-da848ms9v7es739k38jg"
                 }
               />
