@@ -558,6 +558,26 @@ def commodities_effective_open_cap(
   return cap
 
 
+def commodities_resolved_gate_cap(
+  gate_tightening: GateEntryTightening,
+  *,
+  graduation_nudge: bool,
+  shadow_mode: bool,
+  verification_nudge: bool = False,
+) -> int | None:
+  """Resolve commodities open cap with verification/graduation fallback when tightening cap unset."""
+  base_cap = gate_tightening.max_commodities_open_positions
+  if base_cap is None and (graduation_nudge or verification_nudge):
+    base_cap = ACTIVE_GATE_GRADUATION_NUDGE_MAX_OPEN
+  return commodities_effective_open_cap(
+    base_cap,
+    bot_type="commodities",
+    graduation_nudge=graduation_nudge,
+    shadow_mode=shadow_mode,
+    verification_nudge=verification_nudge,
+  )
+
+
 def open_position_cap_blocks_entry(
   bot_type: str,
   *,
@@ -577,13 +597,15 @@ def open_position_cap_blocks_entry(
     "stocks_futures": gate_tightening.max_stocks_open_positions,
     "polymarket": gate_tightening.max_pm_open_positions,
   }
-  cap = commodities_effective_open_cap(
-    gate_caps.get(bot_type),
-    bot_type=bot_type,
-    graduation_nudge=graduation_nudge,
-    shadow_mode=shadow_mode,
-    verification_nudge=verification_nudge,
-  )
+  if bot_type == "commodities":
+    cap = commodities_resolved_gate_cap(
+      gate_tightening,
+      graduation_nudge=graduation_nudge,
+      shadow_mode=shadow_mode,
+      verification_nudge=verification_nudge,
+    )
+  else:
+    cap = gate_caps.get(bot_type)
   if not isinstance(cap, int):
     return False
   return open_count >= cap
@@ -2346,9 +2368,8 @@ def gate_cap_pressure_proxy_wind_down(
     return False
   if symbol not in _commodities_cap_pressure_proxy_symbols():
     return False
-  cap = commodities_effective_open_cap(
-    gate_tightening.max_commodities_open_positions,
-    bot_type=bot_type,
+  cap = commodities_resolved_gate_cap(
+    gate_tightening,
     graduation_nudge=graduation_nudge,
     shadow_mode=shadow_mode,
     verification_nudge=verification_nudge,
@@ -2385,9 +2406,8 @@ def gate_cap_pressure_proxy_entry_blocked(
     return False
   if symbol not in _commodities_cap_pressure_proxy_symbols():
     return False
-  cap = commodities_effective_open_cap(
-    gate_tightening.max_commodities_open_positions,
-    bot_type=bot_type,
+  cap = commodities_resolved_gate_cap(
+    gate_tightening,
     graduation_nudge=graduation_nudge,
     shadow_mode=shadow_mode,
     verification_nudge=verification_nudge,
@@ -2542,9 +2562,8 @@ def commodities_cap_pressure_loser_wind_down(
     return False
   if symbol in COMMODITIES_WEEKEND_SPOT_SYMBOLS:
     return False
-  cap = commodities_effective_open_cap(
-    gate_tightening.max_commodities_open_positions,
-    bot_type=bot_type,
+  cap = commodities_resolved_gate_cap(
+    gate_tightening,
     graduation_nudge=graduation_nudge,
     shadow_mode=shadow_mode,
     verification_nudge=verification_nudge,
@@ -2576,9 +2595,8 @@ def commodities_monday_cap_pressure_flat_wind_down(
     return False
   if symbol in COMMODITIES_WEEKEND_SPOT_SYMBOLS:
     return False
-  cap = commodities_effective_open_cap(
-    gate_tightening.max_commodities_open_positions,
-    bot_type=bot_type,
+  cap = commodities_resolved_gate_cap(
+    gate_tightening,
     graduation_nudge=graduation_nudge,
     shadow_mode=shadow_mode,
     verification_nudge=verification_nudge,
