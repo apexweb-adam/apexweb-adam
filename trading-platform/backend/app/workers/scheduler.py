@@ -231,11 +231,15 @@ async def _stocks_us_watch_tv_refresh(
 
 
 async def stocks_open_ready_watch_job() -> None:
-  """5-min TV refresh for US open-ready / near-floor watch symbols."""
+  """1-min TV refresh for US open-ready / near-floor watch symbols (last 30 min pre-open)."""
   from app.engines.gate_entry_guard import (
     STOCKS_OPEN_IMMINENT_SCAN_MINUTES,
+    stocks_open_ready_watch_active,
     stocks_session_info,
   )
+
+  if not stocks_open_ready_watch_active():
+    return
 
   refreshed = await _stocks_us_watch_tv_refresh(
     reason_prefix="US open-ready watch TV refresh",
@@ -1013,10 +1017,12 @@ async def setup_scheduler() -> None:
     minutes=15,
     id="commodities_pre_session_prep_poll",
   )
+  from app.engines.gate_entry_guard import STOCKS_OPEN_READY_WATCH_INTERVAL_SECONDS
+
   scheduler.add_job(
     stocks_open_ready_watch_job,
     "interval",
-    minutes=5,
+    seconds=STOCKS_OPEN_READY_WATCH_INTERVAL_SECONDS,
     id="stocks_open_ready_watch",
   )
   scheduler.add_job(

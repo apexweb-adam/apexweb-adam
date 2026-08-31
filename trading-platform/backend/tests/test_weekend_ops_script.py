@@ -124,6 +124,8 @@ def test_scheduler_registers_open_ready_watch_job():
   text = script.read_text(encoding="utf-8")
   assert "commodities_open_ready_watch_job" in text
   assert "commodities_open_ready_watch" in text
+  assert "STOCKS_OPEN_READY_WATCH_INTERVAL_SECONDS" in text
+  assert "stocks_open_ready_watch_active" in text
 
 
 def test_print_deploy_window_summary_script_exists():
