@@ -72,6 +72,7 @@ def test_verify_scripts_check_render_billing_suspension():
   for name in (
     "verify-us-stocks-open.sh",
     "verify-us-stocks-post-open.sh",
+    "verify-cme-post-open.sh",
     "verify-platform.sh",
     "wait-for-render-deploy.sh",
     "recover-render-billing.sh",
