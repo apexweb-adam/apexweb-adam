@@ -807,14 +807,17 @@ async def refresh_status_caches_job() -> None:
   """Keep status caches warm during session prep so dashboard polls avoid cold builds."""
   from app.engines.gate_entry_guard import status_cache_prewarm_active
   from app.engines.gate_prep_status import (
+    _gate_prep_status_cache_ttl_seconds,
     build_gate_prep_status,
     gate_prep_status_cache_fresh,
   )
   from app.engines.platform_status import (
+    _platform_status_cache_ttl_seconds,
     build_platform_status,
     platform_status_cache_fresh,
   )
   from app.engines.scan_preview import (
+    _monday_recovery_cache_ttl_seconds,
     build_monday_recovery_summary,
     monday_recovery_cache_fresh,
   )
@@ -822,9 +825,12 @@ async def refresh_status_caches_job() -> None:
   if not status_cache_prewarm_active():
     return
 
-  needs_platform = not platform_status_cache_fresh(30)
-  needs_prep = not gate_prep_status_cache_fresh(30)
-  needs_recovery = not monday_recovery_cache_fresh(30)
+  platform_ttl = _platform_status_cache_ttl_seconds()
+  prep_ttl = _gate_prep_status_cache_ttl_seconds()
+  recovery_ttl = _monday_recovery_cache_ttl_seconds()
+  needs_platform = not platform_status_cache_fresh(platform_ttl)
+  needs_prep = not gate_prep_status_cache_fresh(prep_ttl)
+  needs_recovery = not monday_recovery_cache_fresh(recovery_ttl)
   if not needs_platform and not needs_prep and not needs_recovery:
     return
 
