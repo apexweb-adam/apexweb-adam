@@ -837,6 +837,92 @@ def test_commodities_verification_cap_pressure_wind_down():
   ) is False
 
 
+def test_commodities_verification_cooldown_bypass():
+  from app.engines.gate_entry_guard import (
+    COMMODITIES_HIGH_COMPOSITE_RECOVERY_FLOOR,
+    COMMODITIES_VERIFICATION_TRADE_COUNT_MIN_COMPOSITE,
+    commodities_verification_cooldown_bypass,
+    symbol_cooldown_remaining_seconds,
+  )
+
+  gate_ok = {
+    "total_trades": 67,
+    "win_rate": 0.627,
+    "profit_factor": 1.5,
+    "total_pnl": 58.68,
+  }
+  per_bot_ready = {"graduation_ready": True, "total_trades": 67, "win_rate": 0.627}
+  base = dict(
+    bot_type="commodities",
+    shadow_mode=False,
+    symbol="SI=F",
+    proven_winners=frozenset({"CL=F", "NG=F", "XAUUSDT"}),
+    gate_status=gate_ok,
+    per_bot_stats=per_bot_ready,
+    signal_direction="buy",
+    macd_signal="bullish",
+    composite=0.638,
+  )
+  assert commodities_verification_cooldown_bypass(**base) is True
+  assert commodities_verification_cooldown_bypass(
+    **{**base, "symbol": "HG=F", "composite": COMMODITIES_HIGH_COMPOSITE_RECOVERY_FLOOR + 0.01}
+  ) is True
+  assert commodities_verification_cooldown_bypass(
+    **{**base, "composite": COMMODITIES_HIGH_COMPOSITE_RECOVERY_FLOOR - 0.05}
+  ) is False
+  assert commodities_verification_cooldown_bypass(
+    **{**base, "signal_direction": "sell"}
+  ) is False
+  assert commodities_verification_cooldown_bypass(
+    **{**base, "shadow_mode": True}
+  ) is False
+  assert commodities_verification_cooldown_bypass(
+    **{
+      **base,
+      "symbol": "XAUUSDT",
+      "composite": COMMODITIES_VERIFICATION_TRADE_COUNT_MIN_COMPOSITE + 0.01,
+    }
+  ) is True
+
+
+def test_commodities_verification_cooldown_bypass_db_remaining():
+  from datetime import datetime, timedelta
+  from unittest.mock import AsyncMock, MagicMock
+
+  from app.engines.gate_entry_guard import symbol_cooldown_remaining_seconds
+
+  gate_ok = {
+    "total_trades": 67,
+    "win_rate": 0.627,
+    "profit_factor": 1.5,
+    "total_pnl": 58.68,
+  }
+  per_bot_ready = {"graduation_ready": True, "total_trades": 67, "win_rate": 0.627}
+  row = MagicMock()
+  row.first.return_value = (False, datetime.utcnow() - timedelta(seconds=30), "loss", -1.0)
+  session = AsyncMock()
+  session.execute = AsyncMock(return_value=row)
+
+  import asyncio
+
+  remaining = asyncio.get_event_loop().run_until_complete(
+    symbol_cooldown_remaining_seconds(
+      session,
+      "commodities",
+      "SI=F",
+      graduation_nudge=True,
+      shadow_mode=False,
+      signal_direction="buy",
+      macd_signal="bullish",
+      composite=0.638,
+      proven_winners=frozenset({"CL=F", "NG=F", "XAUUSDT"}),
+      gate_status=gate_ok,
+      per_bot_stats=per_bot_ready,
+    )
+  )
+  assert remaining == 0
+
+
 def test_commodities_verification_min_sentiment():
   from app.engines.gate_entry_guard import (
     COMMODITIES_VERIFICATION_MIN_SENTIMENT,
