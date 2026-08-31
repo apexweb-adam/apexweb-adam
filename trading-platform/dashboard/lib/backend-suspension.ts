@@ -154,6 +154,7 @@ export function buildBackendSuspensionPayload(
       "Resume apex-trading-backend manually (API resume does not work for billing suspension).",
       "Run: bash trading-platform/scripts/recover-render-billing.sh",
       graceNote,
+      "Or verify all bots: bash trading-platform/scripts/verify-post-outage-recovery.sh --watch 90",
       "Verify US stocks: bash trading-platform/scripts/verify-us-stocks-post-open.sh --watch 120",
       "Verify CME/commodities: bash trading-platform/scripts/verify-cme-post-open.sh --watch 90",
       "Verify crypto held: bash trading-platform/scripts/verify-crypto-held.sh --watch 90",

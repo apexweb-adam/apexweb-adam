@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Wait for Render billing suspension to clear, then run full platform recovery.
 # Usage:
-#   recover-render-billing.sh [--wait SECONDS] [--interval SECONDS] [--skip-stocks]
+#   recover-render-billing.sh [--wait SECONDS] [--interval SECONDS] [--skip-stocks] [--verify-once]
 #
 # Run after resolving billing in Render dashboard and resuming the service.
 set -euo pipefail
@@ -14,6 +14,7 @@ EXPECTED_REVISION="$(grep '^EXPECTED_PLATFORM_REVISION' "$ROOT/backend/app/engin
 MAX_WAIT="${MAX_WAIT:-1800}"
 INTERVAL="${INTERVAL:-30}"
 SKIP_STOCKS=false
+VERIFY_ONCE="${VERIFY_ONCE:-false}"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -27,6 +28,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --skip-stocks)
       SKIP_STOCKS=true
+      shift
+      ;;
+    --verify-once)
+      VERIFY_ONCE=true
       shift
       ;;
     *)
@@ -257,9 +262,6 @@ if imminent:
     print(f"  stocks_open_imminent_scan={imminent}")
 PY
   fi
-  echo ""
-  echo "=== US stocks post-open verification (Monday session) ==="
-  bash "$ROOT/scripts/verify-us-stocks-post-open.sh" --watch 120 || true
 fi
 
 if [[ "$SKIP_STOCKS" == false && "$DOW" -ge 1 && "$DOW" -le 5 ]]; then
@@ -284,9 +286,6 @@ if cme_path.is_file():
         print(f"  cme_platform_outage_recovery grace_remaining_min={outage.get('grace_minutes_remaining')}")
 PY
   fi
-  echo ""
-  echo "=== CME post-open verification (weekday session) ==="
-  bash "$ROOT/scripts/verify-cme-post-open.sh" --watch 90 || true
 fi
 
 echo ""
@@ -305,8 +304,17 @@ PY
 fi
 
 echo ""
-echo "=== Crypto held-position verification (24/7 outage recovery) ==="
-bash "$ROOT/scripts/verify-crypto-held.sh" --watch 60 || true
+echo "=== Post-outage recovery verification (all bots) ==="
+VERIFY_ARGS=()
+if [[ "$VERIFY_ONCE" == true ]]; then
+  VERIFY_ARGS+=(--once)
+else
+  VERIFY_ARGS+=(--watch 90)
+fi
+if [[ "$SKIP_STOCKS" == true ]]; then
+  VERIFY_ARGS+=(--skip-stocks)
+fi
+bash "$ROOT/scripts/verify-post-outage-recovery.sh" "${VERIFY_ARGS[@]}" || true
 
 echo ""
 echo "Recovery complete. Check CRM dashboard and gate metrics."

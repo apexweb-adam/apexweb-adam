@@ -49,7 +49,7 @@ Polls until the backend resumes, then **auto-triggers a Render deploy** if produ
 - Logs outage gap + held open positions
 - Force-refreshes TradingView for held positions
 - Runs immediate post-outage recovery burst scans (stocks/commodities + crypto held)
-- Recovery script runs US stocks scan preview, CME post-open verify, crypto scan preview, and `verify-crypto-held.sh` for 24/7 held-position recovery
+- Recovery script runs US stocks scan preview, CME post-open verify, crypto scan preview, and `verify-post-outage-recovery.sh` (or individual verify scripts) for 24/7 held-position recovery
 
 ```bash
 bash trading-platform/scripts/print-outage-status.sh

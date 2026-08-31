@@ -98,8 +98,8 @@ def test_recover_render_billing_triggers_deploy_when_behind():
   assert "Crypto + commodities held" in text or "Stocks/crypto/commodities held" in text
   assert "grace_remaining_min" in text
   assert "Crypto scan preview" in text
-  assert "verify-cme-post-open.sh" in text
-  assert "verify-crypto-held.sh" in text
+  assert "verify-post-outage-recovery.sh" in text
+  assert "--verify-once" in text
   assert "Monday outage grace" in text
   assert "urgent polling" in text
   assert 'GRACE_LEFT" -le 30' in text
@@ -319,6 +319,24 @@ def test_verify_crypto_held_supports_watch_mode():
   assert "outage_recovery_scan" in text
   assert "crypto_outage_recovery_pending" in text
   assert "platform_outage_logged" in text
+
+
+def test_verify_post_outage_recovery_orchestrator():
+  script = SCRIPTS / "verify-post-outage-recovery.sh"
+  text = script.read_text(encoding="utf-8")
+  assert "verify-us-stocks-post-open.sh" in text
+  assert "verify-cme-post-open.sh" in text
+  assert "verify-crypto-held.sh" in text
+  assert "--once" in text
+  assert "--skip-stocks" in text
+
+
+def test_render_billing_recovery_workflow_uses_verify_once():
+  workflow = Path(__file__).resolve().parents[3] / ".github" / "workflows" / "render-billing-recovery.yml"
+  text = workflow.read_text(encoding="utf-8")
+  assert "VERIFY_ONCE=1" in text
+  assert "--verify-once" in text
+  assert "r467+" in text
 
 
 def test_wait_for_render_deploy_waits_for_status_revision():
