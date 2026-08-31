@@ -85,6 +85,7 @@ def test_recover_render_billing_triggers_deploy_when_behind():
   text = (SCRIPTS / "recover-render-billing.sh").read_text(encoding="utf-8")
   assert "production_revision_behind" in text
   assert "trigger_render_deploy" in text
+  assert "EXPECTED_REVISION" in text
   assert "platform_outage_events" in text
   assert "platform_outage_recovery" in text
   assert "commodities_open_positions" in text

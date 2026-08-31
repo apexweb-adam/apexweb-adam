@@ -10,6 +10,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 # shellcheck source=lib/fetch_json.sh
 source "$ROOT/scripts/lib/fetch_json.sh"
 BACKEND="${BACKEND_URL:-https://apex-trading-backend.onrender.com}"
+EXPECTED_REVISION="$(grep '^EXPECTED_PLATFORM_REVISION' "$ROOT/backend/app/engines/deploy_status.py" | sed -n 's/.*"\([^"]*\)".*/\1/p')"
 MAX_WAIT="${MAX_WAIT:-1800}"
 INTERVAL="${INTERVAL:-30}"
 SKIP_STOCKS=false
@@ -96,7 +97,6 @@ PY
   fi
 fi
 
-EXPECTED_REVISION="$(grep '^EXPECTED_PLATFORM_REVISION' "$ROOT/backend/app/engines/deploy_status.py" | sed -n 's/.*"\([^"]*\)".*/\1/p')"
 wake_backend "$BACKEND" 3
 RUNNING_REV="$(production_platform_revision "$BACKEND")"
 echo "Production revision: ${RUNNING_REV:-unknown} (target $EXPECTED_REVISION)"

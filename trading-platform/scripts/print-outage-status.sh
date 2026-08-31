@@ -139,6 +139,8 @@ if dow == 1:
             print(f"  outage_grace_urgency={urgency}")
             if ext_left <= 30:
                 print("  action=resume billing NOW — grace expires at 18:00 UTC")
+            elif ext_left <= 10:
+                print(f"  warn=grace_closing — {ext_left} min until AAPL catch-up window closes")
         else:
             print("Platform outage grace expired — only normal scan intervals after resume")
 else:
