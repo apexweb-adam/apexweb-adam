@@ -54,9 +54,13 @@ def test_run_post_outage_recovery_bursts_scans_stocks_when_window_active():
           return_value=True,
         ):
           with _mock_scheduler_session():
-            import asyncio
+            with patch(
+              "app.ws_manager.push_live_update",
+              new_callable=AsyncMock,
+            ):
+              import asyncio
 
-            asyncio.run(sched.run_post_outage_recovery_bursts())
+              asyncio.run(sched.run_post_outage_recovery_bursts())
 
   bot.scan_and_trade.assert_awaited_once()
   assert bot._session_open_outage_recovery is False
