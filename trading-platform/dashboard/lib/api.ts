@@ -704,6 +704,13 @@ export type PlatformStatus = {
     tradingview_setup?: string | null;
     tradingview_test_endpoint?: string | null;
     tradingview_example_payload?: Record<string, string> | null;
+    polymarket_market_scanner?: boolean;
+    polymarket_account_hook?: boolean;
+    polymarket_api_key?: boolean;
+    polymarket_profile_url?: string | null;
+    polymarket_intel_items?: number;
+    polymarket_account_items?: number;
+    polymarket_setup?: string | null;
     wallet_tracker?: boolean;
     wallet_tracker_webhook?: boolean;
     wallet_tracker_webhook_url?: string | null;

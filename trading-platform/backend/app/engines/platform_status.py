@@ -283,6 +283,11 @@ async def _build_platform_status_uncached(session: AsyncSession) -> dict[str, An
   axiom_session = await get_axiom_session_status(session)
   content_study = await build_crm_content_study_highlights(session)
   tv_items = next((s["items_collected"] for s in sources if s["source"] == "tradingview"), 0)
+  pm_intel_items = next((s["items_collected"] for s in sources if s["source"] == "polymarket"), 0)
+  pm_account_items = next(
+    (s["items_collected"] for s in sources if s["source"] == "polymarket_account"),
+    0,
+  )
   base_next_steps = (
     []
     if is_postgres()
@@ -331,7 +336,13 @@ async def _build_platform_status_uncached(session: AsyncSession) -> dict[str, An
     },
     "learning": learning,
     "content_study": content_study,
-    "integrations": _build_integrations_payload(fomo_bearer, axiom_session, tv_items),
+    "integrations": _build_integrations_payload(
+      fomo_bearer,
+      axiom_session,
+      tv_items,
+      pm_intel_items=pm_intel_items,
+      pm_account_items=pm_account_items,
+    ),
     "scheduler": {
       "intelligence_scan": "every 5 min",
       "content_study": "every 1 hour",
@@ -427,7 +438,12 @@ def _build_integrations_payload(
   fomo_bearer: dict[str, Any],
   axiom_session: dict[str, Any],
   tv_items: int,
+  *,
+  pm_intel_items: int = 0,
+  pm_account_items: int = 0,
 ) -> dict[str, Any]:
+  pm_wallet = bool(settings.polymarket_wallet_address or settings.polymarket_deposit_address)
+  pm_api = bool(settings.polymarket_api_key)
   return {
     "tradingview_webhook": bool(settings.tradingview_webhook_secret),
     "tradingview_webhook_url": (
@@ -457,10 +473,25 @@ def _build_integrations_payload(
       else None
     ),
     "polymarket_market_scanner": True,
-    "polymarket_account_hook": bool(
-      settings.polymarket_wallet_address or settings.polymarket_deposit_address
+    "polymarket_account_hook": pm_wallet,
+    "polymarket_api_key": pm_api,
+    "polymarket_profile_url": settings.polymarket_profile_url or None,
+    "polymarket_intel_items": pm_intel_items,
+    "polymarket_account_items": pm_account_items,
+    "polymarket_setup": (
+      "Set POLYMARKET_API_KEY for market scanner; POLYMARKET_WALLET_ADDRESS or "
+      "POLYMARKET_DEPOSIT_ADDRESS for account hook mirroring"
+      if not pm_wallet and not pm_api
+      else (
+        "Account hook needs POLYMARKET_WALLET_ADDRESS or POLYMARKET_DEPOSIT_ADDRESS"
+        if not pm_wallet
+        else (
+          "Market scanner needs POLYMARKET_API_KEY for CLOB/Gamma API"
+          if not pm_api
+          else None
+        )
+      )
     ),
-    "polymarket_api_key": bool(settings.polymarket_api_key),
     "newsapi": bool(settings.newsapi_key),
     "twitter_x": bool(settings.twitter_bearer_token),
     "x_intel_collection_mode": x_intel_collection_mode(),

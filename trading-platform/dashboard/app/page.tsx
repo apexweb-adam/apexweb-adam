@@ -613,6 +613,79 @@ export default function Dashboard() {
                             )}
                           </div>
                         )}
+                        {(platformStatus.integrations?.polymarket_market_scanner ||
+                          platformStatus.integrations?.polymarket_account_hook ||
+                          platformStatus.integrations?.polymarket_api_key) && (
+                          <div className="rounded-lg border border-apex-border bg-apex-dark px-3 py-2 text-xs text-gray-400">
+                            <p className="text-apex-gold font-medium mb-1">
+                              Polymarket{" "}
+                              {platformStatus.integrations.polymarket_account_hook &&
+                              platformStatus.integrations.polymarket_api_key
+                                ? "account hook + market scanner"
+                                : platformStatus.integrations.polymarket_account_hook
+                                  ? "account hook"
+                                  : platformStatus.integrations.polymarket_api_key
+                                    ? "market scanner"
+                                    : "scanner ready (configure API key + wallet)"}
+                            </p>
+                            {platformStatus.integrations.polymarket_profile_url && (
+                              <p className="mt-1 text-[10px]">
+                                <a
+                                  href={platformStatus.integrations.polymarket_profile_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-apex-gold hover:underline break-all"
+                                >
+                                  {platformStatus.integrations.polymarket_profile_url}
+                                </a>
+                              </p>
+                            )}
+                            <div className="mt-1 flex flex-wrap gap-2 text-[10px]">
+                              <span
+                                className={cn(
+                                  "px-2 py-0.5 rounded-full",
+                                  platformStatus.integrations.polymarket_api_key
+                                    ? "bg-apex-green/10 text-apex-green"
+                                    : "bg-gray-800 text-gray-500"
+                                )}
+                              >
+                                API key {platformStatus.integrations.polymarket_api_key ? "on" : "off"}
+                              </span>
+                              <span
+                                className={cn(
+                                  "px-2 py-0.5 rounded-full",
+                                  platformStatus.integrations.polymarket_account_hook
+                                    ? "bg-apex-green/10 text-apex-green"
+                                    : "bg-gray-800 text-gray-500"
+                                )}
+                              >
+                                Account hook{" "}
+                                {platformStatus.integrations.polymarket_account_hook ? "on" : "off"}
+                              </span>
+                              <span className="px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-300">
+                                Scanner always on
+                              </span>
+                            </div>
+                            {(platformStatus.integrations.polymarket_intel_items != null &&
+                              platformStatus.integrations.polymarket_intel_items > 0) ||
+                            (platformStatus.integrations.polymarket_account_items != null &&
+                              platformStatus.integrations.polymarket_account_items > 0) ? (
+                              <p className="mt-1 text-apex-green text-[10px]">
+                                {platformStatus.integrations.polymarket_intel_items ?? 0} market intel ·{" "}
+                                {platformStatus.integrations.polymarket_account_items ?? 0} account hook
+                              </p>
+                            ) : null}
+                            {platformStatus.integrations.polymarket_setup && (
+                              <p className="mt-1 text-[10px] text-gray-500">
+                                {platformStatus.integrations.polymarket_setup}
+                              </p>
+                            )}
+                            <p className="mt-1 text-[10px] text-gray-500">
+                              Macro prediction markets feed the polymarket bot; account hook mirrors linked
+                              wallet positions into intel.
+                            </p>
+                          </div>
+                        )}
                         {(platformStatus.integrations?.wallet_tracker_webhook ||
                           platformStatus.integrations?.wallet_tracker) && (
                           <div className="rounded-lg border border-apex-border bg-apex-dark px-3 py-2 text-xs text-gray-400">
