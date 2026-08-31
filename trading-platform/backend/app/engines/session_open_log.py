@@ -13,7 +13,7 @@ from app.engines.platform_settings import get_platform_setting, set_platform_set
 SESSION_OPEN_EVENTS_KEY = "session_open_events"
 PREP_PHASE_STATE_KEY = "prep_phase_state"
 MAX_SESSION_OPEN_EVENTS = 30
-SESSION_OPEN_BURST_RECOVERY_GRACE_MINUTES = 30
+SESSION_OPEN_BURST_RECOVERY_GRACE_MINUTES = 60
 
 
 def _parse_iso_utc(value: str | None) -> datetime | None:

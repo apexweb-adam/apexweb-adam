@@ -67,7 +67,7 @@ async def test_needs_session_open_burst_recovery_false_after_logged(session: Asy
 async def test_needs_session_open_burst_recovery_false_outside_grace(session: AsyncSession):
   session_info = {
     "in_session": True,
-    "minutes_since_open": 45,
+    "minutes_since_open": 75,
     "session_open_utc": "2026-08-30T22:00:00",
   }
   assert not await needs_session_open_burst_recovery(
