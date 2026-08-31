@@ -82,6 +82,69 @@ bash "$ROOT/scripts/wait-for-render-deploy.sh" --verify --max-wait "$MAX_WAIT" -
 echo ""
 bash "$ROOT/scripts/verify-platform.sh" || true
 
+echo ""
+echo "=== Platform outage recovery state ==="
+STATUS_JSON=$(fetch_json "$BACKEND/api/status" 60 2)
+echo "$STATUS_JSON" | CODE_REV="$EXPECTED_REVISION" python3 << 'PY'
+import json, os, sys
+from datetime import datetime, timezone
+
+data = json.load(sys.stdin)
+code_rev = os.environ.get("CODE_REV") or "?"
+outage_events = data.get("platform_outage_events") or []
+if outage_events:
+    newest = outage_events[0]
+    gap = newest.get("gap_minutes")
+    us = newest.get("us_open_ready_symbols") or []
+    cme = newest.get("cme_open_ready_symbols") or []
+    print(
+        f"  platform_outage_events={len(outage_events)} "
+        f"newest_gap_min={gap} us_queued={us or 'none'} cme_queued={cme or 'none'}"
+    )
+else:
+    print("  platform_outage_events=none (no gap logged yet or first heartbeat pending)")
+
+us_checklist = (data.get("session_open_checklists") or {}).get("us_stocks") or {}
+outage = us_checklist.get("platform_outage_recovery") or {}
+if outage.get("logged"):
+    print("  platform_outage_recovery_logged=true")
+if outage.get("window_active"):
+    print(
+        f"  platform_outage_recovery_window=true "
+        f"grace_remaining_min={outage.get('grace_minutes_remaining')}"
+    )
+elif outage.get("logged"):
+    print("  platform_outage_recovery_window=expired")
+
+deploy = data.get("deploy") or {}
+prod_rev = deploy.get("platform_revision")
+if prod_rev and code_rev != "?" and prod_rev != code_rev:
+    print(f"  warn=revision_behind running={prod_rev} expected={code_rev}")
+elif prod_rev:
+    print(f"  deploy_revision={prod_rev}")
+
+bots = (data.get("stats") or {}).get("bots") or {}
+open_positions = data.get("open_positions") or []
+commodities_held = [
+    p.get("symbol")
+    for p in open_positions
+    if isinstance(p, dict) and p.get("bot_type") == "commodities"
+]
+if commodities_held:
+    print(f"  commodities_open_positions={commodities_held}")
+elif bots.get("commodities", {}).get("active"):
+    print("  commodities_bot=active (no open positions reported)")
+
+now = datetime.now(timezone.utc)
+if now.isoweekday() == 1:
+    open_at = now.replace(hour=13, minute=30, second=0, microsecond=0)
+    ext_left = max(0, int((open_at.timestamp() + 270 * 60 - now.timestamp()) // 60))
+    if ext_left > 0:
+        print(f"  platform_outage_grace_remaining_min={ext_left}")
+    else:
+        print("  platform_outage_grace=expired")
+PY
+
 DOW="$(date -u +%u)"
 HOUR="$(date -u +%H)"
 if [[ "$SKIP_STOCKS" == false && "$DOW" == "1" && "$HOUR" -ge 13 && "$HOUR" -le 21 ]]; then

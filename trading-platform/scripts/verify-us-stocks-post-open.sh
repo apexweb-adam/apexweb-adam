@@ -173,7 +173,9 @@ if not events.get("has_burst_scan") and not events.get("has_auto_entry"):
     rev_current = deploy.get("platform_revision_current")
     if outage.get("window_active"):
         if rev_current is False:
-            print("  warn=deploy_r452_required_for_platform_outage_recovery")
+            print(
+                f"  warn=deploy_{code_rev or 'revision'}_required_for_platform_outage_recovery"
+            )
             errors.append("revision_behind_for_outage_recovery")
         else:
             print("  note=platform_outage_recovery_pending — burst scan expected on next bot loop")
