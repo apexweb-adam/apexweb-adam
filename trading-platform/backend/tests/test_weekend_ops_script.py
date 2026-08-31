@@ -128,6 +128,21 @@ def test_scheduler_registers_post_outage_recovery_burst():
   assert "_startup_outage_event" in text
 
 
+def test_deferred_startup_runs_outage_burst_after_prep_backfill():
+  text = (SCRIPTS.parent / "backend" / "app" / "workers" / "scheduler.py").read_text(
+    encoding="utf-8"
+  )
+  deferred = text.split("async def _deferred_startup_jobs", 1)[1].split(
+    "async def setup_scheduler", 1
+  )[0]
+  prep_idx = deferred.find("stocks_pre_session_prep_job")
+  backfill_idx = deferred.find("backfill_open_ready_queue_events")
+  burst_idx = deferred.find("run_post_outage_recovery_bursts")
+  intel_idx = deferred.find("intelligence_job")
+  assert prep_idx != -1 and backfill_idx != -1 and burst_idx != -1
+  assert prep_idx < backfill_idx < burst_idx < intel_idx
+
+
 def test_print_outage_status_script():
   script = SCRIPTS / "print-outage-status.sh"
   assert script.is_file()

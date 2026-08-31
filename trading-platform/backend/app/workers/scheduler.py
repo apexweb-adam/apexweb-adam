@@ -944,25 +944,9 @@ async def run_post_outage_recovery_bursts() -> None:
 async def _deferred_startup_jobs() -> None:
   """Heavy intel/learning jobs — run in background so /api/health is ready quickly on Render."""
   try:
-    await run_post_outage_recovery_bursts()
-    # TV refresh before intel scan so post-deploy composites use fresh signals.
+    # Prep + queue backfill before outage burst so open-ready symbols (e.g. AAPL) are current.
     await commodities_pre_session_prep_job()
-    await intelligence_job()
-    await content_study_job()
-    async with SessionLocal() as session:
-      learner = LearningEngine(session)
-      dismissed = await learner.dismiss_noise_insights(
-        max_confidence=LEARNING_NOISE_DISMISS_MAX_CONFIDENCE,
-      )
-      if dismissed:
-        print(f"[Learning] Dismissed {dismissed} low-confidence noise insight(s)")
-      pending = await learner.apply_pending_insights(min_confidence=0.55)
-      if pending:
-        print(f"[Learning] Applied {pending} pending insight(s) on startup")
-    await ensure_daily_review_on_startup()
-    await verification_snapshot_job()
     await stocks_pre_session_prep_job()
-    await commodities_pre_session_prep_job()
     from app.engines.scan_preview import clear_monday_recovery_cache
 
     clear_monday_recovery_cache()
@@ -984,6 +968,23 @@ async def _deferred_startup_jobs() -> None:
         from app.ws_manager import push_live_update
 
         await push_live_update()
+
+    await run_post_outage_recovery_bursts()
+
+    await intelligence_job()
+    await content_study_job()
+    async with SessionLocal() as session:
+      learner = LearningEngine(session)
+      dismissed = await learner.dismiss_noise_insights(
+        max_confidence=LEARNING_NOISE_DISMISS_MAX_CONFIDENCE,
+      )
+      if dismissed:
+        print(f"[Learning] Dismissed {dismissed} low-confidence noise insight(s)")
+      pending = await learner.apply_pending_insights(min_confidence=0.55)
+      if pending:
+        print(f"[Learning] Applied {pending} pending insight(s) on startup")
+    await ensure_daily_review_on_startup()
+    await verification_snapshot_job()
     await warm_status_caches_job()
   except Exception as exc:
     print(f"[Startup] Deferred jobs error: {exc}")
