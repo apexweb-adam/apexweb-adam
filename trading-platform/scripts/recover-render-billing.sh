@@ -56,6 +56,9 @@ if [[ -n "$GRACE_LEFT" && "$GRACE_LEFT" -gt 0 && "$GRACE_LEFT" -le 45 ]]; then
   if [[ "$INTERVAL" -ge 30 ]]; then
     INTERVAL=15
   fi
+  if [[ "$GRACE_LEFT" -le 30 && "$INTERVAL" -gt 5 ]]; then
+    INTERVAL=5
+  fi
   if [[ "$MAX_WAIT" -le 1800 ]]; then
     MAX_WAIT=3600
   fi

@@ -95,9 +95,9 @@ export function buildBackendSuspensionPayload(
   const graceRemaining = platformOutageGraceMinutesRemaining();
   const graceNote =
     graceRemaining !== null && graceRemaining > 0
-      ? `Platform outage grace: ~${graceRemaining} min left for AAPL catch-up (deploy ${EXPECTED_PLATFORM_REVISION}).`
+      ? `Platform outage grace: ~${graceRemaining} min left for extended burst window (deploy ${EXPECTED_PLATFORM_REVISION}). Post-outage startup still forces open-ready scan if prep state preserved.`
       : graceRemaining === 0
-        ? "Platform outage grace expired — only normal scan intervals after resume."
+        ? "Extended burst grace expired — post-outage startup still forces open-ready scan if prep state preserved."
         : `If US open was missed with queued symbols, deploy ${EXPECTED_PLATFORM_REVISION} before the 270-minute outage grace expires.`;
 
   return {

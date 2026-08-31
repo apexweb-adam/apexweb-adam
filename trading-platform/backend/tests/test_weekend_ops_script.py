@@ -100,6 +100,7 @@ def test_recover_render_billing_triggers_deploy_when_behind():
   assert "verify-cme-post-open.sh" in text
   assert "Monday outage grace" in text
   assert "urgent polling" in text
+  assert 'GRACE_LEFT" -le 30' in text
 
 
 def test_render_billing_recovery_workflow_monday_urgent_poll():
@@ -177,7 +178,7 @@ def test_print_outage_status_script():
   assert "r454 deploys" not in text
   assert "held_open_positions" in text
   assert "cme-reopen-checklist" in text
-  assert "outage_grace_urgency" in text
+  assert "post-outage startup" in text
   assert "--watch" in text
   assert "every 5 min Mon 13-18 UTC" in text
   assert "has_outage_recovery_scan" in text or "outage_recovery_scan" in text
