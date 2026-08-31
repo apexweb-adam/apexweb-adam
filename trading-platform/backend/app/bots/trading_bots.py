@@ -358,7 +358,7 @@ class BaseBot(ABC):
         gate_status,
         per_bot_stats,
       )
-  commodities_verification_nudge = commodities_verification_trade_count_nudge(
+      commodities_verification_nudge = commodities_verification_trade_count_nudge(
         self.bot_type,
         shadow_mode,
         gate_status,
