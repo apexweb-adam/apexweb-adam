@@ -17,6 +17,7 @@ _INTEL_LOSS_PATTERN_KEYWORDS: list[tuple[tuple[str, ...], str]] = [
   (("fomo",), "fomo copy-trade"),
   (("axiom",), "axiom wallet signal"),
   (("x/twitter", "twitter"), "X/Twitter sentiment"),
+  (("polymarket",), "Polymarket account hook"),
 ]
 
 
@@ -276,6 +277,11 @@ class LearningEngine:
         if trade.sentiment_score < 0 and trade.side == "long":
           root_causes.append("Political intel turned negative after macro Yes entry")
           lessons.append("Re-check political headline risk before holding macro PM positions")
+      if await self._had_source_intel(trade.symbol, trade.executed_at, "polymarket_account"):
+        if trade.side == "long" and (trade.signal_score < 0.5 or trade.sentiment_score < 0.4):
+          root_causes.append("Polymarket account hook signal lacked fresh macro/intel confirmation")
+          adjustments.append("Require stronger composite + sentiment when mirroring PM account positions")
+          lessons.append("PM account hook is a sync signal — confirm with political/macro intel before Yes entries")
 
     if not root_causes:
       root_causes.append("Market moved against position - normal variance")

@@ -539,3 +539,39 @@ def test_analyze_losing_trade_flags_x_bearish_intel():
 
   assert "x/twitter" in analysis.root_cause.lower() or "twitter" in analysis.root_cause.lower()
   assert "bearish" in analysis.root_cause.lower() or "sentiment" in analysis.strategy_adjustment.lower()
+
+
+def test_analyze_losing_trade_flags_polymarket_account_hook():
+  session = AsyncMock()
+  session.execute = AsyncMock(
+    side_effect=[
+      MagicMock(scalar_one_or_none=MagicMock(return_value=None)),
+      MagicMock(scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=[])))),
+      MagicMock(scalar_one_or_none=MagicMock(return_value=None)),
+      MagicMock(scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=[])))),
+    ]
+  )
+  session.commit = AsyncMock()
+  session.add = MagicMock()
+
+  trade = _trade(
+    bot_type="polymarket",
+    symbol="PM:fed-rate-cut",
+    signal_score=0.41,
+    sentiment_score=0.32,
+    reason="Mirrored PM account Yes position",
+  )
+
+  learner = LearningEngine(session)
+  learner._get_market_context = AsyncMock(return_value="context")
+  learner._had_source_intel = AsyncMock(
+    side_effect=lambda symbol, at_time, source: source == "polymarket_account"
+  )
+  learner._apply_adjustments = AsyncMock()
+  learner.run_daily_review = AsyncMock(return_value=MagicMock())
+
+  with patch("app.ws_manager.push_live_update", new_callable=AsyncMock):
+    analysis = asyncio.run(learner.analyze_losing_trade(trade))
+
+  assert "polymarket account" in analysis.root_cause.lower()
+  assert "macro" in analysis.lessons_learned.lower() or "intel" in analysis.lessons_learned.lower()

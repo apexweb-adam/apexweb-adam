@@ -28,6 +28,7 @@ import {
   VERIFIED_PREVIEW_URL,
   VERIFIED_PROMOTE_DEPLOYMENT_ID,
 } from "@/lib/deploy-health";
+import { detectIntelPostMortemSources } from "@/lib/intel-postmortem";
 import {
   botLabel,
   cn,
@@ -1363,7 +1364,12 @@ export default function Dashboard() {
                 {(analyses ?? []).length === 0 ? (
                   <p className="text-sm text-gray-500 py-4">No losing trades analyzed yet.</p>
                 ) : (
-                  (analyses ?? []).map((a) => (
+                  (analyses ?? []).map((a) => {
+                    const intelTags = detectIntelPostMortemSources(
+                      a.root_cause,
+                      a.lessons_learned
+                    );
+                    return (
                     <div
                       key={a.id}
                       className="p-3 rounded-lg bg-apex-dark border border-apex-red/20"
@@ -1376,6 +1382,21 @@ export default function Dashboard() {
                           -{formatCurrency(a.loss_amount)}
                         </span>
                       </div>
+                      {intelTags.length > 0 ? (
+                        <div className="flex flex-wrap gap-1 mb-2">
+                          {intelTags.map((tag) => (
+                            <span
+                              key={tag.id}
+                              className={cn(
+                                "text-[10px] px-2 py-0.5 rounded-full border",
+                                tag.className
+                              )}
+                            >
+                              {tag.label}
+                            </span>
+                          ))}
+                        </div>
+                      ) : null}
                       <p className="text-xs text-apex-red mb-1">
                         <strong>Root cause:</strong> {a.root_cause}
                       </p>
@@ -1392,7 +1413,8 @@ export default function Dashboard() {
                         <strong>Adjustment:</strong> {a.strategy_adjustment}
                       </p>
                     </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             </Card>
