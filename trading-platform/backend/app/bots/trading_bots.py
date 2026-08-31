@@ -1588,6 +1588,7 @@ class StocksFuturesBot(BaseBot):
     session_info = stocks_session_info()
     in_session = self._in_us_session()
     trade_count_nudge = False
+    open_ready_active = False
     gate_tightening_active = False
     use_gate_interval = in_session
 
@@ -1609,16 +1610,23 @@ class StocksFuturesBot(BaseBot):
         bot_wr,
         int(per_bot.get("total_trades") or 0),
       )
+      from app.engines.session_open_log import get_prep_phase_state
+
+      prep_state = await get_prep_phase_state(session)
+      open_ready_active = bool(
+        (prep_state.get("us_stocks_open") or {}).get("open_ready_symbols")
+      )
       active_trades = int(gate.get("total_trades") or 0)
       tightening = await get_gate_entry_tightening(session)
       gate_tightening_active = tightening.active
       use_gate_interval = use_gate_interval or (
         settings.paper_trading_only and active_trades < ProfitabilityGate.MIN_TRADES
-      ) or gate_tightening_active or trade_count_nudge
+      ) or gate_tightening_active or trade_count_nudge or open_ready_active
 
     prep_fast_scan = stocks_gate_fast_scan_active(
       session_info,
       trade_count_nudge=trade_count_nudge,
+      open_ready_active=open_ready_active,
     )
     if not use_gate_interval and not prep_fast_scan:
       return self.scan_interval
@@ -1628,6 +1636,7 @@ class StocksFuturesBot(BaseBot):
       default_interval=self.scan_interval,
       session_info=session_info,
       trade_count_nudge=trade_count_nudge,
+      open_ready_active=open_ready_active,
       gate_tightening_active=gate_tightening_active,
       fast_scan=use_gate_interval or prep_fast_scan,
       in_session=in_session,

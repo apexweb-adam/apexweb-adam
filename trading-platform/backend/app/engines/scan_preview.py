@@ -203,17 +203,28 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
     per_bot_stats.get("win_rate"),
     int(per_bot_stats.get("total_trades") or 0),
   )
+  stocks_open_ready_active = False
+  if bot_type == "stocks_futures":
+    from app.engines.session_open_log import get_prep_phase_state
+
+    prep_state = await get_prep_phase_state(session)
+    stocks_open_ready_active = bool(
+      (prep_state.get("us_stocks_open") or {}).get("open_ready_symbols")
+    )
   stocks_session = stocks_session_info() if bot_type == "stocks_futures" else None
   stocks_fast_scan_active = stocks_gate_fast_scan_active(
     stocks_session,
     trade_count_nudge=stocks_trade_count_nudge,
+    open_ready_active=stocks_open_ready_active,
   )
   stocks_open_imminent = (
     stocks_open_imminent_scan_active(
       stocks_session,
       trade_count_nudge=stocks_trade_count_nudge,
+      open_ready_active=stocks_open_ready_active,
     )
-    if bot_type == "stocks_futures" and stocks_trade_count_nudge
+    if bot_type == "stocks_futures"
+    and (stocks_trade_count_nudge or stocks_open_ready_active)
     else False
   )
   commodities_fast_scan_active = commodities_gate_fast_scan_active(

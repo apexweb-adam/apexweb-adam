@@ -60,6 +60,10 @@ def test_stocks_effective_scan_interval_imminent_open():
       new_callable=AsyncMock,
       return_value=tightening,
     ), patch(
+      "app.engines.session_open_log.get_prep_phase_state",
+      new_callable=AsyncMock,
+      return_value={},
+    ), patch(
       "app.config.settings.paper_trading_only",
       True,
     ):
