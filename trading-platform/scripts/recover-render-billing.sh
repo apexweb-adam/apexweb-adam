@@ -185,6 +185,8 @@ bash "$ROOT/scripts/wait-for-render-deploy.sh" --verify --max-wait "$MAX_WAIT" -
 
 echo ""
 bash "$ROOT/scripts/verify-platform.sh" || true
+echo ""
+bash "$ROOT/scripts/verify-crm-learning.sh" || true
 
 echo ""
 echo "=== Platform outage recovery state ==="

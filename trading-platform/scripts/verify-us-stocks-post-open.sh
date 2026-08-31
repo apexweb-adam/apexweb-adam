@@ -164,6 +164,23 @@ if summaries:
         f"composites={summaries.get('open_ready_composites')}"
     )
 
+learning = status.get("learning") or {}
+content = status.get("content_study") or {}
+if learning:
+    print(
+        f"  learning analyses={learning.get('trade_analyses')} "
+        f"reviews={learning.get('daily_reviews')} "
+        f"intel_pattern_alerts={learning.get('intel_pattern_count') or 0}"
+    )
+    for alert in (learning.get("intel_pattern_alerts") or [])[:3]:
+        print(f"    intel_alert={alert}")
+if content.get("recent"):
+    print(f"  content_study applied={content.get('insights_applied') or 0} recent={len(content.get('recent') or [])}")
+    for row in (content.get("recent") or [])[:3]:
+        label = row.get("source_label") or row.get("source_type") or "unknown"
+        title = (row.get("title") or "")[:48]
+        print(f"    content_study [{label}] {title}")
+
 for row in checks:
     print(f"  check {row.get('id')}={row.get('status')}: {row.get('message')}")
 

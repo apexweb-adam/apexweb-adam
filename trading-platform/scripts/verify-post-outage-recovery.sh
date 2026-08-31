@@ -136,3 +136,7 @@ if content.get("recent"):
         state = "applied" if row.get("applied") else "pending"
         print(f"  content_study [{label}] {title} ({state})")
 PY
+
+echo ""
+echo "--- CRM learning loop ---"
+bash "$ROOT/scripts/verify-crm-learning.sh" || true

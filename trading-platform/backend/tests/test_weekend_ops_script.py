@@ -496,6 +496,42 @@ def test_verify_pre_deploy_intel_readiness():
   assert "content_study [" in text
 
 
+def test_verify_cme_post_open_includes_learning_visibility():
+  script = SCRIPTS / "verify-cme-post-open.sh"
+  text = script.read_text(encoding="utf-8")
+  assert "intel_pattern_alerts" in text
+  assert "content_study [" in text
+
+
+def test_verify_us_stocks_post_open_includes_learning_visibility():
+  script = SCRIPTS / "verify-us-stocks-post-open.sh"
+  text = script.read_text(encoding="utf-8")
+  assert "intel_pattern_alerts" in text
+  assert "content_study [" in text
+
+
+def test_verify_crm_learning_script_exists():
+  script = SCRIPTS / "verify-crm-learning.sh"
+  text = script.read_text(encoding="utf-8")
+  assert script.is_file()
+  assert "check_backend_suspension" in text
+  assert "/api/insights" in text
+  assert "source_label" in text
+  assert "Today's learning loop" in text
+  assert "run-daily-review-now.sh" in text
+
+
+def test_verify_post_outage_recovery_runs_crm_learning():
+  script = SCRIPTS / "verify-post-outage-recovery.sh"
+  text = script.read_text(encoding="utf-8")
+  assert "verify-crm-learning.sh" in text
+
+
+def test_recover_render_billing_runs_crm_learning():
+  text = (SCRIPTS / "recover-render-billing.sh").read_text(encoding="utf-8")
+  assert "verify-crm-learning.sh" in text
+
+
 def test_verify_cme_reopen_uses_deploy_json_fallback():
   script = SCRIPTS / "verify-cme-reopen.sh"
   text = script.read_text(encoding="utf-8")
