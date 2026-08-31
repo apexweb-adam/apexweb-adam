@@ -3889,10 +3889,13 @@ def session_open_composite_floor(
   *,
   graduation_nudge: bool = False,
   trade_count_nudge: bool = False,
+  verification_nudge: bool = False,
 ) -> float | None:
   """Composite floor used for open-ready / near-floor session prep."""
   if bot_type == "commodities" and graduation_nudge:
     return commodities_recovery_composite_floor(graduation_nudge=True)
+  if bot_type == "commodities" and verification_nudge:
+    return COMMODITIES_VERIFICATION_TRADE_COUNT_MIN_COMPOSITE
   if bot_type == "stocks_futures" and trade_count_nudge:
     return STOCKS_TRADE_COUNT_RECOVERY_MIN_COMPOSITE
   return None
@@ -3904,6 +3907,7 @@ def gap_to_open_composite_floor(
   *,
   graduation_nudge: bool = False,
   trade_count_nudge: bool = False,
+  verification_nudge: bool = False,
 ) -> float | None:
   """How much composite must rise before the symbol can queue for auto-entry."""
   if composite is None:
@@ -3912,6 +3916,7 @@ def gap_to_open_composite_floor(
     bot_type,
     graduation_nudge=graduation_nudge,
     trade_count_nudge=trade_count_nudge,
+    verification_nudge=verification_nudge,
   )
   if floor is None:
     return None
@@ -4064,6 +4069,7 @@ def build_session_prep_status(
         row.get("composite"),
         graduation_nudge=bot_type == "commodities" and commodities_graduation_nudge,
         trade_count_nudge=bot_type == "stocks_futures" and stocks_trade_count_nudge,
+        verification_nudge=bot_type == "commodities" and commodities_verification_nudge,
       )
       details.append(
         {

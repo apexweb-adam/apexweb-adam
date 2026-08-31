@@ -927,7 +927,7 @@ class BaseBot(ABC):
           symbol,
           chronic_symbols=chronic_losers,
           large_loss_symbols=hard_skip_sets.large,
-          graduation_nudge=graduation_nudge,
+          graduation_nudge=bypass_nudge,
           shadow_mode=shadow_mode,
           signal_direction=signal.direction,
           macd_signal=signal.macd_signal,
@@ -1010,7 +1010,7 @@ class BaseBot(ABC):
           open_count=open_count,
           gate_tightening=gate_tightening,
           shadow_open_cap=shadow_open_cap,
-          graduation_nudge=graduation_nudge,
+          graduation_nudge=bypass_nudge,
         ):
           continue
 
