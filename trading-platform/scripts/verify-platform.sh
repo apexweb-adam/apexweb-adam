@@ -29,6 +29,8 @@ echo ""
 if ! check_backend_suspension "$BACKEND"; then
   bad "Render backend billing-suspended — all platform checks blocked"
   echo ""
+  bash "$ROOT/scripts/print-outage-status.sh" 2>/dev/null | tail -n +8 || true
+  echo ""
   echo "=== Summary: $pass passed, $fail failed, $warn warnings ==="
   exit 2
 fi

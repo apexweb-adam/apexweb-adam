@@ -348,7 +348,7 @@ PRODUCTION_DASHBOARD_URL = "https://apex-trading-dashboard-flame.vercel.app"
 DEFAULT_VERIFIED_DASHBOARD_URL = "https://apex-trading-dashboard-git-main-apexweb-adams-projects.vercel.app"
 DEFAULT_VERIFIED_DEPLOYMENT_ID = "dpl_CYnStyurwSb3VDMnfAUVG8KNc4Gs"
 VERCEL_TEAM_ID = "team_K7OUE7uroVXeVUf42cUAQvAl"
-EXPECTED_DASHBOARD_BUNDLE = "2026-08-29-r105"
+EXPECTED_DASHBOARD_BUNDLE = "2026-08-29-r106"
 EXPECTED_PLATFORM_REVISION = "2026-08-29-r460"
 GIT_MAIN_ALIAS = "apex-trading-dashboard-git-main"
 ACCEPTABLE_DASHBOARD_BUNDLES = frozenset({
@@ -430,6 +430,7 @@ ACCEPTABLE_DASHBOARD_BUNDLES = frozenset({
   "2026-08-29-r103",
   "2026-08-29-r104",
   "2026-08-29-r105",
+  "2026-08-29-r106",
 })
 
 

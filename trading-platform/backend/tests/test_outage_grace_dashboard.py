@@ -15,6 +15,9 @@ def test_backend_suspension_exports_grace_countdown():
   text = (ROOT / "dashboard/lib/backend-suspension.ts").read_text()
   assert "platformOutageGraceMinutesRemaining" in text
   assert "platform_outage_grace_minutes_remaining" in text
+  assert "platformOutageGraceDeadlineUtc" in text
+  assert "outageRecoveryBots" in text
+  assert "recovery_bots" in text
   assert "270 * 60 * 1000" in text
 
 

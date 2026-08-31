@@ -257,6 +257,10 @@ export default function Dashboard() {
         </div>
       )}
 
+      {dashConfig?.backendHealth?.suspended && (
+        <BillingOutageRecoveryCard health={dashConfig.backendHealth} />
+      )}
+
       {vercelStale && (
         <div className="bg-apex-gold/15 border-b border-apex-gold/30 px-6 py-2">
           <p className="max-w-[1600px] mx-auto text-xs text-apex-gold">
@@ -1936,6 +1940,68 @@ function SessionOpenLogCard({ events }: { events?: SessionOpenEvent[] }) {
             ))}
           </tbody>
         </table>
+      </div>
+    </div>
+  );
+}
+
+function BillingOutageRecoveryCard({
+  health,
+}: {
+  health: NonNullable<DashboardConfig["backendHealth"]>;
+}) {
+  const grace = health.platform_outage_grace_minutes_remaining;
+  const deadline = health.platform_outage_grace_deadline_utc;
+  const bots = health.recovery_bots ?? [];
+
+  return (
+    <div className="border-b border-orange-500/30 bg-orange-950/30 px-6 py-4">
+      <div className="max-w-[1600px] mx-auto">
+        <p className="text-sm font-medium text-orange-200 mb-1">Billing outage — recovery plan</p>
+        <p className="text-[11px] text-gray-400 mb-3">
+          Live CRM data is offline. On resume, deploy{" "}
+          <span className="font-mono text-orange-200">
+            {health.expected_platform_revision ?? "latest main"}
+          </span>{" "}
+          then run automated recovery for all three bots.
+        </p>
+        {grace !== null && grace !== undefined && (
+          <p className="text-xs text-amber-300 mb-3">
+            {grace > 0 ? (
+              <>
+                Platform outage grace:{" "}
+                <strong>{grace} min</strong> remaining
+                {deadline ? (
+                  <>
+                    {" "}
+                    (deadline {formatTime(deadline)} UTC)
+                  </>
+                ) : null}
+                {" — "}AAPL catch-up still possible if prep state preserved.
+              </>
+            ) : (
+              <>Platform outage grace expired — only normal scan intervals after resume.</>
+            )}
+          </p>
+        )}
+        {bots.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-3">
+            {bots.map((bot) => (
+              <div
+                key={bot.bot_type}
+                className="rounded border border-orange-500/20 bg-black/20 px-3 py-2 text-[11px]"
+              >
+                <p className="font-medium text-orange-200">{bot.label}</p>
+                <p className="text-gray-400 mt-0.5">{bot.action}</p>
+              </div>
+            ))}
+          </div>
+        )}
+        <ol className="list-decimal list-inside text-[11px] text-gray-400 space-y-1">
+          {health.recovery_steps?.map((step, idx) => (
+            <li key={idx}>{step}</li>
+          ))}
+        </ol>
       </div>
     </div>
   );
