@@ -231,6 +231,47 @@ def build_us_stocks_open_checks(
   return checks
 
 
+def platform_outage_recovery_status(
+  *,
+  in_session: bool,
+  minutes_since_open: int | None,
+  open_ready_symbols: list[str],
+  has_burst_scan: bool,
+  has_auto_entry: bool,
+  burst_events: list[dict[str, Any]],
+  auto_entry_events: list[dict[str, Any]],
+) -> dict[str, Any]:
+  """Whether platform-outage burst recovery (r450+) still applies for queued symbols."""
+  from app.engines.session_open_log import (
+    SESSION_OPEN_BURST_RECOVERY_GRACE_MINUTES,
+    SESSION_OPEN_PLATFORM_OUTAGE_GRACE_MINUTES,
+  )
+
+  since = int(minutes_since_open) if minutes_since_open is not None else None
+  window_active = (
+    in_session
+    and since is not None
+    and since > SESSION_OPEN_BURST_RECOVERY_GRACE_MINUTES
+    and since <= SESSION_OPEN_PLATFORM_OUTAGE_GRACE_MINUTES
+    and bool(open_ready_symbols)
+    and not (has_burst_scan or has_auto_entry)
+  )
+  logged = any(
+    "Platform outage recovery" in str(event.get("detail") or "")
+    for event in burst_events + auto_entry_events
+  )
+  grace_remaining = None
+  if since is not None and window_active:
+    grace_remaining = max(0, SESSION_OPEN_PLATFORM_OUTAGE_GRACE_MINUTES - since)
+  return {
+    "window_active": window_active,
+    "logged": logged,
+    "grace_minutes_remaining": grace_remaining,
+    "standard_grace_minutes": SESSION_OPEN_BURST_RECOVERY_GRACE_MINUTES,
+    "extended_grace_minutes": SESSION_OPEN_PLATFORM_OUTAGE_GRACE_MINUTES,
+  }
+
+
 async def build_us_stocks_open_checklist(session: AsyncSession) -> dict[str, Any]:
   """JSON payload for Monday US stocks open preflight and post-open verification."""
   from app.engines.deploy_status import EXPECTED_PLATFORM_REVISION, build_deploy_status
@@ -294,6 +335,7 @@ async def build_us_stocks_open_checklist(session: AsyncSession) -> dict[str, Any
   below_floor = _symbols_below_floor(open_ready_details, floor_value)
 
   minutes_until_open = us.get("minutes_until_open")
+  minutes_since_open = stocks_session.get("minutes_since_open")
   prep_phase = us.get("prep_phase") or stocks_prep.get("prep_phase")
   in_session = bool(stocks_session.get("in_session"))
   phase = _checklist_phase(
@@ -319,11 +361,22 @@ async def build_us_stocks_open_checklist(session: AsyncSession) -> dict[str, Any
     phase=phase,
   )
 
+  platform_outage_recovery = platform_outage_recovery_status(
+    in_session=in_session,
+    minutes_since_open=int(minutes_since_open) if minutes_since_open is not None else None,
+    open_ready_symbols=open_ready_symbols,
+    has_burst_scan=has_burst_scan,
+    has_auto_entry=has_auto_entry,
+    burst_events=burst_events,
+    auto_entry_events=auto_entry_events,
+  )
+
   return {
     "timestamp": datetime.utcnow().isoformat(),
     "phase": phase,
     "ready": _overall_ready(checks),
     "minutes_until_open": minutes_until_open,
+    "minutes_since_open": minutes_since_open,
     "prep_phase": prep_phase,
     "in_session": in_session,
     "deploy": {
@@ -361,6 +414,7 @@ async def build_us_stocks_open_checklist(session: AsyncSession) -> dict[str, Any
       "latest_burst_scan": burst_events[0] if burst_events else None,
       "latest_auto_entry": auto_entry_events[0] if auto_entry_events else None,
     },
+    "platform_outage_recovery": platform_outage_recovery,
     "checks": checks,
   }
 

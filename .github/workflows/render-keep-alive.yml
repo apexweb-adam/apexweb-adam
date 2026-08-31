@@ -79,8 +79,8 @@ jobs:
             fi
           fi
 
-          # Monday US stocks prep (10:00–14:59 UTC): keep open-ready queue warm.
-          if [[ "$DOW" == "1" && "$HOUR" -ge 10 && "$HOUR" -le 14 ]]; then
+          # Monday US stocks prep (10:00–18:59 UTC): keep open-ready queue warm through outage recovery window.
+          if [[ "$DOW" == "1" && "$HOUR" -ge 10 && "$HOUR" -le 18 ]]; then
             us_checklist="$(wake_json /api/gate/us-stocks-open-checklist 90)"
             if [[ -n "$us_checklist" && "$us_checklist" != "{}" ]]; then
               echo "$us_checklist" | python3 -c "
