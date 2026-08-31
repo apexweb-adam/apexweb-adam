@@ -65,6 +65,22 @@ def test_platform_status_cache_ttl_extended_during_prewarm():
         assert platform_status._platform_status_cache_ttl_seconds() == 60
 
 
+from contextlib import contextmanager
+
+
+@contextmanager
+def _mock_platform_outage_log():
+  with patch(
+    "app.engines.platform_outage_log.get_platform_outage_events",
+    new=AsyncMock(return_value=[]),
+  ):
+    with patch(
+      "app.engines.platform_outage_log.record_platform_online_heartbeat",
+      new=AsyncMock(),
+    ):
+      yield
+
+
 _CHECKLIST_SUMMARIES = {
   "cme_reopen": {
     "ready": True,
@@ -219,10 +235,13 @@ def test_build_platform_status_includes_per_bot_gate():
                                 return_value={"insights_applied": 10, "recent": []}
                               ),
                             ):
-                              result = await platform_status.build_platform_status(session)
-    assert result["per_bot_gate"]["commodities"]["total_trades"] == 40
-    assert result["per_bot_gate"]["crypto"]["paused"] is True
-    assert result["content_study"]["insights_applied"] == 10
+                              with _mock_platform_outage_log():
+                                result = await platform_status.build_platform_status(session)
+                                assert result["per_bot_gate"]["commodities"]["total_trades"] == 40
+                                assert result["per_bot_gate"]["crypto"]["paused"] is True
+                                assert result["content_study"]["insights_applied"] == 10
+
+  asyncio.run(run())
 
 
 def test_build_platform_status_includes_content_study():
@@ -287,8 +306,9 @@ def test_build_platform_status_includes_content_study():
                               "app.engines.platform_status.build_crm_content_study_highlights",
                               new=AsyncMock(return_value=highlights),
                             ):
-                              result = await platform_status.build_platform_status(session)
-    assert result["content_study"] == highlights
+                              with _mock_platform_outage_log():
+                                result = await platform_status.build_platform_status(session)
+                                assert result["content_study"] == highlights
 
   asyncio.run(run())
 
@@ -363,10 +383,11 @@ def test_build_platform_status_deploy_includes_bundle_behind_expected():
                               "app.engines.platform_status.build_crm_content_study_highlights",
                               new=AsyncMock(return_value={"insights_applied": 0, "recent": []}),
                             ):
-                              result = await platform_status.build_platform_status(session)
-    deploy = result["deploy"]
-    assert deploy["vercel_bundle_behind_expected"] is True
-    assert deploy["expected_dashboard_bundle"] == "2026-08-29-r98"
-    assert "verify-weekend-ops" in deploy["weekend_ops_verify_command"]
+                              with _mock_platform_outage_log():
+                                result = await platform_status.build_platform_status(session)
+                                deploy = result["deploy"]
+                                assert deploy["vercel_bundle_behind_expected"] is True
+                                assert deploy["expected_dashboard_bundle"] == "2026-08-29-r98"
+                                assert "verify-weekend-ops" in deploy["weekend_ops_verify_command"]
 
   asyncio.run(run())
