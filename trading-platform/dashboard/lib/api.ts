@@ -240,6 +240,7 @@ export type ScanPreview = {
   bot_type: string;
   shadow_mode: boolean;
   graduation_nudge: boolean;
+  commodities_verification_trade_count_nudge?: boolean;
   stocks_trade_count_nudge?: boolean;
   stocks_gate_fast_scan_active?: boolean;
   stocks_open_imminent_scan?: boolean;
@@ -267,6 +268,7 @@ export type ScanPreview = {
   shadow_open_cap?: number | null;
   held_symbols?: string[];
   open_ready_candidates?: string[];
+  near_floor_candidates?: string[];
   recovery_candidates?: string[];
   session?: {
     in_session: boolean;
@@ -420,6 +422,15 @@ export type MondayRecoverySummary = {
   }>;
   stocks_trade_count_nudge?: boolean;
   commodities_graduation_nudge?: boolean;
+  commodities_verification_trade_count_nudge?: boolean;
+  near_floor?: Array<{
+    bot_type: string;
+    symbol: string;
+    composite?: number;
+    blockers?: string[];
+    minutes_until_open?: number | null;
+  }>;
+  near_floor_candidates?: string[];
   all: Array<{
     bot_type: string;
     symbol: string;

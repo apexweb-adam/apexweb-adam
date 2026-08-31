@@ -2320,9 +2320,15 @@ function SessionPrepBanner({ sessionPrep }: { sessionPrep: SessionPrepStatus | n
 }
 
 function MondayRecoveryBanner({ summary }: { summary: MondayRecoverySummary | null }) {
-  const hasNudge = summary?.stocks_trade_count_nudge || summary?.commodities_graduation_nudge;
+  const hasNudge =
+    summary?.stocks_trade_count_nudge ||
+    summary?.commodities_graduation_nudge ||
+    summary?.commodities_verification_trade_count_nudge;
   const openReady = summary?.open_ready ?? [];
-  if (!summary?.all?.length && !hasNudge && openReady.length === 0) return null;
+  const nearFloor = summary?.near_floor ?? [];
+  if (!summary?.all?.length && !hasNudge && openReady.length === 0 && nearFloor.length === 0) {
+    return null;
+  }
 
   return (
     <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-4">
@@ -2376,6 +2382,41 @@ function MondayRecoveryBanner({ summary }: { summary: MondayRecoverySummary | nu
         <p className="text-[11px] text-amber-400/90 mb-2">
           Commodities graduation nudge active — recovery futures prioritized for CME reopen.
         </p>
+      )}
+      {summary?.commodities_verification_trade_count_nudge &&
+        !summary?.commodities_graduation_nudge && (
+        <p className="text-[11px] text-sky-400/90 mb-2">
+          Commodities verification nudge active — proven winners at composite floor 0.40 (gate-skip
+          bypass).
+        </p>
+      )}
+      {nearFloor.length > 0 && (
+        <div className="mb-3 rounded border border-amber-500/30 bg-amber-500/5 p-2.5">
+          <p className="text-[11px] font-medium text-amber-400 mb-1.5">
+            Near floor — approaching entry threshold
+          </p>
+          <ul className="space-y-1">
+            {nearFloor.map((row) => (
+              <li
+                key={`near-${row.bot_type}-${row.symbol}`}
+                className="flex items-center justify-between gap-3 text-xs"
+              >
+                <span className="text-gray-100 font-medium">
+                  {botLabel(row.bot_type)} · {row.symbol}
+                </span>
+                <span className="text-amber-400/90 text-right">
+                  {(row.composite ?? 0).toFixed(3)}
+                  {(row.blockers?.length ?? 0) > 0 && (
+                    <span className="text-gray-500">
+                      {" "}
+                      · {formatScanBlockers(row.blockers!)}
+                    </span>
+                  )}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
       {summary?.all?.length ? (
         <ul className="space-y-1.5">
@@ -2454,6 +2495,12 @@ function BotScanPreview({ botType }: { botType: string }) {
         )}
         {preview.stocks_trade_count_nudge && (
           <span className="text-amber-400/90"> · trade-count nudge (floor 0.34 / sent 0.05)</span>
+        )}
+        {preview.commodities_verification_trade_count_nudge && !preview.graduation_nudge && (
+          <span className="text-sky-400/90" title="Active gate commodities — proven winners at 0.40 floor">
+            {" "}
+            · verification nudge (floor 0.40)
+          </span>
         )}
         {preview.stocks_gate_fast_scan_active && (
           <span className="text-sky-400/90" title="15s scan interval during trade-count prep">
@@ -2553,6 +2600,12 @@ function BotScanPreview({ botType }: { botType: string }) {
           <span className="text-lime-400/90">
             {" "}
             · CME open ready: {preview.open_ready_candidates.join(", ")}
+          </span>
+        )}
+        {preview.near_floor_candidates && preview.near_floor_candidates.length > 0 && (
+          <span className="text-amber-400/90">
+            {" "}
+            · near floor: {preview.near_floor_candidates.join(", ")}
           </span>
         )}
         {preview.commodities_gate_loss_wind_down_usd != null && (
