@@ -552,7 +552,7 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
 
     intel_override = shadow_intel_composite_override(
       bot_type,
-      graduation_nudge=graduation_nudge,
+      graduation_nudge=bypass_nudge,
       shadow_mode=shadow_mode,
       composite=composite,
       entry_min_signal=entry_min_signal,
@@ -570,7 +570,7 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
         intel_override=intel_override,
         signal_direction=signal.direction,
         shadow_mode=shadow_mode,
-        graduation_nudge=graduation_nudge,
+        graduation_nudge=bypass_nudge,
       )
     )
 
@@ -859,7 +859,7 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
         bot_type=bot_type,
         shadow_mode=shadow_mode,
         symbol=symbol,
-        graduation_nudge=graduation_nudge,
+        graduation_nudge=bypass_nudge,
         signal_direction=signal.direction,
         macd_signal=signal.macd_signal,
         composite=composite,

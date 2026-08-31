@@ -695,6 +695,47 @@ def test_commodities_verification_chronic_loser_bypass():
   ) is True
 
 
+def test_commodities_verification_intel_override_active_gate():
+  """Verification trade-count nudge uses bypass_nudge for intel override paths."""
+  from app.engines.gate_entry_guard import (
+    intel_override_allows_long_entry,
+    shadow_intel_composite_override,
+  )
+
+  # Active gate commodities: bypass_nudge=True enables intel override easing.
+  assert shadow_intel_composite_override(
+    "commodities",
+    graduation_nudge=True,
+    shadow_mode=False,
+    composite=0.49,
+    entry_min_signal=0.33,
+    integration_boost=0.0,
+  ) is True
+  assert shadow_intel_composite_override(
+    "commodities",
+    graduation_nudge=False,
+    shadow_mode=False,
+    composite=0.49,
+    entry_min_signal=0.33,
+    integration_boost=0.0,
+  ) is False
+  # Bearish intel override stays blocked during active-gate nudge.
+  assert intel_override_allows_long_entry(
+    "commodities",
+    intel_override=True,
+    signal_direction="sell",
+    shadow_mode=False,
+    graduation_nudge=True,
+  ) is False
+  assert intel_override_allows_long_entry(
+    "commodities",
+    intel_override=True,
+    signal_direction="buy",
+    shadow_mode=False,
+    graduation_nudge=True,
+  ) is True
+
+
 def test_commodities_verification_min_sentiment():
   from app.engines.gate_entry_guard import (
     COMMODITIES_VERIFICATION_MIN_SENTIMENT,
