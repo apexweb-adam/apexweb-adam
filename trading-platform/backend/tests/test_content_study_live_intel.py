@@ -464,3 +464,71 @@ def test_study_live_intel_sources_applies_wallet_tracker_item():
   call_kwargs = learner.apply_external_insight.await_args.kwargs
   assert "whale" in call_kwargs["impact"].lower()
   assert "crypto bot" in call_kwargs["impact"].lower()
+
+
+def test_study_live_intel_sources_applies_dexscreener_item():
+  item = SimpleNamespace(
+    id=9,
+    source="dexscreener",
+    title="[DexScreener boost] WIF trending",
+    content="boost=5000",
+    url="https://dexscreener.example/wif",
+    symbols_mentioned="WIFUSDT",
+    sentiment=0.35,
+    relevance_score=0.82,
+    applied=False,
+  )
+
+  session = AsyncMock()
+  session.execute = AsyncMock(
+    return_value=MagicMock(scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=[item]))))
+  )
+  session.commit = AsyncMock()
+
+  insight = MagicMock(applied=True)
+  learner = MagicMock()
+  learner.apply_external_insight = AsyncMock(return_value=insight)
+
+  engine = ContentStudyEngine(session)
+  engine.learner = learner
+
+  applied = asyncio.run(engine._study_live_intel_sources())
+
+  assert applied == 1
+  call_kwargs = learner.apply_external_insight.await_args.kwargs
+  assert "dexscreener" in call_kwargs["impact"].lower()
+  assert "crypto bot" in call_kwargs["impact"].lower()
+
+
+def test_study_live_intel_sources_applies_phantom_item():
+  item = SimpleNamespace(
+    id=10,
+    source="phantom",
+    title="Phantom portfolio buy SOL",
+    content="wallet accumulation",
+    url="https://phantom.example/sol",
+    symbols_mentioned="SOLUSDT",
+    sentiment=0.4,
+    relevance_score=0.8,
+    applied=False,
+  )
+
+  session = AsyncMock()
+  session.execute = AsyncMock(
+    return_value=MagicMock(scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=[item]))))
+  )
+  session.commit = AsyncMock()
+
+  insight = MagicMock(applied=True)
+  learner = MagicMock()
+  learner.apply_external_insight = AsyncMock(return_value=insight)
+
+  engine = ContentStudyEngine(session)
+  engine.learner = learner
+
+  applied = asyncio.run(engine._study_live_intel_sources())
+
+  assert applied == 1
+  call_kwargs = learner.apply_external_insight.await_args.kwargs
+  assert "phantom" in call_kwargs["impact"].lower()
+  assert "crypto bot" in call_kwargs["impact"].lower()

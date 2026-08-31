@@ -171,3 +171,12 @@ def test_build_crm_content_study_highlights_truncates_long_fields():
   assert highlights["recent"][0]["title"].endswith("…")
   assert highlights["recent"][0]["impact"].endswith("…")
   assert highlights["recent"][0]["applied"] is True
+
+
+def test_intel_source_label_maps_known_sources():
+  from app.engines.learning_engine import intel_source_label
+
+  assert intel_source_label("newsapi") == "News"
+  assert intel_source_label("wallet_tracker") == "Whale"
+  assert intel_source_label("hyperliquid") == "Hyperliquid"
+  assert intel_source_label("custom_feed") == "custom_feed"

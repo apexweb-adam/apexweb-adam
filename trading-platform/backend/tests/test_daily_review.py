@@ -198,6 +198,7 @@ def test_run_daily_review_detects_recurring_intel_loss_patterns():
 
   assert "tiktok" in (review.patterns_found or "").lower()
   assert "intel confirmation" in (review.patterns_found or "").lower()
+  assert "tightened intel confirmation" in (review.strategy_changes or "").lower()
   learner._apply_adjustments.assert_awaited()
 
 

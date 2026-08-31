@@ -25,6 +25,29 @@ _INTEL_LOSS_PATTERN_KEYWORDS: list[tuple[tuple[str, ...], str]] = [
   (("polymarket",), "Polymarket account hook"),
 ]
 
+_INTEL_SOURCE_LABELS: dict[str, str] = {
+  "newsapi": "News",
+  "wallet_tracker": "Whale",
+  "polymarket_account": "Polymarket",
+  "tradingview": "TradingView",
+  "hyperliquid": "Hyperliquid",
+  "dexscreener": "DexScreener",
+  "phantom": "Phantom",
+  "axiom": "axiom",
+  "fomo": "fomo",
+  "political": "Political",
+  "tiktok": "TikTok",
+  "reddit": "Reddit",
+  "youtube": "YouTube",
+  "x": "X",
+}
+
+
+def intel_source_label(source_type: str) -> str:
+  """Human-readable label for intel / content-study source_type values."""
+  key = (source_type or "").strip().lower()
+  return _INTEL_SOURCE_LABELS.get(key, source_type or "unknown")
+
 
 def _target_bot_types_from_impact(impact: str) -> set[str] | None:
   """Return bot types mentioned in impact text; None means apply to all configs."""

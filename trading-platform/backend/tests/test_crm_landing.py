@@ -723,6 +723,65 @@ def test_crm_landing_shows_intel_pattern_alerts():
   assert "Today's learning loop" in body
 
 
+def test_crm_landing_shows_labeled_content_study_sources():
+  client = TestClient(app)
+  ctx = {
+    "gate": {
+      "verification_day": 2,
+      "total_trades": 20,
+      "win_rate": 0.45,
+      "total_pnl": 5.0,
+      "profit_factor": 1.1,
+      "recommendation": "Continue paper trading",
+      "paused_bots": [],
+    },
+    "per_bot": {},
+    "monday_recovery": {"recovery_candidates": [], "all": [], "bots": {}},
+    "learning": {
+      "review_date": "2026-08-31",
+      "trade_analyses": 0,
+      "pending_insights": 0,
+      "intel_pattern_alerts": [],
+      "reviews": [],
+    },
+    "content_study": {
+      "insights_applied": 1,
+      "recent": [
+        {
+          "source_type": "wallet_tracker",
+          "title": "Whale accumulation on PEPE",
+          "impact": "crypto bot: follow wallet intel with volume confirmation",
+          "confidence": 0.82,
+          "applied": True,
+        }
+      ],
+    },
+    "intel_sources": [{"source": "wallet_tracker", "status": "active"}],
+    "live_snapshot": {
+      "active_bots": [],
+      "positions": [],
+      "gate_tightening": {},
+      "chronic_loser_symbols": {},
+      "proven_winner_symbols": {},
+    },
+    "integrations": {"tradingview": {}, "polymarket": {}, "wallet_tracker": {}},
+    "session_open_events": [],
+    "cme_checklist": None,
+    "us_stocks_checklist": None,
+  }
+
+  with patch("app.main.resolve_crm_dashboard_url", new_callable=AsyncMock, return_value="https://example.com"):
+    with patch("app.main.build_deploy_status", new_callable=AsyncMock, return_value={"vercel_bundle_stale": False}):
+      with patch("app.engines.crm_landing_context.build_crm_landing_context", new_callable=AsyncMock, return_value=ctx):
+        response = client.get("/crm")
+
+  assert response.status_code == 200
+  body = response.text
+  assert "External content study" in body
+  assert "<strong>Whale</strong>" in body
+  assert "Whale accumulation on PEPE" in body
+
+
 def test_crm_landing_shows_deploy_credentials_card():
   client = TestClient(app)
   with patch("app.main.resolve_crm_dashboard_url", new_callable=AsyncMock, return_value="https://example.com"):

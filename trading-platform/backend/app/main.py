@@ -592,15 +592,18 @@ async def crm_landing():
   </div>"""
 
   content_rows = ""
+  from app.engines.learning_engine import intel_source_label
+
   for row in content_study.get("recent") or []:
     source_type = row.get("source_type", "")
+    source_label = intel_source_label(source_type)
     title = row.get("title", "")
     impact = row.get("impact") or "—"
     confidence = row.get("confidence") or 0
     applied = "applied" if row.get("applied") else "pending"
     content_rows += (
-      f"<div class='learning-item'><strong>{source_type}</strong> — {title}<br>"
-      f"<span class='muted'>Impact: {impact}</span><br>"
+      f"<div class='learning-item'><strong>{escape(source_label)}</strong> — {escape(title)}<br>"
+      f"<span class='muted'>Impact: {escape(str(impact))}</span><br>"
       f"<span class='muted'>Confidence {confidence:.0%} · {applied}</span></div>"
     )
 
