@@ -28,7 +28,7 @@ def test_serialize_learning_insight_includes_source_label():
   assert payload["created_at"].startswith("2026-08-31")
 
 
-def test_intel_source_label_covers_all_live_intel_sources():
+def test_intel_source_label_covers_content_study_sources():
   from app.engines.learning_engine import intel_source_label
   from app.intelligence.content_study import LIVE_INTEL_SOURCES
 
@@ -37,6 +37,24 @@ def test_intel_source_label_covers_all_live_intel_sources():
     assert label
     assert label != "unknown"
     assert label != source or source in ("fomo", "axiom")
+
+  for source in ("polymarket", "polymarket_account", "youtube", "podcast"):
+    label = intel_source_label(source)
+    assert label
+    assert label != "unknown"
+
+
+def test_youtube_bot_targeted_fallback_routes_commodities():
+  from app.intelligence.content_study import _youtube_bot_targeted_fallback
+
+  impact = _youtube_bot_targeted_fallback(
+    "Gold futures breakout strategy",
+    "CME commodities trading playbook",
+    "GC=F",
+    0.25,
+  )
+  assert "commodities" in impact.lower()
+  assert "target bots" in impact.lower()
 
 
 def test_get_insights_endpoint_includes_source_label():

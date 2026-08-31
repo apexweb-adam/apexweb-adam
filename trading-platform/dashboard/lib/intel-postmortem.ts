@@ -12,7 +12,7 @@ const INTEL_POSTMORTEM_SOURCES: { id: string; label: string; className: string; 
   { id: "tiktok", label: "TikTok", className: "bg-pink-500/15 text-pink-300 border-pink-500/30", pattern: /tiktok/i },
   { id: "reddit", label: "Reddit", className: "bg-orange-500/15 text-orange-300 border-orange-500/30", pattern: /reddit|wsb/i },
   { id: "x", label: "X", className: "bg-sky-500/15 text-sky-300 border-sky-500/30", pattern: /x\/twitter|twitter/i },
-  { id: "youtube", label: "YouTube", className: "bg-red-500/15 text-red-300 border-red-500/30", pattern: /youtube/i },
+  { id: "youtube", label: "YouTube", className: "bg-red-500/15 text-red-300 border-red-500/30", pattern: /youtube|podcast/i },
   { id: "tradingview", label: "TradingView", className: "bg-blue-500/15 text-blue-300 border-blue-500/30", pattern: /tradingview/i },
   { id: "fomo", label: "fomo", className: "bg-amber-500/15 text-amber-300 border-amber-500/30", pattern: /fomo/i },
   { id: "axiom", label: "axiom", className: "bg-cyan-500/15 text-cyan-300 border-cyan-500/30", pattern: /axiom/i },
@@ -37,6 +37,7 @@ const INTEL_SOURCE_TYPE_ALIASES: Record<string, string> = {
   newsapi: "news",
   polymarket_account: "polymarket",
   wallet_tracker: "wallet",
+  podcast: "youtube",
 };
 
 /** Map content-study / intel source_type values to badge styling. */

@@ -40,6 +40,7 @@ _INTEL_SOURCE_LABELS: dict[str, str] = {
   "tiktok": "TikTok",
   "reddit": "Reddit",
   "youtube": "YouTube",
+  "podcast": "Podcast",
   "x": "X",
 }
 

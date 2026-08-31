@@ -31,6 +31,36 @@ def _extract_youtube_impact(title: str, content: str) -> tuple[str, float] | Non
   return None
 
 
+def _youtube_bot_targeted_fallback(
+  title: str,
+  content: str,
+  symbols: str,
+  sentiment: float,
+) -> str:
+  """Route unscored YouTube intel to the bots most likely affected by the topic."""
+  text = f"{title} {content}".lower()
+  sym = symbols or "markets"
+  targets: list[str] = []
+  if any(k in text for k in ("crypto", "bitcoin", "ethereum", "memecoin", "solana", "defi")):
+    targets.append("crypto")
+  if any(k in text for k in ("stock", "aapl", "nvda", "tsla", "spy", "qqq", "day trad", "earnings")):
+    targets.append("stocks_futures")
+  if any(k in text for k in ("gold", "oil", "commodit", "futures", "cme", "forex", "silver")):
+    targets.append("commodities")
+  if any(k in text for k in ("polymarket", "prediction market", "election", "fed rate")):
+    targets.append("polymarket")
+  direction = "long" if sentiment > 0 else "cautious"
+  if targets:
+    bots = ", ".join(dict.fromkeys(targets))
+    return (
+      f"YouTube intel on {sym}: favor {direction} setups — "
+      f"target bots: {bots}; apply playbooks only with live signal alignment"
+    )
+  return (
+    f"YouTube intel on {sym}: favor {direction} setups when sentiment aligns"
+  )
+
+
 TRADING_KNOWLEDGE_BASE = [
   {
     "source_type": "youtube",
@@ -499,11 +529,13 @@ class ContentStudyEngine:
       if extracted:
         impact, confidence = extracted
       else:
-        impact = (
-          f"YouTube intel on {item.symbols_mentioned or 'markets'}: "
-          f"favor {'long' if item.sentiment > 0 else 'cautious'} setups when sentiment aligns"
+        impact = _youtube_bot_targeted_fallback(
+          item.title,
+          item.content or "",
+          item.symbols_mentioned or "",
+          float(item.sentiment or 0),
         )
-        confidence = min(0.85, item.relevance_score)
+        confidence = min(0.85, float(item.relevance_score or 0))
       insight = await self.learner.apply_external_insight(
         source_type="youtube",
         title=item.title,
