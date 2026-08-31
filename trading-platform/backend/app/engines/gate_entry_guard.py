@@ -4041,6 +4041,14 @@ def status_cache_ttl_seconds(
     ):
       return watch_ttl
     return prep_ttl
+  stocks_session = stocks_session_info()
+  if not stocks_session.get("in_session"):
+    stocks_minutes_until = stocks_session.get("minutes_until_open")
+    if (
+      stocks_minutes_until is not None
+      and stocks_minutes_until <= STOCKS_OPEN_IMMINENT_SCAN_MINUTES
+    ):
+      return watch_ttl
   if status_cache_prewarm_active():
     return prep_ttl
   return default_ttl

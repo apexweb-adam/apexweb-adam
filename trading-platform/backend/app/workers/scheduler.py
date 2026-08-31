@@ -615,7 +615,7 @@ async def commodities_cme_reopen_wake_job() -> None:
 
 
 async def stocks_us_open_wake_job() -> None:
-  """Force-refresh TV signals right before/after US cash open for proven shadow winners."""
+  """Force-refresh TV signals right before/after US cash open for open-ready symbols."""
   from app.engines.gate_entry_guard import (
     get_chronic_loser_symbols,
     get_proven_winner_symbols,
@@ -645,18 +645,28 @@ async def stocks_us_open_wake_job() -> None:
       per_bot.get("win_rate"),
       int(per_bot.get("total_trades") or 0),
     )
-    if not trade_count_nudge:
+    from app.engines.scan_preview import build_monday_recovery_summary
+
+    recovery = await build_monday_recovery_summary(session)
+    open_ready_symbols = [
+      row["symbol"]
+      for row in recovery.get("open_ready") or []
+      if row.get("bot_type") == "stocks_futures" and row.get("symbol")
+    ]
+    if not trade_count_nudge and not open_ready_symbols:
       return
 
     winners = await get_proven_winner_symbols(session, "stocks_futures")
     chronic = await get_chronic_loser_symbols(session, "stocks_futures")
     base_symbols = sorted(set(winners) | set(chronic) | {"NVDA", "AAPL"})
+    if open_ready_symbols:
+      base_symbols = sorted(set(base_symbols) | set(open_ready_symbols))
     symbols = prioritize_stocks_monday_scan(
       base_symbols,
       chronic_losers=chronic,
       proven_winners=winners,
       session_info=session_info,
-      trade_count_nudge=True,
+      trade_count_nudge=trade_count_nudge or bool(open_ready_symbols),
     )
     refreshed = await refresh_tradingview_signals(
       session,
@@ -670,6 +680,9 @@ async def stocks_us_open_wake_job() -> None:
       f"[StocksOpenWake] {label}: refreshed {', '.join(refreshed)} "
       f"(until_open={minutes_until_open}, since_open={minutes_since_open})"
     )
+    from app.engines.scan_preview import clear_monday_recovery_cache
+
+    clear_monday_recovery_cache()
     from app.ws_manager import push_live_update
 
     await push_live_update()
