@@ -37,3 +37,49 @@ def test_intel_source_label_covers_all_live_intel_sources():
     assert label
     assert label != "unknown"
     assert label != source or source in ("fomo", "axiom")
+
+
+def test_get_insights_endpoint_includes_source_label():
+  from datetime import datetime
+  from unittest.mock import AsyncMock, MagicMock
+
+  from fastapi.testclient import TestClient
+
+  from app.database import get_db
+  from app.main import app
+  from app.models.entities import LearningInsight
+
+  insight = LearningInsight(
+    id=3,
+    source_type="political",
+    source_title="Tariff escalation",
+    source_url="https://example.com/tariff",
+    key_takeaways="commodities risk-off",
+    strategy_impact="commodities bot: tighten sentiment gate",
+    confidence=0.8,
+    applied=True,
+    created_at=datetime(2026, 8, 31, 12, 0, 0),
+  )
+
+  scalars = MagicMock()
+  scalars.all.return_value = [insight]
+  result = MagicMock()
+  result.scalars.return_value = scalars
+  session = AsyncMock()
+  session.execute = AsyncMock(return_value=result)
+
+  async def fake_get_db():
+    yield session
+
+  app.dependency_overrides[get_db] = fake_get_db
+  try:
+    client = TestClient(app)
+    resp = client.get("/api/insights?limit=5")
+  finally:
+    app.dependency_overrides.clear()
+
+  assert resp.status_code == 200
+  body = resp.json()
+  assert len(body) == 1
+  assert body[0]["source_type"] == "political"
+  assert body[0]["source_label"] == "Political"

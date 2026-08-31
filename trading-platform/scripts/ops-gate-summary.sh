@@ -106,6 +106,18 @@ if learning:
         )
         for alert in (learning.get("intel_pattern_alerts") or [])[:3]:
             lines.append(f"  {alert}")
+content = data.get("content_study") or {}
+applied = content.get("insights_applied") or 0
+recent = content.get("recent") or []
+if applied or recent:
+    lines.append(
+        f"Content study: applied={applied} recent_highlights={len(recent)}"
+    )
+    for row in recent[:3]:
+        label = row.get("source_label") or row.get("source_type") or "unknown"
+        title = (row.get("title") or "")[:48]
+        state = "applied" if row.get("applied") else "pending"
+        lines.append(f"  [{label}] {title} ({state})")
 degraded = [s.get("source") for s in (intel.get("sources") or []) if s.get("status") == "degraded"]
 if degraded:
     lines.append(f"WARN: intel degraded: {', '.join(degraded)}")

@@ -40,6 +40,8 @@ def test_ops_gate_summary_includes_learning_loop():
   assert "pending_insights" in text
   assert "intel_pattern_count" in text
   assert "intel pattern alerts" in text
+  assert "Content study:" in text
+  assert "source_label" in text
 
 
 def test_run_deploy_window_script_exists():
@@ -208,11 +210,15 @@ def test_print_outage_status_script():
   assert "us_cash_session_closed" in text
   assert "prep_phase_state persists" in text
   assert "verify-post-outage-recovery.sh" in text
+  assert "content_study" in text
+  assert "intel_pattern_alerts" in text
 
 
 def test_verify_post_outage_recovery_post_close_message():
   text = (SCRIPTS / "verify-post-outage-recovery.sh").read_text(encoding="utf-8")
   assert "US cash session closed" in text
+  assert "content_study [" in text
+  assert "intel_alert=" in text
   script = SCRIPTS / "verify-post-deploy.sh"
   text = script.read_text(encoding="utf-8")
   assert "ops-gate-summary.sh" in text

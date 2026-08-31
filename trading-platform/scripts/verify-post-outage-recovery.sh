@@ -108,3 +108,31 @@ if [[ "$failures" -gt 0 ]]; then
   exit 1
 fi
 echo "Post-outage recovery: all verifiers passed"
+
+STATUS=$(fetch_json "$BACKEND/api/status" 60 2)
+STATUS="$STATUS" python3 << 'PY'
+import json, os
+status = json.loads(os.environ.get("STATUS") or "{}")
+learning = status.get("learning") or {}
+content = status.get("content_study") or {}
+intel_count = learning.get("intel_pattern_count") or 0
+if learning:
+    print(
+        f"Learning loop: analyses={learning.get('trade_analyses')} "
+        f"reviews={learning.get('daily_reviews')} "
+        f"insights_applied={learning.get('insights_applied')} "
+        f"intel_pattern_alerts={intel_count}"
+    )
+    for alert in (learning.get("intel_pattern_alerts") or [])[:3]:
+        print(f"  intel_alert={alert}")
+if content.get("recent"):
+    print(
+        f"Content study: applied={content.get('insights_applied') or 0} "
+        f"recent={len(content.get('recent') or [])}"
+    )
+    for row in (content.get("recent") or [])[:3]:
+        label = row.get("source_label") or row.get("source_type") or "unknown"
+        title = (row.get("title") or "")[:48]
+        state = "applied" if row.get("applied") else "pending"
+        print(f"  content_study [{label}] {title} ({state})")
+PY

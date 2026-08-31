@@ -103,6 +103,25 @@ if open_positions:
             by_bot.setdefault(bot, []).append(str(sym))
     if by_bot:
         print("Open positions:", ", ".join(f"{bot}={syms}" for bot, syms in sorted(by_bot.items())))
+learning = status.get("learning") or {}
+content = status.get("content_study") or {}
+intel_count = learning.get("intel_pattern_count") or 0
+if learning:
+    print(
+        f"Learning: analyses={learning.get('trade_analyses')} "
+        f"reviews={learning.get('daily_reviews')} "
+        f"insights_applied={learning.get('insights_applied')} "
+        f"intel_pattern_alerts={intel_count}"
+    )
+    for alert in (learning.get("intel_pattern_alerts") or [])[:3]:
+        print(f"  intel_alert={alert}")
+if content.get("recent"):
+    print(f"Content study: applied={content.get('insights_applied') or 0} recent={len(content.get('recent') or [])}")
+    for row in (content.get("recent") or [])[:3]:
+        label = row.get("source_label") or row.get("source_type") or "unknown"
+        title = (row.get("title") or "")[:48]
+        state = "applied" if row.get("applied") else "pending"
+        print(f"  content_study [{label}] {title} ({state})")
 from datetime import datetime, timezone
 now = datetime.now(timezone.utc)
 if now.isoweekday() == 1 and now.hour >= 13:
