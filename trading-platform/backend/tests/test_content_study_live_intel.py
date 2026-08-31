@@ -144,3 +144,18 @@ def test_extract_tiktok_stock_sentiment_impact():
   assert impact is not None
   assert "stocks_futures bot" in impact.lower()
   assert confidence >= 0.59
+
+
+def test_extract_political_tariff_impact():
+  impact, confidence = _extract_live_intel_impact(
+    "political",
+    "US imposes new tariff on steel imports",
+    "trade war escalation",
+    "GC=F",
+    0.25,
+    0.72,
+  )
+  assert impact is not None
+  assert "tariff" in impact.lower()
+  assert "commodities" in impact.lower()
+  assert confidence >= 0.55

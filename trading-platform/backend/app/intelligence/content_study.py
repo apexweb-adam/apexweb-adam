@@ -146,7 +146,40 @@ LIVE_INTEL_SOURCES = (
   "tiktok",
   "reddit",
   "tradingview",
+  "political",
 )
+
+
+def _extract_political_impact(
+  title: str,
+  content: str,
+  symbols: str,
+  sentiment: float,
+  relevance: float,
+) -> tuple[str, float] | None:
+  """Map political headlines into bot-targeted strategy impacts."""
+  from app.intelligence.political_signals import classify_political_event
+
+  text = f"{title} {content}"
+  event_type, event_symbols, target_bots = classify_political_event(text)
+  if abs(sentiment) < 0.1 and event_type == "general":
+    return None
+  sym = symbols or ",".join(event_symbols[:3])
+  bots = ", ".join(target_bots)
+  if sentiment > 0.1:
+    direction = "long"
+  elif sentiment < -0.1:
+    direction = "cautious"
+  else:
+    direction = "defensive"
+  impact = (
+    f"Political intel ({event_type}): favor {direction} bias on {sym} — "
+    f"target bots: {bots}; weight geopolitical news when price action aligns"
+  )
+  confidence = min(0.82, relevance * 0.85 + abs(sentiment) * 0.15)
+  if confidence < 0.55:
+    return None
+  return impact, confidence
 
 
 def _extract_live_intel_impact(source: str, title: str, content: str, symbols: str, sentiment: float, relevance: float) -> tuple[str, float] | None:
@@ -296,6 +329,9 @@ def _extract_live_intel_impact(source: str, title: str, content: str, symbols: s
       )
     return None
 
+  if source == "political":
+    return _extract_political_impact(title, content, symbols, sentiment, relevance)
+
   return None
 
 
@@ -379,6 +415,28 @@ class ContentStudyEngine:
       if not _is_trading_relevant_intel(item.title, item.content or "", item.source):
         item.applied = True
         continue
+      if item.source == "political":
+        extracted = _extract_political_impact(
+          item.title,
+          item.content or "",
+          item.symbols_mentioned or "",
+          float(item.sentiment or 0),
+          float(item.relevance_score or 0),
+        )
+        if extracted:
+          impact, confidence = extracted
+          insight = await self.learner.apply_external_insight(
+            source_type=item.source,
+            title=item.title,
+            url=item.url or "",
+            takeaways=item.content[:500],
+            impact=impact,
+            confidence=confidence,
+          )
+          if insight.applied:
+            item.applied = True
+            applied += 1
+          continue
       direction = "long" if item.sentiment > 0 else "cautious"
       symbols = item.symbols_mentioned or "macro markets"
       impact = (
