@@ -30,6 +30,7 @@ from app.engines.gate_entry_guard import (
   commodities_graduation_entry_min_signal,
   commodities_graduation_ease_active,
   commodities_verification_entry_min_signal,
+  commodities_verification_min_sentiment,
   commodities_verification_volume_required,
   commodities_weekend_spot_gate_skip_bypass,
   commodities_monday_futures_gate_skip_bypass,
@@ -1114,6 +1115,16 @@ class BaseBot(ABC):
           total_trades=int(per_bot_stats.get("total_trades") or 0),
           composite=composite,
         )
+        symbol_min_sentiment = commodities_verification_min_sentiment(
+          symbol_min_sentiment,
+          bot_type=self.bot_type,
+          shadow_mode=shadow_mode,
+          symbol=symbol,
+          proven_winners=proven_winners,
+          gate_status=gate_status,
+          per_bot_stats=per_bot_stats,
+          composite=composite,
+        )
 
         intel_override = shadow_intel_composite_override(
           self.bot_type,
@@ -1346,7 +1357,7 @@ class BaseBot(ABC):
           and composite >= entry_min_signal
           and graduation_nudge_sentiment_ok(
             self.bot_type,
-            graduation_nudge=graduation_nudge,
+            graduation_nudge=bypass_nudge,
             shadow_mode=shadow_mode,
             sentiment=sentiment,
             integration_boost=integration_boost,
@@ -1360,6 +1371,8 @@ class BaseBot(ABC):
             bot_win_rate=per_bot_stats.get("win_rate"),
             profit_factor=per_bot_stats.get("profit_factor"),
             total_pnl=per_bot_stats.get("total_pnl"),
+            gate_status=gate_status,
+            per_bot_stats=per_bot_stats,
           )
           and (shadow_mode or self.bot_type not in gate_tightening.blocked_new_entries)
           and not loss_exposure_block

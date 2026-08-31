@@ -653,6 +653,61 @@ def test_commodities_verification_gate_skip_bypass():
   ) is True
 
 
+def test_commodities_verification_min_sentiment():
+  from app.engines.gate_entry_guard import (
+    COMMODITIES_VERIFICATION_MIN_SENTIMENT,
+    COMMODITIES_VERIFICATION_TRADE_COUNT_MIN_COMPOSITE,
+    commodities_verification_min_sentiment,
+    graduation_nudge_sentiment_ok,
+  )
+
+  gate_ok = {
+    "total_trades": 57,
+    "win_rate": 0.57,
+    "profit_factor": 1.52,
+    "total_pnl": 63.89,
+  }
+  per_bot_ready = {"graduation_ready": True, "total_trades": 57, "win_rate": 0.57}
+  eased = commodities_verification_min_sentiment(
+    0.05,
+    bot_type="commodities",
+    shadow_mode=False,
+    symbol="XAUUSDT",
+    proven_winners=frozenset({"XAUUSDT"}),
+    gate_status=gate_ok,
+    per_bot_stats=per_bot_ready,
+    composite=COMMODITIES_VERIFICATION_TRADE_COUNT_MIN_COMPOSITE + 0.02,
+  )
+  assert eased == COMMODITIES_VERIFICATION_MIN_SENTIMENT
+  assert commodities_verification_min_sentiment(
+    0.05,
+    bot_type="commodities",
+    shadow_mode=False,
+    symbol="XAUUSDT",
+    proven_winners=frozenset({"XAUUSDT"}),
+    gate_status=gate_ok,
+    per_bot_stats=per_bot_ready,
+    composite=COMMODITIES_VERIFICATION_TRADE_COUNT_MIN_COMPOSITE - 0.05,
+  ) == 0.05
+
+  assert graduation_nudge_sentiment_ok(
+    "commodities",
+    graduation_nudge=False,
+    shadow_mode=False,
+    sentiment=-0.05,
+    integration_boost=0.0,
+    min_sentiment=0.05,
+    composite=COMMODITIES_VERIFICATION_TRADE_COUNT_MIN_COMPOSITE + 0.02,
+    entry_min_signal=0.40,
+    signal_direction="buy",
+    macd_signal="bullish",
+    symbol="XAUUSDT",
+    proven_winners=frozenset({"XAUUSDT"}),
+    gate_status=gate_ok,
+    per_bot_stats=per_bot_ready,
+  ) is True
+
+
 def test_stocks_proven_winner_recovery_bypasses_large_loss_skip():
   from app.engines.gate_entry_guard import (
     chronic_loser_blocks_shadow_entry,

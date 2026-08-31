@@ -716,6 +716,7 @@ STOCKS_TRADE_COUNT_RECOVERY_MIN_COMPOSITE = 0.34
 STOCKS_TRADE_COUNT_MIN_SENTIMENT = 0.05
 STOCKS_TRADE_COUNT_PROFIT_LOCK_USD = 2.5
 COMMODITIES_VERIFICATION_TRADE_COUNT_MIN_COMPOSITE = 0.40
+COMMODITIES_VERIFICATION_MIN_SENTIMENT = 0.0
 COMMODITIES_HIGH_COMPOSITE_RECOVERY_FLOOR = 0.48
 COMMODITIES_GRADUATION_OPEN_COMPOSITE_FLOOR = 0.42
 OPEN_READY_NEAR_FLOOR_MARGIN = 0.05
@@ -881,6 +882,29 @@ def commodities_verification_gate_skip_bypass(
   if signal_direction != "buy" or macd_signal != "bullish":
     return False
   return composite >= COMMODITIES_VERIFICATION_TRADE_COUNT_MIN_COMPOSITE
+
+
+def commodities_verification_min_sentiment(
+  base_min_sentiment: float,
+  *,
+  bot_type: str,
+  shadow_mode: bool,
+  symbol: str,
+  proven_winners: frozenset[str],
+  gate_status: dict[str, Any],
+  per_bot_stats: dict[str, Any],
+  composite: float,
+) -> float:
+  """Ease sentiment floor for proven winners while platform gate still needs trades."""
+  if symbol not in proven_winners:
+    return base_min_sentiment
+  if composite < COMMODITIES_VERIFICATION_TRADE_COUNT_MIN_COMPOSITE:
+    return base_min_sentiment
+  if not commodities_verification_trade_count_nudge(
+    bot_type, shadow_mode, gate_status, per_bot_stats
+  ):
+    return base_min_sentiment
+  return min(base_min_sentiment, COMMODITIES_VERIFICATION_MIN_SENTIMENT)
 
 
 def stocks_trade_count_entry_min_signal(
@@ -1436,6 +1460,8 @@ def graduation_nudge_sentiment_ok(
   bot_win_rate: float | None = None,
   profit_factor: float | None = None,
   total_pnl: float | None = None,
+  gate_status: dict[str, Any] | None = None,
+  per_bot_stats: dict[str, Any] | None = None,
 ) -> bool:
   """Allow strong-composite shadow crypto entries during graduation nudge despite weak sentiment."""
   if sentiment + integration_boost >= min_sentiment:
@@ -1492,6 +1518,22 @@ def graduation_nudge_sentiment_ok(
     and signal_direction == "buy"
     and macd_signal == "bullish"
     and composite >= COMMODITIES_PROVEN_WINNER_SIGNAL_FLOOR
+  ):
+    return True
+  if (
+    gate_status is not None
+    and per_bot_stats is not None
+    and commodities_verification_gate_skip_bypass(
+      bot_type=bot_type,
+      shadow_mode=shadow_mode,
+      symbol=symbol or "",
+      proven_winners=proven_winners or frozenset(),
+      gate_status=gate_status,
+      per_bot_stats=per_bot_stats,
+      signal_direction=signal_direction,
+      macd_signal=macd_signal,
+      composite=composite,
+    )
   ):
     return True
   return False

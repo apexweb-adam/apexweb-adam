@@ -38,6 +38,7 @@ from app.engines.gate_entry_guard import (
   commodities_graduation_ease_active,
   commodities_verification_trade_count_nudge,
   commodities_verification_entry_min_signal,
+  commodities_verification_min_sentiment,
   commodities_verification_volume_required,
   crypto_graduation_entry_min_signal,
   crypto_momentum_retreat_entry_min_signal,
@@ -475,6 +476,16 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
       total_trades=int(per_bot_stats.get("total_trades") or 0),
       composite=composite,
     )
+    symbol_min_sentiment = commodities_verification_min_sentiment(
+      symbol_min_sentiment,
+      bot_type=bot_type,
+      shadow_mode=shadow_mode,
+      symbol=symbol,
+      proven_winners=proven_winners,
+      gate_status=gate_status,
+      per_bot_stats=per_bot_stats,
+      composite=composite,
+    )
 
     volume_required = signal.volume_confirmed
     if (
@@ -753,7 +764,7 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
       blockers.append(f"composite<{entry_min_signal:.2f}")
     if not graduation_nudge_sentiment_ok(
       bot_type,
-      graduation_nudge=graduation_nudge,
+      graduation_nudge=bypass_nudge,
       shadow_mode=shadow_mode,
       sentiment=sentiment,
       integration_boost=integration_boost,
@@ -767,6 +778,8 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
       bot_win_rate=bot_wr,
       profit_factor=per_bot_stats.get("profit_factor"),
       total_pnl=per_bot_stats.get("total_pnl"),
+      gate_status=gate_status,
+      per_bot_stats=per_bot_stats,
     ):
       blockers.append(f"sentiment<{symbol_min_sentiment:.2f}")
     if (
