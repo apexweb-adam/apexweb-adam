@@ -9,10 +9,14 @@ def test_status_cache_ttl_default_outside_prewarm():
     return_value=False,
   ):
     with patch(
-      "app.engines.gate_entry_guard.status_cache_prewarm_active",
-      return_value=False,
+      "app.engines.gate_entry_guard.stocks_session_info",
+      return_value={"in_session": False, "minutes_until_open": 120},
     ):
-      assert status_cache_ttl_seconds(default_ttl=45) == 45
+      with patch(
+        "app.engines.gate_entry_guard.status_cache_prewarm_active",
+        return_value=False,
+      ):
+        assert status_cache_ttl_seconds(default_ttl=45) == 45
 
 
 def test_status_cache_ttl_prep_during_us_stocks_window():
@@ -21,10 +25,14 @@ def test_status_cache_ttl_prep_during_us_stocks_window():
     return_value=False,
   ):
     with patch(
-      "app.engines.gate_entry_guard.status_cache_prewarm_active",
-      return_value=True,
+      "app.engines.gate_entry_guard.stocks_session_info",
+      return_value={"in_session": False, "minutes_until_open": 120},
     ):
-      assert status_cache_ttl_seconds(default_ttl=45, prep_ttl=60) == 60
+      with patch(
+        "app.engines.gate_entry_guard.status_cache_prewarm_active",
+        return_value=True,
+      ):
+        assert status_cache_ttl_seconds(default_ttl=45, prep_ttl=60) == 60
 
 
 def test_status_cache_ttl_watch_during_cme_imminent_window():

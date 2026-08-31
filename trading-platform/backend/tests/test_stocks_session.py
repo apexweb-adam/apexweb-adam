@@ -233,10 +233,14 @@ def test_stocks_bot_faster_scan_during_trade_count_prep():
                 return_value=True,
               ):
                 with patch(
-                  "app.engines.gate_entry_guard.ProfitabilityGate",
-                  MockGate,
+                  "app.engines.gate_entry_guard.stocks_open_imminent_scan_active",
+                  return_value=False,
                 ):
-                  assert await bot._effective_scan_interval() == 15
+                  with patch(
+                    "app.engines.gate_entry_guard.ProfitabilityGate",
+                    MockGate,
+                  ):
+                    assert await bot._effective_scan_interval() == 15
 
   import asyncio
 

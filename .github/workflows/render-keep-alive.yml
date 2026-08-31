@@ -11,9 +11,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Wake Render backend
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
         run: |
           set -euo pipefail
           URL="https://apex-trading-backend.onrender.com"
+          ROOT="${{ github.workspace }}/trading-platform"
+          # shellcheck source=lib/fetch_json.sh
+          source "$ROOT/scripts/lib/fetch_json.sh"
+
+          if ! check_backend_suspension "$URL"; then
+            echo "::error::Render backend billing-suspended — fix at https://dashboard.render.com/web/srv-da848ms9v7es739k38jg"
+            exit 1
+          fi
 
           wake_json() {
             local path="$1"

@@ -51,10 +51,18 @@ def test_dashboard_url_from_deploy_uses_prod_when_fresh():
 
 def test_platform_status_cache_ttl_extended_during_prewarm():
   with patch(
-    "app.engines.gate_entry_guard.status_cache_prewarm_active",
-    return_value=True,
+    "app.engines.gate_entry_guard.commodities_futures_weekend_closed",
+    return_value=False,
   ):
-    assert platform_status._platform_status_cache_ttl_seconds() == 60
+    with patch(
+      "app.engines.gate_entry_guard.stocks_session_info",
+      return_value={"in_session": False, "minutes_until_open": 120},
+    ):
+      with patch(
+        "app.engines.gate_entry_guard.status_cache_prewarm_active",
+        return_value=True,
+      ):
+        assert platform_status._platform_status_cache_ttl_seconds() == 60
 
 
 _CHECKLIST_SUMMARIES = {
@@ -81,10 +89,18 @@ _CHECKLIST_SUMMARIES = {
 
 def test_platform_status_cache_ttl_short_outside_prewarm():
   with patch(
-    "app.engines.gate_entry_guard.status_cache_prewarm_active",
+    "app.engines.gate_entry_guard.commodities_futures_weekend_closed",
     return_value=False,
   ):
-    assert platform_status._platform_status_cache_ttl_seconds() == 45
+    with patch(
+      "app.engines.gate_entry_guard.stocks_session_info",
+      return_value={"in_session": False, "minutes_until_open": 120},
+    ):
+      with patch(
+        "app.engines.gate_entry_guard.status_cache_prewarm_active",
+        return_value=False,
+      ):
+        assert platform_status._platform_status_cache_ttl_seconds() == 45
 
 
 def test_build_platform_status_serves_stale_while_rebuild_in_progress():

@@ -52,10 +52,18 @@ def test_build_session_prep_status_includes_prep_phase_fields():
 
 def test_gate_prep_status_cache_ttl_extended_during_prewarm():
   with patch(
-    "app.engines.gate_entry_guard.status_cache_prewarm_active",
-    return_value=True,
+    "app.engines.gate_entry_guard.commodities_futures_weekend_closed",
+    return_value=False,
   ):
-    assert gate_prep_status._gate_prep_status_cache_ttl_seconds() == 60
+    with patch(
+      "app.engines.gate_entry_guard.stocks_session_info",
+      return_value={"in_session": False, "minutes_until_open": 120},
+    ):
+      with patch(
+        "app.engines.gate_entry_guard.status_cache_prewarm_active",
+        return_value=True,
+      ):
+        assert gate_prep_status._gate_prep_status_cache_ttl_seconds() == 60
 
 
 def test_build_gate_prep_status_serves_stale_while_rebuild_in_progress():

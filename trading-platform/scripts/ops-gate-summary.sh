@@ -3,7 +3,15 @@
 # Non-blocking; exits 0 even when warnings are printed.
 set -euo pipefail
 
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+# shellcheck source=lib/fetch_json.sh
+source "$ROOT/scripts/lib/fetch_json.sh"
 BACKEND="${BACKEND_URL:-https://apex-trading-backend.onrender.com}"
+
+if ! check_backend_suspension "$BACKEND" 2>/dev/null; then
+  echo "Profitability gate: backend billing-suspended (see Render dashboard)"
+  exit 0
+fi
 
 PROFIT=$(curl -fsS -m 20 "$BACKEND/api/profitability" 2>/dev/null || echo "{}")
 PROFIT_JSON="$PROFIT" python3 << 'PY'
