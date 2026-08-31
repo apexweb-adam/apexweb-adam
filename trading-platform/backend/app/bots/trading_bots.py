@@ -393,10 +393,11 @@ class BaseBot(ABC):
         gate_status,
         per_bot_stats,
       )
+      bypass_nudge = graduation_nudge or commodities_ease_active
       min_sentiment = graduation_nudge_min_sentiment(
         self.bot_type,
         min_sentiment,
-        graduation_nudge=graduation_nudge or commodities_ease_active,
+        graduation_nudge=bypass_nudge,
         shadow_mode=shadow_mode,
         bot_win_rate=bot_wr,
         profit_factor=per_bot_stats.get("profit_factor"),
@@ -1139,7 +1140,7 @@ class BaseBot(ABC):
           recent_skip=hard_skip_sets.recent,
           large_skip=hard_skip_sets.large,
           review_skip=hard_skip_sets.review,
-          graduation_nudge=graduation_nudge,
+          graduation_nudge=bypass_nudge,
           shadow_mode=shadow_mode,
           intel_override=intel_override,
           composite=composite,
@@ -1160,7 +1161,7 @@ class BaseBot(ABC):
           symbol,
           chronic_losers,
           bot_type=self.bot_type,
-          graduation_nudge=graduation_nudge,
+          graduation_nudge=bypass_nudge,
           shadow_mode=shadow_mode,
           intel_override=intel_override,
           proven_winners=proven_winners,
