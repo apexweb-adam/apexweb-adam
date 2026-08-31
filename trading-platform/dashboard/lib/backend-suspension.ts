@@ -89,16 +89,46 @@ export function outageRecoveryBots(): OutageRecoveryBot[] {
   ];
 }
 
+/** Minutes left in Monday US cash session catch-up window (until 21:00 UTC), or null if N/A. */
+export function usCashSessionCatchupMinutesRemaining(now = new Date()): number | null {
+  if (now.getUTCDay() !== 1) return null;
+  const openAt = Date.UTC(
+    now.getUTCFullYear(),
+    now.getUTCMonth(),
+    now.getUTCDate(),
+    13,
+    30,
+    0,
+    0
+  );
+  const sessionEnd = Date.UTC(
+    now.getUTCFullYear(),
+    now.getUTCMonth(),
+    now.getUTCDate(),
+    21,
+    0,
+    0,
+    0
+  );
+  const nowMs = now.getTime();
+  if (nowMs < openAt) return null;
+  if (nowMs >= sessionEnd) return 0;
+  return Math.max(0, Math.floor((sessionEnd - nowMs) / 60000));
+}
+
 export function buildBackendSuspensionPayload(
   reason: "billing" | "unknown" = "billing"
 ): BackendSuspension {
   const graceRemaining = platformOutageGraceMinutesRemaining();
+  const catchupRemaining = usCashSessionCatchupMinutesRemaining();
   const graceNote =
     graceRemaining !== null && graceRemaining > 0
       ? `Platform outage grace: ~${graceRemaining} min left for extended burst window (deploy ${EXPECTED_PLATFORM_REVISION}). Post-outage startup still forces open-ready scan if prep state preserved.`
-      : graceRemaining === 0
-        ? "Extended burst grace expired — post-outage startup still forces open-ready scan if prep state preserved."
-        : `If US open was missed with queued symbols, deploy ${EXPECTED_PLATFORM_REVISION} before the 270-minute outage grace expires.`;
+      : graceRemaining === 0 && catchupRemaining !== null && catchupRemaining > 0
+        ? `Extended burst grace expired — ~${catchupRemaining} min until US cash close. Post-outage startup still forces open-ready scan if prep state preserved (deploy ${EXPECTED_PLATFORM_REVISION}).`
+        : graceRemaining === 0
+          ? "Extended burst grace expired — post-outage startup still forces open-ready scan if prep state preserved."
+          : `If US open was missed with queued symbols, deploy ${EXPECTED_PLATFORM_REVISION} before the 270-minute outage grace expires.`;
 
   return {
     suspended: true,

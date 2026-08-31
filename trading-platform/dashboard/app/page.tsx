@@ -19,6 +19,7 @@ import { useState, useMemo, useEffect, type ReactNode } from "react";
 import {
   platformOutageGraceDeadlineUtc,
   platformOutageGraceMinutesRemaining,
+  usCashSessionCatchupMinutesRemaining,
 } from "@/lib/backend-suspension";
 import { useLiveData } from "@/lib/useLiveData";
 import { useAPI } from "@/lib/useAPI";
@@ -1970,6 +1971,7 @@ function BillingOutageRecoveryCard({
   const [grace, setGrace] = useState<number | null | undefined>(
     health.platform_outage_grace_minutes_remaining
   );
+  const [catchupMin, setCatchupMin] = useState<number | null | undefined>(undefined);
   const [deadline, setDeadline] = useState<string | null | undefined>(
     health.platform_outage_grace_deadline_utc
   );
@@ -1977,6 +1979,7 @@ function BillingOutageRecoveryCard({
   useEffect(() => {
     const tick = () => {
       setGrace(platformOutageGraceMinutesRemaining());
+      setCatchupMin(usCashSessionCatchupMinutesRemaining());
       setDeadline(platformOutageGraceDeadlineUtc());
     };
     tick();
@@ -1986,6 +1989,8 @@ function BillingOutageRecoveryCard({
 
   const bots = health.recovery_bots ?? [];
   const graceUrgent = grace !== null && grace !== undefined && grace > 0 && grace <= 30;
+  const postGraceCatchup =
+    grace === 0 && catchupMin !== null && catchupMin !== undefined && catchupMin > 0;
 
   return (
     <div
@@ -1993,7 +1998,9 @@ function BillingOutageRecoveryCard({
         "border-b px-6 py-4",
         graceUrgent
           ? "border-red-500/50 bg-red-950/40"
-          : "border-orange-500/30 bg-orange-950/30"
+          : postGraceCatchup
+            ? "border-amber-500/40 bg-amber-950/30"
+            : "border-orange-500/30 bg-orange-950/30"
       )}
     >
       <div className="max-w-[1600px] mx-auto">
@@ -2038,7 +2045,22 @@ function BillingOutageRecoveryCard({
                 ) : null}
               </>
             ) : (
-              <>Platform outage grace expired — only normal scan intervals after resume.</>
+              <>
+                Extended burst grace expired
+                {postGraceCatchup ? (
+                  <>
+                    {" "}
+                    — <strong>{catchupMin} min</strong> until US cash close. Post-outage
+                    startup still forces <span className="font-mono">outage_recovery_scan</span>{" "}
+                    for open-ready symbols (e.g. AAPL) if prep state preserved.
+                  </>
+                ) : (
+                  <>
+                    {" "}
+                    — post-outage startup still forces open-ready scan if prep state preserved.
+                  </>
+                )}
+              </>
             )}
           </p>
         )}
