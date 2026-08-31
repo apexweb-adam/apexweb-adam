@@ -43,13 +43,17 @@ def test_refresh_status_caches_job_skips_when_fresh():
           return_value=True,
         ):
           with patch(
-            "app.engines.platform_status.build_platform_status",
-            new=AsyncMock(),
-          ) as platform_builder:
-            from app.workers.scheduler import refresh_status_caches_job
+            "app.engines.scan_preview.monday_recovery_cache_fresh",
+            return_value=True,
+          ):
+            with patch(
+              "app.engines.platform_status.build_platform_status",
+              new=AsyncMock(),
+            ) as platform_builder:
+              from app.workers.scheduler import refresh_status_caches_job
 
-            await refresh_status_caches_job()
-            platform_builder.assert_not_awaited()
+              await refresh_status_caches_job()
+              platform_builder.assert_not_awaited()
 
   asyncio.run(run())
 
