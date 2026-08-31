@@ -4,8 +4,8 @@ name: Render Billing Recovery
 on:
   schedule:
     - cron: "*/15 * * * *"
-    # Monday US outage grace window (13:30–18:00 UTC): poll every 5 min for faster recovery
-    - cron: "*/5 13-18 * * 1"
+    # Monday US session catch-up (13:30–21:00 UTC): poll every 5 min through cash close
+    - cron: "*/5 13-21 * * 1"
   workflow_dispatch:
 
 jobs:
@@ -37,6 +37,20 @@ jobs:
           PY
           )"
 
+          POST_GRACE_US_SESSION="$(python3 - << 'PY' 2>/dev/null || true
+          from datetime import datetime, timezone
+          now = datetime.now(timezone.utc)
+          if now.isoweekday() != 1 or now.hour < 13 or now.hour >= 21:
+              raise SystemExit(0)
+          open_at = now.replace(hour=13, minute=30, second=0, microsecond=0)
+          if now.timestamp() < open_at.timestamp():
+              raise SystemExit(0)
+          ext_left = max(0, int((open_at.timestamp() + 270 * 60 - now.timestamp()) // 60))
+          if ext_left == 0:
+              print("post_grace")
+          PY
+          )"
+
           if check_backend_suspension "$URL"; then
             echo "Backend online — running recovery chain"
             WAIT=600
@@ -46,6 +60,11 @@ jobs:
             echo "Monday outage grace active (${GRACE_LEFT} min left) — waiting for billing resume"
             WAIT=1200
             POLL=10
+          elif [[ -n "$POST_GRACE_US_SESSION" ]]; then
+            bash "$ROOT/scripts/print-outage-status.sh" || true
+            echo "Monday post-grace US session — waiting for billing resume (forced open-ready scan on r466+)"
+            WAIT=1200
+            POLL=15
           else
             bash "$ROOT/scripts/print-outage-status.sh" || true
             echo "::error::Render backend billing-suspended — fix at https://dashboard.render.com/web/srv-da848ms9v7es739k38jg"
