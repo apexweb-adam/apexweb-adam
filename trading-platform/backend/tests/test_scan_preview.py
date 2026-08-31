@@ -882,7 +882,7 @@ def test_build_scan_preview_stocks_monday_gate_skip_ready():
                             new=AsyncMock(return_value=0),
                           ):
                             with patch(
-                              "app.engines.gate_entry_guard.stocks_session_info",
+                              "app.engines.scan_preview.stocks_session_info",
                               return_value={
                                 "in_session": False,
                                 "minutes_until_open": 45,
