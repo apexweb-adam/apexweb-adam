@@ -28,6 +28,8 @@ from app.engines.gate_entry_guard import (
   hard_skip_blocks_shadow_entry,
   bot_win_rate_for_graduation_nudge,
   commodities_graduation_entry_min_signal,
+  commodities_graduation_ease_active,
+  commodities_verification_volume_required,
   commodities_weekend_spot_gate_skip_bypass,
   commodities_monday_futures_gate_skip_bypass,
   stocks_monday_gate_skip_bypass,
@@ -315,11 +317,20 @@ class BaseBot(ABC):
         )
       elif (
         self.bot_type == "commodities"
-        and in_shadow_graduation_nudge(
-          self.bot_type,
-          bot_wr,
-          profit_factor=per_bot_stats.get("profit_factor"),
-          total_pnl=per_bot_stats.get("total_pnl"),
+        and (
+          in_shadow_graduation_nudge(
+            self.bot_type,
+            bot_wr,
+            profit_factor=per_bot_stats.get("profit_factor"),
+            total_pnl=per_bot_stats.get("total_pnl"),
+          )
+          or commodities_graduation_ease_active(
+            self.bot_type,
+            shadow_mode,
+            False,
+            gate_status,
+            per_bot_stats,
+          )
         )
       ):
         min_signal = shadow_entry_min_signal(
@@ -375,10 +386,17 @@ class BaseBot(ABC):
         profit_factor=per_bot_stats.get("profit_factor"),
         total_pnl=per_bot_stats.get("total_pnl"),
       )
+      commodities_ease_active = commodities_graduation_ease_active(
+        self.bot_type,
+        shadow_mode,
+        graduation_nudge,
+        gate_status,
+        per_bot_stats,
+      )
       min_sentiment = graduation_nudge_min_sentiment(
         self.bot_type,
         min_sentiment,
-        graduation_nudge=graduation_nudge,
+        graduation_nudge=graduation_nudge or commodities_ease_active,
         shadow_mode=shadow_mode,
         bot_win_rate=bot_wr,
         profit_factor=per_bot_stats.get("profit_factor"),
@@ -1040,7 +1058,7 @@ class BaseBot(ABC):
         entry_min_signal = commodities_graduation_entry_min_signal(
           entry_min_signal,
           bot_type=self.bot_type,
-          graduation_nudge=graduation_nudge,
+          graduation_nudge=commodities_ease_active,
           shadow_mode=shadow_mode,
           signal_direction=signal.direction,
           macd_signal=signal.macd_signal,
@@ -1178,7 +1196,7 @@ class BaseBot(ABC):
             or signal.macd_signal == "bullish"
             or bool(integration_reason and "tradingview" in integration_reason.lower())
           )
-        if graduation_nudge and self.bot_type == "commodities":
+        if commodities_ease_active and self.bot_type == "commodities":
           volume_required = (
             signal.volume_confirmed
             or composite >= entry_min_signal + 0.02
@@ -1205,6 +1223,19 @@ class BaseBot(ABC):
           macd_signal=signal.macd_signal,
           integration_boost=integration_boost,
           integration_reason=integration_reason,
+        )
+        volume_required = commodities_verification_volume_required(
+          volume_required,
+          bot_type=self.bot_type,
+          shadow_mode=shadow_mode,
+          symbol=symbol,
+          proven_winners=proven_winners,
+          gate_status=gate_status,
+          per_bot_stats=per_bot_stats,
+          composite=composite,
+          entry_min_signal=entry_min_signal,
+          macd_signal=signal.macd_signal,
+          integration_boost=integration_boost,
         )
 
         if (
@@ -1732,6 +1763,7 @@ class CommoditiesBot(BaseBot):
       bot_win_rate_for_graduation_nudge,
       commodities_effective_scan_interval,
       commodities_gate_fast_scan_active,
+      commodities_graduation_ease_active,
       commodities_session_info,
       in_shadow_graduation_nudge,
     )
@@ -1741,6 +1773,7 @@ class CommoditiesBot(BaseBot):
     graduation_nudge = False
     fast_scan = commodities_gate_fast_scan_active(session_info)
     async with SessionLocal() as session:
+      gate_status = await ProfitabilityGate(session).evaluate()
       per_bot = (await ProfitabilityGate(session).evaluate_per_bot()).get("commodities") or {}
       bot_wr = bot_win_rate_for_graduation_nudge(
         "commodities",
@@ -1754,10 +1787,17 @@ class CommoditiesBot(BaseBot):
         profit_factor=per_bot.get("profit_factor"),
         total_pnl=per_bot.get("total_pnl"),
       )
+      ease_active = commodities_graduation_ease_active(
+        "commodities",
+        False,
+        graduation_nudge,
+        gate_status,
+        per_bot,
+      )
     if not fast_scan:
       fast_scan = commodities_gate_fast_scan_active(
         session_info,
-        graduation_nudge=graduation_nudge,
+        graduation_nudge=ease_active,
       )
     gate_tightening_active = False
     if fast_scan:
@@ -1768,7 +1808,7 @@ class CommoditiesBot(BaseBot):
       gate_active_interval=self.gate_active_scan_interval,
       default_interval=self.scan_interval,
       session_info=session_info,
-      graduation_nudge=graduation_nudge,
+      graduation_nudge=ease_active,
       gate_tightening_active=gate_tightening_active,
       fast_scan=fast_scan,
     )

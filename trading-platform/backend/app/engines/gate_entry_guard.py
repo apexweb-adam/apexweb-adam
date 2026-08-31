@@ -715,6 +715,7 @@ STOCKS_TRADE_COUNT_GRADUATION_GAP = 5
 STOCKS_TRADE_COUNT_RECOVERY_MIN_COMPOSITE = 0.34
 STOCKS_TRADE_COUNT_MIN_SENTIMENT = 0.05
 STOCKS_TRADE_COUNT_PROFIT_LOCK_USD = 2.5
+COMMODITIES_VERIFICATION_TRADE_COUNT_MIN_COMPOSITE = 0.40
 COMMODITIES_HIGH_COMPOSITE_RECOVERY_FLOOR = 0.48
 COMMODITIES_GRADUATION_OPEN_COMPOSITE_FLOOR = 0.42
 OPEN_READY_NEAR_FLOOR_MARGIN = 0.05
@@ -751,6 +752,89 @@ def stocks_trade_count_graduation_nudge(
     return False
   gap = ProfitabilityGate.GRADUATION_MIN_TRADES - total_trades
   return 0 < gap <= STOCKS_TRADE_COUNT_GRADUATION_GAP
+
+
+def commodities_verification_trade_count_nudge(
+  bot_type: str,
+  shadow_mode: bool,
+  gate_status: dict[str, Any],
+  per_bot_stats: dict[str, Any],
+) -> bool:
+  """Active commodities has met graduation bar but platform gate still needs trades."""
+  from app.engines.profitability_gate import ProfitabilityGate
+
+  if bot_type != "commodities" or shadow_mode:
+    return False
+  if not per_bot_stats.get("graduation_ready"):
+    return False
+  gate_trades = int(gate_status.get("total_trades") or 0)
+  if gate_trades >= ProfitabilityGate.MIN_TRADES:
+    return False
+  gate_wr = float(gate_status.get("win_rate") or 0)
+  gate_pf = gate_status.get("profit_factor")
+  gate_pnl = float(gate_status.get("total_pnl") or 0)
+  if gate_wr < ProfitabilityGate.MIN_WIN_RATE:
+    return False
+  if gate_pnl <= 0:
+    return False
+  pf_val = float(gate_pf) if gate_pf not in (None, "inf") else float("inf")
+  if pf_val < ProfitabilityGate.MIN_PROFIT_FACTOR:
+    return False
+  return True
+
+
+def commodities_graduation_ease_active(
+  bot_type: str,
+  shadow_mode: bool,
+  graduation_nudge: bool,
+  gate_status: dict[str, Any],
+  per_bot_stats: dict[str, Any],
+) -> bool:
+  """Commodities entry easing for shadow graduation nudge or verification trade-count gap."""
+  if graduation_nudge:
+    return graduation_nudge_easing_active(
+      bot_type,
+      graduation_nudge=graduation_nudge,
+      shadow_mode=shadow_mode,
+    )
+  return commodities_verification_trade_count_nudge(
+    bot_type,
+    shadow_mode,
+    gate_status,
+    per_bot_stats,
+  )
+
+
+def commodities_verification_volume_required(
+  volume_required: bool,
+  *,
+  bot_type: str,
+  shadow_mode: bool,
+  symbol: str,
+  proven_winners: frozenset[str],
+  gate_status: dict[str, Any],
+  per_bot_stats: dict[str, Any],
+  composite: float,
+  entry_min_signal: float,
+  macd_signal: str,
+  integration_boost: float,
+) -> bool:
+  """Allow proven-winner commodities entries without strict volume during verification gap."""
+  if volume_required:
+    return True
+  if not commodities_verification_trade_count_nudge(
+    bot_type, shadow_mode, gate_status, per_bot_stats
+  ):
+    return volume_required
+  if symbol not in proven_winners:
+    return volume_required
+  if composite < COMMODITIES_VERIFICATION_TRADE_COUNT_MIN_COMPOSITE:
+    return volume_required
+  return (
+    composite >= entry_min_signal
+    or macd_signal == "bullish"
+    or integration_boost > 0.02
+  )
 
 
 def stocks_trade_count_entry_min_signal(

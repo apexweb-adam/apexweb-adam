@@ -462,6 +462,95 @@ def test_stocks_trade_count_graduation_nudge():
   ) is True
 
 
+def test_commodities_verification_trade_count_nudge():
+  from app.engines.gate_entry_guard import (
+    commodities_graduation_ease_active,
+    commodities_verification_trade_count_nudge,
+    commodities_verification_volume_required,
+    commodities_graduation_entry_min_signal,
+    COMMODITIES_VERIFICATION_TRADE_COUNT_MIN_COMPOSITE,
+  )
+
+  gate_ok = {
+    "total_trades": 55,
+    "win_rate": 0.55,
+    "profit_factor": 1.45,
+    "total_pnl": 54.91,
+  }
+  per_bot_ready = {"graduation_ready": True, "total_trades": 55, "win_rate": 0.55}
+
+  assert commodities_verification_trade_count_nudge(
+    "commodities", False, gate_ok, per_bot_ready
+  ) is True
+  assert commodities_verification_trade_count_nudge(
+    "commodities", True, gate_ok, per_bot_ready
+  ) is False
+  assert commodities_verification_trade_count_nudge(
+    "stocks_futures", False, gate_ok, per_bot_ready
+  ) is False
+  assert commodities_verification_trade_count_nudge(
+    "commodities",
+    False,
+    {**gate_ok, "total_trades": 100},
+    per_bot_ready,
+  ) is False
+  assert commodities_verification_trade_count_nudge(
+    "commodities",
+    False,
+    {**gate_ok, "win_rate": 0.50},
+    per_bot_ready,
+  ) is False
+  assert commodities_verification_trade_count_nudge(
+    "commodities", False, gate_ok, {"graduation_ready": False}
+  ) is False
+
+  assert commodities_graduation_ease_active(
+    "commodities", False, False, gate_ok, per_bot_ready
+  ) is True
+  assert commodities_graduation_ease_active(
+    "commodities", False, True, gate_ok, per_bot_ready
+  ) is True
+
+  eased = commodities_graduation_entry_min_signal(
+    0.28,
+    bot_type="commodities",
+    graduation_nudge=True,
+    shadow_mode=False,
+    signal_direction="buy",
+    macd_signal="bullish",
+    symbol="CL=F",
+    proven_winners=frozenset({"CL=F"}),
+  )
+  assert eased < 0.28
+
+  assert commodities_verification_volume_required(
+    False,
+    bot_type="commodities",
+    shadow_mode=False,
+    symbol="CL=F",
+    proven_winners=frozenset({"CL=F"}),
+    gate_status=gate_ok,
+    per_bot_stats=per_bot_ready,
+    composite=0.47,
+    entry_min_signal=0.22,
+    macd_signal="bullish",
+    integration_boost=0.0,
+  ) is True
+  assert commodities_verification_volume_required(
+    False,
+    bot_type="commodities",
+    shadow_mode=False,
+    symbol="CL=F",
+    proven_winners=frozenset({"CL=F"}),
+    gate_status=gate_ok,
+    per_bot_stats=per_bot_ready,
+    composite=COMMODITIES_VERIFICATION_TRADE_COUNT_MIN_COMPOSITE - 0.05,
+    entry_min_signal=0.22,
+    macd_signal="bullish",
+    integration_boost=0.0,
+  ) is False
+
+
 def test_stocks_proven_winner_recovery_bypasses_large_loss_skip():
   from app.engines.gate_entry_guard import (
     chronic_loser_blocks_shadow_entry,
