@@ -971,6 +971,9 @@ def test_stocks_monday_gate_skip_bypass():
       **{**base, "composite": STOCKS_TRADE_COUNT_RECOVERY_MIN_COMPOSITE - 0.01}
     ) is False
     assert stocks_monday_gate_skip_bypass(
+      **{**base, "composite": STOCKS_TRADE_COUNT_RECOVERY_MIN_COMPOSITE - 0.01, "sticky_queue": True}
+    ) is True
+    assert stocks_monday_gate_skip_bypass(
       **{**base, "total_trades": 10}
     ) is False
 

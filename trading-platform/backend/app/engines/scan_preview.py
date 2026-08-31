@@ -1378,6 +1378,20 @@ async def _build_monday_recovery_summary(session: AsyncSession) -> dict[str, Any
         )
       if not sticky_ready:
         continue
+      sticky_gate_skip = bool(row.get("monday_gate_skip_ready"))
+      if bot_type == "stocks_futures" and not sticky_gate_skip:
+        sticky_gate_skip = stocks_monday_gate_skip_bypass(
+          bot_type=bot_type,
+          shadow_mode=shadow_mode,
+          symbol=symbol,
+          proven_winners=proven_winners,
+          bot_win_rate=bot_win_rate,
+          total_trades=total_trades,
+          signal_direction=str(row.get("direction") or ""),
+          macd_signal=str(row.get("macd") or ""),
+          composite=float(composite),
+          sticky_queue=True,
+        )
       open_ready_rows.append(
         {
           "bot_type": bot_type,
@@ -1387,7 +1401,7 @@ async def _build_monday_recovery_summary(session: AsyncSession) -> dict[str, Any
           "macd": row.get("macd"),
           "blockers": blockers,
           "minutes_until_open": minutes_until_open,
-          "monday_gate_skip_ready": bool(row.get("monday_gate_skip_ready")),
+          "monday_gate_skip_ready": sticky_gate_skip,
           "sticky_queue": True,
           "extended_sticky": extended_watch,
         }
