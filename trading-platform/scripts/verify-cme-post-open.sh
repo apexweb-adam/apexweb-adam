@@ -29,7 +29,15 @@ run_verification() {
 
   echo "=== CME Post-Open Verification — $(date -u '+%Y-%m-%d %H:%M UTC') ==="
   echo "Backend: $BACKEND"
+  echo "Expected revision (code): ${CODE_REV:-unknown}"
   echo ""
+
+  if ! check_backend_suspension "$BACKEND"; then
+    bad "Backend billing-suspended — CME post-open scan/entry verification unavailable"
+    echo ""
+    echo "Results: $pass passed, $fail failed, $warn notes"
+    return 2
+  fi
 
   TMP=$(mktemp -d)
   trap 'rm -rf "$TMP"' RETURN
@@ -109,6 +117,15 @@ if phase in ("post_open", "open") and near_symbols:
         print(f"  near_floor_promoted={promoted}")
 print(f"  has_burst_scan={events.get('has_burst_scan')} has_auto_entry={events.get('has_auto_entry')}")
 
+outage = checklist.get("platform_outage_recovery") or {}
+if outage.get("logged"):
+    print("  platform_outage_recovery_logged=true")
+if outage.get("window_active"):
+    print(
+        f"  platform_outage_recovery_window=true "
+        f"grace_remaining_min={outage.get('grace_minutes_remaining')}"
+    )
+
 latest_burst = events.get("latest_burst_scan")
 if latest_burst:
     print(f"  latest_burst_scan={latest_burst.get('detail')}")
@@ -152,7 +169,18 @@ if phase not in ("post_open", "open"):
     print("  warn=still in pre-open phase — rerun after CME open")
     sys.exit(2)
 if not events.get("has_burst_scan") and not events.get("has_auto_entry"):
-    errors.append("burst_scan_missing")
+    deploy = checklist.get("deploy") or {}
+    rev_current = deploy.get("platform_revision_current")
+    if outage.get("window_active"):
+        if rev_current is False:
+            print(
+                f"  warn=deploy_{code_rev or 'revision'}_required_for_platform_outage_recovery"
+            )
+            errors.append("revision_behind_for_outage_recovery")
+        else:
+            print("  note=platform_outage_recovery_pending — burst scan expected on next bot loop")
+    else:
+        errors.append("burst_scan_missing")
 if not events.get("has_auto_entry") and open_symbols:
     errors.append("auto_entry_missing")
 if critical_failures:

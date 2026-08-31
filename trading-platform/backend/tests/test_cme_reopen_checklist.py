@@ -197,3 +197,30 @@ def test_format_cme_checklist_crm_html():
   assert "auto_entry_queued" in html
   assert "NG=F" in html
   assert "near floor CL=F +0.014" in html
+
+
+def test_cme_platform_outage_recovery_status_window_active():
+  from app.engines.us_stocks_open_checklist import platform_outage_recovery_status
+
+  status = platform_outage_recovery_status(
+    in_session=True,
+    minutes_since_open=120,
+    open_ready_symbols=["NG=F"],
+    has_burst_scan=False,
+    has_auto_entry=False,
+    burst_events=[],
+    auto_entry_events=[],
+  )
+  assert status["window_active"] is True
+  assert status["grace_minutes_remaining"] == 150
+
+
+def test_verify_cme_post_open_script_includes_outage_recovery():
+  from pathlib import Path
+
+  text = (
+    Path(__file__).resolve().parents[2] / "scripts" / "verify-cme-post-open.sh"
+  ).read_text(encoding="utf-8")
+  assert "platform_outage_recovery" in text
+  assert "check_backend_suspension" in text
+  assert "deploy_{code_rev" in text

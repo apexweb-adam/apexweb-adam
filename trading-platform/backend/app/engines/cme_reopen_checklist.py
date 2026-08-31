@@ -410,6 +410,19 @@ async def build_cme_reopen_checklist(session: AsyncSession) -> dict[str, Any]:
     phase=phase,
   )
 
+  from app.engines.us_stocks_open_checklist import platform_outage_recovery_status
+
+  minutes_since_open = cme_session.get("minutes_since_open")
+  platform_outage_recovery = platform_outage_recovery_status(
+    in_session=in_session,
+    minutes_since_open=int(minutes_since_open) if minutes_since_open is not None else None,
+    open_ready_symbols=open_ready_symbols,
+    has_burst_scan=has_burst_scan,
+    has_auto_entry=has_auto_entry,
+    burst_events=burst_events,
+    auto_entry_events=auto_entry_events,
+  )
+
   return {
     "timestamp": datetime.utcnow().isoformat(),
     "phase": phase,
@@ -455,6 +468,7 @@ async def build_cme_reopen_checklist(session: AsyncSession) -> dict[str, Any]:
       "latest_burst_scan": burst_events[0] if burst_events else None,
       "latest_auto_entry": auto_entry_events[0] if auto_entry_events else None,
     },
+    "platform_outage_recovery": platform_outage_recovery,
     "checks": checks,
   }
 

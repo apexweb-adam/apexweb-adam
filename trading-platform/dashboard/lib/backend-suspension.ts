@@ -1,3 +1,5 @@
+import { EXPECTED_PLATFORM_REVISION } from "./deploy-health";
+
 export const RENDER_BACKEND_DASHBOARD_URL =
   "https://dashboard.render.com/web/srv-da848ms9v7es739k38jg";
 
@@ -35,7 +37,7 @@ export function buildBackendSuspensionPayload(
       "Open the Render dashboard and resolve billing (payment method / upgrade from free).",
       "Resume apex-trading-backend manually (API resume does not work for billing suspension).",
       "Run: bash trading-platform/scripts/recover-render-billing.sh",
-      "If US open was missed with queued symbols, deploy r450+ before the 270-minute outage grace expires.",
+      `If US open was missed with queued symbols, deploy ${EXPECTED_PLATFORM_REVISION} before the 270-minute outage grace expires.`,
     ],
   };
 }
