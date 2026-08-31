@@ -126,3 +126,64 @@ def test_analyze_losing_trade_flags_polymarket_overbought():
 
   assert "overbought" in analysis.root_cause.lower()
   assert "0.72" in analysis.strategy_adjustment
+
+
+def test_analyze_losing_trade_flags_stocks_monday_gate_skip():
+  session = AsyncMock()
+  session.execute = AsyncMock(
+    side_effect=[
+      MagicMock(scalar_one_or_none=MagicMock(return_value=None)),
+      MagicMock(scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=[])))),
+      MagicMock(scalar_one_or_none=MagicMock(return_value=None)),
+      MagicMock(scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=[])))),
+    ]
+  )
+  session.commit = AsyncMock()
+  session.add = MagicMock()
+
+  trade = _trade(
+    reason="[shadow] Signal:0.42 Sentiment:0.35 | RSI oversold | monday_gate_skip | session_open_burst",
+  )
+
+  learner = LearningEngine(session)
+  learner._get_market_context = AsyncMock(return_value="context")
+  learner._had_source_intel = AsyncMock(return_value=False)
+  learner._apply_adjustments = AsyncMock()
+  learner.run_daily_review = AsyncMock(return_value=MagicMock())
+
+  with patch("app.ws_manager.push_live_update", new_callable=AsyncMock):
+    analysis = asyncio.run(learner.analyze_losing_trade(trade))
+
+  assert "gate-skip" in analysis.root_cause.lower() or "session-open" in analysis.root_cause.lower()
+  assert "MACD" in analysis.strategy_adjustment
+
+
+def test_analyze_losing_trade_flags_commodities_monday_futures_gate_skip():
+  session = AsyncMock()
+  session.execute = AsyncMock(
+    side_effect=[
+      MagicMock(scalar_one_or_none=MagicMock(return_value=None)),
+      MagicMock(scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=[])))),
+      MagicMock(scalar_one_or_none=MagicMock(return_value=None)),
+      MagicMock(scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=[])))),
+    ]
+  )
+  session.commit = AsyncMock()
+  session.add = MagicMock()
+
+  trade = _trade(
+    bot_type="commodities",
+    symbol="NG=F",
+    reason="[shadow] Signal:0.44 Sentiment:0.2 | momentum buy | monday_futures_gate_skip",
+  )
+
+  learner = LearningEngine(session)
+  learner._get_market_context = AsyncMock(return_value="context")
+  learner._had_source_intel = AsyncMock(return_value=False)
+  learner._apply_adjustments = AsyncMock()
+  learner.run_daily_review = AsyncMock(return_value=MagicMock())
+
+  with patch("app.ws_manager.push_live_update", new_callable=AsyncMock):
+    analysis = asyncio.run(learner.analyze_losing_trade(trade))
+
+  assert "cme" in analysis.root_cause.lower() or "gate-skip" in analysis.root_cause.lower()

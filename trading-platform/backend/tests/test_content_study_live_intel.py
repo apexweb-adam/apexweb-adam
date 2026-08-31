@@ -130,3 +130,17 @@ def test_extract_reddit_wsb_impact():
   assert impact is not None
   assert "reddit" in impact.lower()
   assert "crypto bot" in impact.lower()
+
+
+def test_extract_tiktok_stock_sentiment_impact():
+  impact, confidence = _extract_live_intel_impact(
+    "tiktok",
+    "AAPL day trading strategy viral on TikTok",
+    "stock picks earnings play",
+    "AAPL",
+    0.3,
+    0.7,
+  )
+  assert impact is not None
+  assert "stocks_futures bot" in impact.lower()
+  assert confidence >= 0.59

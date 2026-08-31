@@ -1335,6 +1335,14 @@ class BaseBot(ABC):
           if integration_reason:
             reason += f" Integrations:{integration_boost:+.2f} ({integration_reason})"
           reason += f" | {signal.reason}"
+          if monday_stocks_cooldown_waived:
+            reason += " | monday_gate_skip"
+          if monday_commodities_cooldown_waived:
+            reason += " | monday_futures_gate_skip"
+          if weekend_spot_cooldown_waived:
+            reason += " | weekend_spot_gate_skip"
+          if getattr(self, "_session_open_burst", False):
+            reason += " | session_open_burst"
           buy_scale = SHADOW_POSITION_SCALE if shadow_mode else 1.0
           if shadow_mode:
             buy_scale *= shadow_chronic_position_scale(

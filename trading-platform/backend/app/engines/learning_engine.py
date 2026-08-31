@@ -131,6 +131,17 @@ class LearningEngine:
         root_causes.append("Loss during session close or after-hours wind-down")
         adjustments.append("Avoid new entries near session close; tighten wind-down exit rules")
         lessons.append("Respect regular trading hours for stocks day-trading")
+      if any(
+        k in reason_lower
+        for k in ("monday_gate_skip", "session_open_burst", "monday open", "gate-skip")
+      ):
+        root_causes.append("Loss on Monday session-open or gate-skip auto-entry")
+        adjustments.append(
+          "Require bullish MACD and volume confirmation on Monday gate-skip entries"
+        )
+        lessons.append(
+          "Gate-skip bypasses chronic blocks at US open — demand stronger technical confirmation"
+        )
 
     if trade.bot_type == "commodities":
       if "weekend" in reason_lower:
@@ -143,6 +154,13 @@ class LearningEngine:
       if "macd" in reason_lower and trade.signal_score < 0.5:
         root_causes.append("Weak MACD/technical setup on commodities entry")
         adjustments.append("Raise min_signal_score for commodities during verification")
+      if any(
+        k in reason_lower
+        for k in ("monday_futures_gate_skip", "session_open_burst", "cme reopen", "gate-skip")
+      ):
+        root_causes.append("Loss on CME reopen or Monday futures gate-skip entry")
+        adjustments.append("Raise composite floor for commodities gate-skip entries at session open")
+        lessons.append("CME reopen volatility needs extra confirmation before gate-skip entries")
 
     if trade.bot_type == "polymarket":
       if "overbought" in reason_lower:
