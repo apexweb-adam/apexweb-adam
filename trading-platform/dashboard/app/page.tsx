@@ -2490,7 +2490,14 @@ function BotScanPreview({ botType }: { botType: string }) {
     <div className="mb-2 rounded border border-apex-border/60 bg-apex-dark/40 p-2">
       <p className="text-[10px] text-gray-500 mb-1">
         Scan preview
-        {preview.open_count != null && preview.shadow_open_cap != null && (
+        {preview.open_count != null && preview.effective_open_cap != null && !preview.shadow_mode && (
+          <span className={preview.cap_pressure_active ? "text-rose-400/90" : "text-gray-400"}>
+            {" "}
+            · {preview.open_count}/{preview.effective_open_cap} open
+            {preview.cap_pressure_active ? " · cap pressure" : ""}
+          </span>
+        )}
+        {preview.open_count != null && preview.shadow_open_cap != null && preview.shadow_mode && (
           <span className="text-gray-400">
             {" "}
             · {preview.open_count}/{preview.shadow_open_cap} open
@@ -2500,7 +2507,12 @@ function BotScanPreview({ botType }: { botType: string }) {
           <span className="text-amber-500/90"> · graduation nudge</span>
         )}
         {preview.stocks_trade_count_nudge && (
-          <span className="text-amber-400/90"> · trade-count nudge (floor 0.34 / sent 0.05)</span>
+          <span className="text-amber-400/90">
+            {" "}
+            · trade-count nudge (floor 0.34 / sent 0.05
+            {preview.stocks_trade_count_gap != null ? ` · ${preview.stocks_trade_count_gap} to grad` : ""}
+            )
+          </span>
         )}
         {preview.commodities_verification_trade_count_nudge && !preview.graduation_nudge && (
           <span className="text-sky-400/90" title="Active gate commodities — proven winners at 0.40 floor">
@@ -2660,6 +2672,11 @@ function BotScanPreview({ botType }: { botType: string }) {
               {row.verification_cooldown_bypass_ready && (
                 <span className="ml-1 text-violet-400/80" title="Verification cooldown bypass active">
                   C
+                </span>
+              )}
+              {row.verification_chronic_bypass_ready && (
+                <span className="ml-1 text-fuchsia-400/80" title="Verification chronic-loser bypass active">
+                  R
                 </span>
               )}
             </span>

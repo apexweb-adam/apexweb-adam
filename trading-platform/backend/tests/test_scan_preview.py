@@ -800,76 +800,81 @@ def test_build_scan_preview_stocks_monday_gate_skip_ready():
 
     with patch("app.engines.scan_preview.BOT_CLASSES", {"stocks_futures": MagicMock(return_value=bot)}):
       with patch("app.engines.scan_preview.is_bot_paused", return_value=True):
-        with patch("app.engines.scan_preview.PaperTradingEngine") as EngineCls:
-          strategy = MagicMock()
-          strategy.min_signal_score = 0.28
-          strategy.min_sentiment_score = 0.0
-          strategy.rsi_oversold = 26
-          strategy.rsi_overbought = 70
-          strategy.technical_weight = 0.3
-          strategy.sentiment_weight = 0.5
-          strategy.momentum_weight = 0.4
-          engine = EngineCls.return_value
-          engine.get_strategy = AsyncMock(return_value=strategy)
-          engine.get_open_positions = AsyncMock(return_value=[])
-          engine.get_consecutive_losses = AsyncMock(return_value=0)
-          with patch("app.engines.scan_preview.ProfitabilityGate") as GateCls:
-            GateCls.return_value.evaluate = AsyncMock(
-              return_value={"live_trading_ready": False, "total_trades": 15, "win_rate": 0.57}
-            )
-            GateCls.return_value.evaluate_per_bot = AsyncMock(
-              return_value={"stocks_futures": {"win_rate": 0.57, "profit_factor": 0.62, "total_trades": 15}}
-            )
-            with patch(
-              "app.engines.scan_preview.get_gate_entry_tightening",
-              return_value=GateEntryTightening(
-                active=True,
-                win_rate=0.44,
-                min_sentiment=0.04,
-                require_macd_bullish=True,
-                min_composite_boost=0.0,
-                blocked_new_entries=frozenset(),
-              ),
-            ):
+        with patch(
+          "app.engines.session_open_log.get_prep_phase_state",
+          new_callable=AsyncMock,
+          return_value={},
+        ):
+          with patch("app.engines.scan_preview.PaperTradingEngine") as EngineCls:
+            strategy = MagicMock()
+            strategy.min_signal_score = 0.28
+            strategy.min_sentiment_score = 0.0
+            strategy.rsi_oversold = 26
+            strategy.rsi_overbought = 70
+            strategy.technical_weight = 0.3
+            strategy.sentiment_weight = 0.5
+            strategy.momentum_weight = 0.4
+            engine = EngineCls.return_value
+            engine.get_strategy = AsyncMock(return_value=strategy)
+            engine.get_open_positions = AsyncMock(return_value=[])
+            engine.get_consecutive_losses = AsyncMock(return_value=0)
+            with patch("app.engines.scan_preview.ProfitabilityGate") as GateCls:
+              GateCls.return_value.evaluate = AsyncMock(
+                return_value={"live_trading_ready": False, "total_trades": 15, "win_rate": 0.57}
+              )
+              GateCls.return_value.evaluate_per_bot = AsyncMock(
+                return_value={"stocks_futures": {"win_rate": 0.57, "profit_factor": 0.62, "total_trades": 15}}
+              )
               with patch(
-                "app.engines.scan_preview.get_chronic_loser_symbols",
-                new=AsyncMock(return_value=frozenset()),
+                "app.engines.scan_preview.get_gate_entry_tightening",
+                return_value=GateEntryTightening(
+                  active=True,
+                  win_rate=0.44,
+                  min_sentiment=0.04,
+                  require_macd_bullish=True,
+                  min_composite_boost=0.0,
+                  blocked_new_entries=frozenset(),
+                ),
               ):
                 with patch(
-                  "app.engines.scan_preview.get_hard_gate_skip_components",
-                  new=AsyncMock(
-                    return_value=HardGateSkipSets(
-                      recent=frozenset({"AAPL"}),
-                      large=frozenset(),
-                      review=frozenset(),
-                    )
-                  ),
+                  "app.engines.scan_preview.get_chronic_loser_symbols",
+                  new=AsyncMock(return_value=frozenset()),
                 ):
                   with patch(
-                    "app.engines.scan_preview.get_proven_winner_symbols",
-                    return_value=frozenset({"AAPL"}),
+                    "app.engines.scan_preview.get_hard_gate_skip_components",
+                    new=AsyncMock(
+                      return_value=HardGateSkipSets(
+                        recent=frozenset({"AAPL"}),
+                        large=frozenset(),
+                        review=frozenset(),
+                      )
+                    ),
                   ):
                     with patch(
-                      "app.engines.scan_preview.get_integration_boost",
-                      return_value=(0.0, ""),
+                      "app.engines.scan_preview.get_proven_winner_symbols",
+                      return_value=frozenset({"AAPL"}),
                     ):
                       with patch(
-                        "app.engines.scan_preview.is_price_sane",
-                        return_value=True,
+                        "app.engines.scan_preview.get_integration_boost",
+                        return_value=(0.0, ""),
                       ):
                         with patch(
-                          "app.engines.scan_preview.symbol_cooldown_remaining_seconds",
-                          new=AsyncMock(return_value=0),
+                          "app.engines.scan_preview.is_price_sane",
+                          return_value=True,
                         ):
                           with patch(
-                            "app.engines.gate_entry_guard.stocks_session_info",
-                            return_value={
-                              "in_session": False,
-                              "minutes_until_open": 45,
-                              "minutes_since_open": 0,
-                            },
+                            "app.engines.scan_preview.symbol_cooldown_remaining_seconds",
+                            new=AsyncMock(return_value=0),
                           ):
-                            return await build_scan_preview(session, "stocks_futures")
+                            with patch(
+                              "app.engines.gate_entry_guard.stocks_session_info",
+                              return_value={
+                                "in_session": False,
+                                "minutes_until_open": 45,
+                                "minutes_since_open": 0,
+                              },
+                            ):
+                              return await build_scan_preview(session, "stocks_futures")
 
   import asyncio
 
@@ -880,4 +885,5 @@ def test_build_scan_preview_stocks_monday_gate_skip_ready():
   assert "stocks_session_closed" in aapl["blockers"]
   assert aapl["would_enter"] is False
   assert result.get("stocks_trade_count_nudge") is True
+  assert result.get("stocks_trade_count_gap") == 5
   assert result.get("stocks_gate_fast_scan_active") is True

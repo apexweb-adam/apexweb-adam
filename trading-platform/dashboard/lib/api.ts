@@ -232,6 +232,7 @@ export type ScanPreviewSymbol = {
   monday_open_ready?: boolean;
   monday_gate_skip_ready?: boolean;
   verification_cooldown_bypass_ready?: boolean;
+  verification_chronic_bypass_ready?: boolean;
   raw_signal?: number;
   integration_boost?: number;
   skip?: string;
@@ -243,6 +244,7 @@ export type ScanPreview = {
   graduation_nudge: boolean;
   commodities_verification_trade_count_nudge?: boolean;
   stocks_trade_count_nudge?: boolean;
+  stocks_trade_count_gap?: number | null;
   stocks_gate_fast_scan_active?: boolean;
   stocks_open_imminent_scan?: boolean;
   stocks_trade_count_profit_lock_usd?: number;
@@ -266,6 +268,8 @@ export type ScanPreview = {
   proven_winners: string[];
   min_signal: number;
   open_count?: number;
+  effective_open_cap?: number | null;
+  cap_pressure_active?: boolean;
   shadow_open_cap?: number | null;
   held_symbols?: string[];
   open_ready_candidates?: string[];
@@ -318,6 +322,10 @@ export type SessionPrepEntry = {
   }>;
   auto_entry_queued?: boolean;
   composite_floor?: number;
+  open_count?: number;
+  effective_open_cap?: number | null;
+  cap_pressure_active?: boolean;
+  trade_count_gap?: number | null;
 };
 
 export const SESSION_PREP_BOT_TYPES = ["stocks_futures", "commodities"] as const;

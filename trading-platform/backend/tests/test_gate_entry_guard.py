@@ -312,10 +312,18 @@ def test_stocks_negative_pf_blocks_entry():
 def test_stocks_trade_count_graduation_nudge():
   from app.engines.gate_entry_guard import (
     STOCKS_TRADE_COUNT_GRADUATION_GAP,
+    stocks_trade_count_graduation_gap,
     stocks_trade_count_graduation_nudge,
     stocks_proven_winner_recovery_entry_ok,
     stocks_monday_recovery_ready,
   )
+
+  assert stocks_trade_count_graduation_gap("stocks_futures", True, 0.57, 15) == 5
+  assert stocks_trade_count_graduation_gap("stocks_futures", True, 0.57, 20) is None
+  assert stocks_trade_count_graduation_gap("stocks_futures", True, 0.57, 14) is None
+  assert stocks_trade_count_graduation_gap("stocks_futures", False, 0.57, 15) is None
+  assert stocks_trade_count_graduation_gap("commodities", True, 0.57, 15) is None
+  assert stocks_trade_count_graduation_gap("stocks_futures", True, 0.50, 15) is None
 
   assert stocks_trade_count_graduation_nudge(
     "stocks_futures", True, 0.57, 15
