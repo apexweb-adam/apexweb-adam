@@ -88,10 +88,13 @@ def test_recover_render_billing_triggers_deploy_when_behind():
   assert "platform_outage_events" in text
   assert "platform_outage_recovery" in text
   assert "commodities_open_positions" in text
+  assert "crypto_open_positions" in text
   assert "force-refreshes held-position TV" in text
   assert "stocks scan preview" in text
   assert "outage catch-up" in text
   assert "outage_held_at_resume" in text
+  assert "Crypto scan preview" in text
+  assert "verify-cme-post-open.sh" in text
 
 
 def test_verify_platform_includes_platform_outage_state():
@@ -130,6 +133,8 @@ def test_print_outage_status_script():
   assert "CODE_REV" in text
   assert "r454 deploys" not in text
   assert "held_open_positions" in text
+  assert "cme-reopen-checklist" in text
+  assert "crypto: 24/7" in text.lower() or "Crypto: 24/7" in text
 
 
 def test_verify_post_deploy_includes_crm_and_learning_checks():

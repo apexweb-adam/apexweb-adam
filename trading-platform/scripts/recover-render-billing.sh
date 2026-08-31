@@ -138,10 +138,19 @@ commodities_held = [
     for p in open_positions
     if isinstance(p, dict) and p.get("bot_type") == "commodities"
 ]
+crypto_held = [
+    p.get("symbol")
+    for p in open_positions
+    if isinstance(p, dict) and p.get("bot_type") == "crypto"
+]
 if commodities_held:
     print(f"  commodities_open_positions={commodities_held}")
 elif bots.get("commodities", {}).get("active"):
     print("  commodities_bot=active (no open positions reported)")
+if crypto_held:
+    print(f"  crypto_open_positions={crypto_held}")
+elif bots.get("crypto", {}).get("active"):
+    print("  crypto_bot=active (no open positions reported)")
 
 now = datetime.now(timezone.utc)
 if now.isoweekday() == 1:
@@ -184,6 +193,7 @@ if [[ "$SKIP_STOCKS" == false && "$DOW" -ge 1 && "$DOW" -le 5 ]]; then
   echo ""
   echo "=== Commodities scan preview (CME weekday session) ==="
   fetch_json "$BACKEND/api/bots/commodities/scan-preview" 120 3 > /tmp/commodities-scan.json 2>/dev/null || true
+  fetch_json "$BACKEND/api/gate/cme-reopen-checklist" 90 3 > /tmp/cme-checklist.json 2>/dev/null || true
   if [[ -f /tmp/commodities-scan.json ]]; then
     python3 - << 'PY'
 import json
@@ -193,8 +203,32 @@ symbols = data.get("symbols") or []
 held = [row["symbol"] for row in symbols if row.get("held")]
 open_ready = [row["symbol"] for row in symbols if row.get("would_enter")]
 print(f"  commodities symbols={len(symbols)} held={held or 'none'} would_enter={open_ready or 'none'}")
+cme_path = Path("/tmp/cme-checklist.json")
+if cme_path.is_file():
+    cme = json.loads(cme_path.read_text(encoding="utf-8") or "{}")
+    outage = cme.get("platform_outage_recovery") or {}
+    if outage.get("window_active"):
+        print(f"  cme_platform_outage_recovery grace_remaining_min={outage.get('grace_minutes_remaining')}")
 PY
   fi
+  echo ""
+  echo "=== CME post-open verification (weekday session) ==="
+  bash "$ROOT/scripts/verify-cme-post-open.sh" --watch 90 || true
+fi
+
+echo ""
+echo "=== Crypto scan preview (24/7 held-position check) ==="
+fetch_json "$BACKEND/api/bots/crypto/scan-preview" 120 3 > /tmp/crypto-scan.json 2>/dev/null || true
+if [[ -f /tmp/crypto-scan.json ]]; then
+  python3 - << 'PY'
+import json
+from pathlib import Path
+data = json.loads(Path("/tmp/crypto-scan.json").read_text(encoding="utf-8") or "{}")
+symbols = data.get("symbols") or []
+held = [row["symbol"] for row in symbols if row.get("held")]
+would_enter = [row["symbol"] for row in symbols if row.get("would_enter")]
+print(f"  crypto symbols={len(symbols)} held={held or 'none'} would_enter={would_enter or 'none'}")
+PY
 fi
 
 echo ""
@@ -205,5 +239,6 @@ if [[ "$DOW" == "1" && "$HOUR" -ge 13 && "$HOUR" -le 18 ]]; then
   echo ""
   echo "Note: stocks burst-recovery runs within 60 min of US open (13:30 UTC)."
   echo "Platform-outage recovery extends to 270 min when open-ready symbols were queued (e.g. AAPL)."
+  echo "Crypto held positions get an immediate post-outage scan on startup (r460+)."
   echo "Check us-stocks-open-checklist for has_burst_scan / has_auto_entry."
 fi
