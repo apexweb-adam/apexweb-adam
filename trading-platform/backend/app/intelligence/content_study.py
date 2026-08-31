@@ -183,6 +183,56 @@ def _extract_political_impact(
   return impact, confidence
 
 
+def _extract_polymarket_impact(
+  source: str,
+  title: str,
+  content: str,
+  symbols: str,
+  sentiment: float,
+  relevance: float,
+) -> tuple[str, float] | None:
+  """Map Polymarket market + account-hook intel into bot-targeted strategy impacts."""
+  text = f"{title} {content}".lower()
+  sym = symbols or "macro markets"
+
+  if source == "polymarket_account":
+    if "no open positions" in text or "account linked" in text:
+      return None
+    direction = "Yes entries" if sentiment > 0 else "reduce Yes exposure"
+    impact = (
+      f"Polymarket account hook on {sym} — polymarket bot: mirror account positions only with "
+      f"macro/political intel confirmation; favor {direction} when composite score aligns"
+    )
+    confidence = min(0.78, relevance * 0.82 + abs(sentiment) * 0.15)
+    if confidence < 0.55:
+      return None
+    return impact, confidence
+
+  targets: list[str] = ["polymarket"]
+  if any(k in text for k in ("gold", "oil", "commodit", "tariff", "energy")):
+    targets.append("commodities")
+  if any(k in text for k in ("fed", "rate", "cpi", "inflation", "gdp", "recession")):
+    targets.extend(["stocks_futures", "polymarket"])
+  if any(k in text for k in ("bitcoin", "crypto", "ethereum", "btc", "eth")):
+    targets.append("crypto")
+  bots = ", ".join(dict.fromkeys(targets))
+
+  if sentiment > 0.15:
+    direction = "long Yes"
+  elif sentiment < -0.15:
+    direction = "cautious No / reduce Yes"
+  else:
+    direction = "neutral — wait for momentum"
+  impact = (
+    f"Polymarket intel on {sym}: favor {direction} when prediction odds align with price action — "
+    f"target bots: {bots}"
+  )
+  confidence = min(0.8, relevance * 0.85 + abs(sentiment) * 0.15)
+  if confidence < 0.55:
+    return None
+  return impact, confidence
+
+
 def _extract_live_intel_impact(source: str, title: str, content: str, symbols: str, sentiment: float, relevance: float) -> tuple[str, float] | None:
   """Map live scanner intel into bot-targeted strategy impacts."""
   text = f"{title} {content}".lower()
@@ -504,6 +554,35 @@ class ContentStudyEngine:
           if insight.applied:
             item.applied = True
             applied += 1
+          continue
+      if item.source in ("polymarket", "polymarket_account"):
+        extracted = _extract_polymarket_impact(
+          item.source,
+          item.title,
+          item.content or "",
+          item.symbols_mentioned or "",
+          float(item.sentiment or 0),
+          float(item.relevance_score or 0),
+        )
+        if extracted:
+          impact, confidence = extracted
+          insight = await self.learner.apply_external_insight(
+            source_type=item.source,
+            title=item.title,
+            url=item.url or "",
+            takeaways=item.content[:500],
+            impact=impact,
+            confidence=confidence,
+          )
+          if insight.applied:
+            item.applied = True
+            applied += 1
+          continue
+        if item.source == "polymarket_account" and (
+          "account linked" in f"{item.title} {item.content}".lower()
+          or "no open positions" in f"{item.title} {item.content}".lower()
+        ):
+          item.applied = True
           continue
       direction = "long" if item.sentiment > 0 else "cautious"
       symbols = item.symbols_mentioned or "macro markets"

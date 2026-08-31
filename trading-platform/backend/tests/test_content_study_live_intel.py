@@ -543,6 +543,98 @@ def test_study_live_intel_sources_applies_dexscreener_item():
   assert "crypto bot" in call_kwargs["impact"].lower()
 
 
+def test_extract_polymarket_macro_impact():
+  from app.intelligence.content_study import _extract_polymarket_impact
+
+  impact, confidence = _extract_polymarket_impact(
+    "polymarket",
+    "Will the Fed cut rates in September?",
+    "Yes probability rising on macro market",
+    "FED-RATE-CUT",
+    0.42,
+    0.76,
+  )
+  assert impact is not None
+  assert "polymarket intel" in impact.lower()
+  assert "polymarket" in impact.lower()
+  assert "stocks_futures" in impact.lower()
+  assert confidence >= 0.55
+
+
+def test_extract_polymarket_account_hook_impact():
+  from app.intelligence.content_study import _extract_polymarket_impact
+
+  impact, confidence = _extract_polymarket_impact(
+    "polymarket_account",
+    "[Your Polymarket] Trump tariff Yes position",
+    "Your position: Yes | Size: 120.00 | Price: 0.62 | PnL: $45.00",
+    "PM:trump-tariff",
+    0.3,
+    0.72,
+  )
+  assert impact is not None
+  assert "polymarket account hook" in impact.lower()
+  assert "polymarket bot" in impact.lower()
+  assert confidence >= 0.55
+
+
+def test_extract_polymarket_account_linked_skipped():
+  from app.intelligence.content_study import _extract_polymarket_impact
+
+  assert (
+    _extract_polymarket_impact(
+      "polymarket_account",
+      "[Your Polymarket] Account linked (0xabc…1234)",
+      "No open positions. Wallet connected for prediction-market signal overlay.",
+      "",
+      0.0,
+      0.5,
+    )
+    is None
+  )
+
+
+def test_study_from_intelligence_applies_polymarket_account_item():
+  from app.intelligence.content_study import ContentStudyEngine
+
+  item = SimpleNamespace(
+    id=11,
+    source="polymarket_account",
+    title="[Your Polymarket] Fed rate cut Yes position",
+    content="Your position: Yes | Size: 80.00 | Price: 0.58 | PnL: $12.00",
+    url="https://polymarket.com/event/fed-rate-cut",
+    symbols_mentioned="FED-RATE-CUT",
+    sentiment=0.3,
+    relevance_score=0.74,
+    applied=False,
+  )
+
+  session = AsyncMock()
+  session.execute = AsyncMock(
+    side_effect=[
+      MagicMock(scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=[])))),
+      MagicMock(scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=[])))),
+      MagicMock(scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=[item])))),
+      MagicMock(scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=[])))),
+    ]
+  )
+  session.commit = AsyncMock()
+
+  insight = MagicMock(applied=True)
+  learner = MagicMock()
+  learner.apply_external_insight = AsyncMock(return_value=insight)
+
+  engine = ContentStudyEngine(session)
+  engine.learner = learner
+
+  applied = asyncio.run(engine.study_from_intelligence())
+
+  assert applied == 1
+  call_kwargs = learner.apply_external_insight.await_args.kwargs
+  assert "polymarket account hook" in call_kwargs["impact"].lower()
+  assert call_kwargs["source_type"] == "polymarket_account"
+
+
 def test_study_live_intel_sources_applies_phantom_item():
   item = SimpleNamespace(
     id=10,
