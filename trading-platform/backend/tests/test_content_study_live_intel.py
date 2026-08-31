@@ -16,6 +16,7 @@ def test_live_intel_sources_include_political_and_tradingview():
   assert "political" in LIVE_INTEL_SOURCES
   assert "tradingview" in LIVE_INTEL_SOURCES
   assert "tiktok" in LIVE_INTEL_SOURCES
+  assert "newsapi" in LIVE_INTEL_SOURCES
 
 
 def test_extract_youtube_rsi_divergence_impact():
@@ -257,3 +258,54 @@ def test_extract_political_tariff_impact():
   assert "tariff" in impact.lower()
   assert "commodities" in impact.lower()
   assert confidence >= 0.55
+
+
+def test_extract_newsapi_bearish_impact():
+  impact, confidence = _extract_live_intel_impact(
+    "newsapi",
+    "Fed signals higher rates for longer",
+    "macro headline pressure on risk assets",
+    "SPY",
+    -0.42,
+    0.78,
+  )
+  assert impact is not None
+  assert "news headline" in impact.lower()
+  assert "bearish" in impact.lower()
+  assert confidence >= 0.55
+
+
+def test_study_live_intel_sources_applies_newsapi_item():
+  item = SimpleNamespace(
+    id=4,
+    source="newsapi",
+    title="Oil prices surge on supply shock",
+    content="energy markets rally",
+    url="https://news.example/oil",
+    symbols_mentioned="CL=F",
+    sentiment=0.38,
+    relevance_score=0.76,
+    applied=False,
+  )
+
+  session = AsyncMock()
+  session.execute = AsyncMock(
+    return_value=MagicMock(scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=[item]))))
+  )
+  session.commit = AsyncMock()
+
+  insight = MagicMock(applied=True)
+  learner = MagicMock()
+  learner.apply_external_insight = AsyncMock(return_value=insight)
+
+  engine = ContentStudyEngine(session)
+  engine.learner = learner
+
+  applied = asyncio.run(engine._study_live_intel_sources())
+
+  assert applied == 1
+  learner.apply_external_insight.assert_awaited_once()
+  assert item.applied is True
+  call_kwargs = learner.apply_external_insight.await_args.kwargs
+  assert "commodities bot" in call_kwargs["impact"].lower()
+  assert "news headline" in call_kwargs["impact"].lower()

@@ -147,6 +147,7 @@ LIVE_INTEL_SOURCES = (
   "reddit",
   "tradingview",
   "political",
+  "newsapi",
 )
 
 
@@ -331,6 +332,29 @@ def _extract_live_intel_impact(source: str, title: str, content: str, symbols: s
 
   if source == "political":
     return _extract_political_impact(title, content, symbols, sentiment, relevance)
+
+  if source == "newsapi":
+    if sentiment > 0.25:
+      if any(k in text for k in ("crypto", "bitcoin", "btc", "ethereum", "eth", "solana")):
+        return (
+          f"News headline bullish on {sym} — crypto bot: require TA confirmation on headline-driven entries",
+          min(0.76, relevance * 0.85 + abs(sentiment) * 0.1),
+        )
+      if any(k in text for k in ("gold", "oil", "commodit", "fed", "rate", "tariff")):
+        return (
+          f"News headline on {sym} — commodities bot: weight macro headlines; align with political intel",
+          min(0.74, relevance * 0.82 + abs(sentiment) * 0.1),
+        )
+      return (
+        f"News headline bullish on {sym} — stocks_futures bot: favor long bias when news confirms TA",
+        min(0.72, relevance * 0.8 + abs(sentiment) * 0.1),
+      )
+    if sentiment < -0.25:
+      return (
+        f"News headline bearish on {sym} — tighten stops and reduce long exposure across bots",
+        min(0.75, relevance * 0.82 + abs(sentiment) * 0.1),
+      )
+    return None
 
   return None
 

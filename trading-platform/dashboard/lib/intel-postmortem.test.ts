@@ -31,6 +31,15 @@ describe("detectIntelPostMortemSources", () => {
     assert.deepEqual(ids, ["reddit", "x", "youtube", "fomo", "polymarket"]);
   });
 
+  it("detects news headlines from post-mortem text", () => {
+    const sources = detectIntelPostMortemSources(
+      "News headline influenced entry without local technical confirmation",
+      "Treat news as sentiment input — wait for TA alignment"
+    );
+    const ids = sources.map((source) => source.id);
+    assert.deepEqual(ids, ["news"]);
+  });
+
   it("returns empty list when no intel keywords are present", () => {
     const sources = detectIntelPostMortemSources(
       "Market moved against position - normal variance",

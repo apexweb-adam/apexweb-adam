@@ -14,6 +14,7 @@ _INTEL_LOSS_PATTERN_KEYWORDS: list[tuple[tuple[str, ...], str]] = [
   (("tradingview",), "TradingView webhook"),
   (("youtube",), "YouTube strategy content"),
   (("political", "geopolitical", "tariff"), "Political/macro intel"),
+  (("newsapi", "news headline", "breaking news"), "News headline intel"),
   (("fomo",), "fomo copy-trade"),
   (("axiom",), "axiom wallet signal"),
   (("x/twitter", "twitter"), "X/Twitter sentiment"),
@@ -180,6 +181,21 @@ class LearningEngine:
         root_causes.append("YouTube strategy content influenced entry without local confirmation")
         adjustments.append("Treat YouTube insights as study material — require live signal alignment")
         lessons.append("Apply YouTube playbooks only when composite score and sentiment agree")
+
+    news_driven = (
+      "newsapi" in reason_lower
+      or "news headline" in reason_lower
+      or await self._had_source_intel(trade.symbol, trade.executed_at, "newsapi")
+    )
+    if news_driven:
+      if trade.side == "long" and trade.sentiment_score < 0:
+        root_causes.append("Entered long against bearish news headline intel")
+        adjustments.append("Honor bearish news sentiment — reduce long exposure when headlines flip negative")
+        lessons.append("News headlines move fast — align trade direction with headline sentiment")
+      elif trade.signal_score < 0.5:
+        root_causes.append("News headline influenced entry without local technical confirmation")
+        adjustments.append("Require composite signal floor when acting on news-driven entries")
+        lessons.append("Treat news as sentiment input — wait for TA alignment before sizing")
 
     x_driven = "twitter" in reason_lower or " x " in f" {reason_lower} " or await self._had_source_intel(
       trade.symbol, trade.executed_at, "x"

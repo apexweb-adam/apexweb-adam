@@ -8,6 +8,7 @@ export type IntelPostMortemSource = {
 
 const INTEL_POSTMORTEM_SOURCES: { id: string; label: string; className: string; pattern: RegExp }[] = [
   { id: "political", label: "Political", className: "bg-purple-500/15 text-purple-300 border-purple-500/30", pattern: /political|geopolitical|tariff|fed\/election/i },
+  { id: "news", label: "News", className: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30", pattern: /newsapi|news headline|breaking news/i },
   { id: "tiktok", label: "TikTok", className: "bg-pink-500/15 text-pink-300 border-pink-500/30", pattern: /tiktok/i },
   { id: "reddit", label: "Reddit", className: "bg-orange-500/15 text-orange-300 border-orange-500/30", pattern: /reddit|wsb/i },
   { id: "x", label: "X", className: "bg-sky-500/15 text-sky-300 border-sky-500/30", pattern: /x\/twitter|twitter/i },

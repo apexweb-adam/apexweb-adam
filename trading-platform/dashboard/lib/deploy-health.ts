@@ -1,5 +1,5 @@
 /** Bump when dashboard features change — compared in /api/config for stale Vercel detection. */
-export const DASHBOARD_BUNDLE_REVISION = "2026-08-29-r119";
+export const DASHBOARD_BUNDLE_REVISION = "2026-08-29-r120";
 
 /** Matches backend EXPECTED_PLATFORM_REVISION — update when backend revision bumps. */
 export const EXPECTED_PLATFORM_REVISION = "2026-08-29-r467";
