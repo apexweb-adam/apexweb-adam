@@ -136,9 +136,10 @@ def test_run_post_outage_recovery_bursts_skips_crypto_without_held():
         "app.ws_manager.push_live_update",
         new_callable=AsyncMock,
       ) as mock_push:
-        import asyncio
+        with _mock_scheduler_session():
+          import asyncio
 
-        asyncio.run(sched.run_post_outage_recovery_bursts())
+          asyncio.run(sched.run_post_outage_recovery_bursts())
 
   crypto_bot.scan_and_trade.assert_not_called()
   mock_push.assert_not_called()
