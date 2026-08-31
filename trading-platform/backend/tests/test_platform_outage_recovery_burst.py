@@ -124,3 +124,91 @@ def test_run_post_outage_recovery_bursts_skips_crypto_without_held():
 
   crypto_bot.scan_and_trade.assert_not_called()
   mock_push.assert_not_called()
+
+
+def test_run_post_outage_recovery_bursts_scans_commodities_when_held():
+  commodities_bot = MagicMock()
+  commodities_bot.scan_and_trade = AsyncMock(return_value=[])
+
+  sched._startup_outage_event = {
+    "gap_minutes": 90,
+    "held_open_positions": [
+      {"bot_type": "commodities", "symbol": "GC=F"},
+      {"bot_type": "commodities", "symbol": "EURUSD=X"},
+    ],
+  }
+  sched.bots = {"commodities": commodities_bot}
+
+  with patch(
+    "app.engines.gate_entry_guard.stocks_session_info",
+    return_value={"in_session": False},
+  ):
+    with patch(
+      "app.engines.gate_entry_guard.commodities_session_info",
+      return_value={"in_session": False},
+    ):
+      with patch(
+        "app.ws_manager.push_live_update",
+        new_callable=AsyncMock,
+      ) as mock_push:
+        import asyncio
+
+        asyncio.run(sched.run_post_outage_recovery_bursts())
+
+  commodities_bot.scan_and_trade.assert_awaited_once()
+  mock_push.assert_awaited_once()
+
+
+def test_run_post_outage_recovery_bursts_prioritizes_stocks_when_us_queued():
+  stocks_bot = MagicMock()
+  stocks_bot.scan_and_trade = AsyncMock(return_value=[])
+  commodities_bot = MagicMock()
+  commodities_bot.scan_and_trade = AsyncMock(return_value=[])
+
+  sched._startup_outage_event = {
+    "gap_minutes": 120,
+    "us_open_ready_symbols": ["AAPL"],
+  }
+  sched.bots = {"stocks_futures": stocks_bot, "commodities": commodities_bot}
+  call_order: list[str] = []
+
+  async def track_stocks():
+    call_order.append("stocks_futures")
+    return []
+
+  async def track_commodities():
+    call_order.append("commodities")
+    return []
+
+  stocks_bot.scan_and_trade = AsyncMock(side_effect=track_stocks)
+  commodities_bot.scan_and_trade = AsyncMock(side_effect=track_commodities)
+
+  session_info = {"in_session": True, "minutes_since_open": 150, "session_open_utc": "2026-08-31T13:30:00"}
+  with patch(
+    "app.engines.gate_entry_guard.stocks_session_info",
+    return_value=session_info,
+  ):
+    with patch(
+      "app.engines.gate_entry_guard.commodities_session_info",
+      return_value=session_info,
+    ):
+      with patch(
+        "app.engines.session_open_log.needs_session_open_burst_recovery",
+        new_callable=AsyncMock,
+        return_value=True,
+      ):
+        with patch(
+          "app.engines.session_open_log.platform_outage_burst_recovery_active",
+          new_callable=AsyncMock,
+          return_value=True,
+        ):
+          with _mock_scheduler_session():
+            with patch(
+              "app.ws_manager.push_live_update",
+              new_callable=AsyncMock,
+            ):
+              import asyncio
+
+              asyncio.run(sched.run_post_outage_recovery_bursts())
+
+  assert call_order == ["stocks_futures", "commodities"]

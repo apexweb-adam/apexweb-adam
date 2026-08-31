@@ -53,6 +53,19 @@ else
       break
     fi
     echo "  still suspended — next check in ${INTERVAL}s ($(date -u '+%H:%M UTC'))"
+    CODE_REV="$EXPECTED_REVISION" python3 - << 'PY' 2>/dev/null || true
+import os
+from datetime import datetime, timezone
+now = datetime.now(timezone.utc)
+if now.isoweekday() != 1:
+    raise SystemExit(0)
+open_at = now.replace(hour=13, minute=30, second=0, microsecond=0)
+ext_left = max(0, int((open_at.timestamp() + 270 * 60 - now.timestamp()) // 60))
+if ext_left > 0:
+    tag = "URGENT" if ext_left <= 30 else "active"
+    rev = os.environ.get("CODE_REV") or "?"
+    print(f"    grace_remaining_min={ext_left} urgency={tag} deploy_target={rev}")
+PY
     sleep "$INTERVAL"
   done
   if ! check_backend_suspension "$BACKEND" 2>/dev/null; then
@@ -239,6 +252,6 @@ if [[ "$DOW" == "1" && "$HOUR" -ge 13 && "$HOUR" -le 18 ]]; then
   echo ""
   echo "Note: stocks burst-recovery runs within 60 min of US open (13:30 UTC)."
   echo "Platform-outage recovery extends to 270 min when open-ready symbols were queued (e.g. AAPL)."
-  echo "Crypto held positions get an immediate post-outage scan on startup (r460+)."
+  echo "Crypto + commodities held positions get immediate post-outage scans on startup (r461+)."
   echo "Check us-stocks-open-checklist for has_burst_scan / has_auto_entry."
 fi
