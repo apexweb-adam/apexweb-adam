@@ -116,6 +116,7 @@ if learning:
     for alert in (learning.get("intel_pattern_alerts") or [])[:3]:
         print(f"  intel_alert={alert}")
     print("  verify_learning=bash trading-platform/scripts/verify-crm-learning.sh --strict")
+    print("  verify_ws=bash trading-platform/scripts/verify-ws-live.sh --strict")
 if content.get("recent"):
     print(f"Content study: applied={content.get('insights_applied') or 0} recent={len(content.get('recent') or [])}")
     for row in (content.get("recent") or [])[:3]:
@@ -142,6 +143,7 @@ PY
   echo "  1. Fix billing + resume service in Render dashboard"
   echo "  2. bash trading-platform/scripts/recover-render-billing.sh"
   echo "  3. bash trading-platform/scripts/verify-crm-learning.sh --strict"
+  echo "  4. bash trading-platform/scripts/verify-ws-live.sh --strict"
   echo ""
 
   CODE_REV="$CODE_REV" python3 << 'PY'

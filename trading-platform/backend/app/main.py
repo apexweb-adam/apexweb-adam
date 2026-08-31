@@ -619,6 +619,33 @@ async def crm_landing():
   if intel_degraded:
     intel_footer += f" ({', '.join(intel_degraded)} degraded)"
 
+  intel_by = {s.get("source"): s for s in intel_sources if isinstance(s, dict)}
+  intel_multi_rows = ""
+  for key in ("newsapi", "x", "reddit", "political", "tiktok", "youtube"):
+    src = intel_by.get(key)
+    if key == "newsapi" and not src:
+      src = intel_by.get("news")
+    if not src:
+      continue
+    label = intel_source_label(key if key != "newsapi" or intel_by.get(key) else "newsapi")
+    if key == "newsapi" and not intel_by.get("newsapi") and intel_by.get("news"):
+      label = intel_source_label("news")
+    intel_multi_rows += (
+      f"<tr><td>{escape(label)}</td><td>{src.get('status', '—')}</td>"
+      f"<td>{src.get('items_collected', 0)}</td></tr>"
+    )
+  intel_multi_card = ""
+  if intel_multi_rows:
+    intel_multi_card = f"""<div class="card learning">
+    <h2>Multi-source intelligence</h2>
+    <p class="muted" style="margin-top:0;">{intel_active}/{intel_total} sources — news · X · Reddit · political · TikTok · YouTube</p>
+    <table>
+      <thead><tr><th>Source</th><th>Status</th><th>Items</th></tr></thead>
+      <tbody>{intel_multi_rows}</tbody>
+    </table>
+    <p class="muted" style="margin-top:0.75rem;font-family:monospace;font-size:0.8rem;">Verify: <code>bash trading-platform/scripts/verify-ws-live.sh --strict</code></p>
+  </div>"""
+
   position_rows = ""
   total_unrealized = 0.0
   for row in live_snapshot.get("positions") or []:
@@ -902,11 +929,12 @@ async def crm_landing():
     </table>
   </div>""" if recovery_table_body or recovery_nudge_note else ""}
   {intel_pattern_banner}
+  {intel_multi_card}
   {f"""<div class="card learning">
     <h2>Today's learning loop</h2>
     <p class="muted" style="margin-top:0;">{learning_summary}</p>
     {learning_rows if learning_rows else "<p class='muted'>No losing-trade patterns today — bots scanning.</p>"}
-    <p class="muted" style="margin-top:0.75rem;font-family:monospace;font-size:0.8rem;">Verify: <code>bash trading-platform/scripts/verify-crm-learning.sh</code></p>
+    <p class="muted" style="margin-top:0.75rem;font-family:monospace;font-size:0.8rem;">Verify: <code>bash trading-platform/scripts/verify-crm-learning.sh</code> · <code>bash trading-platform/scripts/verify-ws-live.sh --strict</code></p>
   </div>""" if learning else ""}
   {f"""<div class="card learning">
     <h2>External content study</h2>

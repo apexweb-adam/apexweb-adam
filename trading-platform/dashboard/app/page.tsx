@@ -988,13 +988,23 @@ export default function Dashboard() {
 
         {tab === "trades" && (
           <Card title="All Trades">
-            <TradesTable trades={trades ?? []} />
+            {backendOffline && (trades ?? []).length === 0 ? (
+              <p className="text-xs text-apex-red py-8 text-center">
+                Trade history unavailable — backend offline until Render billing is restored.
+              </p>
+            ) : (
+              <TradesTable trades={trades ?? []} />
+            )}
           </Card>
         )}
 
         {tab === "positions" && (
           <Card title="Open Positions">
-            {(positions ?? []).length === 0 ? (
+            {backendOffline && (positions ?? []).length === 0 ? (
+              <p className="text-xs text-apex-red py-8 text-center">
+                Live positions unavailable — bots paused while Render billing is suspended.
+              </p>
+            ) : (positions ?? []).length === 0 ? (
               <p className="text-sm text-gray-500 py-8 text-center">
                 No open positions. Bots are scanning for opportunities...
               </p>
@@ -1451,6 +1461,12 @@ export default function Dashboard() {
 
         {tab === "strategy" && (
           <Card title="Strategy Configuration (Auto-Adapting)">
+            {backendOffline ? (
+              <p className="text-xs text-apex-red border border-apex-red/30 bg-apex-red/10 rounded px-3 py-2 mb-4">
+                Strategy adaptation paused — learning loop and content study resume when Render
+                billing is restored. Cached parameters below may be stale.
+              </p>
+            ) : null}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {(strategies ?? []).map((s) => (
                 <div
@@ -1483,7 +1499,9 @@ export default function Dashboard() {
               ))}
               {(strategies ?? []).length === 0 && (
                 <p className="text-sm text-gray-500 col-span-3 py-4 text-center">
-                  Strategy configs will appear after bots initialize.
+                  {backendOffline
+                    ? "Strategy configs unavailable while backend is offline."
+                    : "Strategy configs will appear after bots initialize."}
                 </p>
               )}
             </div>

@@ -3,6 +3,7 @@
 from pathlib import Path
 
 SCRIPTS = Path(__file__).resolve().parents[2] / "scripts"
+ROOT = Path(__file__).resolve().parents[2]
 
 
 def test_ops_gate_summary_script_exists():
@@ -557,6 +558,19 @@ def test_backend_suspension_recovery_steps_include_ws_verify():
   assert "verify-ws-live.sh" in text
   assert "verify-crm-learning.sh" in text
   assert "outageRecoveryBots" in text
+
+
+def test_crm_learning_section_mentions_verify_ws_live():
+  crm = (ROOT / "backend" / "app" / "main.py").read_text(encoding="utf-8")
+  assert "verify-ws-live.sh --strict" in crm
+  assert "verify-crm-learning.sh" in crm
+
+
+def test_crm_multi_source_intel_card_lists_core_sources():
+  crm = (ROOT / "backend" / "app" / "main.py").read_text(encoding="utf-8")
+  assert "Multi-source intelligence" in crm
+  for source in ("newsapi", "x", "reddit", "political", "tiktok", "youtube"):
+    assert source in crm
 
 
 def test_verify_post_outage_recovery_runs_crm_learning():
