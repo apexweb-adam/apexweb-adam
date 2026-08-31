@@ -46,6 +46,8 @@ run_preflight() {
   fi
   echo "$CHECKLIST" > "$TMP/checklist.json"
 
+  fetch_json "$BACKEND/api/bots/stocks_futures/scan-preview" 120 3 > "$TMP/scan.json" || echo "{}" > "$TMP/scan.json"
+
   if [[ -n "$CHECKLIST" && "$CHECKLIST" != "{}" ]]; then
     CHECKLIST_FILE="$TMP/checklist.json" python3 << 'PY'
 import json, os, sys
@@ -89,6 +91,30 @@ PY
     else
       bad "US stocks open checklist failed"
     fi
+
+    SCAN_FILE="$TMP/scan.json" python3 << 'PY'
+import json, os
+from pathlib import Path
+
+path = Path(os.environ.get("SCAN_FILE", ""))
+if not path.is_file():
+    raise SystemExit(0)
+try:
+    scan = json.loads(path.read_text(encoding="utf-8") or "{}")
+except json.JSONDecodeError:
+    raise SystemExit(0)
+print(
+    f"  scan.imminent_scan={scan.get('stocks_open_imminent_scan')} "
+    f"fast_scan={scan.get('stocks_gate_fast_scan_active')}"
+)
+print(
+    f"  scan.trade_count_gap={scan.get('stocks_trade_count_gap')} "
+    f"open_ready_candidates={scan.get('open_ready_candidates')}"
+)
+minutes = scan.get("session", {}).get("minutes_until_open")
+if minutes is not None and minutes <= 30 and not scan.get("stocks_open_imminent_scan"):
+    print("  warn=imminent_scan_expected (T-30 min window)")
+PY
   else
     note "Checklist endpoint unavailable — using prep-status fallback"
     PREP=$(fetch_json "$BACKEND/api/gate/prep-status" 45 2 || echo "{}")

@@ -388,3 +388,6 @@ def test_verify_us_stocks_open_uses_wake_and_status_fallback():
   text = script.read_text(encoding="utf-8")
   assert "wake_backend" in text
   assert "status_endpoint_unreachable" in text
+  assert "stocks_futures/scan-preview" in text
+  assert "trade_count_gap" in text
+  assert "imminent_scan_expected" in text
