@@ -922,16 +922,19 @@ async def run_post_outage_recovery_bursts() -> None:
     try:
       from app.engines.session_open_log import record_session_open_event
 
-      async with SessionLocal() as session:
-        await record_session_open_event(
-          session,
-          bot_type=bot_type,
-          event_type="outage_recovery_scan",
-          symbols=symbols,
-          symbol_count=len(symbols),
-          detail=f"Post-outage {label} recovery scan: {', '.join(symbols)}",
-        )
-        await session.commit()
+      try:
+        async with SessionLocal() as session:
+          await record_session_open_event(
+            session,
+            bot_type=bot_type,
+            event_type="outage_recovery_scan",
+            symbols=symbols,
+            symbol_count=len(symbols),
+            detail=f"Post-outage {label} recovery scan: {', '.join(symbols)}",
+          )
+          await session.commit()
+      except Exception as log_exc:
+        print(f"[PlatformOutage] {label} recovery scan log error: {log_exc}")
       bot._session_open_burst = True
       bot._session_open_outage_recovery = True
       print(f"[PlatformOutage] Running post-outage {label} scan (held: {', '.join(symbols)})")

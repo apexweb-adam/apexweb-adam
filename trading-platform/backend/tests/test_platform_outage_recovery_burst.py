@@ -3,7 +3,18 @@
 from contextlib import contextmanager
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
+
 from app.workers import scheduler as sched
+
+
+@pytest.fixture(autouse=True)
+def _reset_scheduler_outage_state():
+  original_event = sched._startup_outage_event
+  original_bots = sched.bots
+  yield
+  sched._startup_outage_event = original_event
+  sched.bots = original_bots
 
 
 @contextmanager
@@ -91,9 +102,10 @@ def test_run_post_outage_recovery_bursts_scans_crypto_when_held():
         "app.ws_manager.push_live_update",
         new_callable=AsyncMock,
       ) as mock_push:
-        import asyncio
+        with _mock_scheduler_session():
+          import asyncio
 
-        asyncio.run(sched.run_post_outage_recovery_bursts())
+          asyncio.run(sched.run_post_outage_recovery_bursts())
 
   crypto_bot.scan_and_trade.assert_awaited_once()
   mock_push.assert_awaited_once()
@@ -151,9 +163,10 @@ def test_run_post_outage_recovery_bursts_scans_commodities_when_held():
         "app.ws_manager.push_live_update",
         new_callable=AsyncMock,
       ) as mock_push:
-        import asyncio
+        with _mock_scheduler_session():
+          import asyncio
 
-        asyncio.run(sched.run_post_outage_recovery_bursts())
+          asyncio.run(sched.run_post_outage_recovery_bursts())
 
   commodities_bot.scan_and_trade.assert_awaited_once()
   mock_push.assert_awaited_once()
@@ -243,13 +256,14 @@ def test_run_post_outage_recovery_bursts_logs_outage_recovery_scan_for_us_queued
         new_callable=AsyncMock,
         side_effect=capture_event,
       ):
-        with patch(
-          "app.ws_manager.push_live_update",
-          new_callable=AsyncMock,
-        ):
-          import asyncio
+        with _mock_scheduler_session():
+          with patch(
+            "app.ws_manager.push_live_update",
+            new_callable=AsyncMock,
+          ):
+            import asyncio
 
-          asyncio.run(sched.run_post_outage_recovery_bursts())
+            asyncio.run(sched.run_post_outage_recovery_bursts())
 
   stocks_bot.scan_and_trade.assert_awaited_once()
   assert any(
