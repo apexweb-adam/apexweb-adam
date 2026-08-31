@@ -55,9 +55,11 @@ async def build_live_payload(session: AsyncSession) -> dict:
     serialize_strategy_config,
   )
   from app.engines.learning_engine import build_crm_content_study_highlights
+  from app.engines.platform_status import _fetch_learning_counts
   from app.engines.verification_snapshot import serialize_verification_snapshot
 
   content_study = await build_crm_content_study_highlights(session)
+  learning = await _fetch_learning_counts(session)
   gate_payload = await build_gate_ws_payload(session)
   from app.engines.scan_preview import build_monday_recovery_summary
 
@@ -304,6 +306,7 @@ async def build_live_payload(session: AsyncSession) -> dict:
       "deploy_credentials_ready": len(deploy_credentials_warnings) == 0,
     },
     "content_study": content_study,
+    "learning": learning,
     **gate_payload,
   }
 

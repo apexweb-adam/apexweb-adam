@@ -73,7 +73,7 @@ import { IntelRoutingPanel } from "@/components/IntelRoutingPanel";
 type Tab = "overview" | "trades" | "positions" | "intelligence" | "learning" | "strategy";
 
 export default function Dashboard() {
-  const { stats, portfolios, bots, positions: livePositions, trades: liveTrades, recentIntel, analyses: liveAnalyses, reviews: liveReviews, insights: liveInsights, strategies: liveStrategies, intelSources: liveIntelSources, verificationHistory: liveVerificationHistory, connected, lastUpdate, lastTrade, profitabilityGate: liveProfitability, gateEntryTightening, botSessions, mondayRecovery, sessionPrep, nextSessionEvents, contentStudy, sessionOpenEvents, platformOutageEvents, sessionOpenChecklists, cmeDeployUrgency, cmeDeployWindow, liveDeploy } = useLiveData();
+  const { stats, portfolios, bots, positions: livePositions, trades: liveTrades, recentIntel, analyses: liveAnalyses, reviews: liveReviews, insights: liveInsights, strategies: liveStrategies, intelSources: liveIntelSources, verificationHistory: liveVerificationHistory, connected, lastUpdate, lastTrade, profitabilityGate: liveProfitability, gateEntryTightening, botSessions, mondayRecovery, sessionPrep, nextSessionEvents, contentStudy, sessionOpenEvents, platformOutageEvents, sessionOpenChecklists, cmeDeployUrgency, cmeDeployWindow, liveDeploy, learning: liveLearning } = useLiveData();
   const { data: tradesRest } = useAPI<Trade[]>("/trades?limit=50", 30000);
   const { data: gateTradesRest } = useAPI<Trade[]>("/trades?limit=200", 30000);
   const { data: positionsRest } = useAPI<Position[]>("/positions", 30000);
@@ -109,6 +109,10 @@ export default function Dashboard() {
     if (statusSources && statusSources.length > 0) return statusSources;
     return null;
   }, [intelSources, platformStatus?.intelligence?.sources]);
+  const intelPatternAlerts =
+    liveLearning?.intel_pattern_alerts?.length
+      ? liveLearning.intel_pattern_alerts
+      : platformStatus?.learning?.intel_pattern_alerts;
   const [tab, setTab] = useState<Tab>("overview");
   const [dashConfig, setDashConfig] = useState<DashboardConfig | null>(null);
 
@@ -1359,9 +1363,7 @@ export default function Dashboard() {
             <LearningPendingBanner
               pending={platformStatus?.learning?.insights_pending ?? 0}
             />
-            <IntelPatternAlertBanner
-              alerts={platformStatus?.learning?.intel_pattern_alerts}
-            />
+            <IntelPatternAlertBanner alerts={intelPatternAlerts} />
             <Card title="Loss Trade Analysis">
               <div className="space-y-3 max-h-[500px] overflow-y-auto">
                 {(analyses ?? []).length === 0 ? (
@@ -2037,7 +2039,8 @@ function BillingOutageRecoveryCard({
   const bots = health.recovery_bots ?? [];
   const graceUrgent = grace !== null && grace !== undefined && grace > 0 && grace <= 30;
   const postGraceCatchup =
-    grace === 0 && catchupMin !== null && catchupMin !== undefined && catchupMin > 0;
+    health.post_grace_catchup_active ??
+    (grace === 0 && catchupMin !== null && catchupMin !== undefined && catchupMin > 0);
   const catchupUrgent =
     postGraceCatchup && catchupMin !== null && catchupMin !== undefined && catchupMin <= 30;
   const catchupActive =

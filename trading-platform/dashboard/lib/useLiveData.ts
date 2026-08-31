@@ -70,6 +70,7 @@ type LiveData = {
     verify_command: string;
   } | null;
   liveDeploy: PlatformStatus["deploy"] | null;
+  learning: PlatformStatus["learning"] | null;
   connected: boolean;
   lastUpdate: string | null;
   lastTrade: Record<string, unknown> | null;
@@ -101,6 +102,7 @@ export function useLiveData(): LiveData {
   const [cmeDeployUrgency, setCmeDeployUrgency] = useState<LiveData["cmeDeployUrgency"]>(null);
   const [cmeDeployWindow, setCmeDeployWindow] = useState<LiveData["cmeDeployWindow"]>(null);
   const [liveDeploy, setLiveDeploy] = useState<PlatformStatus["deploy"] | null>(null);
+  const [learning, setLearning] = useState<PlatformStatus["learning"] | null>(null);
   const [connected, setConnected] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<string | null>(null);
   const [lastTrade, setLastTrade] = useState<Record<string, unknown> | null>(null);
@@ -168,6 +170,7 @@ export function useLiveData(): LiveData {
         setCmeDeployWindow(null);
       }
       if (status.deploy) setLiveDeploy(status.deploy);
+      if (status.learning) setLearning(status.learning);
       if (status.timestamp) setLastUpdate(status.timestamp);
     } catch {
       // keep last good snapshot
@@ -227,6 +230,7 @@ export function useLiveData(): LiveData {
     if (deploy?.cme_deploy_window) setCmeDeployWindow(deploy.cme_deploy_window);
     else if (deploy?.platform_revision_current !== false) setCmeDeployWindow(null);
     if (deploy) setLiveDeploy(deploy);
+    if (data.learning) setLearning(data.learning as PlatformStatus["learning"]);
     if (data.timestamp) setLastUpdate(String(data.timestamp));
   }, []);
 
@@ -306,6 +310,7 @@ export function useLiveData(): LiveData {
     cmeDeployUrgency,
     cmeDeployWindow,
     liveDeploy,
+    learning,
     connected,
     lastUpdate,
     lastTrade,

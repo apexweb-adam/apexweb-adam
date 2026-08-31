@@ -77,6 +77,8 @@ def test_build_live_payload_includes_learning_fields():
     assert "deploy_credentials_warnings" in payload["deploy"]
     assert payload["deploy"]["deploy_credentials_ready"] is False
     assert "content_study" in payload
+    assert "learning" in payload
+    assert "intel_pattern_alerts" in payload["learning"]
     assert isinstance(payload["analyses"], list)
     assert isinstance(payload["reviews"], list)
     assert isinstance(payload["insights"], list)

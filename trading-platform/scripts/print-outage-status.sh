@@ -171,6 +171,9 @@ if dow == 1:
                     print(f"  post_grace_catchup_urgency={tag}")
                 if catchup_left <= 15:
                     print("  action=resume billing NOW — US cash close at 21:00 UTC")
+                print(
+                    "  stocks_open_ready_at_risk=AAPL (if prep state preserved — outage_recovery_scan on r467+)"
+                )
             print(
                 "  note=post-outage startup still runs forced open-ready scan if prep state preserved"
             )
