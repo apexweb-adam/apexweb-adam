@@ -689,6 +689,7 @@ export type BotSessions = Record<string, BotSessionInfo>;
 
 export type PlatformStatus = {
   platform: string;
+  paper_trading_only?: boolean;
   database: { engine: string; persistent: boolean };
   intelligence: {
     active_sources: number;

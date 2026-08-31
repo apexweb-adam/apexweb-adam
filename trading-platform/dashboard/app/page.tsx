@@ -68,6 +68,7 @@ import type {
 } from "@/lib/api";
 import { enrichProfitabilityStatus, activeGateToProfitability, buildEquityHistoryFromTrades } from "@/lib/profitability";
 import { VerificationPnLChart } from "@/components/VerificationPnLChart";
+import { CoreMarketBotsCard } from "@/components/CoreMarketBotsCard";
 import { IntegrationHooksPanel } from "@/components/IntegrationHooksPanel";
 import { IntelRoutingPanel } from "@/components/IntelRoutingPanel";
 import { MultiSourceIntelCard } from "@/components/MultiSourceIntelCard";
@@ -230,7 +231,12 @@ export default function Dashboard() {
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-apex-green/10 border border-apex-green/20">
               <Shield size={14} className="text-apex-green" />
-              <span className="text-xs text-apex-green font-medium">PAPER TRADING</span>
+              <span className="text-xs text-apex-green font-medium">
+                PAPER TRADING
+                {gateStatus?.verification_day != null && gateStatus.verification_day > 0
+                  ? ` · Day ${gateStatus.verification_day}`
+                  : ""}
+              </span>
             </div>
             <div className="flex items-center gap-2">
               <Circle
@@ -429,6 +435,14 @@ export default function Dashboard() {
               />
               <MondayRecoveryBanner summary={mondayRecovery} />
               <SessionPrepBanner sessionPrep={sessionPrep} />
+              <Card title="Core Market Bots">
+                <CoreMarketBotsCard
+                  bots={bots}
+                  botSessions={botSessions ?? platformStatus?.bot_sessions}
+                  profitability={gateStatus}
+                  paperTradingOnly={platformStatus?.paper_trading_only ?? gateStatus?.paper_trading_only}
+                />
+              </Card>
               <Card title="Bot Status">
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
                   {bots.map((bot) => (
