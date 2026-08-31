@@ -1644,6 +1644,8 @@ def chronic_loser_blocks_shadow_entry(
   total_pnl: float | None = None,
   open_count: int | None = None,
   shadow_open_cap: int | None = None,
+  gate_status: dict[str, Any] | None = None,
+  per_bot_stats: dict[str, Any] | None = None,
 ) -> bool:
   """Chronic losers are skippable during graduation nudge when intel override applies."""
   if symbol not in chronic_symbols:
@@ -1718,6 +1720,22 @@ def chronic_loser_blocks_shadow_entry(
     # Chronic re-entry during retreat needs aligned floor — not cap-room ease.
     if (composite or 0.0) >= CRYPTO_MOMENTUM_RETREAT_ALIGNED_COMPOSITE_FLOOR:
       return False
+  if (
+    gate_status is not None
+    and per_bot_stats is not None
+    and commodities_verification_gate_skip_bypass(
+      bot_type=bot_type,
+      shadow_mode=shadow_mode,
+      symbol=symbol,
+      proven_winners=proven_winners or frozenset(),
+      gate_status=gate_status,
+      per_bot_stats=per_bot_stats,
+      signal_direction=signal_direction or "buy",
+      macd_signal=macd_signal or "bullish",
+      composite=composite or 0.0,
+    )
+  ):
+    return False
   if (
     crypto_strong_momentum_nudge(
       bot_type,

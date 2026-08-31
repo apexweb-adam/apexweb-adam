@@ -653,6 +653,48 @@ def test_commodities_verification_gate_skip_bypass():
   ) is True
 
 
+def test_commodities_verification_chronic_loser_bypass():
+  from app.engines.gate_entry_guard import (
+    COMMODITIES_VERIFICATION_TRADE_COUNT_MIN_COMPOSITE,
+    chronic_loser_blocks_shadow_entry,
+  )
+
+  gate_ok = {
+    "total_trades": 63,
+    "win_rate": 0.62,
+    "profit_factor": 1.58,
+    "total_pnl": 70.97,
+  }
+  per_bot_ready = {"graduation_ready": True, "total_trades": 63, "win_rate": 0.62}
+  base = dict(
+    bot_type="commodities",
+    shadow_mode=False,
+    graduation_nudge=False,
+    intel_override=False,
+    proven_winners=frozenset({"XAUUSDT", "CL=F"}),
+    gate_status=gate_ok,
+    per_bot_stats=per_bot_ready,
+    composite=COMMODITIES_VERIFICATION_TRADE_COUNT_MIN_COMPOSITE + 0.05,
+    signal_direction="buy",
+    macd_signal="bullish",
+  )
+  assert chronic_loser_blocks_shadow_entry(
+    "XAUUSDT",
+    frozenset({"XAUUSDT"}),
+    **base,
+  ) is False
+  assert chronic_loser_blocks_shadow_entry(
+    "XAUUSDT",
+    frozenset({"XAUUSDT"}),
+    **{**base, "composite": COMMODITIES_VERIFICATION_TRADE_COUNT_MIN_COMPOSITE - 0.05},
+  ) is True
+  assert chronic_loser_blocks_shadow_entry(
+    "HG=F",
+    frozenset({"HG=F"}),
+    **base,
+  ) is True
+
+
 def test_commodities_verification_min_sentiment():
   from app.engines.gate_entry_guard import (
     COMMODITIES_VERIFICATION_MIN_SENTIMENT,

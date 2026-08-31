@@ -1192,6 +1192,8 @@ class BaseBot(ABC):
           total_pnl=per_bot_stats.get("total_pnl"),
           open_count=open_count,
           shadow_open_cap=shadow_open_cap,
+          gate_status=gate_status,
+          per_bot_stats=per_bot_stats,
         ):
           continue
 
