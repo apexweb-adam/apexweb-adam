@@ -1567,6 +1567,29 @@ def test_stocks_open_ready_watch_active():
   ) is False
 
 
+def test_session_prep_queue_monitor_active():
+  from app.engines.gate_entry_guard import (
+    COMMODITIES_REOPEN_IMMINENT_SCAN_MINUTES,
+    session_prep_queue_monitor_active,
+  )
+
+  assert session_prep_queue_monitor_active(
+    stocks_session={"in_session": False, "minutes_until_open": 20},
+    commodities_session={"in_session": True, "minutes_until_open": 0, "minutes_since_open": 120},
+  ) is True
+  assert session_prep_queue_monitor_active(
+    stocks_session={"in_session": False, "minutes_until_open": 120},
+    commodities_session={
+      "in_session": False,
+      "minutes_until_open": COMMODITIES_REOPEN_IMMINENT_SCAN_MINUTES - 5,
+    },
+  ) is True
+  assert session_prep_queue_monitor_active(
+    stocks_session={"in_session": False, "minutes_until_open": 120},
+    commodities_session={"in_session": True, "minutes_until_open": 0, "minutes_since_open": 120},
+  ) is False
+
+
 def test_stocks_open_imminent_scan_active():
   from app.engines.gate_entry_guard import (
     STOCKS_OPEN_IMMINENT_SCAN_INTERVAL,

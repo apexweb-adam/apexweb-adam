@@ -126,6 +126,8 @@ def test_scheduler_registers_open_ready_watch_job():
   assert "commodities_open_ready_watch" in text
   assert "STOCKS_OPEN_READY_WATCH_INTERVAL_SECONDS" in text
   assert "stocks_open_ready_watch_active" in text
+  assert "SESSION_PREP_QUEUE_MONITOR_INTERVAL_SECONDS" in text
+  assert "session_prep_queue_monitor_active" in text
 
 
 def test_print_deploy_window_summary_script_exists():
