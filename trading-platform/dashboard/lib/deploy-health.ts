@@ -2,7 +2,7 @@
 export const DASHBOARD_BUNDLE_REVISION = "2026-08-29-r109";
 
 /** Matches backend EXPECTED_PLATFORM_REVISION — update when backend revision bumps. */
-export const EXPECTED_PLATFORM_REVISION = "2026-08-29-r464";
+export const EXPECTED_PLATFORM_REVISION = "2026-08-29-r465";
 
 /** Verified preview when production -flame bundle is stale (matches backend VERIFIED_DASHBOARD_URL). */
 export const VERIFIED_PREVIEW_URL =

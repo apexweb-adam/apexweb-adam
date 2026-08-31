@@ -368,6 +368,9 @@ async def build_cme_reopen_checklist(session: AsyncSession) -> dict[str, Any]:
   commodities_events = _recent_commodities_events(all_events)
   burst_events = _recent_commodities_events(all_events, event_types={"burst_scan"})
   auto_entry_events = _recent_commodities_events(all_events, event_types={"auto_entry"})
+  recovery_scan_events = _recent_commodities_events(
+    all_events, event_types={"outage_recovery_scan"}
+  )
   has_burst_scan = bool(burst_events)
   has_auto_entry = bool(auto_entry_events)
 
@@ -421,6 +424,7 @@ async def build_cme_reopen_checklist(session: AsyncSession) -> dict[str, Any]:
     has_auto_entry=has_auto_entry,
     burst_events=burst_events,
     auto_entry_events=auto_entry_events,
+    recovery_scan_events=recovery_scan_events,
   )
 
   return {
@@ -465,8 +469,10 @@ async def build_cme_reopen_checklist(session: AsyncSession) -> dict[str, Any]:
       "recent": commodities_events[:10],
       "has_burst_scan": has_burst_scan,
       "has_auto_entry": has_auto_entry,
+      "has_outage_recovery_scan": bool(recovery_scan_events),
       "latest_burst_scan": burst_events[0] if burst_events else None,
       "latest_auto_entry": auto_entry_events[0] if auto_entry_events else None,
+      "latest_outage_recovery_scan": recovery_scan_events[0] if recovery_scan_events else None,
     },
     "platform_outage_recovery": platform_outage_recovery,
     "checks": checks,

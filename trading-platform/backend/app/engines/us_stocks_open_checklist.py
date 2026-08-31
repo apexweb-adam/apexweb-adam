@@ -240,6 +240,7 @@ def platform_outage_recovery_status(
   has_auto_entry: bool,
   burst_events: list[dict[str, Any]],
   auto_entry_events: list[dict[str, Any]],
+  recovery_scan_events: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
   """Whether platform-outage burst recovery (r450+) still applies for queued symbols."""
   from app.engines.session_open_log import (
@@ -247,6 +248,8 @@ def platform_outage_recovery_status(
     SESSION_OPEN_PLATFORM_OUTAGE_GRACE_MINUTES,
   )
 
+  recovery_events = recovery_scan_events or []
+  has_outage_recovery_scan = bool(recovery_events)
   since = int(minutes_since_open) if minutes_since_open is not None else None
   window_active = (
     in_session
@@ -256,7 +259,7 @@ def platform_outage_recovery_status(
     and bool(open_ready_symbols)
     and not (has_burst_scan or has_auto_entry)
   )
-  logged = any(
+  logged = has_outage_recovery_scan or any(
     "Platform outage recovery" in str(event.get("detail") or "")
     for event in burst_events + auto_entry_events
   )
@@ -266,9 +269,12 @@ def platform_outage_recovery_status(
   return {
     "window_active": window_active,
     "logged": logged,
+    "has_outage_recovery_scan": has_outage_recovery_scan,
+    "recovery_scan_pending_burst": has_outage_recovery_scan and not (has_burst_scan or has_auto_entry),
     "grace_minutes_remaining": grace_remaining,
     "standard_grace_minutes": SESSION_OPEN_BURST_RECOVERY_GRACE_MINUTES,
     "extended_grace_minutes": SESSION_OPEN_PLATFORM_OUTAGE_GRACE_MINUTES,
+    "latest_outage_recovery_scan": recovery_events[0] if recovery_events else None,
   }
 
 
@@ -325,6 +331,9 @@ async def build_us_stocks_open_checklist(session: AsyncSession) -> dict[str, Any
   stocks_events = _recent_bot_events(all_events, "stocks_futures")
   burst_events = _recent_bot_events(all_events, "stocks_futures", event_types={"burst_scan"})
   auto_entry_events = _recent_bot_events(all_events, "stocks_futures", event_types={"auto_entry"})
+  recovery_scan_events = _recent_bot_events(
+    all_events, "stocks_futures", event_types={"outage_recovery_scan"}
+  )
   has_burst_scan = bool(burst_events)
   has_auto_entry = bool(auto_entry_events)
 
@@ -369,6 +378,7 @@ async def build_us_stocks_open_checklist(session: AsyncSession) -> dict[str, Any
     has_auto_entry=has_auto_entry,
     burst_events=burst_events,
     auto_entry_events=auto_entry_events,
+    recovery_scan_events=recovery_scan_events,
   )
 
   return {
@@ -411,8 +421,10 @@ async def build_us_stocks_open_checklist(session: AsyncSession) -> dict[str, Any
       "recent": stocks_events[:10],
       "has_burst_scan": has_burst_scan,
       "has_auto_entry": has_auto_entry,
+      "has_outage_recovery_scan": bool(recovery_scan_events),
       "latest_burst_scan": burst_events[0] if burst_events else None,
       "latest_auto_entry": auto_entry_events[0] if auto_entry_events else None,
+      "latest_outage_recovery_scan": recovery_scan_events[0] if recovery_scan_events else None,
     },
     "platform_outage_recovery": platform_outage_recovery,
     "checks": checks,

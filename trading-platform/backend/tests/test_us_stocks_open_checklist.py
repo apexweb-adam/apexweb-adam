@@ -110,6 +110,25 @@ def test_platform_outage_recovery_status_logged_after_burst():
   assert status["logged"] is True
 
 
+def test_platform_outage_recovery_status_logged_after_recovery_scan():
+  status = platform_outage_recovery_status(
+    in_session=True,
+    minutes_since_open=90,
+    open_ready_symbols=["AAPL"],
+    has_burst_scan=False,
+    has_auto_entry=False,
+    burst_events=[],
+    auto_entry_events=[],
+    recovery_scan_events=[
+      {"event_type": "outage_recovery_scan", "symbols": ["AAPL"], "detail": "Post-outage stocks recovery scan: AAPL"}
+    ],
+  )
+  assert status["window_active"] is True
+  assert status["logged"] is True
+  assert status["has_outage_recovery_scan"] is True
+  assert status["recovery_scan_pending_burst"] is True
+
+
 def test_format_us_stocks_checklist_crm_html():
   html = format_us_stocks_checklist_crm_html(
     {
