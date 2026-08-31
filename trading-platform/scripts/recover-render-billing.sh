@@ -252,6 +252,6 @@ if [[ "$DOW" == "1" && "$HOUR" -ge 13 && "$HOUR" -le 18 ]]; then
   echo ""
   echo "Note: stocks burst-recovery runs within 60 min of US open (13:30 UTC)."
   echo "Platform-outage recovery extends to 270 min when open-ready symbols were queued (e.g. AAPL)."
-  echo "Crypto + commodities held positions get immediate post-outage scans on startup (r461+)."
+  echo "Stocks/crypto/commodities held + US open-ready get post-outage scans on startup (r462+)."
   echo "Check us-stocks-open-checklist for has_burst_scan / has_auto_entry."
 fi

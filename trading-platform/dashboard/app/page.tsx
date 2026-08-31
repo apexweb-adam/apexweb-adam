@@ -117,6 +117,17 @@ export default function Dashboard() {
       .catch(() => setDashConfig(null));
   }, []);
 
+  useEffect(() => {
+    if (!dashConfig?.backendHealth?.suspended) return;
+    const id = setInterval(() => {
+      fetch("/api/config", { cache: "no-store" })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((cfg) => cfg && setDashConfig(cfg))
+        .catch(() => {});
+    }, 60_000);
+    return () => clearInterval(id);
+  }, [dashConfig?.backendHealth?.suspended]);
+
   const vercelFullBundle = dashConfig?.features?.activeGate === true;
   const vercelProxyMode = dashConfig != null && !vercelFullBundle;
   const gateViaProxy = Boolean(activeGate?.active_bots);
