@@ -115,11 +115,15 @@ if phase in ("post_open", "open") and near_symbols:
     promoted = [s for s in near_symbols if s in sticky or s in open_symbols]
     if promoted:
         print(f"  near_floor_promoted={promoted}")
-print(f"  has_burst_scan={events.get('has_burst_scan')} has_auto_entry={events.get('has_auto_entry')}")
+print(f"  has_burst_scan={events.get('has_burst_scan')} has_auto_entry={events.get('has_auto_entry')} outage_recovery_scan={events.get('has_outage_recovery_scan')}")
 
 outage = checklist.get("platform_outage_recovery") or {}
 if outage.get("logged"):
     print("  platform_outage_recovery_logged=true")
+if outage.get("has_outage_recovery_scan"):
+    print("  platform_outage_recovery_scan_logged=true")
+if outage.get("recovery_scan_pending_burst"):
+    print("  platform_outage_recovery_pending_burst=true")
 if outage.get("window_active"):
     print(
         f"  platform_outage_recovery_window=true "
@@ -137,6 +141,13 @@ status_events = status.get("session_open_events") or []
 if status_events:
     types = [e.get("event_type") for e in status_events[:20]]
     print(f"  status.session_open_events types={types[:8]}")
+    recovery_scans = [e for e in status_events if e.get("event_type") == "outage_recovery_scan"]
+    if recovery_scans:
+        latest = recovery_scans[0]
+        print(
+            f"  status.outage_recovery_scan bot={latest.get('bot_type')} "
+            f"symbols={latest.get('symbols')}"
+        )
     queue_adds = [e for e in status_events if e.get("event_type") == "queue_add"]
     if queue_adds:
         print(f"  queue_add_events={len(queue_adds)}")
@@ -177,6 +188,8 @@ if not events.get("has_burst_scan") and not events.get("has_auto_entry"):
                 f"  warn=deploy_{code_rev or 'revision'}_required_for_platform_outage_recovery"
             )
             errors.append("revision_behind_for_outage_recovery")
+        elif outage.get("recovery_scan_pending_burst"):
+            print("  note=platform_outage_recovery_scan_logged — awaiting burst_scan completion")
         else:
             print("  note=platform_outage_recovery_pending — burst scan expected on next bot loop")
     else:
