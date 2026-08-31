@@ -84,6 +84,21 @@ def test_recover_render_billing_triggers_deploy_when_behind():
   text = (SCRIPTS / "recover-render-billing.sh").read_text(encoding="utf-8")
   assert "production_revision_behind" in text
   assert "trigger_render_deploy" in text
+  assert "platform_outage_events" in text
+  assert "platform_outage_recovery" in text
+  assert "commodities_open_positions" in text
+
+
+def test_verify_platform_includes_platform_outage_state():
+  text = (SCRIPTS / "verify-platform.sh").read_text(encoding="utf-8")
+  assert "platform_outage_events" in text
+  assert "outage_recovery_window" in text
+
+
+def test_verify_us_stocks_post_open_uses_dynamic_revision_warn():
+  text = (SCRIPTS / "verify-us-stocks-post-open.sh").read_text(encoding="utf-8")
+  assert "deploy_{code_rev" in text
+  assert "deploy_r452_required" not in text
 
 
 def test_fetch_json_includes_deploy_trigger_helpers():
@@ -99,6 +114,8 @@ def test_print_outage_status_script():
   assert "check_backend_suspension" in text
   assert "platform_outage_recovery" in text
   assert "recover-render-billing.sh" in text
+  assert "CODE_REV" in text
+  assert "r454 deploys" not in text
 
 
 def test_verify_post_deploy_includes_crm_and_learning_checks():

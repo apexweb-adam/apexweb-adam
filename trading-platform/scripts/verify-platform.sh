@@ -68,6 +68,29 @@ else
   bad "Backend /api/status invalid or unavailable"
 fi
 
+# Platform outage recovery (billing suspension gaps)
+if echo "$STATUS" | python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+events = d.get('platform_outage_events') or []
+if events:
+    newest = events[0]
+    gap = newest.get('gap_minutes')
+    us = newest.get('us_open_ready_symbols') or []
+    print(f'  outage_events={len(events)} newest_gap_min={gap} us_queued={us or \"none\"}')
+us_checklist = (d.get('session_open_checklists') or {}).get('us_stocks') or {}
+outage = us_checklist.get('platform_outage_recovery') or {}
+if outage.get('window_active'):
+    print(f'  outage_recovery_window=true grace_min={outage.get(\"grace_minutes_remaining\")}')
+elif outage.get('logged'):
+    print('  outage_recovery_logged=true window=expired')
+sys.exit(0)
+"; then
+  note "Platform outage state (see above if billing gap logged)"
+else
+  note "Platform outage state unavailable"
+fi
+
 # Database persistence (Supabase required on Render)
 if echo "$STATUS" | python3 -c "
 import json, sys
