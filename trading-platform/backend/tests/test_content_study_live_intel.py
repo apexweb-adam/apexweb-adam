@@ -5,9 +5,16 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from app.intelligence.content_study import (
+  LIVE_INTEL_SOURCES,
   ContentStudyEngine,
   _extract_live_intel_impact,
 )
+
+
+def test_live_intel_sources_include_political_and_tradingview():
+  assert "political" in LIVE_INTEL_SOURCES
+  assert "tradingview" in LIVE_INTEL_SOURCES
+  assert "tiktok" in LIVE_INTEL_SOURCES
 
 
 def test_extract_fomo_buy_impact_targets_crypto():
