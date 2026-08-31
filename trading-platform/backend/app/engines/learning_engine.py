@@ -159,6 +159,11 @@ class LearningEngine:
         lessons.append(
           "Gate-skip bypasses chronic blocks at US open — demand stronger technical confirmation"
         )
+      if await self._had_source_intel(trade.symbol, trade.executed_at, "political"):
+        if trade.sentiment_score < 0 and trade.side == "long":
+          root_causes.append("Political intel turned negative during stocks hold")
+          adjustments.append("Require positive macro/political sentiment for stocks longs")
+          lessons.append("Re-check tariff/Fed/election headlines before holding day-trade positions")
 
     if trade.bot_type == "commodities":
       if "weekend" in reason_lower:
@@ -178,6 +183,11 @@ class LearningEngine:
         root_causes.append("Loss on CME reopen or Monday futures gate-skip entry")
         adjustments.append("Raise composite floor for commodities gate-skip entries at session open")
         lessons.append("CME reopen volatility needs extra confirmation before gate-skip entries")
+      if await self._had_source_intel(trade.symbol, trade.executed_at, "political"):
+        if trade.sentiment_score < 0 and trade.side == "long":
+          root_causes.append("Political intel turned negative during commodities hold")
+          adjustments.append("Reduce commodities exposure when political headlines flip bearish")
+          lessons.append("Weight geopolitical news higher — tighten stops on tariff/geopolitics risk")
 
     if trade.bot_type == "polymarket":
       if "overbought" in reason_lower:

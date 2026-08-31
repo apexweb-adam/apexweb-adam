@@ -8,6 +8,7 @@ from app.intelligence.content_study import (
   LIVE_INTEL_SOURCES,
   ContentStudyEngine,
   _extract_live_intel_impact,
+  _extract_youtube_impact,
 )
 
 
@@ -15,6 +16,26 @@ def test_live_intel_sources_include_political_and_tradingview():
   assert "political" in LIVE_INTEL_SOURCES
   assert "tradingview" in LIVE_INTEL_SOURCES
   assert "tiktok" in LIVE_INTEL_SOURCES
+
+
+def test_extract_youtube_rsi_divergence_impact():
+  impact, confidence = _extract_youtube_impact(
+    "RSI divergence trading strategy",
+    "how to spot bullish divergence",
+  )
+  assert impact is not None
+  assert "rsi" in impact.lower()
+  assert confidence >= 0.75
+
+
+def test_extract_youtube_gold_commodities_impact():
+  impact, confidence = _extract_youtube_impact(
+    "Gold trading strategy 2024",
+    "commodities breakout playbook",
+  )
+  assert impact is not None
+  assert "commodities" in impact.lower()
+  assert confidence >= 0.7
 
 
 def test_extract_fomo_buy_impact_targets_crypto():
