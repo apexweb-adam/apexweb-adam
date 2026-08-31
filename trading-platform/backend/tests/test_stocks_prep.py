@@ -230,3 +230,63 @@ def test_stocks_prep_skips_outside_trade_count_extended_window():
 
           asyncio.run(stocks_pre_session_prep_job())
       mock_refresh.assert_not_called()
+
+
+def test_stocks_open_wake_refreshes_open_ready_without_trade_count_nudge():
+  from app.workers.scheduler import stocks_us_open_wake_job
+
+  with patch(
+    "app.engines.gate_entry_guard.stocks_open_wake_active",
+    return_value=True,
+  ):
+    with patch(
+      "app.engines.gate_entry_guard.stocks_session_info",
+      return_value={"in_session": False, "minutes_until_open": 2},
+    ):
+      with patch(
+        "app.engines.scan_preview.build_monday_recovery_summary",
+        new_callable=AsyncMock,
+        return_value={
+          "open_ready": [{"bot_type": "stocks_futures", "symbol": "AAPL", "composite": 0.4}],
+          "near_floor": [],
+        },
+      ):
+        with patch(
+          "app.engines.gate_entry_guard.stocks_trade_count_graduation_nudge",
+          return_value=False,
+        ):
+          with patch(
+            "app.engines.gate_entry_guard.get_proven_winner_symbols",
+            new_callable=AsyncMock,
+            return_value=frozenset({"AAPL"}),
+          ):
+            with patch(
+              "app.engines.gate_entry_guard.get_chronic_loser_symbols",
+              new_callable=AsyncMock,
+              return_value=frozenset(),
+            ):
+              with patch(
+                "app.engines.integration_signals.refresh_tradingview_signals",
+                new_callable=AsyncMock,
+                return_value=["AAPL"],
+              ) as mock_refresh:
+                with patch("app.ws_manager.push_live_update", new_callable=AsyncMock):
+                  with patch("app.engines.scan_preview.clear_monday_recovery_cache") as mock_clear:
+                    with patch(
+                      "app.engines.platform_settings.is_bot_paused",
+                      new_callable=AsyncMock,
+                      return_value=True,
+                    ):
+                      with patch(
+                        "app.engines.profitability_gate.ProfitabilityGate.evaluate_per_bot",
+                        new_callable=AsyncMock,
+                        return_value={"stocks_futures": {"win_rate": 0.57, "total_trades": 20}},
+                      ):
+                        with _mock_scheduler_session():
+                          import asyncio
+
+                          asyncio.run(stocks_us_open_wake_job())
+                mock_refresh.assert_called_once()
+                symbols = mock_refresh.call_args[0][1]
+                assert "AAPL" in symbols
+                mock_clear.assert_called_once()
