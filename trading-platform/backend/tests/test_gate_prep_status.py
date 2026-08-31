@@ -139,3 +139,20 @@ def test_enrich_prep_with_session_events_surfaces_auto_entry():
   assert enriched["commodities"]["open_ready_symbols"] == ["NG=F", "CL=F"]
   assert enriched["stocks_futures"]["auto_entry_queued"] is True
   assert enriched["stocks_futures"]["open_ready_symbols"] == ["AAPL"]
+
+
+def test_enrich_prep_with_session_events_surfaces_cap_pressure():
+  session_prep = {
+    "commodities": {
+      "prep_phase": "open",
+      "open_count": 4,
+      "effective_open_cap": 4,
+      "cap_pressure_active": True,
+    },
+    "stocks_futures": {"prep_phase": "extended"},
+  }
+  next_session_events = {"cme_reopen": {}, "us_stocks_open": {}}
+  enriched = gate_prep_status._enrich_prep_with_session_events(session_prep, next_session_events)
+  assert enriched["commodities"]["open_count"] == 4
+  assert enriched["commodities"]["effective_open_cap"] == 4
+  assert enriched["commodities"]["cap_pressure_active"] is True

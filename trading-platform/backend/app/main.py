@@ -190,11 +190,18 @@ async def crm_landing():
     commodities_bot = (monday_recovery.get("bots") or {}).get("commodities") or {}
     proven = commodities_bot.get("recovery_candidates") or ["proven winners"]
     candidate_label = ", ".join(proven) if proven else "proven winners"
+    open_count = commodities_bot.get("open_count")
+    effective_cap = commodities_bot.get("effective_open_cap")
+    cap_note = ""
+    if isinstance(open_count, int) and isinstance(effective_cap, int):
+      cap_note = f" Open cap {open_count}/{effective_cap}."
+      if commodities_bot.get("cap_pressure_active"):
+        cap_note += " Cap-pressure wind-down active — freeing slots for stronger entries."
     recovery_nudge_note += (
       f"<p class='muted' style='margin-top:0;color:#a78bfa;'>"
       f"Commodities verification nudge: graduation metrics met — easing proven-winner entries "
       f"for {candidate_label} while gate needs {trades_gap} more trades "
-      f"({trades}/{min_trades_required}).</p>"
+      f"({trades}/{min_trades_required}).{cap_note}</p>"
     )
   for row in monday_recovery.get("all") or []:
     bot_type = row.get("bot_type", "")
