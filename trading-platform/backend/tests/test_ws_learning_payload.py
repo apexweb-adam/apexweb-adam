@@ -29,12 +29,14 @@ def test_build_live_payload_includes_learning_fields():
   import app.engines.scan_preview as scan_mod
   import app.engines.session_open_log as session_log_mod
   import app.engines.session_open_checklist_summary as checklist_mod
+  import app.engines.platform_outage_log as outage_mod
   import app.intelligence.fomo_tracker as fomo_mod
 
   orig = gate_mod.build_gate_ws_payload
   orig_summary = scan_mod.build_monday_recovery_summary
   orig_events = session_log_mod.get_session_open_events
   orig_checklists = checklist_mod.build_session_open_checklist_summaries
+  orig_outage = outage_mod.get_platform_outage_events
   orig_fomo = fomo_mod.get_fomo_bearer_status
   gate_mod.build_gate_ws_payload = fake_gate_payload
   scan_mod.build_monday_recovery_summary = AsyncMock(
@@ -47,6 +49,7 @@ def test_build_live_payload_includes_learning_fields():
       "us_stocks_open": {"ready": True, "open_ready_symbols": [], "auto_entry_queued": False, "critical_failures": [], "has_burst_scan": False, "has_auto_entry": False},
     },
   )
+  outage_mod.get_platform_outage_events = AsyncMock(return_value=[])
   fomo_mod.get_fomo_bearer_status = AsyncMock(
     return_value={"configured": True, "polling_active": False, "minutes_remaining": -10},
   )
@@ -64,6 +67,8 @@ def test_build_live_payload_includes_learning_fields():
     assert "cme_reopen" in payload["next_session_events"]
     assert "session_open_events" in payload
     assert isinstance(payload["session_open_events"], list)
+    assert "platform_outage_events" in payload
+    assert isinstance(payload["platform_outage_events"], list)
     assert "session_open_checklists" in payload
     assert "cme_reopen" in payload["session_open_checklists"]
     assert "deploy" in payload
@@ -82,4 +87,5 @@ def test_build_live_payload_includes_learning_fields():
     scan_mod.build_monday_recovery_summary = orig_summary
     session_log_mod.get_session_open_events = orig_events
     checklist_mod.build_session_open_checklist_summaries = orig_checklists
+    outage_mod.get_platform_outage_events = orig_outage
     fomo_mod.get_fomo_bearer_status = orig_fomo
