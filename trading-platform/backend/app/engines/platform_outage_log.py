@@ -112,3 +112,28 @@ async def detect_and_log_platform_outage(session: AsyncSession) -> dict[str, Any
   await record_platform_online_heartbeat(session)
   print(f"[PlatformOutage] {detail}")
   return event
+
+
+async def platform_outage_patterns_for_review(
+  session: AsyncSession,
+  review_date: str,
+) -> list[str]:
+  """Patterns for daily review when platform downtime occurred on review_date."""
+  patterns: list[str] = []
+  for event in await get_platform_outage_events(session):
+    detected = str(event.get("detected_at") or "")
+    if not detected.startswith(review_date):
+      continue
+    gap = int(event.get("gap_minutes") or 0)
+    us = event.get("us_open_ready_symbols") or []
+    cme = event.get("cme_open_ready_symbols") or []
+    queued = us or cme
+    if queued:
+      patterns.append(
+        f"Platform downtime {gap}min — missed session open with queued: {', '.join(queued)}"
+      )
+    elif event.get("stocks_in_session") or event.get("cme_in_session"):
+      patterns.append(f"Platform downtime {gap}min — bots offline during active session")
+    else:
+      patterns.append(f"Platform downtime {gap}min — service was offline")
+  return patterns

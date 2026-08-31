@@ -59,6 +59,32 @@ async def test_detect_and_log_platform_outage_on_gap(session: AsyncSession):
 
 
 @pytest.mark.asyncio
+async def test_platform_outage_patterns_for_review(session: AsyncSession):
+  from app.engines.platform_outage_log import platform_outage_patterns_for_review
+
+  today = datetime.utcnow().strftime("%Y-%m-%d")
+  await set_platform_setting(
+    session,
+    PLATFORM_OUTAGE_EVENTS_KEY,
+    json.dumps(
+      [
+        {
+          "detected_at": f"{today}T15:00:00",
+          "gap_minutes": 95,
+          "us_open_ready_symbols": ["AAPL"],
+          "cme_open_ready_symbols": [],
+          "stocks_in_session": True,
+        }
+      ]
+    ),
+  )
+  patterns = await platform_outage_patterns_for_review(session, today)
+  assert len(patterns) == 1
+  assert "95min" in patterns[0]
+  assert "AAPL" in patterns[0]
+
+
+@pytest.mark.asyncio
 async def test_detect_skips_short_gap(session: AsyncSession):
   last = (datetime.utcnow() - timedelta(minutes=5)).isoformat()
   await set_platform_setting(session, PLATFORM_LAST_ONLINE_KEY, last)
