@@ -27,6 +27,7 @@ def _engine_kwargs(url: str) -> dict:
     kwargs["connect_args"] = {"ssl": "require"}
     kwargs["pool_size"] = settings.database_pool_size
     kwargs["max_overflow"] = settings.database_max_overflow
+    kwargs["pool_timeout"] = 20
     kwargs["pool_pre_ping"] = True
     kwargs["pool_recycle"] = 280
   elif normalized.startswith("sqlite"):
