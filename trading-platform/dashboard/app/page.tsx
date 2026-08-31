@@ -243,6 +243,11 @@ export default function Dashboard() {
             >
               Fix billing in Render →
             </a>
+            {dashConfig.backendHealth.recovery_steps?.[3] && (
+              <span className="ml-2 text-amber-300">
+                {dashConfig.backendHealth.recovery_steps[3]}
+              </span>
+            )}
             {dashConfig.backendHealth.recovery_steps?.[2] && (
               <span className="ml-2 font-mono text-[10px] text-gray-400">
                 then {dashConfig.backendHealth.recovery_steps[2]}

@@ -905,12 +905,14 @@ async def run_post_outage_recovery_bursts() -> None:
       )
       targets.append((bot_type, bot, outage_recovery))
 
+  scanned = False
   for bot_type, bot, outage_recovery in targets:
     try:
       bot._session_open_burst = True
       bot._session_open_outage_recovery = outage_recovery
       print(f"[PlatformOutage] Running post-outage recovery scan for {bot_type}")
       await asyncio.wait_for(bot.scan_and_trade(), timeout=120)
+      scanned = True
     except asyncio.TimeoutError:
       print(f"[PlatformOutage] {bot_type} recovery scan timed out after 120s")
     except Exception as exc:
@@ -918,6 +920,25 @@ async def run_post_outage_recovery_bursts() -> None:
     finally:
       bot._session_open_burst = False
       bot._session_open_outage_recovery = False
+
+  held = _startup_outage_event.get("held_open_positions") or []
+  crypto_held = [row.get("symbol") for row in held if row.get("bot_type") == "crypto" and row.get("symbol")]
+  if crypto_held:
+    crypto_bot = bots.get("crypto")
+    if crypto_bot is not None:
+      try:
+        print(f"[PlatformOutage] Running post-outage crypto scan (held: {', '.join(crypto_held)})")
+        await asyncio.wait_for(crypto_bot.scan_and_trade(), timeout=120)
+        scanned = True
+      except asyncio.TimeoutError:
+        print("[PlatformOutage] crypto recovery scan timed out after 120s")
+      except Exception as exc:
+        print(f"[PlatformOutage] crypto recovery scan error: {exc}")
+
+  if scanned:
+    from app.ws_manager import push_live_update
+
+    await push_live_update()
 
 
 async def _deferred_startup_jobs() -> None:
