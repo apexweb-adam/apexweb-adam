@@ -511,6 +511,19 @@ def test_commodities_verification_trade_count_nudge():
     "commodities", False, True, gate_ok, per_bot_ready
   ) is True
 
+  from app.engines.gate_entry_guard import graduation_nudge_easing_active
+
+  assert graduation_nudge_easing_active(
+    "commodities", graduation_nudge=False, shadow_mode=False
+  ) is False
+  assert graduation_nudge_easing_active(
+    "commodities", graduation_nudge=True, shadow_mode=False
+  ) is True
+  bypass_nudge = False or True  # commodities_ease_active
+  assert graduation_nudge_easing_active(
+    "commodities", graduation_nudge=bypass_nudge, shadow_mode=False
+  ) is True
+
   eased = commodities_graduation_entry_min_signal(
     0.28,
     bot_type="commodities",

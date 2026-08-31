@@ -842,6 +842,34 @@ export default function Dashboard() {
                         </div>
                       </div>
                     )}
+                    {gateStatus.checks?.min_trades && (
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-[10px] text-gray-500 uppercase tracking-wide">
+                          <span>
+                            Active trades {Number(gateStatus.checks.min_trades.actual ?? gateStatus.total_trades ?? 0)}
+                          </span>
+                          <span>Target {Number(gateStatus.checks.min_trades.required ?? 100)}</span>
+                        </div>
+                        <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                          <div
+                            className={cn(
+                              "h-full rounded-full transition-all",
+                              gateStatus.checks.min_trades.passed
+                                ? "bg-apex-green/80"
+                                : "bg-apex-purple/80"
+                            )}
+                            style={{
+                              width: `${Math.min(
+                                100,
+                                (Number(gateStatus.checks.min_trades.actual ?? gateStatus.total_trades ?? 0) /
+                                  Number(gateStatus.checks.min_trades.required ?? 100)) *
+                                  100
+                              )}%`,
+                            }}
+                          />
+                        </div>
+                      </div>
+                    )}
                     {gateStatus.win_rate != null && (
                       <div className="space-y-1">
                         <div className="flex justify-between text-[10px] text-gray-500 uppercase tracking-wide">
