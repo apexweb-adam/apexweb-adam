@@ -646,6 +646,9 @@ export type PlatformDeployStatus = {
   deploy_credentials_ready?: boolean;
   deploy_credentials_warnings?: string[];
   deploy_credentials_nudges?: string[];
+  dashboard_bundle_verify_command?: string;
+  weekend_ops_verify_command?: string;
+  crm_learning_verify_command?: string;
   next_steps: string[];
 };
 

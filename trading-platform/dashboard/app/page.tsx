@@ -113,6 +113,10 @@ export default function Dashboard() {
     liveLearning?.intel_pattern_alerts?.length
       ? liveLearning.intel_pattern_alerts
       : platformStatus?.learning?.intel_pattern_alerts;
+  const learningStats = liveLearning ?? platformStatus?.learning;
+  const crmLearningVerifyCommand =
+    platformStatus?.deploy?.crm_learning_verify_command ??
+    "bash trading-platform/scripts/verify-crm-learning.sh";
   const [tab, setTab] = useState<Tab>("overview");
   const [dashConfig, setDashConfig] = useState<DashboardConfig | null>(null);
 
@@ -480,19 +484,28 @@ export default function Dashboard() {
                       </div>
                     ))}
                   </div>
-                  {platformStatus.learning && (
+                  {learningStats && (
                     <div className="mt-4 pt-4 border-t border-apex-border space-y-1 text-xs text-gray-500">
                       <p>
-                        Learning: {platformStatus.learning.trade_analyses} post-mortems ·{" "}
-                        {platformStatus.learning.daily_reviews} daily reviews ·{" "}
-                        {platformStatus.learning.insights_applied}/{platformStatus.learning.insights_total}{" "}
+                        Learning: {learningStats.trade_analyses} post-mortems ·{" "}
+                        {learningStats.daily_reviews} daily reviews ·{" "}
+                        {learningStats.insights_applied}/{learningStats.insights_total}{" "}
                         insights applied
-                        {(platformStatus.learning.insights_pending ?? 0) > 0 && (
+                        {(learningStats.insights_pending ?? 0) > 0 && (
                           <span className="text-apex-gold">
                             {" "}
-                            · {platformStatus.learning.insights_pending} pending
+                            · {learningStats.insights_pending} pending
                           </span>
                         )}
+                        {(learningStats.intel_pattern_count ?? 0) > 0 && (
+                          <span className="text-purple-300">
+                            {" "}
+                            · {learningStats.intel_pattern_count} intel pattern alert(s)
+                          </span>
+                        )}
+                      </p>
+                      <p className="font-mono text-[10px] text-gray-600 break-all">
+                        {crmLearningVerifyCommand}
                       </p>
                     </div>
                   )}
@@ -1363,7 +1376,10 @@ export default function Dashboard() {
             <LearningPendingBanner
               pending={platformStatus?.learning?.insights_pending ?? 0}
             />
-            <IntelPatternAlertBanner alerts={intelPatternAlerts} />
+            <IntelPatternAlertBanner
+              alerts={intelPatternAlerts}
+              verifyCommand={crmLearningVerifyCommand}
+            />
             <Card title="Loss Trade Analysis">
               <div className="space-y-3 max-h-[500px] overflow-y-auto">
                 {(analyses ?? []).length === 0 ? (
@@ -2242,7 +2258,13 @@ function PlatformOutageEventsCard({ events }: { events?: PlatformOutageEvent[] }
   );
 }
 
-function IntelPatternAlertBanner({ alerts }: { alerts?: string[] }) {
+function IntelPatternAlertBanner({
+  alerts,
+  verifyCommand,
+}: {
+  alerts?: string[];
+  verifyCommand?: string;
+}) {
   if (!alerts?.length) return null;
   return (
     <div className="lg:col-span-2 rounded-lg border border-purple-500/40 bg-purple-950/30 p-4">
@@ -2275,6 +2297,9 @@ function IntelPatternAlertBanner({ alerts }: { alerts?: string[] }) {
       <p className="text-[11px] text-purple-200/60 mt-2">
         Strategy gates were tightened automatically — see daily review strategy changes below.
       </p>
+      {verifyCommand ? (
+        <p className="text-[10px] text-purple-200/50 mt-2 font-mono break-all">{verifyCommand}</p>
+      ) : null}
     </div>
   );
 }

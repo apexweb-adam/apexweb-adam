@@ -118,6 +118,8 @@ if applied or recent:
         title = (row.get("title") or "")[:48]
         state = "applied" if row.get("applied") else "pending"
         lines.append(f"  [{label}] {title} ({state})")
+if learning:
+    lines.append("Verify: bash trading-platform/scripts/verify-crm-learning.sh")
 degraded = [s.get("source") for s in (intel.get("sources") or []) if s.get("status") == "degraded"]
 if degraded:
     lines.append(f"WARN: intel degraded: {', '.join(degraded)}")

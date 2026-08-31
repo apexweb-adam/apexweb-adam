@@ -44,6 +44,7 @@ def test_ops_gate_summary_includes_learning_loop():
   assert "intel pattern alerts" in text
   assert "Content study:" in text
   assert "source_label" in text
+  assert "verify-crm-learning.sh" in text
 
 
 def test_run_deploy_window_script_exists():
@@ -307,6 +308,7 @@ def test_print_deploy_window_summary_script_exists():
   assert "us-stocks-open-checklist" in text
   assert "intel_pattern_alerts" in text
   assert "content_study [" in text
+  assert "Learning verify:" in text
 
 
 def test_verify_us_stocks_post_open_supports_watch_mode():

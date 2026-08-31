@@ -215,6 +215,10 @@ elif lib and Path(lib).is_file():
 if baseline:
     print(f"CRM baseline: {baseline}s (target <30s after deploy)")
 
+crm_verify = snap.get("crm_learning_verify_command")
+if crm_verify:
+    print(f"Learning verify: {crm_verify}")
+
 print("")
 print("Deploy:")
 print("  bash trading-platform/scripts/run-deploy-window.sh")
