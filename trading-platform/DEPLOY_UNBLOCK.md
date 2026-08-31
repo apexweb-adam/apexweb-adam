@@ -36,6 +36,14 @@ bash trading-platform/scripts/verify-platform.sh
 
 Ops scripts (`verify-us-stocks-open.sh`, `verify-platform.sh`, etc.) exit **2** with recovery steps when billing suspension is detected.
 
+### Automated recovery (after billing fixed)
+
+```bash
+bash trading-platform/scripts/recover-render-billing.sh
+```
+
+Polls until the backend resumes, then runs deploy wait, platform verify, and Monday US stocks post-open checks.
+
 ---
 
 ## Typical blockers

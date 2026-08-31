@@ -74,6 +74,7 @@ def test_verify_scripts_check_render_billing_suspension():
     "verify-us-stocks-post-open.sh",
     "verify-platform.sh",
     "wait-for-render-deploy.sh",
+    "recover-render-billing.sh",
   ):
     text = (SCRIPTS / name).read_text(encoding="utf-8")
     assert "check_backend_suspension" in text, name
