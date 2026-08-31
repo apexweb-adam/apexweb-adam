@@ -432,3 +432,35 @@ def test_build_monday_recovery_summary_runs_scan_previews_in_parallel():
   result, call_order = asyncio.run(_run())
   assert set(call_order) == {"commodities", "stocks_futures"}
   assert result["commodities_graduation_nudge"] is True
+
+
+def test_monday_recovery_commodities_verification_nudge():
+  async def _run():
+    session = AsyncMock()
+
+    async def fake_preview(_session, bot_type):
+      if bot_type == "commodities":
+        return {
+          "recovery_candidates": ["CL=F"],
+          "graduation_nudge": False,
+          "commodities_verification_trade_count_nudge": True,
+          "symbols": [
+            {
+              "symbol": "CL=F",
+              "composite": 0.43,
+              "recovery_ready": True,
+              "blockers": ["volume"],
+            },
+          ],
+        }
+      return {"recovery_candidates": [], "symbols": []}
+
+    with patch("app.engines.scan_preview.build_scan_preview", side_effect=fake_preview):
+      return await build_monday_recovery_summary(session)
+
+  import asyncio
+
+  result = asyncio.run(_run())
+  assert result["commodities_verification_trade_count_nudge"] is True
+  assert result["commodities_graduation_nudge"] is True
+  assert "commodities" in result["bots"]

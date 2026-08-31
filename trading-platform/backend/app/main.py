@@ -142,6 +142,11 @@ async def crm_landing():
   bot_rows = ""
   stocks_trade_count_nudge = bool(monday_recovery.get("stocks_trade_count_nudge"))
   commodities_graduation_nudge = bool(monday_recovery.get("commodities_graduation_nudge"))
+  commodities_verification_nudge = bool(
+    monday_recovery.get("commodities_verification_trade_count_nudge")
+  )
+  min_trades_required = int((gate.get("checks") or {}).get("min_trades", {}).get("required") or 100)
+  trades_gap = max(0, min_trades_required - trades)
   for bot_type, stats in per_bot.items():
     status = "shadow" if stats.get("paused") else "active"
     if stats.get("graduation_ready"):
@@ -151,6 +156,8 @@ async def crm_landing():
       blockers = f"{blockers} · trade-count nudge active"
     if bot_type == "commodities" and commodities_graduation_nudge:
       blockers = f"{blockers} · graduation nudge active"
+    if bot_type == "commodities" and commodities_verification_nudge:
+      blockers = f"{blockers} · verification trade-count nudge"
     wr_pct = (stats.get("win_rate") or 0) * 100
     bot_rows += (
       f"<tr><td>{bot_type}</td><td>{status}</td>"
@@ -178,6 +185,16 @@ async def crm_landing():
       f"<p class='muted' style='margin-top:0;color:#fbbf24;'>"
       f"Commodities graduation nudge: active gate easing recovery entries for "
       f"{candidate_label} ahead of CME reopen.</p>"
+    )
+  if commodities_verification_nudge:
+    commodities_bot = (monday_recovery.get("bots") or {}).get("commodities") or {}
+    proven = commodities_bot.get("recovery_candidates") or ["proven winners"]
+    candidate_label = ", ".join(proven) if proven else "proven winners"
+    recovery_nudge_note += (
+      f"<p class='muted' style='margin-top:0;color:#a78bfa;'>"
+      f"Commodities verification nudge: graduation metrics met — easing proven-winner entries "
+      f"for {candidate_label} while gate needs {trades_gap} more trades "
+      f"({trades}/{min_trades_required}).</p>"
     )
   for row in monday_recovery.get("all") or []:
     bot_type = row.get("bot_type", "")
@@ -786,6 +803,7 @@ async def crm_landing():
       <div><div class="label">PnL</div><div class="stat">${pnl:,.2f}</div></div>
     </div>
     <p class="muted" style="margin-top: 1rem;">{rec}</p>
+    {f"<p class='muted' style='color:#a78bfa;'>Active gate needs {trades_gap} more trades ({trades}/{min_trades_required}) — commodities verification nudge easing proven-winner entries.</p>" if commodities_verification_nudge and trades_gap > 0 else ""}
     {f"<p class='muted'>Paused from active gate: {', '.join(paused)}</p>" if paused else ""}
     <table>
       <thead><tr><th>Bot</th><th>Status</th><th>Trades</th><th>WR</th><th>Graduation</th></tr></thead>

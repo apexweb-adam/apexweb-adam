@@ -837,6 +837,26 @@ def commodities_verification_volume_required(
   )
 
 
+def commodities_verification_entry_min_signal(
+  entry_min_signal: float,
+  *,
+  bot_type: str,
+  shadow_mode: bool,
+  symbol: str,
+  proven_winners: frozenset[str],
+  gate_status: dict[str, Any],
+  per_bot_stats: dict[str, Any],
+) -> float:
+  """Cap proven-winner entry threshold while platform gate still needs trades."""
+  if symbol not in proven_winners:
+    return entry_min_signal
+  if not commodities_verification_trade_count_nudge(
+    bot_type, shadow_mode, gate_status, per_bot_stats
+  ):
+    return entry_min_signal
+  return min(entry_min_signal, COMMODITIES_VERIFICATION_TRADE_COUNT_MIN_COMPOSITE)
+
+
 def stocks_trade_count_entry_min_signal(
   entry_min_signal: float,
   *,

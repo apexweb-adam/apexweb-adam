@@ -29,6 +29,7 @@ from app.engines.gate_entry_guard import (
   bot_win_rate_for_graduation_nudge,
   commodities_graduation_entry_min_signal,
   commodities_graduation_ease_active,
+  commodities_verification_entry_min_signal,
   commodities_verification_volume_required,
   commodities_weekend_spot_gate_skip_bypass,
   commodities_monday_futures_gate_skip_bypass,
@@ -340,17 +341,26 @@ class BaseBot(ABC):
           profit_factor=per_bot_stats.get("profit_factor"),
           total_pnl=per_bot_stats.get("total_pnl"),
         )
+      graduation_nudge = in_shadow_graduation_nudge(
+        self.bot_type,
+        bot_wr,
+        profit_factor=per_bot_stats.get("profit_factor"),
+        total_pnl=per_bot_stats.get("total_pnl"),
+      )
+      commodities_ease_active = commodities_graduation_ease_active(
+        self.bot_type,
+        shadow_mode,
+        graduation_nudge,
+        gate_status,
+        per_bot_stats,
+      )
+      bypass_nudge = graduation_nudge or commodities_ease_active
       if gate_tightening.active and self.bot_type != "stocks_futures":
         min_signal = apply_gate_tightening_min_signal(
           min_signal,
           self.bot_type,
           gate_tightening=gate_tightening,
-          graduation_nudge=in_shadow_graduation_nudge(
-            self.bot_type,
-            bot_wr,
-            profit_factor=per_bot_stats.get("profit_factor"),
-            total_pnl=per_bot_stats.get("total_pnl"),
-          ),
+          graduation_nudge=bypass_nudge,
           shadow_mode=shadow_mode,
           loss_streak=loss_streak,
         )
@@ -380,20 +390,6 @@ class BaseBot(ABC):
           )
           min_sentiment = max(0.0, min_sentiment - EARLY_VERIFICATION_SENTIMENT_EASE)
           early_verification_boost = True
-      graduation_nudge = in_shadow_graduation_nudge(
-        self.bot_type,
-        bot_wr,
-        profit_factor=per_bot_stats.get("profit_factor"),
-        total_pnl=per_bot_stats.get("total_pnl"),
-      )
-      commodities_ease_active = commodities_graduation_ease_active(
-        self.bot_type,
-        shadow_mode,
-        graduation_nudge,
-        gate_status,
-        per_bot_stats,
-      )
-      bypass_nudge = graduation_nudge or commodities_ease_active
       min_sentiment = graduation_nudge_min_sentiment(
         self.bot_type,
         min_sentiment,
@@ -1065,6 +1061,15 @@ class BaseBot(ABC):
           macd_signal=signal.macd_signal,
           symbol=symbol,
           proven_winners=proven_winners,
+        )
+        entry_min_signal = commodities_verification_entry_min_signal(
+          entry_min_signal,
+          bot_type=self.bot_type,
+          shadow_mode=shadow_mode,
+          symbol=symbol,
+          proven_winners=proven_winners,
+          gate_status=gate_status,
+          per_bot_stats=per_bot_stats,
         )
         entry_min_signal = crypto_graduation_entry_min_signal(
           entry_min_signal,

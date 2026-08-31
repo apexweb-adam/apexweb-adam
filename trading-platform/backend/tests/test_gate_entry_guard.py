@@ -563,6 +563,28 @@ def test_commodities_verification_trade_count_nudge():
     integration_boost=0.0,
   ) is False
 
+  from app.engines.gate_entry_guard import commodities_verification_entry_min_signal
+
+  eased_entry = commodities_verification_entry_min_signal(
+    0.42,
+    bot_type="commodities",
+    shadow_mode=False,
+    symbol="CL=F",
+    proven_winners=frozenset({"CL=F"}),
+    gate_status=gate_ok,
+    per_bot_stats=per_bot_ready,
+  )
+  assert eased_entry == COMMODITIES_VERIFICATION_TRADE_COUNT_MIN_COMPOSITE
+  assert commodities_verification_entry_min_signal(
+    0.42,
+    bot_type="commodities",
+    shadow_mode=False,
+    symbol="HG=F",
+    proven_winners=frozenset({"CL=F"}),
+    gate_status=gate_ok,
+    per_bot_stats=per_bot_ready,
+  ) == 0.42
+
 
 def test_stocks_proven_winner_recovery_bypasses_large_loss_skip():
   from app.engines.gate_entry_guard import (
