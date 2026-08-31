@@ -708,6 +708,101 @@ def test_commodities_verification_min_sentiment():
   ) is True
 
 
+def test_commodities_verification_open_ready():
+  from app.engines.gate_entry_guard import (
+    COMMODITIES_VERIFICATION_TRADE_COUNT_MIN_COMPOSITE,
+    OPEN_READY_QUEUE_RELEASE_MARGIN,
+    commodities_verification_open_ready,
+  )
+
+  gate_ok = {
+    "total_trades": 58,
+    "win_rate": 0.58,
+    "profit_factor": 1.53,
+    "total_pnl": 65.26,
+  }
+  per_bot_ready = {"graduation_ready": True, "total_trades": 58, "win_rate": 0.58}
+  base = dict(
+    bot_type="commodities",
+    shadow_mode=False,
+    symbol="XAUUSDT",
+    proven_winners=frozenset({"XAUUSDT", "CL=F"}),
+    gate_status=gate_ok,
+    per_bot_stats=per_bot_ready,
+    composite=COMMODITIES_VERIFICATION_TRADE_COUNT_MIN_COMPOSITE + 0.05,
+    signal_direction="buy",
+    macd_signal="bullish",
+  )
+  assert commodities_verification_open_ready(**base, blockers=["gate_skip"]) is True
+  assert commodities_verification_open_ready(**base, blockers=[]) is False
+  assert commodities_verification_open_ready(
+    **{**base, "signal_direction": "sell"},
+    blockers=["gate_skip"],
+  ) is False
+  assert commodities_verification_open_ready(
+    **{**base, "symbol": "HG=F"},
+    blockers=["gate_skip"],
+  ) is False
+  assert commodities_verification_open_ready(
+    **{**base, "composite": COMMODITIES_VERIFICATION_TRADE_COUNT_MIN_COMPOSITE - 0.05},
+    blockers=["gate_skip"],
+  ) is False
+  sticky_floor = COMMODITIES_VERIFICATION_TRADE_COUNT_MIN_COMPOSITE - OPEN_READY_QUEUE_RELEASE_MARGIN
+  assert commodities_verification_open_ready(
+    **{**base, "composite": sticky_floor},
+    blockers=["gate_skip"],
+    sticky_queue=True,
+  ) is True
+  assert commodities_verification_open_ready(
+    **base,
+    blockers=["gate_skip"],
+    verification_nudge_active=False,
+  ) is False
+
+
+def test_commodities_verification_near_floor_candidate():
+  from app.engines.gate_entry_guard import (
+    COMMODITIES_VERIFICATION_TRADE_COUNT_MIN_COMPOSITE,
+    commodities_verification_near_floor_candidate,
+  )
+
+  gate_ok = {
+    "total_trades": 58,
+    "win_rate": 0.58,
+    "profit_factor": 1.53,
+    "total_pnl": 65.26,
+  }
+  per_bot_ready = {"graduation_ready": True, "total_trades": 58, "win_rate": 0.58}
+  base = dict(
+    bot_type="commodities",
+    shadow_mode=False,
+    symbol="XAUUSDT",
+    proven_winners=frozenset({"XAUUSDT", "CL=F"}),
+    gate_status=gate_ok,
+    per_bot_stats=per_bot_ready,
+    signal_direction="buy",
+    macd_signal="bullish",
+    open_ready=False,
+  )
+  floor = COMMODITIES_VERIFICATION_TRADE_COUNT_MIN_COMPOSITE
+  assert commodities_verification_near_floor_candidate(
+    **{**base, "composite": floor - 0.03},
+    blockers=["gate_skip"],
+  ) is True
+  assert commodities_verification_near_floor_candidate(
+    **{**base, "composite": floor - 0.06},
+    blockers=["gate_skip"],
+  ) is False
+  assert commodities_verification_near_floor_candidate(
+    **{**base, "composite": floor + 0.02, "open_ready": True},
+    blockers=["gate_skip"],
+  ) is False
+  assert commodities_verification_near_floor_candidate(
+    **{**base, "composite": floor - 0.03},
+    blockers=["gate_skip", "signal_sell"],
+  ) is False
+
+
 def test_stocks_proven_winner_recovery_bypasses_large_loss_skip():
   from app.engines.gate_entry_guard import (
     chronic_loser_blocks_shadow_entry,

@@ -907,6 +907,93 @@ def commodities_verification_min_sentiment(
   return min(base_min_sentiment, COMMODITIES_VERIFICATION_MIN_SENTIMENT)
 
 
+COMMODITIES_VERIFICATION_OPEN_READY_BLOCKERS = frozenset({
+  "gate_skip",
+  "symbol_cooldown",
+  "volume",
+  "chronic_loser",
+  "already_held",
+})
+
+
+def commodities_verification_open_ready(
+  *,
+  bot_type: str,
+  shadow_mode: bool,
+  symbol: str,
+  proven_winners: frozenset[str],
+  gate_status: dict[str, Any],
+  per_bot_stats: dict[str, Any],
+  composite: float,
+  signal_direction: str,
+  macd_signal: str,
+  blockers: list[str],
+  sticky_queue: bool = False,
+  verification_nudge_active: bool | None = None,
+) -> bool:
+  """Proven-winner commodities at the verification floor — queued for gate_skip clearance."""
+  if verification_nudge_active is None:
+    if not commodities_verification_trade_count_nudge(
+      bot_type, shadow_mode, gate_status, per_bot_stats
+    ):
+      return False
+  elif not verification_nudge_active:
+    return False
+  if symbol not in proven_winners:
+    return False
+  if signal_direction != "buy" or macd_signal != "bullish":
+    return False
+  floor = COMMODITIES_VERIFICATION_TRADE_COUNT_MIN_COMPOSITE
+  if sticky_queue:
+    floor -= OPEN_READY_QUEUE_RELEASE_MARGIN
+  if composite < floor:
+    return False
+  if not blockers:
+    return False
+  return set(blockers).issubset(COMMODITIES_VERIFICATION_OPEN_READY_BLOCKERS)
+
+
+def commodities_verification_near_floor_candidate(
+  *,
+  bot_type: str,
+  shadow_mode: bool,
+  symbol: str,
+  proven_winners: frozenset[str],
+  gate_status: dict[str, Any],
+  per_bot_stats: dict[str, Any],
+  composite: float,
+  signal_direction: str,
+  macd_signal: str,
+  blockers: list[str],
+  open_ready: bool,
+) -> bool:
+  """Proven-winner commodities within margin of the verification composite floor."""
+  if open_ready:
+    return False
+  if not commodities_verification_trade_count_nudge(
+    bot_type, shadow_mode, gate_status, per_bot_stats
+  ):
+    return False
+  if symbol not in proven_winners:
+    return False
+  if signal_direction != "buy" or macd_signal != "bullish":
+    return False
+  if not blockers:
+    return False
+  floor = COMMODITIES_VERIFICATION_TRADE_COUNT_MIN_COMPOSITE
+  if composite < floor - OPEN_READY_NEAR_FLOOR_MARGIN:
+    return False
+  allowed = (
+    COMMODITIES_VERIFICATION_OPEN_READY_BLOCKERS
+    | COMMODITIES_MONDAY_RECOVERY_SOFT_BLOCKERS
+  )
+  if not set(blockers).issubset(allowed):
+    return False
+  if composite >= floor:
+    return not set(blockers).issubset(COMMODITIES_VERIFICATION_OPEN_READY_BLOCKERS)
+  return set(blockers).issubset(COMMODITIES_VERIFICATION_OPEN_READY_BLOCKERS)
+
+
 def stocks_trade_count_entry_min_signal(
   entry_min_signal: float,
   *,

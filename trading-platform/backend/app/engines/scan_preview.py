@@ -39,6 +39,8 @@ from app.engines.gate_entry_guard import (
   commodities_verification_trade_count_nudge,
   commodities_verification_entry_min_signal,
   commodities_verification_min_sentiment,
+  commodities_verification_near_floor_candidate,
+  commodities_verification_open_ready,
   commodities_verification_volume_required,
   crypto_graduation_entry_min_signal,
   crypto_momentum_retreat_entry_min_signal,
@@ -898,7 +900,19 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
         signal_direction=signal.direction,
         macd_signal=signal.macd_signal,
         blockers=blockers,
-        graduation_nudge=graduation_nudge,
+        graduation_nudge=commodities_ease_active,
+      )
+      or commodities_verification_open_ready(
+        bot_type=bot_type,
+        shadow_mode=shadow_mode,
+        symbol=symbol,
+        proven_winners=proven_winners,
+        gate_status=gate_status,
+        per_bot_stats=per_bot_stats,
+        composite=composite,
+        signal_direction=signal.direction,
+        macd_signal=signal.macd_signal,
+        blockers=blockers,
       )
       or stocks_monday_open_ready(
         bot_type=bot_type,
@@ -919,8 +933,21 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
         signal_direction=signal.direction,
         macd_signal=signal.macd_signal,
         blockers=blockers,
-        graduation_nudge=graduation_nudge,
+        graduation_nudge=commodities_ease_active,
         monday_open_ready=monday_open_ready,
+      )
+      or commodities_verification_near_floor_candidate(
+        bot_type=bot_type,
+        shadow_mode=shadow_mode,
+        symbol=symbol,
+        proven_winners=proven_winners,
+        gate_status=gate_status,
+        per_bot_stats=per_bot_stats,
+        composite=composite,
+        signal_direction=signal.direction,
+        macd_signal=signal.macd_signal,
+        blockers=blockers,
+        open_ready=monday_open_ready,
       )
       or stocks_near_floor_candidate(
         composite=composite,
@@ -1317,6 +1344,7 @@ async def _build_monday_recovery_summary(session: AsyncSession) -> dict[str, Any
   from app.engines.gate_entry_guard import (
     COMMODITIES_OPEN_READY_PREP_MINUTES,
     commodities_monday_open_ready,
+    commodities_verification_open_ready,
     stocks_monday_open_ready,
   )
   from app.engines.session_open_log import get_prep_phase_state
@@ -1373,9 +1401,22 @@ async def _build_monday_recovery_summary(session: AsyncSession) -> dict[str, Any
           signal_direction=str(row.get("direction") or ""),
           macd_signal=str(row.get("macd") or ""),
           blockers=blockers,
-          graduation_nudge=graduation_nudge,
+          graduation_nudge=commodities_graduation_nudge,
           sticky_queue=True,
           extended_sticky=extended_watch,
+        ) or commodities_verification_open_ready(
+          bot_type=bot_type,
+          shadow_mode=shadow_mode,
+          symbol=symbol,
+          proven_winners=proven_winners,
+          gate_status={},
+          per_bot_stats={},
+          composite=float(composite),
+          signal_direction=str(row.get("direction") or ""),
+          macd_signal=str(row.get("macd") or ""),
+          blockers=blockers,
+          sticky_queue=True,
+          verification_nudge_active=commodities_verification_nudge,
         )
       elif bot_type == "stocks_futures":
         sticky_ready = stocks_monday_open_ready(
