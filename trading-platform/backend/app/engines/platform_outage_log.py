@@ -71,6 +71,17 @@ async def detect_and_log_platform_outage(session: AsyncSession) -> dict[str, Any
   us_ready = list((prep.get("us_stocks_open") or {}).get("open_ready_symbols") or [])
   cme_ready = list((prep.get("cme_reopen") or {}).get("open_ready_symbols") or [])
 
+  from app.config import BOT_TYPES
+  from app.engines.paper_trading import PaperTradingEngine
+
+  held_open_positions: list[dict[str, str]] = []
+  for bot_type in BOT_TYPES:
+    engine = PaperTradingEngine(session, bot_type)
+    for position in await engine.get_open_positions():
+      symbol = getattr(position, "symbol", None)
+      if symbol:
+        held_open_positions.append({"bot_type": bot_type, "symbol": str(symbol)})
+
   event: dict[str, Any] = {
     "detected_at": now.isoformat(),
     "last_online_utc": last_raw,
@@ -81,6 +92,7 @@ async def detect_and_log_platform_outage(session: AsyncSession) -> dict[str, Any
     "cme_in_session": bool(cme.get("in_session")),
     "us_open_ready_symbols": us_ready,
     "cme_open_ready_symbols": cme_ready,
+    "held_open_positions": held_open_positions,
   }
 
   events = await get_platform_outage_events(session)
@@ -90,7 +102,8 @@ async def detect_and_log_platform_outage(session: AsyncSession) -> dict[str, Any
 
   detail = (
     f"Platform outage gap {gap_minutes}min — "
-    f"US queued={us_ready or 'none'} CME queued={cme_ready or 'none'}"
+    f"US queued={us_ready or 'none'} CME queued={cme_ready or 'none'} "
+    f"held={len(held_open_positions)}"
   )
   if us_ready:
     await record_session_open_event(
@@ -127,10 +140,20 @@ async def platform_outage_patterns_for_review(
     gap = int(event.get("gap_minutes") or 0)
     us = event.get("us_open_ready_symbols") or []
     cme = event.get("cme_open_ready_symbols") or []
+    held = event.get("held_open_positions") or []
     queued = us or cme
     if queued:
       patterns.append(
         f"Platform downtime {gap}min — missed session open with queued: {', '.join(queued)}"
+      )
+    elif held:
+      held_summary = ", ".join(
+        f"{row.get('symbol')}({row.get('bot_type')})" for row in held[:8]
+      )
+      extra = f" +{len(held) - 8} more" if len(held) > 8 else ""
+      patterns.append(
+        f"Platform downtime {gap}min — {len(held)} open position(s) unmanaged: "
+        f"{held_summary}{extra}"
       )
     elif event.get("stocks_in_session") or event.get("cme_in_session"):
       patterns.append(f"Platform downtime {gap}min — bots offline during active session")

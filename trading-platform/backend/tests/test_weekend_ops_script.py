@@ -89,6 +89,8 @@ def test_recover_render_billing_triggers_deploy_when_behind():
   assert "platform_outage_recovery" in text
   assert "commodities_open_positions" in text
   assert "force-refreshes held-position TV" in text
+  assert "stocks scan preview" in text
+  assert "outage catch-up" in text
 
 
 def test_verify_platform_includes_platform_outage_state():
