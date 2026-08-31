@@ -655,8 +655,11 @@ def test_commodities_verification_gate_skip_bypass():
 
 def test_commodities_verification_chronic_loser_bypass():
   from app.engines.gate_entry_guard import (
+    COMMODITIES_HIGH_COMPOSITE_RECOVERY_FLOOR,
     COMMODITIES_VERIFICATION_TRADE_COUNT_MIN_COMPOSITE,
     chronic_loser_blocks_shadow_entry,
+    commodities_verification_chronic_loser_bypass,
+    commodities_verification_near_floor_candidate,
   )
 
   gate_ok = {
@@ -692,6 +695,36 @@ def test_commodities_verification_chronic_loser_bypass():
     "HG=F",
     frozenset({"HG=F"}),
     **base,
+  ) is True
+  high_composite = COMMODITIES_HIGH_COMPOSITE_RECOVERY_FLOOR + 0.01
+  high_base = {**base, "composite": high_composite}
+  bypass_kwargs = {
+    k: v
+    for k, v in high_base.items()
+    if k not in ("proven_winners", "graduation_nudge", "intel_override")
+  }
+  assert commodities_verification_chronic_loser_bypass(
+    symbol="EURUSD=X",
+    proven_winners=frozenset({"XAUUSDT", "CL=F"}),
+    **bypass_kwargs,
+  ) is True
+  assert chronic_loser_blocks_shadow_entry(
+    "EURUSD=X",
+    frozenset({"EURUSD=X"}),
+    **high_base,
+  ) is False
+  assert commodities_verification_near_floor_candidate(
+    symbol="EURUSD=X",
+    proven_winners=frozenset({"XAUUSDT", "CL=F"}),
+    composite=COMMODITIES_HIGH_COMPOSITE_RECOVERY_FLOOR - 0.03,
+    signal_direction="buy",
+    macd_signal="bullish",
+    blockers=["chronic_loser", "symbol_cooldown"],
+    open_ready=False,
+    bot_type=base["bot_type"],
+    shadow_mode=base["shadow_mode"],
+    gate_status=base["gate_status"],
+    per_bot_stats=base["per_bot_stats"],
   ) is True
 
 

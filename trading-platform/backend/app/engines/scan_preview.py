@@ -38,6 +38,7 @@ from app.engines.gate_entry_guard import (
   commodities_graduation_ease_active,
   commodities_verification_trade_count_nudge,
   commodities_verification_cooldown_bypass,
+  commodities_verification_chronic_loser_bypass,
   commodities_verification_entry_min_signal,
   commodities_verification_min_sentiment,
   commodities_verification_near_floor_candidate,
@@ -64,6 +65,7 @@ from app.engines.gate_entry_guard import (
   COMMODITIES_GRADUATION_PF_PROFIT_LOCK_USD,
   COMMODITIES_HIGH_COMPOSITE_RECOVERY_FLOOR,
   commodities_recovery_composite_floor,
+  commodities_effective_open_cap,
   crypto_graduation_entry_ease_active,
   crypto_strong_momentum_nudge,
   crypto_pre_graduation_nudge,
@@ -314,6 +316,22 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
     profit_factor=per_bot_stats.get("profit_factor"),
     total_pnl=per_bot_stats.get("total_pnl"),
   )
+  gate_caps = {
+    "crypto": gate_tightening.max_crypto_open_positions,
+    "commodities": gate_tightening.max_commodities_open_positions,
+    "stocks_futures": gate_tightening.max_stocks_open_positions,
+    "polymarket": gate_tightening.max_pm_open_positions,
+  }
+  effective_open_cap = shadow_cap
+  if not shadow_mode:
+    base_cap = gate_caps.get(bot_type)
+    effective_open_cap = commodities_effective_open_cap(
+      base_cap,
+      bot_type=bot_type,
+      graduation_nudge=graduation_nudge,
+      shadow_mode=shadow_mode,
+      verification_nudge=commodities_verification_nudge,
+    ) if bot_type == "commodities" else base_cap
   loss_exposure_block = shadow_graduation_loss_exposure_blocks_entry(
     open_positions,
     graduation_nudge=graduation_nudge,
@@ -846,6 +864,7 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
 
     monday_gate_skip_ready = False
     verification_cooldown_bypass_ready = False
+    verification_chronic_bypass_ready = False
     crypto_retreat_gate_skip_ready = False
     crypto_retreat_cooldown_ready = False
     if bot_type == "stocks_futures":
@@ -871,6 +890,17 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
         composite=composite,
       )
       verification_cooldown_bypass_ready = commodities_verification_cooldown_bypass(
+        bot_type=bot_type,
+        shadow_mode=shadow_mode,
+        symbol=symbol,
+        proven_winners=proven_winners,
+        gate_status=gate_status,
+        per_bot_stats=per_bot_stats,
+        signal_direction=signal.direction,
+        macd_signal=signal.macd_signal,
+        composite=composite,
+      )
+      verification_chronic_bypass_ready = commodities_verification_chronic_loser_bypass(
         bot_type=bot_type,
         shadow_mode=shadow_mode,
         symbol=symbol,
@@ -1015,6 +1045,7 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
         "near_floor_candidate": near_floor,
         "monday_gate_skip_ready": monday_gate_skip_ready,
         "verification_cooldown_bypass_ready": verification_cooldown_bypass_ready,
+        "verification_chronic_bypass_ready": verification_chronic_bypass_ready,
         "crypto_retreat_gate_skip_ready": crypto_retreat_gate_skip_ready,
         "crypto_retreat_cooldown_ready": crypto_retreat_cooldown_ready,
         "integration_boost": round(integration_boost, 3),
@@ -1185,6 +1216,7 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
     "proven_winners": sorted(proven_winners),
     "min_signal": round(effective_min_signal, 3),
     "open_count": open_count,
+    "effective_open_cap": effective_open_cap,
     "shadow_open_cap": shadow_cap,
     "held_symbols": sorted(held_symbols),
     "session": session,
@@ -1329,6 +1361,9 @@ async def _build_monday_recovery_summary(session: AsyncSession) -> dict[str, Any
           "monday_gate_skip_ready": bool(row.get("monday_gate_skip_ready")),
           "verification_cooldown_bypass_ready": bool(
             row.get("verification_cooldown_bypass_ready")
+          ),
+          "verification_chronic_bypass_ready": bool(
+            row.get("verification_chronic_bypass_ready")
           ),
         }
       )
