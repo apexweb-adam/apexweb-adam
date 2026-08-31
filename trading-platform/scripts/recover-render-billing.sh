@@ -102,6 +102,12 @@ if ext_left > 0:
     tag = "URGENT" if ext_left <= 30 else "active"
     rev = os.environ.get("CODE_REV") or "?"
     print(f"    grace_remaining_min={ext_left} urgency={tag} deploy_target={rev}")
+else:
+    session_end = open_at.replace(hour=21, minute=0, second=0, microsecond=0)
+    catchup_left = max(0, int((session_end.timestamp() - now.timestamp()) // 60))
+    if catchup_left > 0 and now.hour >= 13:
+        rev = os.environ.get("CODE_REV") or "?"
+        print(f"    post_grace_catchup_min={catchup_left} deploy_target={rev}")
 PY
     sleep "$INTERVAL"
   done

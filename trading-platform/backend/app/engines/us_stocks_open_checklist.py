@@ -259,6 +259,13 @@ def platform_outage_recovery_status(
     and bool(open_ready_symbols)
     and not (has_burst_scan or has_auto_entry)
   )
+  post_grace_catchup_active = (
+    in_session
+    and since is not None
+    and since > SESSION_OPEN_PLATFORM_OUTAGE_GRACE_MINUTES
+    and bool(open_ready_symbols)
+    and not (has_burst_scan or has_auto_entry)
+  )
   logged = has_outage_recovery_scan or any(
     "Platform outage recovery" in str(event.get("detail") or "")
     for event in burst_events + auto_entry_events
@@ -268,6 +275,7 @@ def platform_outage_recovery_status(
     grace_remaining = max(0, SESSION_OPEN_PLATFORM_OUTAGE_GRACE_MINUTES - since)
   return {
     "window_active": window_active,
+    "post_grace_catchup_active": post_grace_catchup_active,
     "logged": logged,
     "has_outage_recovery_scan": has_outage_recovery_scan,
     "recovery_scan_pending_burst": has_outage_recovery_scan and not (has_burst_scan or has_auto_entry),
