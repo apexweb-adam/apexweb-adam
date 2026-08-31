@@ -1,5 +1,5 @@
 /** Bump when dashboard features change — compared in /api/config for stale Vercel detection. */
-export const DASHBOARD_BUNDLE_REVISION = "2026-08-29-r136";
+export const DASHBOARD_BUNDLE_REVISION = "2026-08-29-r137";
 
 /** Fallback scheduler labels when /api/status is unreachable (matches backend platform_status). */
 export const DEFAULT_PLATFORM_SCHEDULER: Record<string, string> = {

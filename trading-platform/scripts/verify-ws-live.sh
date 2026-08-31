@@ -97,6 +97,11 @@ if "intel_pattern_alerts" not in learning:
     print("missing_learning_intel_pattern_alerts")
     sys.exit(6)
 
+content_study = payload.get("content_study") or {}
+if "recent" not in content_study:
+    print("missing_content_study_recent")
+    sys.exit(9)
+
 sources = payload.get("intel_sources") or []
 source_names = {row.get("source") for row in sources if isinstance(row, dict)}
 for required in ("political", "youtube", "tiktok", "newsapi", "x", "reddit"):
@@ -114,7 +119,8 @@ for required in ("crypto", "stocks_futures", "commodities"):
 print(
     f"ws_update paper_only=True integrations={len(integrations)} "
     f"intel_sources={len(sources)} bots={len(bots)} "
-    f"learning_analyses={learning.get('trade_analyses', 0)}"
+    f"learning_analyses={learning.get('trade_analyses', 0)} "
+    f"content_study_recent={len(content_study.get('recent') or [])}"
 )
 sys.exit(0)
 PY
@@ -154,6 +160,10 @@ case "$WS_RC" in
   8)
     echo "$WS_OUT"
     bad "WebSocket bots missing core three-market bots"
+    ;;
+  9)
+    echo "$WS_OUT"
+    bad "WebSocket content_study block missing recent highlights (r137+)"
     ;;
   *)
     echo "$WS_OUT"

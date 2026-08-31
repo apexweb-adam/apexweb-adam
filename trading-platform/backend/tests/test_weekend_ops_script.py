@@ -217,6 +217,7 @@ def test_print_outage_status_script():
   assert "content_study" in text
   assert "intel_pattern_alerts" in text
   assert "verify-crm-learning.sh" in text
+  assert "verify-ws-live.sh --strict" in text
 
 
 def test_verify_post_outage_recovery_post_close_message():
@@ -547,6 +548,7 @@ def test_verify_ws_live_script_exists():
   assert "paper_trading_only" in text
   assert "intel_sources" in text
   assert "political" in text
+  assert "content_study" in text
   assert "websockets.connect" in text
 
 
