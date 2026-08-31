@@ -203,7 +203,7 @@ if not events.get("has_burst_scan") and not events.get("has_auto_entry"):
         elif outage.get("has_outage_recovery_scan"):
             print("  note=post_grace_outage_recovery_scan_logged — awaiting burst_scan completion")
         else:
-            print("  note=post_grace_catchup — forced open-ready scan expected (r466+)")
+            print("  note=post_grace_catchup — forced open-ready scan expected (r467+)")
     elif outage.get("logged") and open_symbols:
         print("  note=platform_outage_logged_with_open_ready — recovery scan expected on startup")
     else:

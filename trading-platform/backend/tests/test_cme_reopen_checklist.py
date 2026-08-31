@@ -224,3 +224,4 @@ def test_verify_cme_post_open_script_includes_outage_recovery():
   assert "platform_outage_recovery" in text
   assert "check_backend_suspension" in text
   assert "deploy_{code_rev" in text
+  assert "post_grace_catchup" in text

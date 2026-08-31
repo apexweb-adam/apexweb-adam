@@ -73,7 +73,7 @@ if now.isoweekday() == 1 and now.hour >= 13:
     if ext_left == 0 and now.hour < 21:
         print("post_grace")
 PY
-  echo "Monday extended burst grace expired — post-outage startup still forces open-ready scan (r466+)."
+  echo "Monday extended burst grace expired — post-outage startup still forces open-ready scan (r467+)."
   echo ""
 fi
 
@@ -312,7 +312,7 @@ if [[ "$DOW" == "1" && "$HOUR" -ge 13 && "$HOUR" -le 21 ]]; then
   echo ""
   echo "Note: stocks burst-recovery runs within 60 min of US open (13:30 UTC)."
   echo "Platform-outage recovery extends to 270 min when open-ready symbols were queued (e.g. AAPL)."
-  echo "After grace expires, r466+ still forces open-ready scan from prep state on post-outage startup."
-  echo "Stocks/crypto/commodities held + US open-ready get post-outage scans on startup (r466+)."
+  echo "After grace expires, r467+ still forces open-ready scan from prep state on post-outage startup."
+  echo "Stocks/crypto/commodities held + US open-ready get post-outage scans on startup (r467+)."
   echo "Check us-stocks-open-checklist for has_burst_scan / has_auto_entry / has_outage_recovery_scan."
 fi
