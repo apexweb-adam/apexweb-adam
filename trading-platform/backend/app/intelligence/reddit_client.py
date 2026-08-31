@@ -22,6 +22,11 @@ def reddit_oauth_configured() -> bool:
   return bool(settings.reddit_client_id and settings.reddit_client_secret)
 
 
+def reddit_intel_configured(*, reddit_item_count: int = 0) -> bool:
+  """Reddit RSS subreddit feeds are always scanned; OAuth enables API search."""
+  return reddit_oauth_configured() or reddit_item_count > 0 or True
+
+
 def _public_reddit_url(url: str) -> str:
   parsed = urlparse(url)
   path = parsed.path or url

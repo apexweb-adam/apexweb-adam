@@ -43,6 +43,7 @@ from app.intelligence.phantom_tracker import (
   phantom_portfolio_poll_active,
   phantom_portfolio_poll_mode,
 )
+from app.intelligence.reddit_client import reddit_intel_configured, reddit_oauth_configured
 from app.intelligence.wallet_tracker import wallet_tracker_configured
 from app.models.entities import (
   BotState,
@@ -231,6 +232,7 @@ async def _build_platform_status_uncached(session: AsyncSession) -> dict[str, An
   learning = await _fetch_learning_counts(session)
 
   active_sources = sum(1 for s in sources if s["status"] in ("active", "degraded"))
+  reddit_items = next((s["items_collected"] for s in sources if s["source"] == "reddit"), 0)
   deploy_info = await build_deploy_status()
   dashboard_url = _dashboard_url_from_deploy(deploy_info)
   if not dashboard_url:
@@ -339,7 +341,8 @@ async def _build_platform_status_uncached(session: AsyncSession) -> dict[str, An
           settings.polymarket_wallet_address or settings.polymarket_deposit_address
         ),
         "polymarket_api": bool(settings.polymarket_api_key),
-        "reddit": bool(settings.reddit_client_id and settings.reddit_client_secret),
+        "reddit": reddit_intel_configured(reddit_item_count=int(reddit_items or 0)),
+        "reddit_oauth": reddit_oauth_configured(),
         "wallet_tracker": wallet_tracker_configured(),
       },
       "render_blueprint": "https://render.com/deploy?repo=https://github.com/apexweb-adam/apexweb-adam",

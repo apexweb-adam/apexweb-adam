@@ -10,7 +10,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.intelligence.reddit_client import reddit_oauth_configured
+from app.intelligence.reddit_client import reddit_intel_configured, reddit_oauth_configured
 from app.intelligence.axiom_tracker import axiom_configured, get_axiom_session_status
 from app.intelligence.fomo_tracker import fomo_configured, get_fomo_bearer_status
 from app.intelligence.phantom_tracker import (
@@ -319,7 +319,7 @@ async def build_intel_sources(session: AsyncSession) -> list[dict[str, Any]]:
   reddit_oauth = reddit_oauth_configured()
   configured = {
     "news": True,
-    "reddit": reddit_oauth or source_counts.get("reddit", 0) > 0,
+    "reddit": reddit_intel_configured(reddit_item_count=source_counts.get("reddit", 0)),
     "reddit_oauth": reddit_oauth,
     "youtube": True,
     "polymarket": True,

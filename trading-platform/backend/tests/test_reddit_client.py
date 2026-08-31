@@ -71,3 +71,10 @@ async def test_reddit_get_json_falls_back_to_public_on_401():
   assert data == {"data": {"children": []}}
   assert mock_get.await_count == 2
   assert "www.reddit.com" in str(mock_get.await_args_list[-1].args[0])
+
+
+def test_reddit_intel_configured_without_oauth():
+  with patch("app.intelligence.reddit_client.settings") as mock_settings:
+    mock_settings.reddit_client_id = ""
+    mock_settings.reddit_client_secret = ""
+    assert reddit_client.reddit_intel_configured(reddit_item_count=0) is True
