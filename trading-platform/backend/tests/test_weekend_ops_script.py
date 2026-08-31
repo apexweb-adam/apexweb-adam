@@ -203,6 +203,7 @@ def test_print_outage_status_script():
   assert "has_outage_recovery_scan" in text or "outage_recovery_scan" in text
   assert "post_grace_catchup_active" in text
   assert "post_grace_catchup_urgency" in text
+  assert "us_cash_session_closed" in text
   assert "prep_phase_state persists" in text
   assert "verify-post-outage-recovery.sh" in text
 

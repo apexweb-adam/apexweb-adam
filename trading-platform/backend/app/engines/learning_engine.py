@@ -29,6 +29,7 @@ _INTEL_SOURCE_LABELS: dict[str, str] = {
   "newsapi": "News",
   "wallet_tracker": "Whale",
   "polymarket_account": "Polymarket",
+  "polymarket": "Polymarket",
   "tradingview": "TradingView",
   "hyperliquid": "Hyperliquid",
   "dexscreener": "DexScreener",
@@ -854,6 +855,7 @@ async def build_crm_content_study_highlights(
     recent.append(
       {
         "source_type": insight.source_type,
+        "source_label": intel_source_label(insight.source_type or ""),
         "title": title,
         "impact": impact,
         "confidence": insight.confidence,

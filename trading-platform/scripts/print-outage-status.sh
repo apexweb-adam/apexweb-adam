@@ -174,6 +174,12 @@ if dow == 1:
                 print(
                     "  stocks_open_ready_at_risk=AAPL (if prep state preserved — outage_recovery_scan on r467+)"
                 )
+            elif now.hour >= 21:
+                print("  us_cash_session_closed=true — US stocks in after-hours wind-down until Tue 13:30 UTC")
+                print("  post_grace_catchup_urgency=EXPIRED")
+                print(
+                    "  action=resume billing for commodities/crypto held scan + Tue open prep (AAPL state may persist)"
+                )
             print(
                 "  note=post-outage startup still runs forced open-ready scan if prep state preserved"
             )

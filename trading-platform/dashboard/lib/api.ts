@@ -536,6 +536,7 @@ export type VerificationSnapshot = {
 
 export type ContentStudyHighlight = {
   source_type: string;
+  source_label?: string;
   title: string;
   impact: string;
   confidence: number;

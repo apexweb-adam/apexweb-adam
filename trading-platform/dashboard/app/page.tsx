@@ -1488,20 +1488,22 @@ export default function Dashboard() {
                 ) : (
                   (contentStudy?.recent ?? []).map((row, idx) => {
                     const sourceBadge = intelSourceBadge(row.source_type);
+                    const sourceLabel = row.source_label ?? sourceBadge?.label ?? row.source_type;
+                    const badgeClass = sourceBadge?.className;
                     return (
                     <div
                       key={`${row.source_type}-${idx}`}
                       className="p-3 rounded-lg bg-apex-dark border border-apex-border"
                     >
                       <div className="flex justify-between gap-2 mb-1">
-                        {sourceBadge ? (
+                        {sourceBadge || row.source_label ? (
                           <span
                             className={cn(
                               "text-[10px] px-2 py-0.5 rounded-full border",
-                              sourceBadge.className
+                              badgeClass ?? "bg-apex-border text-gray-400 border-apex-border"
                             )}
                           >
-                            {sourceBadge.label}
+                            {sourceLabel}
                           </span>
                         ) : (
                           <span className="text-xs uppercase text-gray-500">{row.source_type}</span>
