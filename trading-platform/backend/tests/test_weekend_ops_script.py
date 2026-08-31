@@ -107,6 +107,8 @@ def test_render_billing_recovery_workflow_monday_urgent_poll():
   workflow = Path(__file__).resolve().parents[3] / ".github" / "workflows" / "render-billing-recovery.yml"
   text = workflow.read_text(encoding="utf-8")
   assert "*/5 13-18 * * 1" in text
+  assert "Monday outage grace active" in text
+  assert "recover-render-billing.sh" in text
   text = (SCRIPTS / "verify-platform.sh").read_text(encoding="utf-8")
   assert "print-outage-status.sh" in text
 

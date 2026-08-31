@@ -25,11 +25,31 @@ jobs:
           source "$ROOT/scripts/lib/fetch_json.sh"
           URL="https://apex-trading-backend.onrender.com"
 
-          if ! check_backend_suspension "$URL"; then
+          GRACE_LEFT="$(python3 - << 'PY' 2>/dev/null || true
+          from datetime import datetime, timezone
+          now = datetime.now(timezone.utc)
+          if now.isoweekday() != 1:
+              raise SystemExit(0)
+          open_at = now.replace(hour=13, minute=30, second=0, microsecond=0)
+          ext_left = max(0, int((open_at.timestamp() + 270 * 60 - now.timestamp()) // 60))
+          if ext_left > 0:
+              print(ext_left)
+          PY
+          )"
+
+          if check_backend_suspension "$URL"; then
+            echo "Backend online — running recovery chain"
+            WAIT=600
+            POLL=20
+          elif [[ -n "$GRACE_LEFT" && "$GRACE_LEFT" -gt 0 ]]; then
+            bash "$ROOT/scripts/print-outage-status.sh" || true
+            echo "Monday outage grace active (${GRACE_LEFT} min left) — waiting for billing resume"
+            WAIT=1200
+            POLL=10
+          else
             bash "$ROOT/scripts/print-outage-status.sh" || true
             echo "::error::Render backend billing-suspended — fix at https://dashboard.render.com/web/srv-da848ms9v7es739k38jg"
             exit 1
           fi
 
-          echo "Backend online — running recovery chain"
-          bash "$ROOT/scripts/recover-render-billing.sh" --wait 600 --interval 20
+          bash "$ROOT/scripts/recover-render-billing.sh" --wait "$WAIT" --interval "$POLL"
