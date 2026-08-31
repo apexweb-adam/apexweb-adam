@@ -113,6 +113,73 @@ def test_dashboard_url_from_deploy_prefers_verified_when_stale():
   assert deploy_status.dashboard_url_from_deploy(deploy) == "https://verified.example"
 
 
+def test_resolve_vercel_promote_deployment_id_uses_verified_url():
+  verified = "https://apex-trading-dashboard-git-main-apexweb-adams-projects.vercel.app"
+
+  class FakeResponse:
+    status_code = 200
+
+    def json(self):
+      return {"id": "dpl_FapXAbo4Dv8WKU8ZEtDYtC7FryU7"}
+
+  class FakeClient:
+    async def __aenter__(self):
+      return self
+
+    async def __aexit__(self, *args):
+      return None
+
+    async def get(self, url, params=None, headers=None):
+      assert params["url"] == "apex-trading-dashboard-git-main-apexweb-adams-projects.vercel.app"
+      return FakeResponse()
+
+  with patch.dict("os.environ", {"VERCEL_TOKEN": "test-token"}, clear=False):
+    with patch("app.engines.deploy_status.httpx.AsyncClient", return_value=FakeClient()):
+      result = asyncio.run(deploy_status.resolve_vercel_promote_deployment_id(verified))
+
+  assert result == "dpl_FapXAbo4Dv8WKU8ZEtDYtC7FryU7"
+
+
+def test_resolve_vercel_promote_deployment_id_falls_back_without_token():
+  with patch.dict("os.environ", {"VERCEL_TOKEN": ""}, clear=False):
+    result = asyncio.run(
+      deploy_status.resolve_vercel_promote_deployment_id(
+        "https://apex-trading-dashboard-git-main-apexweb-adams-projects.vercel.app"
+      )
+    )
+  assert result == deploy_status.DEFAULT_VERIFIED_DEPLOYMENT_ID
+  assert result == "dpl_FapXAbo4Dv8WKU8ZEtDYtC7FryU7"
+
+
+def test_fetch_vercel_behind_expected_uses_verified_promote_id():
+  prod_cfg = {"bundleRevision": "2026-08-29-r67", "features": {"activeGate": True}}
+  verified_url = "https://apex-trading-dashboard-git-main-apexweb-adams-projects.vercel.app"
+
+  with patch.object(deploy_status, "probe_dashboard_config", AsyncMock(return_value=prod_cfg)):
+    with patch.object(deploy_status, "probe_production_proxy_operational", AsyncMock(return_value=True)):
+      with patch.object(
+        deploy_status,
+        "discover_verified_dashboard",
+        AsyncMock(
+          return_value={
+            "verified_dashboard_url": verified_url,
+            "vercel_bundle_revision": "2026-08-29-r98",
+            "discovered": True,
+          }
+        ),
+      ):
+        with patch.object(
+          deploy_status,
+          "resolve_vercel_promote_deployment_id",
+          AsyncMock(return_value="dpl_FapXAbo4Dv8WKU8ZEtDYtC7FryU7"),
+        ) as resolve:
+          result = asyncio.run(deploy_status.fetch_vercel_dashboard_bundle())
+
+  resolve.assert_awaited_once_with(verified_url)
+  assert result["vercel_promote_deployment_id"] == "dpl_FapXAbo4Dv8WKU8ZEtDYtC7FryU7"
+  assert result["verified_bundle_revision"] == "2026-08-29-r98"
+
+
 def test_resolve_crm_dashboard_url_reuses_deploy_snapshot():
   deploy = {
     "vercel_bundle_stale": True,

@@ -345,10 +345,11 @@ def github_headers() -> dict[str, str]:
     headers["Authorization"] = f"Bearer {token}"
   return headers
 PRODUCTION_DASHBOARD_URL = "https://apex-trading-dashboard-flame.vercel.app"
-DEFAULT_VERIFIED_DASHBOARD_URL = "https://apex-trading-dashboard-o7tb7wydk-apexweb-adams-projects.vercel.app"
-DEFAULT_VERIFIED_DEPLOYMENT_ID = "dpl_Cn62LPUnD83i28cydia12AKr3uUw"
+DEFAULT_VERIFIED_DASHBOARD_URL = "https://apex-trading-dashboard-git-main-apexweb-adams-projects.vercel.app"
+DEFAULT_VERIFIED_DEPLOYMENT_ID = "dpl_FapXAbo4Dv8WKU8ZEtDYtC7FryU7"
+VERCEL_TEAM_ID = "team_K7OUE7uroVXeVUf42cUAQvAl"
 EXPECTED_DASHBOARD_BUNDLE = "2026-08-29-r98"
-EXPECTED_PLATFORM_REVISION = "2026-08-29-r418"
+EXPECTED_PLATFORM_REVISION = "2026-08-29-r419"
 GIT_MAIN_ALIAS = "apex-trading-dashboard-git-main"
 ACCEPTABLE_DASHBOARD_BUNDLES = frozenset({
   "2026-08-27-r9", "2026-08-27-r10", "2026-08-27-r11", "2026-08-27-r12",
@@ -431,6 +432,38 @@ def configured_verified_dashboard_url() -> str:
 
 def configured_verified_deployment_id() -> str:
   return os.environ.get("VERIFIED_VERCEL_DEPLOYMENT_ID", DEFAULT_VERIFIED_DEPLOYMENT_ID)
+
+
+def _vercel_hostname(url: str) -> str | None:
+  cleaned = (url or "").strip().rstrip("/")
+  if not cleaned:
+    return None
+  if "://" in cleaned:
+    cleaned = cleaned.split("://", 1)[1]
+  return cleaned.split("/", 1)[0] or None
+
+
+async def resolve_vercel_promote_deployment_id(verified_url: str | None = None) -> str:
+  """Resolve deployment id for Vercel alias promote — verified preview, not stale production."""
+  url = (verified_url or configured_verified_dashboard_url()).strip()
+  token = os.environ.get("VERCEL_TOKEN", "").strip()
+  team_id = os.environ.get("VERCEL_ORG_ID", VERCEL_TEAM_ID).strip()
+  hostname = _vercel_hostname(url)
+  if token and hostname:
+    try:
+      async with httpx.AsyncClient(timeout=8.0) as client:
+        response = await client.get(
+          "https://api.vercel.com/v13/deployments/get",
+          params={"url": hostname, "teamId": team_id},
+          headers={"Authorization": f"Bearer {token}"},
+        )
+        if response.status_code == 200:
+          deployment_id = response.json().get("id")
+          if deployment_id:
+            return deployment_id
+    except Exception:
+      pass
+  return configured_verified_deployment_id()
 
 
 def _platform_root() -> str:
@@ -920,7 +953,6 @@ async def probe_production_proxy_operational() -> bool:
 
 async def fetch_vercel_dashboard_bundle() -> dict[str, Any]:
   """Probe production /api/config for dashboard bundle freshness."""
-  promote_id = configured_verified_deployment_id()
   promote_url = (
     "https://vercel.com/apexweb-adams-projects/apex-trading-dashboard/deployments"
   )
@@ -942,10 +974,11 @@ async def fetch_vercel_dashboard_bundle() -> dict[str, Any]:
       }
       if behind_expected:
         discovered = await discover_verified_dashboard()
-        result["verified_dashboard_url"] = discovered["verified_dashboard_url"]
+        verified_url = discovered["verified_dashboard_url"]
+        result["verified_dashboard_url"] = verified_url
         result["verified_dashboard_discovered"] = discovered.get("discovered", False)
         result["verified_bundle_revision"] = discovered.get("vercel_bundle_revision")
-        result["vercel_promote_deployment_id"] = promote_id
+        result["vercel_promote_deployment_id"] = await resolve_vercel_promote_deployment_id(verified_url)
         result["vercel_promote_url"] = promote_url
       return result
 
@@ -960,7 +993,7 @@ async def fetch_vercel_dashboard_bundle() -> dict[str, Any]:
       "verified_dashboard_url": verified_url,
       "verified_dashboard_discovered": discovered.get("discovered", False),
       "verified_bundle_revision": discovered.get("vercel_bundle_revision"),
-      "vercel_promote_deployment_id": promote_id,
+      "vercel_promote_deployment_id": await resolve_vercel_promote_deployment_id(verified_url),
       "vercel_promote_url": promote_url,
       "dashboard_url": dashboard_url,
       "expected_dashboard_bundle": EXPECTED_DASHBOARD_BUNDLE,
@@ -975,7 +1008,7 @@ async def fetch_vercel_dashboard_bundle() -> dict[str, Any]:
       "vercel_bundle_behind_expected": True,
       "production_proxy_operational": proxy_ok,
       "verified_dashboard_url": verified_url,
-      "vercel_promote_deployment_id": promote_id,
+      "vercel_promote_deployment_id": await resolve_vercel_promote_deployment_id(verified_url),
       "vercel_promote_url": promote_url,
       "dashboard_url": PRODUCTION_DASHBOARD_URL if proxy_ok else verified_url,
       "expected_dashboard_bundle": EXPECTED_DASHBOARD_BUNDLE,
