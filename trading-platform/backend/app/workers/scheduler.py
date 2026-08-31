@@ -121,7 +121,31 @@ async def redeploy_check_job() -> None:
 
 async def stocks_pre_session_prep_job() -> None:
   """90 min before US cash open: refresh TradingView boosts for winners and recovery symbols."""
+  refreshed = await _stocks_us_watch_tv_refresh(reason_prefix="Pre-US-session TV refresh")
+  if refreshed:
+    from app.engines.gate_entry_guard import stocks_session_info
+
+    minutes_until_open = stocks_session_info().get("minutes_until_open")
+    print(
+      f"[StocksPrep] Refreshed TradingView signals for {', '.join(refreshed)} "
+      f"({minutes_until_open} min until open)"
+    )
+    from app.engines.scan_preview import clear_monday_recovery_cache
+
+    clear_monday_recovery_cache()
+    from app.ws_manager import push_live_update
+
+    await push_live_update()
+
+
+async def _stocks_us_watch_tv_refresh(
+  *,
+  reason_prefix: str,
+  max_minutes_until_open: int | None = None,
+) -> list[str]:
+  """Refresh TradingView for US open-ready / near-floor watch symbols."""
   from app.engines.gate_entry_guard import (
+    STOCKS_TRADE_COUNT_PREP_MINUTES,
     get_chronic_loser_symbols,
     get_proven_winner_symbols,
     prioritize_stocks_monday_scan,
@@ -132,14 +156,24 @@ async def stocks_pre_session_prep_job() -> None:
   from app.engines.integration_signals import refresh_tradingview_signals
   from app.engines.platform_settings import is_bot_paused
   from app.engines.profitability_gate import ProfitabilityGate
+  from app.engines.scan_preview import build_monday_recovery_summary
+  from app.engines.session_open_log import get_prep_phase_state
 
   session_info = stocks_session_info()
   if session_info["in_session"]:
-    return
+    return []
 
   minutes_until_open = session_info.get("minutes_until_open")
   if minutes_until_open is None:
-    return
+    return []
+
+  max_window = (
+    max_minutes_until_open
+    if max_minutes_until_open is not None
+    else STOCKS_TRADE_COUNT_PREP_MINUTES
+  )
+  if minutes_until_open > max_window:
+    return []
 
   async with SessionLocal() as session:
     shadow_mode = await is_bot_paused(session, "stocks_futures")
@@ -150,13 +184,37 @@ async def stocks_pre_session_prep_job() -> None:
       per_bot.get("win_rate"),
       int(per_bot.get("total_trades") or 0),
     )
+    recovery = await build_monday_recovery_summary(session)
+    open_ready_symbols = [
+      row["symbol"]
+      for row in recovery.get("open_ready") or []
+      if row.get("bot_type") == "stocks_futures" and row.get("symbol")
+    ]
+    near_floor_symbols = [
+      row["symbol"]
+      for row in recovery.get("near_floor") or []
+      if row.get("bot_type") == "stocks_futures" and row.get("symbol")
+    ]
+    prep_state = await get_prep_phase_state(session)
+    extended_watch = (prep_state.get("us_stocks_open") or {}).get("extended_watch_symbols") or []
+    prev_ready = (prep_state.get("us_stocks_open") or {}).get("open_ready_symbols") or []
+    watch_symbols = sorted(
+      set(open_ready_symbols) | set(near_floor_symbols) | set(prev_ready) | set(extended_watch)
+    )
     prep_window = stocks_pre_session_prep_window_minutes(trade_count_nudge)
-    if minutes_until_open > prep_window:
-      return
+    allowed_window = prep_window
+    if max_minutes_until_open is not None:
+      allowed_window = min(prep_window, max_minutes_until_open)
+    if minutes_until_open > allowed_window:
+      return []
+    if not watch_symbols and max_minutes_until_open is not None and not trade_count_nudge:
+      return []
 
     winners = await get_proven_winner_symbols(session, "stocks_futures")
     chronic = await get_chronic_loser_symbols(session, "stocks_futures")
-    base_symbols = sorted(set(winners) | set(chronic) | {"NVDA"})
+    base_symbols = sorted(
+      set(winners) | set(chronic) | set(watch_symbols) | {"NVDA", "AAPL"}
+    )
     symbols = prioritize_stocks_monday_scan(
       base_symbols,
       chronic_losers=chronic,
@@ -164,17 +222,34 @@ async def stocks_pre_session_prep_job() -> None:
       session_info=session_info,
       trade_count_nudge=trade_count_nudge,
     )
-    refreshed = await refresh_tradingview_signals(
+    return await refresh_tradingview_signals(
       session,
       symbols,
-      reason_prefix="Pre-US-session TV refresh",
-      force_refresh=trade_count_nudge,
+      reason_prefix=reason_prefix,
+      force_refresh=bool(trade_count_nudge or watch_symbols),
     )
+
+
+async def stocks_open_ready_watch_job() -> None:
+  """5-min TV refresh for US open-ready / near-floor watch symbols."""
+  from app.engines.gate_entry_guard import (
+    STOCKS_OPEN_IMMINENT_SCAN_MINUTES,
+    stocks_session_info,
+  )
+
+  refreshed = await _stocks_us_watch_tv_refresh(
+    reason_prefix="US open-ready watch TV refresh",
+    max_minutes_until_open=STOCKS_OPEN_IMMINENT_SCAN_MINUTES,
+  )
   if refreshed:
+    minutes_until_open = stocks_session_info().get("minutes_until_open")
     print(
-      f"[StocksPrep] Refreshed TradingView signals for {', '.join(refreshed)} "
-      f"({minutes_until_open} min until open)"
+      f"[StocksWatch] Refreshed TradingView signals for {', '.join(refreshed)} "
+      f"({minutes_until_open} min until US open)"
     )
+    from app.engines.scan_preview import clear_monday_recovery_cache
+
+    clear_monday_recovery_cache()
     from app.ws_manager import push_live_update
 
     await push_live_update()
@@ -363,13 +438,13 @@ async def session_prep_phase_monitor_job() -> None:
 
 async def session_prep_queue_monitor_job() -> None:
   """Log open-ready and near-floor queue changes from scan preview."""
-  from app.engines.gate_entry_guard import commodities_futures_weekend_closed
+  from app.engines.gate_entry_guard import status_cache_prewarm_active
   from app.engines.session_open_log import (
     backfill_open_ready_queue_events,
     monitor_open_ready_queue,
   )
 
-  if not commodities_futures_weekend_closed():
+  if not status_cache_prewarm_active():
     return
 
   async with SessionLocal() as session:
@@ -918,6 +993,12 @@ async def setup_scheduler() -> None:
     "interval",
     minutes=15,
     id="commodities_pre_session_prep_poll",
+  )
+  scheduler.add_job(
+    stocks_open_ready_watch_job,
+    "interval",
+    minutes=5,
+    id="stocks_open_ready_watch",
   )
   scheduler.add_job(
     commodities_open_ready_watch_job,
