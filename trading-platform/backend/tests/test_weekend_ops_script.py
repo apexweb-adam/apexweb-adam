@@ -172,7 +172,7 @@ def test_print_outage_status_script():
   assert "held_open_positions" in text
   assert "cme-reopen-checklist" in text
   assert "outage_grace_urgency" in text
-  assert "r462+" in text
+  assert "r464+" in text
 
 
 def test_verify_post_deploy_includes_crm_and_learning_checks():

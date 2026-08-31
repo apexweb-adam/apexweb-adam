@@ -165,6 +165,24 @@ if crypto_held:
 elif bots.get("crypto", {}).get("active"):
     print("  crypto_bot=active (no open positions reported)")
 
+session_events = status.get("session_open_events") or []
+stocks_outage = [
+    e for e in session_events
+    if e.get("bot_type") == "stocks_futures" and e.get("event_type") == "platform_outage"
+]
+recovery_scans = [
+    e for e in session_events
+    if e.get("event_type") == "outage_recovery_scan"
+]
+if stocks_outage:
+    print(f"  session_open.platform_outage symbols={stocks_outage[0].get('symbols')}")
+if recovery_scans:
+    latest = recovery_scans[0]
+    print(
+        f"  session_open.outage_recovery_scan bot={latest.get('bot_type')} "
+        f"symbols={latest.get('symbols')}"
+    )
+
 now = datetime.now(timezone.utc)
 if now.isoweekday() == 1:
     open_at = now.replace(hour=13, minute=30, second=0, microsecond=0)
@@ -252,6 +270,6 @@ if [[ "$DOW" == "1" && "$HOUR" -ge 13 && "$HOUR" -le 18 ]]; then
   echo ""
   echo "Note: stocks burst-recovery runs within 60 min of US open (13:30 UTC)."
   echo "Platform-outage recovery extends to 270 min when open-ready symbols were queued (e.g. AAPL)."
-  echo "Stocks/crypto/commodities held + US open-ready get post-outage scans on startup (r462+)."
+  echo "Stocks/crypto/commodities held + US open-ready get post-outage scans on startup (r464+)."
   echo "Check us-stocks-open-checklist for has_burst_scan / has_auto_entry."
 fi

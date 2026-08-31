@@ -140,6 +140,13 @@ if status_events:
     stocks_events = [e for e in status_events if e.get("bot_type") == "stocks_futures"]
     if stocks_events:
         print(f"  status.stocks_open_events={[e.get('event_type') for e in stocks_events[:8]]}")
+    recovery_scans = [e for e in status_events if e.get("event_type") == "outage_recovery_scan"]
+    if recovery_scans:
+        latest = recovery_scans[0]
+        print(
+            f"  status.outage_recovery_scan bot={latest.get('bot_type')} "
+            f"symbols={latest.get('symbols')}"
+        )
     queue_adds = [e for e in status_events if e.get("event_type") == "queue_add"]
     if queue_adds:
         print(f"  queue_add_events={len(queue_adds)}")

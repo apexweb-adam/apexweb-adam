@@ -1943,7 +1943,9 @@ function SessionOpenLogCard({ events }: { events?: SessionOpenEvent[] }) {
                               ? "text-amber-300"
                               : evt.event_type === "platform_outage"
                                 ? "text-orange-300"
-                                : "text-violet-300/80"
+                                : evt.event_type === "outage_recovery_scan"
+                                  ? "text-amber-200"
+                                  : "text-violet-300/80"
                     }
                   >
                     {evt.event_type}
