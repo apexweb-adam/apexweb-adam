@@ -37,6 +37,7 @@ from app.engines.gate_entry_guard import (
   commodities_graduation_entry_min_signal,
   commodities_graduation_ease_active,
   commodities_verification_trade_count_nudge,
+  commodities_verification_cooldown_bypass,
   commodities_verification_entry_min_signal,
   commodities_verification_min_sentiment,
   commodities_verification_near_floor_candidate,
@@ -844,6 +845,7 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
       blockers.append(f"shadow_raw<{raw_floor:.2f}")
 
     monday_gate_skip_ready = False
+    verification_cooldown_bypass_ready = False
     crypto_retreat_gate_skip_ready = False
     crypto_retreat_cooldown_ready = False
     if bot_type == "stocks_futures":
@@ -864,6 +866,17 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
         shadow_mode=shadow_mode,
         symbol=symbol,
         graduation_nudge=bypass_nudge,
+        signal_direction=signal.direction,
+        macd_signal=signal.macd_signal,
+        composite=composite,
+      )
+      verification_cooldown_bypass_ready = commodities_verification_cooldown_bypass(
+        bot_type=bot_type,
+        shadow_mode=shadow_mode,
+        symbol=symbol,
+        proven_winners=proven_winners,
+        gate_status=gate_status,
+        per_bot_stats=per_bot_stats,
         signal_direction=signal.direction,
         macd_signal=signal.macd_signal,
         composite=composite,
@@ -1001,6 +1014,7 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
         "monday_open_ready": monday_open_ready,
         "near_floor_candidate": near_floor,
         "monday_gate_skip_ready": monday_gate_skip_ready,
+        "verification_cooldown_bypass_ready": verification_cooldown_bypass_ready,
         "crypto_retreat_gate_skip_ready": crypto_retreat_gate_skip_ready,
         "crypto_retreat_cooldown_ready": crypto_retreat_cooldown_ready,
         "integration_boost": round(integration_boost, 3),
