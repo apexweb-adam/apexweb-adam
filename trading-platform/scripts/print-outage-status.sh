@@ -64,15 +64,22 @@ if outage.get("window_active"):
     print(f"  platform_outage_recovery: window_active grace_remaining_min={outage.get('grace_minutes_remaining')}")
 if outage.get("logged"):
     print("  platform_outage_recovery: logged")
+if outage.get("post_grace_catchup_active"):
+    print("  platform_outage_recovery: post_grace_catchup_active=true")
 cme_outage = cme.get("platform_outage_recovery") or {}
 cme_events = cme.get("session_open_events") or {}
 cme_ready = (cme.get("open_ready") or {}).get("symbols") or []
 print(
     f"CME: phase={cme.get('phase')} open_ready={cme_ready or 'none'} "
+    f"burst={cme_events.get('has_burst_scan')} "
     f"outage_recovery_scan={cme_events.get('has_outage_recovery_scan')}"
 )
+if cme_outage.get("recovery_scan_pending_burst"):
+    print("  cme_platform_outage_recovery: recovery_scan_pending_burst=true")
 if cme_outage.get("window_active"):
     print(f"  cme_platform_outage_recovery: grace_remaining_min={cme_outage.get('grace_minutes_remaining')}")
+if cme_outage.get("post_grace_catchup_active"):
+    print("  cme_platform_outage_recovery: post_grace_catchup_active=true")
 outage_events = status.get("platform_outage_events") or []
 if outage_events:
     newest = outage_events[0]
@@ -96,9 +103,16 @@ if open_positions:
             by_bot.setdefault(bot, []).append(str(sym))
     if by_bot:
         print("Open positions:", ", ".join(f"{bot}={syms}" for bot, syms in sorted(by_bot.items())))
+from datetime import datetime, timezone
+now = datetime.now(timezone.utc)
+if now.isoweekday() == 1 and now.hour >= 13:
+    session_end = now.replace(hour=21, minute=0, second=0, microsecond=0)
+    catchup_left = max(0, int((session_end.timestamp() - now.timestamp()) // 60))
+    if catchup_left > 0 and outage.get("post_grace_catchup_active"):
+        print(f"  us_cash_session_catchup={catchup_left} min (post_grace_catchup_active)")
 PY
     echo ""
-    echo "Verify: bash trading-platform/scripts/recover-render-billing.sh"
+    echo "Verify: bash trading-platform/scripts/verify-post-outage-recovery.sh --watch 90"
     return 0
   fi
 
@@ -160,7 +174,7 @@ else:
 
 if dow in (1, 2, 3, 4, 5):
     print("CME/commodities: weekday session — held positions unmanaged until resume (TV refresh + burst scan on startup)")
-    print("  held_at_risk=EURUSD=X, GC=F, HG=F (commodities) — verify with verify-cme-post-open.sh after resume")
+    print("  held_at_risk=EURUSD=X, GC=F, HG=F (commodities) — verify after resume")
 print("Crypto: 24/7 — held positions get immediate post-outage scan on startup (r467+)")
 print("  verify=bash trading-platform/scripts/verify-post-outage-recovery.sh --watch 90")
 PY

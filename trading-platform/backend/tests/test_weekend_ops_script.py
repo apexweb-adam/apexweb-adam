@@ -74,6 +74,7 @@ def test_verify_scripts_check_render_billing_suspension():
     "verify-us-stocks-post-open.sh",
     "verify-cme-post-open.sh",
     "verify-crypto-held.sh",
+    "verify-post-outage-recovery.sh",
     "verify-platform.sh",
     "wait-for-render-deploy.sh",
     "recover-render-billing.sh",
@@ -191,6 +192,8 @@ def test_print_outage_status_script():
   assert "--watch" in text
   assert "every 5 min Mon 13-21 UTC" in text
   assert "has_outage_recovery_scan" in text or "outage_recovery_scan" in text
+  assert "post_grace_catchup_active" in text
+  assert "verify-post-outage-recovery.sh" in text
 
 
 def test_verify_post_deploy_includes_crm_and_learning_checks():
@@ -329,6 +332,7 @@ def test_verify_post_outage_recovery_orchestrator():
   assert "verify-crypto-held.sh" in text
   assert "--once" in text
   assert "--skip-stocks" in text
+  assert "check_backend_suspension" in text
 
 
 def test_render_billing_recovery_workflow_uses_verify_once():

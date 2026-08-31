@@ -5,6 +5,9 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+# shellcheck source=lib/fetch_json.sh
+source "$ROOT/scripts/lib/fetch_json.sh"
+BACKEND="${BACKEND_URL:-https://apex-trading-backend.onrender.com}"
 WATCH_INTERVAL=""
 ONCE=false
 SKIP_STOCKS=false
@@ -40,6 +43,15 @@ watch_args() {
 }
 
 echo "=== Post-Outage Recovery Verification — $(date -u '+%Y-%m-%d %H:%M UTC') ==="
+echo "Backend: $BACKEND"
+echo ""
+
+if ! check_backend_suspension "$BACKEND"; then
+  echo "Backend billing-suspended — post-outage verification unavailable"
+  echo "Fix billing at: ${RENDER_DASHBOARD_URL:-https://dashboard.render.com/web/srv-da848ms9v7es739k38jg}"
+  exit 2
+fi
+
 echo ""
 
 DOW="$(date -u +%u)"
