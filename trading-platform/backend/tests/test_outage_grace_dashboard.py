@@ -24,6 +24,9 @@ def test_backend_suspension_exports_grace_countdown():
   assert "verify-post-outage-recovery.sh" in text
   assert "verify-cme-post-open.sh" in text
   assert "us_cash_session_catchup_minutes_remaining" in text
+  assert "post_grace_catchup_active" in text
+  assert "isPostGraceCatchupActive" in text
+  assert 'held_symbols: ["AAPL"]' in text
   assert "270 * 60 * 1000" in text
   assert "forces open-ready scan" in text
 

@@ -49,6 +49,8 @@ echo ""
 if ! check_backend_suspension "$BACKEND"; then
   echo "Backend billing-suspended — post-outage verification unavailable"
   echo "Fix billing at: ${RENDER_DASHBOARD_URL:-https://dashboard.render.com/web/srv-da848ms9v7es739k38jg}"
+  echo ""
+  bash "$ROOT/scripts/print-outage-status.sh" 2>/dev/null | tail -n +2 || true
   exit 2
 fi
 

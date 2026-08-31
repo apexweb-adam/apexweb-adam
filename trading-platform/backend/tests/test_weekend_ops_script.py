@@ -198,6 +198,7 @@ def test_print_outage_status_script():
   assert "has_outage_recovery_scan" in text or "outage_recovery_scan" in text
   assert "post_grace_catchup_active" in text
   assert "post_grace_catchup_urgency" in text
+  assert "stocks_open_ready_at_risk" in text
   assert "prep_phase_state persists" in text
   assert "verify-post-outage-recovery.sh" in text
 
@@ -339,6 +340,7 @@ def test_verify_post_outage_recovery_orchestrator():
   assert "--once" in text
   assert "--skip-stocks" in text
   assert "check_backend_suspension" in text
+  assert "print-outage-status.sh" in text
 
 
 def test_render_billing_recovery_workflow_uses_verify_once():

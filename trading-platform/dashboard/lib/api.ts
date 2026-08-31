@@ -587,6 +587,7 @@ export type DashboardConfig = {
     platform_outage_grace_minutes_remaining?: number | null;
     platform_outage_grace_deadline_utc?: string | null;
     us_cash_session_catchup_minutes_remaining?: number | null;
+    post_grace_catchup_active?: boolean;
     expected_platform_revision?: string;
     recovery_bots?: {
       bot_type: string;
