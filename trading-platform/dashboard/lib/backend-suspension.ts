@@ -20,6 +20,7 @@ export type BackendSuspension = {
   platform_outage_grace_minutes_remaining?: number | null;
   platform_outage_grace_deadline_utc?: string | null;
   us_cash_session_catchup_minutes_remaining?: number | null;
+  post_grace_catchup_active?: boolean;
   expected_platform_revision?: string;
   recovery_bots?: OutageRecoveryBot[];
 };
@@ -77,8 +78,9 @@ export function outageRecoveryBots(): OutageRecoveryBot[] {
     {
       bot_type: "stocks_futures",
       label: "US stocks",
-      action: "Burst scan + auto-entry for open-ready symbols (e.g. AAPL)",
+      action: "Burst scan + auto-entry for open-ready symbols (prep state preserved)",
       verify_script: "verify-us-stocks-post-open.sh --watch 120",
+      held_symbols: ["AAPL"],
     },
     {
       bot_type: "commodities",
@@ -123,11 +125,19 @@ export function usCashSessionCatchupMinutesRemaining(now = new Date()): number |
   return Math.max(0, Math.floor((sessionEnd - nowMs) / 60000));
 }
 
+/** True when Monday extended grace expired but US cash session catch-up window is still open. */
+export function isPostGraceCatchupActive(now = new Date()): boolean {
+  const graceRemaining = platformOutageGraceMinutesRemaining(now);
+  const catchupRemaining = usCashSessionCatchupMinutesRemaining(now);
+  return graceRemaining === 0 && catchupRemaining !== null && catchupRemaining > 0;
+}
+
 export function buildBackendSuspensionPayload(
   reason: "billing" | "unknown" = "billing"
 ): BackendSuspension {
   const graceRemaining = platformOutageGraceMinutesRemaining();
   const catchupRemaining = usCashSessionCatchupMinutesRemaining();
+  const postGraceCatchupActive = isPostGraceCatchupActive();
   const graceNote =
     graceRemaining !== null && graceRemaining > 0
       ? `Platform outage grace: ~${graceRemaining} min left for extended burst window (deploy ${EXPECTED_PLATFORM_REVISION}). Post-outage startup still forces open-ready scan if prep state preserved.`
@@ -158,5 +168,6 @@ export function buildBackendSuspensionPayload(
       `After resume, confirm outage_recovery_scan then burst_scan (deploy ${EXPECTED_PLATFORM_REVISION}).`,
     ],
     us_cash_session_catchup_minutes_remaining: catchupRemaining,
+    post_grace_catchup_active: postGraceCatchupActive,
   };
 }

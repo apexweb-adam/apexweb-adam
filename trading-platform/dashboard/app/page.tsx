@@ -1992,7 +1992,8 @@ function BillingOutageRecoveryCard({
   const bots = health.recovery_bots ?? [];
   const graceUrgent = grace !== null && grace !== undefined && grace > 0 && grace <= 30;
   const postGraceCatchup =
-    grace === 0 && catchupMin !== null && catchupMin !== undefined && catchupMin > 0;
+    health.post_grace_catchup_active ??
+    (grace === 0 && catchupMin !== null && catchupMin !== undefined && catchupMin > 0);
   const catchupUrgent =
     postGraceCatchup && catchupMin !== null && catchupMin !== undefined && catchupMin <= 30;
   const catchupActive =
