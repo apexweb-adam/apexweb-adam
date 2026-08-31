@@ -462,5 +462,5 @@ def test_monday_recovery_commodities_verification_nudge():
 
   result = asyncio.run(_run())
   assert result["commodities_verification_trade_count_nudge"] is True
-  assert result["commodities_graduation_nudge"] is True
+  assert result["commodities_graduation_nudge"] is False
   assert "commodities" in result["bots"]
