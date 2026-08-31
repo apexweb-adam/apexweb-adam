@@ -145,6 +145,16 @@ class LearningEngine:
           root_causes.append("Political or crypto-policy intel turned negative during crypto hold")
           adjustments.append("Reduce crypto exposure when policy headlines flip bearish")
           lessons.append("Watch Fed/crypto executive orders and geopolitical risk on BTC/ETH positions")
+      if await self._had_source_intel(trade.symbol, trade.executed_at, "tiktok"):
+        if trade.side == "long" and (trade.signal_score < 0.5 or trade.sentiment_score < 0.35):
+          root_causes.append("TikTok viral sentiment drove entry without sufficient technical confirmation")
+          adjustments.append("Require volume + signal floor on TikTok-hype crypto entries")
+          lessons.append("Treat TikTok trading trends as sentiment input — confirm with volume before entry")
+      if await self._had_source_intel(trade.symbol, trade.executed_at, "reddit"):
+        if trade.side == "long" and (trade.signal_score < 0.5 or trade.sentiment_score < 0.35):
+          root_causes.append("Reddit retail hype preceded loss without strong local confirmation")
+          adjustments.append("Raise min_signal_score when Reddit retail buzz is the primary intel driver")
+          lessons.append("WSB/crypto subreddit hype is not a standalone entry — wait for TA alignment")
 
     if trade.bot_type == "stocks_futures":
       if "macd" in reason_lower and "bearish" in reason_lower:
