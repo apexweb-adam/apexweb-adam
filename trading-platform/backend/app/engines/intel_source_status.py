@@ -30,6 +30,12 @@ INTEL_WEIGHT_MULTIPLIERS_TTL_SECONDS = 60
 _INTEL_WEIGHT_MULTIPLIERS_CACHE: tuple[float, dict[str, float]] | None = None
 
 
+def _normalize_utc_naive(when: datetime) -> datetime:
+  if when.tzinfo is not None:
+    return when.astimezone(timezone.utc).replace(tzinfo=None)
+  return when
+
+
 def _latest_activity_at(
   source: str,
   *,
@@ -38,6 +44,10 @@ def _latest_activity_at(
 ) -> datetime | None:
   latest = source_latest.get(source)
   heartbeat = scan_heartbeats.get(source)
+  if latest is not None:
+    latest = _normalize_utc_naive(latest)
+  if heartbeat is not None:
+    heartbeat = _normalize_utc_naive(heartbeat)
   if latest is None:
     return heartbeat
   if heartbeat is None:

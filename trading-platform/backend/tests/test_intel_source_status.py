@@ -5,6 +5,8 @@ from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, patch
 
 from app.engines.intel_source_status import (
+  _latest_activity_at,
+  _normalize_utc_naive,
   _source_status,
   _x_source_status,
   x_intel_collection_mode,
@@ -97,6 +99,17 @@ def test_youtube_active_with_recent_scan_heartbeat():
     scan_heartbeats={"youtube": heartbeat},
   )
   assert status == "active"
+
+
+def test_latest_activity_at_handles_mixed_timezone_datetimes():
+  aware = datetime.now(timezone.utc) - timedelta(hours=1)
+  naive = datetime.utcnow() - timedelta(hours=2)
+  result = _latest_activity_at(
+    "x",
+    source_latest={"x": aware},
+    scan_heartbeats={"x": naive},
+  )
+  assert result == _normalize_utc_naive(aware)
 
 
 def test_reddit_active_via_rss_without_oauth_status():
