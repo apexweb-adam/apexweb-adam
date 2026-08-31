@@ -101,6 +101,9 @@ def test_recover_render_billing_triggers_deploy_when_behind():
   assert "Monday outage grace" in text
   assert "urgent polling" in text
   assert 'GRACE_LEFT" -le 30' in text
+  assert "extended burst grace expired" in text
+  assert "r466+" in text
+  assert "has_outage_recovery_scan" in text
 
 
 def test_render_billing_recovery_workflow_monday_urgent_poll():
