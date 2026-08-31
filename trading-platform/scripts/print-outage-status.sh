@@ -166,6 +166,11 @@ if dow == 1:
                 print(
                     f"  us_cash_session_catchup={catchup_left} min until 21:00 UTC (forced open-ready scan still runs)"
                 )
+                if catchup_left <= 45:
+                    tag = "URGENT" if catchup_left <= 30 else "active"
+                    print(f"  post_grace_catchup_urgency={tag}")
+                if catchup_left <= 15:
+                    print("  action=resume billing NOW — US cash close at 21:00 UTC")
             print(
                 "  note=post-outage startup still runs forced open-ready scan if prep state preserved"
             )
