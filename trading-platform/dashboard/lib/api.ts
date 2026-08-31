@@ -758,6 +758,9 @@ export type PlatformStatus = {
     phantom_setup?: string | null;
     phantom_example_payload?: Record<string, unknown> | null;
     reddit_oauth?: boolean;
+    newsapi?: boolean;
+    x_intel_collection_mode?: string | null;
+    x_intel_keyless?: boolean;
     twitter_x?: boolean;
   };
   learning?: {

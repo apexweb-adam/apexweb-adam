@@ -69,6 +69,7 @@ import type {
 import { enrichProfitabilityStatus, activeGateToProfitability, buildEquityHistoryFromTrades } from "@/lib/profitability";
 import { VerificationPnLChart } from "@/components/VerificationPnLChart";
 import { IntelRoutingPanel } from "@/components/IntelRoutingPanel";
+import { MultiSourceIntelCard } from "@/components/MultiSourceIntelCard";
 
 type Tab = "overview" | "trades" | "positions" | "intelligence" | "learning" | "strategy";
 
@@ -509,6 +510,14 @@ export default function Dashboard() {
                       </p>
                     </div>
                   )}
+                </Card>
+              )}
+              {platformStatus && (
+                <Card title="Multi-Source Intel">
+                  <MultiSourceIntelCard
+                    integrations={platformStatus.integrations}
+                    sources={intelSourcesDisplay}
+                  />
                 </Card>
               )}
               {(vercelStale ||
@@ -1603,7 +1612,8 @@ export default function Dashboard() {
               <div className="space-y-3 max-h-[320px] overflow-y-auto">
                 {(contentStudy?.recent ?? []).length === 0 ? (
                   <p className="text-sm text-gray-500 py-4">
-                    No content-study highlights yet — runs hourly from YouTube, Reddit, and live intel.
+                    No content-study highlights yet — runs hourly from YouTube, Reddit, live intel
+                    (political, TikTok, news, TradingView), and wallet hooks.
                   </p>
                 ) : (
                   (contentStudy?.recent ?? []).map((row, idx) => {
