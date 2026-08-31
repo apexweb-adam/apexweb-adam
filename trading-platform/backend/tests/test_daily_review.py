@@ -322,3 +322,127 @@ def test_run_daily_review_detects_recurring_axiom_intel_loss_patterns():
 
   assert "axiom" in (review.patterns_found or "").lower()
   assert "intel confirmation" in (review.patterns_found or "").lower()
+
+
+def test_run_daily_review_detects_recurring_hyperliquid_intel_loss_patterns():
+  trade_day = datetime(2026, 8, 31, 17, 0, 0)
+  trades = [
+    _sell_trade(
+      id=31,
+      bot_type="crypto",
+      symbol="WIFUSDT",
+      pnl=-1.0,
+      is_winner=False,
+      reason="HL perp momentum entry",
+      executed_at=trade_day,
+    ),
+    _sell_trade(
+      id=32,
+      bot_type="crypto",
+      symbol="BONKUSDT",
+      pnl=-0.95,
+      is_winner=False,
+      reason="Hyperliquid funding flip long",
+      executed_at=trade_day,
+    ),
+    _sell_trade(
+      id=33,
+      bot_type="crypto",
+      symbol="ETHUSDT",
+      pnl=1.0,
+      is_winner=True,
+      signal_score=0.72,
+      executed_at=trade_day,
+    ),
+  ]
+  analysis_one = MagicMock(
+    trade_id=31,
+    root_cause="Hyperliquid perp intel influenced entry without local confirmation",
+    lessons_learned="watch funding rate flips",
+  )
+  analysis_two = MagicMock(
+    trade_id=32,
+    root_cause="Weak technical signal at entry",
+    lessons_learned="wait for TA alignment",
+  )
+  session = AsyncMock()
+  session.execute = AsyncMock(
+    side_effect=[
+      MagicMock(scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=trades)))),
+      MagicMock(scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=[analysis_one, analysis_two])))),
+      MagicMock(scalar_one_or_none=MagicMock(return_value=None)),
+    ]
+  )
+  session.commit = AsyncMock()
+  session.add = MagicMock()
+
+  learner = LearningEngine(session)
+  learner._apply_adjustments = AsyncMock()
+
+  with patch(OUTAGE_PATCH, new=AsyncMock(return_value=[])):
+    review = asyncio.run(learner.run_daily_review("crypto", "2026-08-31"))
+
+  assert "hyperliquid" in (review.patterns_found or "").lower()
+  assert "intel confirmation" in (review.patterns_found or "").lower()
+
+
+def test_run_daily_review_detects_recurring_wallet_tracker_intel_loss_patterns():
+  trade_day = datetime(2026, 8, 31, 18, 0, 0)
+  trades = [
+    _sell_trade(
+      id=41,
+      bot_type="crypto",
+      symbol="PEPEUSDT",
+      pnl=-1.1,
+      is_winner=False,
+      reason="Whale wallet mirror buy",
+      executed_at=trade_day,
+    ),
+    _sell_trade(
+      id=42,
+      bot_type="crypto",
+      symbol="SOLUSDT",
+      pnl=-0.88,
+      is_winner=False,
+      reason="wallet_tracker accumulation signal",
+      executed_at=trade_day,
+    ),
+    _sell_trade(
+      id=43,
+      bot_type="crypto",
+      symbol="BTCUSDT",
+      pnl=1.2,
+      is_winner=True,
+      signal_score=0.74,
+      executed_at=trade_day,
+    ),
+  ]
+  analysis_one = MagicMock(
+    trade_id=41,
+    root_cause="Whale wallet tracker signal preceded loss without TA confirmation",
+    lessons_learned="wait for local signal alignment",
+  )
+  analysis_two = MagicMock(
+    trade_id=42,
+    root_cause="Weak technical signal at entry",
+    lessons_learned="confirm volume before sizing",
+  )
+  session = AsyncMock()
+  session.execute = AsyncMock(
+    side_effect=[
+      MagicMock(scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=trades)))),
+      MagicMock(scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=[analysis_one, analysis_two])))),
+      MagicMock(scalar_one_or_none=MagicMock(return_value=None)),
+    ]
+  )
+  session.commit = AsyncMock()
+  session.add = MagicMock()
+
+  learner = LearningEngine(session)
+  learner._apply_adjustments = AsyncMock()
+
+  with patch(OUTAGE_PATCH, new=AsyncMock(return_value=[])):
+    review = asyncio.run(learner.run_daily_review("crypto", "2026-08-31"))
+
+  assert "whale wallet" in (review.patterns_found or "").lower()
+  assert "intel confirmation" in (review.patterns_found or "").lower()
