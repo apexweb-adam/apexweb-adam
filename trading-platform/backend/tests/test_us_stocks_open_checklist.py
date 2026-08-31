@@ -129,6 +129,19 @@ def test_platform_outage_recovery_status_logged_after_recovery_scan():
   assert status["recovery_scan_pending_burst"] is True
 
 
+def test_platform_outage_recovery_status_post_grace_catchup_active():
+  status = platform_outage_recovery_status(
+    in_session=True,
+    minutes_since_open=300,
+    open_ready_symbols=["AAPL"],
+    has_burst_scan=False,
+    has_auto_entry=False,
+    burst_events=[],
+    auto_entry_events=[],
+  )
+  assert status["window_active"] is False
+  assert status["post_grace_catchup_active"] is True
+
 def test_format_us_stocks_checklist_crm_html():
   html = format_us_stocks_checklist_crm_html(
     {

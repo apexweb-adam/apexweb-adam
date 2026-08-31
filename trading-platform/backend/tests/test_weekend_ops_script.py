@@ -101,6 +101,7 @@ def test_recover_render_billing_triggers_deploy_when_behind():
   assert "Monday outage grace" in text
   assert "urgent polling" in text
   assert 'GRACE_LEFT" -le 30' in text
+  assert "post_grace_catchup_min" in text
   assert "extended burst grace expired" in text
   assert "r466+" in text
   assert "has_outage_recovery_scan" in text
@@ -287,7 +288,9 @@ def test_verify_us_stocks_post_open_supports_watch_mode():
   assert "stocks_futures/scan-preview" in text
   assert "stocks_graduation" in text
   assert "shadow_entry_held" in text
-  assert "EXPECTED_PLATFORM_REVISION" in text
+  assert "recovery_scan_pending_burst" in text
+  assert "post_grace_catchup" in text
+  assert "post_grace_outage_recovery_scan" in text
 
 
 def test_verify_cme_post_open_supports_watch_mode():

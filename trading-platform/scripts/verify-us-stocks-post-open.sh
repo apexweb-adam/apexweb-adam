@@ -192,6 +192,20 @@ if not events.get("has_burst_scan") and not events.get("has_auto_entry"):
             print("  note=platform_outage_recovery_scan_logged — awaiting burst_scan completion")
         else:
             print("  note=platform_outage_recovery_pending — burst scan expected on next bot loop")
+    elif outage.get("post_grace_catchup_active") or outage.get("has_outage_recovery_scan") or outage.get("recovery_scan_pending_burst"):
+        if rev_current is False:
+            print(
+                f"  warn=deploy_{code_rev or 'revision'}_required_for_post_grace_outage_recovery"
+            )
+            errors.append("revision_behind_for_outage_recovery")
+        elif outage.get("recovery_scan_pending_burst"):
+            print("  note=post_grace_outage_recovery_scan — awaiting burst_scan completion")
+        elif outage.get("has_outage_recovery_scan"):
+            print("  note=post_grace_outage_recovery_scan_logged — awaiting burst_scan completion")
+        else:
+            print("  note=post_grace_catchup — forced open-ready scan expected (r466+)")
+    elif outage.get("logged") and open_symbols:
+        print("  note=platform_outage_logged_with_open_ready — recovery scan expected on startup")
     else:
         errors.append("burst_scan_missing")
 if not events.get("has_auto_entry") and open_symbols:
