@@ -101,6 +101,7 @@ if outage_events:
         f"  platform_outage_events={len(outage_events)} "
         f"newest_gap_min={gap} us_queued={us or 'none'} cme_queued={cme or 'none'}"
     )
+    print("  note=startup force-refreshes held-position TV when outage gap logged")
 else:
     print("  platform_outage_events=none (no gap logged yet or first heartbeat pending)")
 

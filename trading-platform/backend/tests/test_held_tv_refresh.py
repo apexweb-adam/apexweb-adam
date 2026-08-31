@@ -57,3 +57,36 @@ def test_held_positions_tv_refresh_refreshes_open_gate_symbols():
           mock_refresh.assert_called_once()
           symbols = mock_refresh.call_args[0][1]
           assert "CL=F" in symbols
+
+
+def test_held_positions_tv_refresh_force_refresh_after_outage():
+  position = MagicMock(symbol="GC=F")
+  engine = MagicMock()
+  engine.get_open_positions = AsyncMock(return_value=[position])
+
+  with patch(
+    "app.engines.platform_settings.get_paused_bot_types",
+    new_callable=AsyncMock,
+    return_value=["crypto", "stocks_futures", "polymarket"],
+  ):
+    with patch("app.engines.paper_trading.PaperTradingEngine", return_value=engine):
+      with patch(
+        "app.engines.integration_signals.refresh_tradingview_signals",
+        new_callable=AsyncMock,
+        return_value=["GC=F"],
+      ) as mock_refresh:
+        with patch("app.ws_manager.push_live_update", new_callable=AsyncMock):
+          with _mock_scheduler_session():
+            import asyncio
+
+            result = asyncio.run(
+              held_positions_tv_refresh_job(
+                force_refresh=True,
+                reason_prefix="Platform outage recovery TV refresh",
+              )
+            )
+          assert result == ["GC=F"]
+          mock_refresh.assert_called_once()
+          assert mock_refresh.call_args.kwargs["force_refresh"] is True
+          assert mock_refresh.call_args.kwargs["max_age_hours"] == 0
+          assert "Platform outage recovery" in mock_refresh.call_args.kwargs["reason_prefix"]
