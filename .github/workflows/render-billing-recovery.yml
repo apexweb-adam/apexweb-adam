@@ -51,6 +51,18 @@ jobs:
           PY
           )"
 
+          CATCHUP_LEFT="$(python3 - << 'PY' 2>/dev/null || true
+          from datetime import datetime, timezone
+          now = datetime.now(timezone.utc)
+          if now.isoweekday() != 1 or now.hour < 13 or now.hour >= 21:
+              raise SystemExit(0)
+          session_end = now.replace(hour=21, minute=0, second=0, microsecond=0)
+          catchup_left = max(0, int((session_end.timestamp() - now.timestamp()) // 60))
+          if catchup_left > 0:
+              print(catchup_left)
+          PY
+          )"
+
           if check_backend_suspension "$URL"; then
             echo "Backend online — running recovery chain"
             WAIT=600
@@ -65,6 +77,13 @@ jobs:
             echo "Monday post-grace US session — waiting for billing resume (forced open-ready scan on r467+)"
             WAIT=1200
             POLL=15
+            if [[ -n "$CATCHUP_LEFT" && "$CATCHUP_LEFT" -le 30 ]]; then
+              POLL=5
+              echo "Post-grace catch-up URGENT (${CATCHUP_LEFT} min until US cash close)"
+            elif [[ -n "$CATCHUP_LEFT" && "$CATCHUP_LEFT" -le 45 ]]; then
+              POLL=10
+              echo "Post-grace catch-up active (${CATCHUP_LEFT} min until US cash close)"
+            fi
           else
             bash "$ROOT/scripts/print-outage-status.sh" || true
             echo "::error::Render backend billing-suspended — fix at https://dashboard.render.com/web/srv-da848ms9v7es739k38jg"

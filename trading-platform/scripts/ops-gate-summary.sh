@@ -10,6 +10,17 @@ BACKEND="${BACKEND_URL:-https://apex-trading-backend.onrender.com}"
 
 if ! check_backend_suspension "$BACKEND" 2>/dev/null; then
   echo "Profitability gate: backend billing-suspended (see Render dashboard)"
+  python3 - << 'PY' 2>/dev/null || true
+from datetime import datetime, timezone
+now = datetime.now(timezone.utc)
+if now.isoweekday() != 1 or now.hour < 13:
+    raise SystemExit(0)
+session_end = now.replace(hour=21, minute=0, second=0, microsecond=0)
+catchup_left = max(0, int((session_end.timestamp() - now.timestamp()) // 60))
+if catchup_left > 0 and now.hour < 21:
+    print(f"  post_grace_catchup_min={catchup_left} until 21:00 UTC")
+    print("  verify=bash trading-platform/scripts/verify-post-outage-recovery.sh --watch 90")
+PY
   exit 0
 fi
 
