@@ -892,7 +892,7 @@ def commodities_verification_gate_skip_bypass(
   return composite >= COMMODITIES_VERIFICATION_TRADE_COUNT_MIN_COMPOSITE
 
 
-def commodities_verification_cooldown_bypass(
+def commodities_verification_aligned_recovery_bypass(
   *,
   bot_type: str,
   shadow_mode: bool,
@@ -904,7 +904,7 @@ def commodities_verification_cooldown_bypass(
   macd_signal: str,
   composite: float,
 ) -> bool:
-  """Clear post-loss cooldown for strong verification-gap commodities entries."""
+  """Proven-winner floor or high-composite recovery during verification trade-count gap."""
   if shadow_mode or bot_type != "commodities":
     return False
   if not commodities_verification_trade_count_nudge(
@@ -919,6 +919,58 @@ def commodities_verification_cooldown_bypass(
   ):
     return True
   return composite >= COMMODITIES_HIGH_COMPOSITE_RECOVERY_FLOOR
+
+
+def commodities_verification_cooldown_bypass(
+  *,
+  bot_type: str,
+  shadow_mode: bool,
+  symbol: str,
+  proven_winners: frozenset[str],
+  gate_status: dict[str, Any],
+  per_bot_stats: dict[str, Any],
+  signal_direction: str,
+  macd_signal: str,
+  composite: float,
+) -> bool:
+  """Clear post-loss cooldown for strong verification-gap commodities entries."""
+  return commodities_verification_aligned_recovery_bypass(
+    bot_type=bot_type,
+    shadow_mode=shadow_mode,
+    symbol=symbol,
+    proven_winners=proven_winners,
+    gate_status=gate_status,
+    per_bot_stats=per_bot_stats,
+    signal_direction=signal_direction,
+    macd_signal=macd_signal,
+    composite=composite,
+  )
+
+
+def commodities_verification_chronic_loser_bypass(
+  *,
+  bot_type: str,
+  shadow_mode: bool,
+  symbol: str,
+  proven_winners: frozenset[str],
+  gate_status: dict[str, Any],
+  per_bot_stats: dict[str, Any],
+  signal_direction: str,
+  macd_signal: str,
+  composite: float,
+) -> bool:
+  """Re-enter chronic losers during verification gap at proven or high-composite floors."""
+  return commodities_verification_aligned_recovery_bypass(
+    bot_type=bot_type,
+    shadow_mode=shadow_mode,
+    symbol=symbol,
+    proven_winners=proven_winners,
+    gate_status=gate_status,
+    per_bot_stats=per_bot_stats,
+    signal_direction=signal_direction,
+    macd_signal=macd_signal,
+    composite=composite,
+  )
 
 
 def commodities_verification_min_sentiment(
@@ -1014,13 +1066,16 @@ def commodities_verification_near_floor_candidate(
     bot_type, shadow_mode, gate_status, per_bot_stats
   ):
     return False
-  if symbol not in proven_winners:
-    return False
   if signal_direction != "buy" or macd_signal != "bullish":
     return False
   if not blockers:
     return False
-  floor = COMMODITIES_VERIFICATION_TRADE_COUNT_MIN_COMPOSITE
+  if symbol in proven_winners:
+    floor = COMMODITIES_VERIFICATION_TRADE_COUNT_MIN_COMPOSITE
+  elif composite >= COMMODITIES_HIGH_COMPOSITE_RECOVERY_FLOOR - OPEN_READY_NEAR_FLOOR_MARGIN:
+    floor = COMMODITIES_HIGH_COMPOSITE_RECOVERY_FLOOR
+  else:
+    return False
   if composite < floor - OPEN_READY_NEAR_FLOOR_MARGIN:
     return False
   allowed = (
@@ -1764,6 +1819,22 @@ def chronic_loser_blocks_shadow_entry(
     gate_status is not None
     and per_bot_stats is not None
     and commodities_verification_gate_skip_bypass(
+      bot_type=bot_type,
+      shadow_mode=shadow_mode,
+      symbol=symbol,
+      proven_winners=proven_winners or frozenset(),
+      gate_status=gate_status,
+      per_bot_stats=per_bot_stats,
+      signal_direction=signal_direction or "buy",
+      macd_signal=macd_signal or "bullish",
+      composite=composite or 0.0,
+    )
+  ):
+    return False
+  if (
+    gate_status is not None
+    and per_bot_stats is not None
+    and commodities_verification_chronic_loser_bypass(
       bot_type=bot_type,
       shadow_mode=shadow_mode,
       symbol=symbol,
