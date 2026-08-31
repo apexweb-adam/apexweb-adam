@@ -736,6 +736,49 @@ def test_commodities_verification_intel_override_active_gate():
   ) is True
 
 
+def test_commodities_verification_open_cap_bonus():
+  from app.engines.gate_entry_guard import (
+    COMMODITIES_VERIFICATION_CAP_BONUS,
+    GateEntryTightening,
+    commodities_effective_open_cap,
+    open_position_cap_blocks_entry,
+  )
+
+  tightening = GateEntryTightening(
+    active=False,
+    win_rate=0.62,
+    min_sentiment=0.0,
+    require_macd_bullish=False,
+    min_composite_boost=0.0,
+    max_commodities_open_positions=3,
+  )
+  assert commodities_effective_open_cap(
+    3,
+    bot_type="commodities",
+    graduation_nudge=False,
+    shadow_mode=False,
+    verification_nudge=True,
+  ) == 3 + COMMODITIES_VERIFICATION_CAP_BONUS
+  assert open_position_cap_blocks_entry(
+    "commodities",
+    shadow_mode=False,
+    open_count=3,
+    gate_tightening=tightening,
+    shadow_open_cap=None,
+    graduation_nudge=False,
+    verification_nudge=True,
+  ) is False
+  assert open_position_cap_blocks_entry(
+    "commodities",
+    shadow_mode=False,
+    open_count=4,
+    gate_tightening=tightening,
+    shadow_open_cap=None,
+    graduation_nudge=False,
+    verification_nudge=True,
+  ) is True
+
+
 def test_commodities_verification_min_sentiment():
   from app.engines.gate_entry_guard import (
     COMMODITIES_VERIFICATION_MIN_SENTIMENT,

@@ -753,6 +753,7 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
       gate_tightening=gate_tightening,
       shadow_open_cap=shadow_cap,
       graduation_nudge=bypass_nudge,
+      verification_nudge=commodities_verification_nudge,
     )
     ):
       blockers.append("open_cap")
