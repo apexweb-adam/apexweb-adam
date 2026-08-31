@@ -26,6 +26,13 @@ echo "Dashboard: $DASHBOARD"
 echo "Code target: $CODE_REV · bundle $EXPECTED_BUNDLE"
 echo ""
 
+if ! check_backend_suspension "$BACKEND"; then
+  bad "Render backend billing-suspended — all platform checks blocked"
+  echo ""
+  echo "=== Summary: $pass passed, $fail failed, $warn warnings ==="
+  exit 2
+fi
+
 bash "$ROOT/scripts/ops-gate-summary.sh" || true
 echo ""
 
