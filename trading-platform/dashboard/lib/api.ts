@@ -557,6 +557,14 @@ export type DashboardConfig = {
     clientGateEnrichment?: boolean;
     proxyGateEnrichment?: boolean;
   };
+  backendHealth?: {
+    reachable: boolean;
+    suspended: boolean;
+    reason?: "billing" | "unknown";
+    message?: string;
+    render_dashboard_url?: string;
+    recovery_steps?: string[];
+  };
   githubMainCommit?: string | null;
   promoteUrl?: string;
 };

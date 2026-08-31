@@ -11,6 +11,33 @@ Production backend is often **15+ commits behind** `main` because Render **After
 curl -s https://apex-trading-backend.onrender.com/api/status | jq '.deploy | {git_commit, latest_main_commit, is_stale, github_checks_blocker, next_steps}'
 ```
 
+## Render billing suspension (503 Service Suspended)
+
+If `/api/health` returns **503** with `Service Suspended`, or Render API shows `suspenders: ["billing"]`:
+
+| Symptom | Cause |
+|---------|--------|
+| Backend 503 HTML | Free-tier billing limit (750 instance hours/month) or missing payment method |
+| `POST /v1/services/.../resume` → 400 | Billing suspension — only user-resumed in dashboard |
+| `POST /v1/services/.../deploys` → 400 | Cannot deploy while billing-suspended |
+| Dashboard proxy returns HTML | Same — bots and CRM data offline |
+
+### Fix
+
+1. [Render Dashboard → apex-trading-backend](https://dashboard.render.com/web/srv-da848ms9v7es739k38jg)
+2. Resolve billing: add payment method and/or upgrade from **free** plan
+3. **Resume** the service manually
+4. Verify:
+
+```bash
+bash trading-platform/scripts/wait-for-render-deploy.sh --verify
+bash trading-platform/scripts/verify-platform.sh
+```
+
+Ops scripts (`verify-us-stocks-open.sh`, `verify-platform.sh`, etc.) exit **2** with recovery steps when billing suspension is detected.
+
+---
+
 ## Typical blockers
 
 | GitHub App | Symptom | Fix |

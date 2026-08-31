@@ -225,6 +225,32 @@ export default function Dashboard() {
         </div>
       </header>
 
+      {dashConfig?.backendHealth?.suspended && (
+        <div className="bg-apex-red/20 border-b border-apex-red/40 px-6 py-3">
+          <p className="max-w-[1600px] mx-auto text-xs text-apex-red">
+            <strong>Backend offline — Render billing suspension.</strong>{" "}
+            {dashConfig.backendHealth.message ??
+              "Bots, intel, learning, and live CRM data are unavailable until Render is restored."}{" "}
+            <a
+              href={
+                dashConfig.backendHealth.render_dashboard_url ??
+                "https://dashboard.render.com/web/srv-da848ms9v7es739k38jg"
+              }
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline hover:text-white"
+            >
+              Fix billing in Render →
+            </a>
+            {dashConfig.backendHealth.recovery_steps?.[2] && (
+              <span className="ml-2 font-mono text-[10px] text-gray-400">
+                then {dashConfig.backendHealth.recovery_steps[2]}
+              </span>
+            )}
+          </p>
+        </div>
+      )}
+
       {vercelStale && (
         <div className="bg-apex-gold/15 border-b border-apex-gold/30 px-6 py-2">
           <p className="max-w-[1600px] mx-auto text-xs text-apex-gold">
