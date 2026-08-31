@@ -40,6 +40,11 @@ echo "Target revision: $EXPECTED_REVISION"
 echo "Max wait: ${MAX_WAIT}s (poll every ${INTERVAL}s)"
 echo ""
 
+if ! check_backend_suspension "$BACKEND"; then
+  echo "Cannot wait for deploy while service is billing-suspended." >&2
+  exit 2
+fi
+
 deadline=$(( $(date +%s) + MAX_WAIT ))
 attempt=0
 

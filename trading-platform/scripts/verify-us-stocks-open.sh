@@ -32,6 +32,13 @@ run_preflight() {
   echo "Expected revision (code): $EXPECTED_REVISION"
   echo ""
 
+  if ! check_backend_suspension "$BACKEND"; then
+    bad "Backend billing-suspended — AAPL auto-entry cannot fire until Render is restored"
+    echo ""
+    echo "Preflight: $pass passed, $fail failed, $warn warnings"
+    return 2
+  fi
+
   bash "$ROOT/scripts/ops-gate-summary.sh" || true
   echo ""
 

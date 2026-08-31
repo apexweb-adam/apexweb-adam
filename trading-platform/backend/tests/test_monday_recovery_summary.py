@@ -323,10 +323,14 @@ def test_monday_recovery_cache_ttl_extended_during_us_stocks_prep():
     return_value=False,
   ):
     with patch(
-      "app.engines.gate_entry_guard.status_cache_prewarm_active",
-      return_value=True,
+      "app.engines.gate_entry_guard.stocks_session_info",
+      return_value={"in_session": False, "minutes_until_open": 120},
     ):
-      assert _monday_recovery_cache_ttl_seconds() == 60
+      with patch(
+        "app.engines.gate_entry_guard.status_cache_prewarm_active",
+        return_value=True,
+      ):
+        assert _monday_recovery_cache_ttl_seconds() == 60
 
 
 def test_build_monday_recovery_summary_serves_stale_while_rebuild_in_progress():

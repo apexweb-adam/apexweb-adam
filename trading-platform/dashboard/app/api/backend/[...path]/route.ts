@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { backendBase, fetchActiveGateStatus, fetchEquityHistory } from "@/lib/active-gate";
+import {
+  buildBackendSuspensionPayload,
+  isBackendSuspendedBody,
+} from "@/lib/backend-suspension";
 
 export const dynamic = "force-dynamic";
 
@@ -45,6 +49,13 @@ async function proxyRequest(req: NextRequest, pathSegments: string[]) {
   const res = await fetch(target, init);
   const contentType = res.headers.get("content-type") || "application/json";
   const body = await res.text();
+
+  if (isBackendSuspendedBody(res.status, body, contentType)) {
+    return NextResponse.json(buildBackendSuspensionPayload("billing"), {
+      status: 503,
+      headers: { "X-Backend-Suspended": "billing" },
+    });
+  }
 
   return new NextResponse(body, {
     status: res.status,

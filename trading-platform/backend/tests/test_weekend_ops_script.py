@@ -62,8 +62,22 @@ def test_fetch_json_lib_exists():
   text = lib.read_text(encoding="utf-8")
   assert "fetch_json()" in text
   assert "wake_backend()" in text
+  assert "check_backend_suspension()" in text
+  assert "require_backend_online()" in text
   assert "attempts" in text
   assert "return 0" in text
+
+
+def test_verify_scripts_check_render_billing_suspension():
+  for name in (
+    "verify-us-stocks-open.sh",
+    "verify-us-stocks-post-open.sh",
+    "verify-platform.sh",
+    "wait-for-render-deploy.sh",
+    "recover-render-billing.sh",
+  ):
+    text = (SCRIPTS / name).read_text(encoding="utf-8")
+    assert "check_backend_suspension" in text, name
 
 
 def test_verify_post_deploy_includes_crm_and_learning_checks():

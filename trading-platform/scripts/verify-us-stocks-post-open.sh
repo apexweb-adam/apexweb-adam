@@ -32,6 +32,13 @@ run_verification() {
   echo "Expected revision (code): ${CODE_REV:-unknown}"
   echo ""
 
+  if ! check_backend_suspension "$BACKEND"; then
+    bad "Backend billing-suspended — post-open scan/entry verification unavailable"
+    echo ""
+    echo "Post-open: $pass passed, $fail failed, $warn warnings"
+    return 2
+  fi
+
   TMP=$(mktemp -d)
   trap 'rm -rf "$TMP"' RETURN
   wake_backend "$BACKEND" 3
