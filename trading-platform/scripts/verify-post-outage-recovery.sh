@@ -140,6 +140,7 @@ PY
 echo ""
 echo "--- CRM learning loop + WebSocket live CRM ---"
 bash "$ROOT/scripts/verify-crm-learning.sh" || true
+bash "$ROOT/scripts/verify-ws-live.sh" || true
 
 echo ""
 echo "Post-outage recovery checks complete."

@@ -583,7 +583,7 @@ export type DashboardConfig = {
   backendHealth?: {
     reachable: boolean;
     suspended: boolean;
-    reason?: "billing" | "unknown";
+    reason?: "billing" | "unknown" | "unreachable";
     message?: string;
     render_dashboard_url?: string;
     recovery_steps?: string[];

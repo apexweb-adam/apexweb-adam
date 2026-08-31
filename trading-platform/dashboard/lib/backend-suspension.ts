@@ -138,6 +138,53 @@ export function isPostGraceCatchupActive(now = new Date()): boolean {
   return graceRemaining === 0 && catchupRemaining !== null && catchupRemaining > 0;
 }
 
+export type BackendHealthSnapshot = {
+  reachable?: boolean;
+  suspended?: boolean;
+  reason?: "billing" | "unknown" | "unreachable";
+  message?: string;
+  render_dashboard_url?: string;
+  recovery_steps?: string[];
+  platform_outage_grace_minutes_remaining?: number | null;
+  platform_outage_grace_deadline_utc?: string | null;
+  us_cash_session_catchup_minutes_remaining?: number | null;
+  post_grace_catchup_active?: boolean;
+  expected_platform_revision?: string;
+  recovery_bots?: OutageRecoveryBot[];
+};
+
+/** True when CRM should treat the Render backend as offline (billing suspension or unreachable). */
+export function isBackendOffline(health?: BackendHealthSnapshot | null): boolean {
+  if (!health) return false;
+  if (health.suspended) return true;
+  return health.reachable === false;
+}
+
+export function backendOfflineKind(
+  health?: BackendHealthSnapshot | null
+): "billing" | "unreachable" | null {
+  if (!health || !isBackendOffline(health)) return null;
+  if (health.suspended) return "billing";
+  return "unreachable";
+}
+
+export function backendOfflineBannerMessage(health?: BackendHealthSnapshot | null): string {
+  const kind = backendOfflineKind(health);
+  if (kind === "billing") {
+    return (
+      health?.message ??
+      "Bots, intel, learning, and live CRM data are unavailable until Render billing is restored."
+    );
+  }
+  if (kind === "unreachable") {
+    return (
+      health?.message ??
+      "Backend unreachable — Render may be waking or the connection failed. Live data may be stale."
+    );
+  }
+  return health?.message ?? "Backend offline.";
+}
+
 export function buildBackendSuspensionPayload(
   reason: "billing" | "unknown" = "billing"
 ): BackendSuspension {

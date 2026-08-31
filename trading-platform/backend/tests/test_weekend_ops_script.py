@@ -579,6 +579,33 @@ def test_verify_post_outage_recovery_runs_crm_learning():
   script = SCRIPTS / "verify-post-outage-recovery.sh"
   text = script.read_text(encoding="utf-8")
   assert "verify-crm-learning.sh" in text
+  assert "verify-ws-live.sh" in text
+
+
+def test_verify_platform_checks_dashboard_outage_ux_when_suspended():
+  text = (SCRIPTS / "verify-platform.sh").read_text(encoding="utf-8")
+  assert "backendHealth" in text
+  assert "dashboard_outage_ux" in text or "billing outage recovery guidance" in text
+
+
+def test_backend_suspension_exports_offline_helpers():
+  suspension = (
+    Path(__file__).resolve().parents[2] / "dashboard/lib/backend-suspension.ts"
+  )
+  text = suspension.read_text(encoding="utf-8")
+  assert "isBackendOffline" in text
+  assert "backendOfflineKind" in text
+  assert "unreachable" in text
+
+
+def test_multi_source_intel_card_lists_hooks_and_proxy_labels():
+  card = (
+    Path(__file__).resolve().parents[2] / "dashboard/components/MultiSourceIntelCard.tsx"
+  )
+  text = card.read_text(encoding="utf-8")
+  assert "Google News RSS proxy" in text
+  assert "polymarket" in text
+  assert "tradingview" in text
 
 
 def test_recover_render_billing_runs_crm_learning():

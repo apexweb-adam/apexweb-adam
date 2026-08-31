@@ -88,6 +88,8 @@ export function MultiSourceIntelCard({
   const political = lookupSource(sources, "political");
   const tiktok = lookupSource(sources, "tiktok");
   const youtube = lookupSource(sources, "youtube");
+  const tradingview = lookupSource(sources, "tradingview");
+  const polymarket = lookupSource(sources, "polymarket");
 
   const xMode = integrations?.x_intel_collection_mode;
   const xDetail = integrations?.x_intel_keyless
@@ -108,6 +110,9 @@ export function MultiSourceIntelCard({
       ? "RSS fallback (set REDDIT_CLIENT_ID + SECRET for OAuth)"
       : "Subreddit scanner";
 
+  const polymarketItems =
+    (integrations?.polymarket_intel_items ?? 0) + (integrations?.polymarket_account_items ?? 0);
+
   return (
     <div className="rounded-lg border border-apex-border bg-apex-dark px-3 py-2 text-xs text-gray-400">
       {backendOffline ? (
@@ -115,7 +120,9 @@ export function MultiSourceIntelCard({
           Backend offline — source counts below may be stale until Render resumes.
         </p>
       ) : null}
-      <p className="text-apex-gold font-medium mb-2">Multi-source intel (news · X · social · political)</p>
+      <p className="text-apex-gold font-medium mb-2">
+        Multi-source intel (news · X · social · political · hooks)
+      </p>
       <div className="space-y-0">
         <IntelSourceRow
           sourceKey="newsapi"
@@ -148,16 +155,38 @@ export function MultiSourceIntelCard({
         <IntelSourceRow
           sourceKey="tiktok"
           label="TikTok"
-          detail="Social hype scanner — tightens entries when viral sentiment repeats in losses"
+          detail="Google News RSS proxy (no TikTok API) — social hype scanner tightens entries when viral sentiment repeats in losses"
           status={tiktok?.status}
           items={tiktok?.items_collected}
         />
         <IntelSourceRow
           sourceKey="youtube"
           label="YouTube"
-          detail="Hourly content study + headline scanner for strategy takeaways"
+          detail="Google News RSS proxy + hourly content study for strategy takeaways"
           status={youtube?.status}
           items={youtube?.items_collected}
+        />
+        <IntelSourceRow
+          sourceKey="tradingview"
+          label="TradingView"
+          detail={
+            integrations?.tradingview_webhook
+              ? "Webhook alerts feed intel + content study (synthetic test items excluded from scoring)"
+              : "Set TRADINGVIEW_WEBHOOK_SECRET and POST alerts to /api/webhooks/tradingview"
+          }
+          status={tradingview?.status ?? (integrations?.tradingview_webhook ? "active" : "optional")}
+          items={integrations?.tradingview_items ?? tradingview?.items_collected}
+        />
+        <IntelSourceRow
+          sourceKey="polymarket"
+          label="Polymarket"
+          detail={
+            integrations?.polymarket_account_hook
+              ? "Account hook + market scanner — prediction-market intel for macro/crypto"
+              : "Configure POLYMARKET_API_KEY + wallet for account hook"
+          }
+          status={polymarket?.status ?? (integrations?.polymarket_market_scanner ? "active" : "optional")}
+          items={polymarketItems || polymarket?.items_collected}
         />
       </div>
     </div>

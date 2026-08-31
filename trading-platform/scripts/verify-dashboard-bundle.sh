@@ -53,16 +53,25 @@ fi
 
 if [[ "$actual" == "$EXPECTED" ]]; then
   echo "OK: dashboard bundle matches code target"
-  exit 0
+else
+  exp_num="$(echo "$EXPECTED" | sed -n 's/.*-r\([0-9]*\)$/\1/p')"
+  act_num="$(echo "$actual" | sed -n 's/.*-r\([0-9]*\)$/\1/p')"
+  if [[ -n "$exp_num" && -n "$act_num" ]]; then
+    lag=$((exp_num - act_num))
+    echo "WARN: dashboard bundle behind by r$lag ($actual vs $EXPECTED)"
+  else
+    echo "WARN: dashboard bundle mismatch ($actual vs $EXPECTED)"
+  fi
 fi
 
-exp_num="$(echo "$EXPECTED" | sed -n 's/.*-r\([0-9]*\)$/\1/p')"
-act_num="$(echo "$actual" | sed -n 's/.*-r\([0-9]*\)$/\1/p')"
-if [[ -n "$exp_num" && -n "$act_num" ]]; then
-  lag=$((exp_num - act_num))
-  echo "WARN: dashboard bundle behind by r$lag ($actual vs $EXPECTED)"
-else
-  echo "WARN: dashboard bundle mismatch ($actual vs $EXPECTED)"
+dash_cfg="$(curl -fsSL --max-time 12 "${primary_url%/}/api/config" 2>/dev/null || echo '{}')"
+health_suspended="$(echo "$dash_cfg" | python3 -c "import json,sys; d=json.load(sys.stdin); print((d.get('backendHealth') or {}).get('suspended', ''))" 2>/dev/null || true)"
+if [[ "$health_suspended" == "True" || "$health_suspended" == "true" ]]; then
+  echo "Note: dashboard reports backendHealth.suspended=true (Render billing outage UX active)"
+fi
+
+if [[ "$actual" == "$EXPECTED" ]]; then
+  exit 0
 fi
 
 dash_json="$(curl -fsSL --max-time 12 "$BACKEND_URL/api/dashboard-url" 2>/dev/null || echo '{}')"

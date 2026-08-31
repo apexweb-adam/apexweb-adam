@@ -38,14 +38,25 @@ async function probeBackendHealth(base: string) {
         recovery_bots: payload.recovery_bots,
       };
     }
+    if (!res.ok) {
+      return {
+        reachable: false,
+        suspended: false,
+        reason: "unreachable",
+        message: `Backend returned HTTP ${res.status} — live CRM data may be unavailable.`,
+      };
+    }
     return {
-      reachable: res.ok,
+      reachable: true,
       suspended: false,
     };
   } catch {
     return {
       reachable: false,
       suspended: false,
+      reason: "unreachable",
+      message:
+        "Backend unreachable — Render may be waking or the connection failed. Live data may be stale.",
     };
   }
 }

@@ -28,6 +28,20 @@ echo ""
 
 if ! check_backend_suspension "$BACKEND"; then
   bad "Render backend billing-suspended — all platform checks blocked"
+  DASH_CFG="$(curl -fsSL --max-time 12 "${DASHBOARD%/}/api/config" 2>/dev/null || echo '{}')"
+  if echo "$DASH_CFG" | python3 -c "
+import json,sys
+d=json.load(sys.stdin)
+h=d.get('backendHealth') or {}
+if h.get('suspended') is True and h.get('recovery_steps'):
+    print('dashboard_outage_ux_ok')
+    sys.exit(0)
+sys.exit(1)
+" 2>/dev/null; then
+    ok "Dashboard CRM surfaces billing outage recovery guidance (/api/config)"
+  else
+    note "Dashboard /api/config missing backendHealth.suspended recovery UX"
+  fi
   echo ""
   bash "$ROOT/scripts/print-outage-status.sh" 2>/dev/null | tail -n +8 || true
   echo ""

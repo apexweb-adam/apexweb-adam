@@ -17,6 +17,9 @@ import {
 } from "lucide-react";
 import { useState, useMemo, useEffect, type ReactNode } from "react";
 import {
+  backendOfflineBannerMessage,
+  backendOfflineKind,
+  isBackendOffline,
   platformOutageGraceDeadlineUtc,
   platformOutageGraceMinutesRemaining,
   usCashSessionCatchupMinutesRemaining,
@@ -134,7 +137,7 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
-    if (!dashConfig?.backendHealth?.suspended) return;
+    if (!isBackendOffline(dashConfig?.backendHealth)) return;
     const id = setInterval(() => {
       fetch("/api/config", { cache: "no-store" })
         .then((r) => (r.ok ? r.json() : null))
@@ -142,7 +145,10 @@ export default function Dashboard() {
         .catch(() => {});
     }, 60_000);
     return () => clearInterval(id);
-  }, [dashConfig?.backendHealth?.suspended]);
+  }, [
+    dashConfig?.backendHealth?.suspended,
+    dashConfig?.backendHealth?.reachable,
+  ]);
 
   const vercelFullBundle = dashConfig?.features?.activeGate === true;
   const vercelProxyMode = dashConfig != null && !vercelFullBundle;
@@ -208,7 +214,8 @@ export default function Dashboard() {
 
   const paperTradingDisplay =
     livePaperTradingOnly ?? platformStatus?.paper_trading_only ?? gateStatus?.paper_trading_only;
-  const backendOffline = dashConfig?.backendHealth?.suspended === true;
+  const backendOffline = isBackendOffline(dashConfig?.backendHealth);
+  const offlineKind = backendOfflineKind(dashConfig?.backendHealth);
   const schedulerDisplay = platformStatus?.scheduler ?? DEFAULT_PLATFORM_SCHEDULER;
 
   const liveGateTightening =
@@ -267,31 +274,54 @@ export default function Dashboard() {
         </div>
       </header>
 
-      {dashConfig?.backendHealth?.suspended && (
-        <div className="bg-apex-red/20 border-b border-apex-red/40 px-6 py-3">
-          <p className="max-w-[1600px] mx-auto text-xs text-apex-red">
-            <strong>Backend offline — Render billing suspension.</strong>{" "}
-            {dashConfig.backendHealth.message ??
-              "Bots, intel, learning, and live CRM data are unavailable until Render is restored."}{" "}
-            <a
-              href={
-                dashConfig.backendHealth.render_dashboard_url ??
-                "https://dashboard.render.com/web/srv-da848ms9v7es739k38jg"
-              }
-              target="_blank"
-              rel="noopener noreferrer"
-              className="underline hover:text-white"
-            >
-              Fix billing in Render →
-            </a>
-            {dashConfig.backendHealth.recovery_steps?.[3] && (
-              <span className="ml-2 text-amber-300">
-                {dashConfig.backendHealth.recovery_steps[3]}
-              </span>
+      {backendOffline && (
+        <div
+          className={cn(
+            "border-b px-6 py-3",
+            offlineKind === "billing"
+              ? "bg-apex-red/20 border-apex-red/40"
+              : "bg-amber-500/15 border-amber-500/30"
+          )}
+        >
+          <p
+            className={cn(
+              "max-w-[1600px] mx-auto text-xs",
+              offlineKind === "billing" ? "text-apex-red" : "text-amber-300"
             )}
-            {dashConfig.backendHealth.recovery_steps?.[2] && (
-              <span className="ml-2 font-mono text-[10px] text-gray-400">
-                then {dashConfig.backendHealth.recovery_steps[2]}
+          >
+            <strong>
+              {offlineKind === "billing"
+                ? "Backend offline — Render billing suspension."
+                : "Backend unreachable — live data may be stale."}
+            </strong>{" "}
+            {backendOfflineBannerMessage(dashConfig?.backendHealth)}{" "}
+            {offlineKind === "billing" ? (
+              <>
+                <a
+                  href={
+                    dashConfig?.backendHealth?.render_dashboard_url ??
+                    "https://dashboard.render.com/web/srv-da848ms9v7es739k38jg"
+                  }
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline hover:text-white"
+                >
+                  Fix billing in Render →
+                </a>
+                {dashConfig?.backendHealth?.recovery_steps?.[3] && (
+                  <span className="ml-2 text-amber-300">
+                    {dashConfig.backendHealth.recovery_steps[3]}
+                  </span>
+                )}
+                {dashConfig?.backendHealth?.recovery_steps?.[2] && (
+                  <span className="ml-2 font-mono text-[10px] text-gray-400">
+                    then {dashConfig.backendHealth.recovery_steps[2]}
+                  </span>
+                )}
+              </>
+            ) : (
+              <span className="ml-2 text-gray-400">
+                Retrying every 60s — if Render is waking, data should resume shortly.
               </span>
             )}
           </p>
@@ -1237,6 +1267,7 @@ export default function Dashboard() {
             ) : null}
             <LearningPendingBanner
               pending={learningStats?.insights_pending ?? 0}
+              backendOffline={backendOffline}
             />
             <IntelPatternAlertBanner
               alerts={intelPatternAlerts}
@@ -2202,7 +2233,13 @@ function LearningOfflineBanner({
   );
 }
 
-function LearningPendingBanner({ pending }: { pending: number }) {
+function LearningPendingBanner({
+  pending,
+  backendOffline,
+}: {
+  pending: number;
+  backendOffline?: boolean;
+}) {
   const [applying, setApplying] = useState(false);
   const [result, setResult] = useState<string | null>(null);
 
@@ -2215,11 +2252,16 @@ function LearningPendingBanner({ pending }: { pending: number }) {
           <p>
             {pending} content-study insight(s) pending application — auto-applies every 1h when
             confidence ≥ 55%.
+            {backendOffline ? (
+              <span className="block mt-1 text-gray-500">
+                Resume the Render backend before applying insights manually.
+              </span>
+            ) : null}
           </p>
         ) : null}
         {result ? <p className="text-apex-green mt-1">{result}</p> : null}
       </div>
-      {pending > 0 ? (
+      {pending > 0 && !backendOffline ? (
         <button
           type="button"
           disabled={applying}
