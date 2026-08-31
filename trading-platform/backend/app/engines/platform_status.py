@@ -257,8 +257,13 @@ async def _build_platform_status_uncached(session: AsyncSession) -> dict[str, An
     stocks_session=us_sess,
   )
   session_open_events = await get_session_open_events(session)
+  from app.engines.platform_outage_log import (
+    get_platform_outage_events,
+    record_platform_online_heartbeat,
+  )
   from app.engines.session_open_checklist_summary import build_session_open_checklist_summaries
 
+  platform_outage_events = await get_platform_outage_events(session)
   session_open_checklists = await build_session_open_checklist_summaries(session)
   gate_tightening_data = gate_payload["gate_entry_tightening"]
 
@@ -285,6 +290,7 @@ async def _build_platform_status_uncached(session: AsyncSession) -> dict[str, An
   deploy_credentials_nudges = build_deploy_credentials_nudges(
     github_token_configured=bool(os.environ.get("GITHUB_TOKEN", "").strip()),
   )
+  await record_platform_online_heartbeat(session)
   return {
     "platform": "Apex Trading Platform",
     "version": "1.0.0",
@@ -303,6 +309,7 @@ async def _build_platform_status_uncached(session: AsyncSession) -> dict[str, An
     "open_ready_candidates": session_prep.get("open_ready_candidates") or [],
     "next_session_events": next_session_events,
     "session_open_events": session_open_events,
+    "platform_outage_events": platform_outage_events,
     "session_open_checklists": session_open_checklists,
     "bots": bots,
     "intelligence": {

@@ -34,9 +34,11 @@ gate = snap.get("gate") or {}
 print(f"Gate: trades={gate.get('total_trades')} WR={gate.get('win_rate')} ready={gate.get('live_trading_ready')}")
 PY
   CHECKLIST=$(fetch_json "$BACKEND/api/gate/us-stocks-open-checklist" 90 2)
-  CHECKLIST="$CHECKLIST" python3 << 'PY'
+  STATUS=$(fetch_json "$BACKEND/api/status" 60 2)
+  CHECKLIST="$CHECKLIST" STATUS="$STATUS" python3 << 'PY'
 import json, os
 d = json.loads(os.environ.get("CHECKLIST") or "{}")
+status = json.loads(os.environ.get("STATUS") or "{}")
 outage = d.get("platform_outage_recovery") or {}
 orx = d.get("open_ready") or {}
 events = d.get("session_open_events") or {}
@@ -45,6 +47,9 @@ if outage.get("window_active"):
     print(f"  platform_outage_recovery: window_active grace_remaining_min={outage.get('grace_minutes_remaining')}")
 if outage.get("logged"):
     print("  platform_outage_recovery: logged")
+outage_events = status.get("platform_outage_events") or []
+if outage_events:
+    print(f"Platform outage events logged: {len(outage_events)} (newest gap {outage_events[0].get('gap_minutes')}m)")
 PY
   exit 0
 fi
@@ -78,7 +83,7 @@ if dow == 1:
         print(f"Standard burst grace (60 min): {'EXPIRED' if since_open > 60 else f'{60 - since_open} min left'}")
         print(f"Platform outage grace (270 min): {'EXPIRED' if ext_left == 0 else f'{ext_left} min left (~{ext_left // 60}h {ext_left % 60}m)'}")
         if ext_left > 0:
-            print("Queued AAPL catch-up still possible if prep state preserved and r451 deploys on resume")
+            print("Queued AAPL catch-up still possible if prep state preserved and r453 deploys on resume")
         else:
             print("Platform outage grace expired — only normal scan intervals after resume")
 else:

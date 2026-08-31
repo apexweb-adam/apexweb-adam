@@ -28,6 +28,7 @@ import {
   type PlatformStatus,
   type SessionOpenEvent,
   type SessionOpenChecklists,
+  type PlatformOutageEvent,
 } from "./api";
 
 type LiveData = {
@@ -51,6 +52,7 @@ type LiveData = {
   nextSessionEvents: NextSessionEvents | null;
   contentStudy: ContentStudySummary | null;
   sessionOpenEvents: SessionOpenEvent[];
+  platformOutageEvents: PlatformOutageEvent[];
   sessionOpenChecklists: SessionOpenChecklists | null;
   cmeDeployUrgency: {
     active: boolean;
@@ -94,6 +96,7 @@ export function useLiveData(): LiveData {
   const [nextSessionEvents, setNextSessionEvents] = useState<NextSessionEvents | null>(null);
   const [contentStudy, setContentStudy] = useState<ContentStudySummary | null>(null);
   const [sessionOpenEvents, setSessionOpenEvents] = useState<SessionOpenEvent[]>([]);
+  const [platformOutageEvents, setPlatformOutageEvents] = useState<PlatformOutageEvent[]>([]);
   const [sessionOpenChecklists, setSessionOpenChecklists] = useState<SessionOpenChecklists | null>(null);
   const [cmeDeployUrgency, setCmeDeployUrgency] = useState<LiveData["cmeDeployUrgency"]>(null);
   const [cmeDeployWindow, setCmeDeployWindow] = useState<LiveData["cmeDeployWindow"]>(null);
@@ -147,6 +150,9 @@ export function useLiveData(): LiveData {
       if (status.content_study) setContentStudy(status.content_study as ContentStudySummary);
       if (status.session_open_events) {
         setSessionOpenEvents(status.session_open_events as SessionOpenEvent[]);
+      }
+      if (status.platform_outage_events) {
+        setPlatformOutageEvents(status.platform_outage_events as PlatformOutageEvent[]);
       }
       if (status.session_open_checklists) {
         setSessionOpenChecklists(status.session_open_checklists as SessionOpenChecklists);
@@ -208,6 +214,9 @@ export function useLiveData(): LiveData {
     if (data.content_study) setContentStudy(data.content_study as ContentStudySummary);
     if (data.session_open_events) {
       setSessionOpenEvents(data.session_open_events as SessionOpenEvent[]);
+    }
+    if (data.platform_outage_events) {
+      setPlatformOutageEvents(data.platform_outage_events as PlatformOutageEvent[]);
     }
     if (data.session_open_checklists) {
       setSessionOpenChecklists(data.session_open_checklists as SessionOpenChecklists);
@@ -292,6 +301,7 @@ export function useLiveData(): LiveData {
     nextSessionEvents,
     contentStudy,
     sessionOpenEvents,
+    platformOutageEvents,
     sessionOpenChecklists,
     cmeDeployUrgency,
     cmeDeployWindow,

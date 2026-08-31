@@ -247,6 +247,10 @@ class LearningEngine:
     if low_signal_losses:
       patterns.append(f"{len(low_signal_losses)} losses had weak signals (<0.5)")
 
+    from app.engines.platform_outage_log import platform_outage_patterns_for_review
+
+    patterns.extend(await platform_outage_patterns_for_review(self.session, review_date))
+
     if bot_type == "polymarket":
       overbought_losses = [
         t for t in losing if "overbought" in (t.reason or "").lower()

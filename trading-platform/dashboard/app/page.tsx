@@ -58,6 +58,7 @@ import type {
   BotSessions,
   SessionOpenEvent,
   SessionOpenChecklists,
+  PlatformOutageEvent,
 } from "@/lib/api";
 import { enrichProfitabilityStatus, activeGateToProfitability, buildEquityHistoryFromTrades } from "@/lib/profitability";
 import { VerificationPnLChart } from "@/components/VerificationPnLChart";
@@ -66,7 +67,7 @@ import { IntelRoutingPanel } from "@/components/IntelRoutingPanel";
 type Tab = "overview" | "trades" | "positions" | "intelligence" | "learning" | "strategy";
 
 export default function Dashboard() {
-  const { stats, portfolios, bots, positions: livePositions, trades: liveTrades, recentIntel, analyses: liveAnalyses, reviews: liveReviews, insights: liveInsights, strategies: liveStrategies, intelSources: liveIntelSources, verificationHistory: liveVerificationHistory, connected, lastUpdate, lastTrade, profitabilityGate: liveProfitability, gateEntryTightening, botSessions, mondayRecovery, sessionPrep, nextSessionEvents, contentStudy, sessionOpenEvents, sessionOpenChecklists, cmeDeployUrgency, cmeDeployWindow, liveDeploy } = useLiveData();
+  const { stats, portfolios, bots, positions: livePositions, trades: liveTrades, recentIntel, analyses: liveAnalyses, reviews: liveReviews, insights: liveInsights, strategies: liveStrategies, intelSources: liveIntelSources, verificationHistory: liveVerificationHistory, connected, lastUpdate, lastTrade, profitabilityGate: liveProfitability, gateEntryTightening, botSessions, mondayRecovery, sessionPrep, nextSessionEvents, contentStudy, sessionOpenEvents, platformOutageEvents, sessionOpenChecklists, cmeDeployUrgency, cmeDeployWindow, liveDeploy } = useLiveData();
   const { data: tradesRest } = useAPI<Trade[]>("/trades?limit=50", 30000);
   const { data: gateTradesRest } = useAPI<Trade[]>("/trades?limit=200", 30000);
   const { data: positionsRest } = useAPI<Position[]>("/positions", 30000);
@@ -381,6 +382,13 @@ export default function Dashboard() {
                   sessionOpenEvents.length > 0
                     ? sessionOpenEvents
                     : platformStatus?.session_open_events
+                }
+              />
+              <PlatformOutageEventsCard
+                events={
+                  platformOutageEvents.length > 0
+                    ? platformOutageEvents
+                    : platformStatus?.platform_outage_events
                 }
               />
               <MondayRecoveryBanner summary={mondayRecovery} />
@@ -1909,7 +1917,9 @@ function SessionOpenLogCard({ events }: { events?: SessionOpenEvent[] }) {
                             ? "text-sky-300"
                             : evt.event_type === "near_floor"
                               ? "text-amber-300"
-                              : "text-violet-300/80"
+                              : evt.event_type === "platform_outage"
+                                ? "text-orange-300"
+                                : "text-violet-300/80"
                     }
                   >
                     {evt.event_type}
@@ -1917,6 +1927,45 @@ function SessionOpenLogCard({ events }: { events?: SessionOpenEvent[] }) {
                 </td>
                 <td className="pr-2">{evt.symbols?.join(", ") || "—"}</td>
                 <td className="text-gray-400">{evt.detail ?? "—"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function PlatformOutageEventsCard({ events }: { events?: PlatformOutageEvent[] }) {
+  if (!events?.length) return null;
+
+  return (
+    <div className="rounded-lg border border-orange-500/30 bg-orange-950/20 p-4">
+      <p className="text-sm font-medium text-orange-300 mb-2">Platform downtime log</p>
+      <p className="text-[11px] text-gray-400 mb-2">
+        Gaps detected on startup (e.g. Render billing suspension). Used for learning and post-mortems.
+      </p>
+      <div className="overflow-x-auto">
+        <table className="w-full text-[11px] text-gray-300">
+          <thead>
+            <tr className="text-gray-500">
+              <th className="text-left pr-2">Detected (UTC)</th>
+              <th className="text-left pr-2">Gap</th>
+              <th className="text-left pr-2">US queued</th>
+              <th className="text-left pr-2">CME queued</th>
+              <th className="text-left">Revision</th>
+            </tr>
+          </thead>
+          <tbody>
+            {events.slice(0, 5).map((evt, idx) => (
+              <tr key={`${evt.detected_at}-${idx}`}>
+                <td className="pr-2 whitespace-nowrap">
+                  {evt.detected_at ? formatTime(evt.detected_at) : "—"}
+                </td>
+                <td className="pr-2 text-orange-300">{evt.gap_minutes}m</td>
+                <td className="pr-2">{evt.us_open_ready_symbols?.join(", ") || "—"}</td>
+                <td className="pr-2">{evt.cme_open_ready_symbols?.join(", ") || "—"}</td>
+                <td className="text-gray-400">{evt.platform_revision ?? "—"}</td>
               </tr>
             ))}
           </tbody>

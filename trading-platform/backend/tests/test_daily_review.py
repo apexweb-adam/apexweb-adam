@@ -2,12 +2,14 @@
 
 import asyncio
 from datetime import datetime
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from app.engines.learning_engine import LearningEngine
 from app.models.entities import DailyReview, Trade
+
+OUTAGE_PATCH = "app.engines.platform_outage_log.platform_outage_patterns_for_review"
 
 
 def _sell_trade(**overrides):
@@ -46,7 +48,8 @@ def test_run_daily_review_creates_review_with_patterns():
   learner = LearningEngine(session)
   learner._apply_adjustments = AsyncMock()
 
-  review = asyncio.run(learner.run_daily_review("crypto", "2026-08-30"))
+  with patch(OUTAGE_PATCH, new=AsyncMock(return_value=[])):
+    review = asyncio.run(learner.run_daily_review("crypto", "2026-08-30"))
 
   assert review.total_trades == 3
   assert review.losing_trades == 2
@@ -97,7 +100,8 @@ def test_run_daily_review_upserts_existing_row():
   learner = LearningEngine(session)
   learner._apply_adjustments = AsyncMock()
 
-  review = asyncio.run(learner.run_daily_review("polymarket", "2026-08-30"))
+  with patch(OUTAGE_PATCH, new=AsyncMock(return_value=[])):
+    review = asyncio.run(learner.run_daily_review("polymarket", "2026-08-30"))
 
   assert review is existing
   assert review.total_trades == 2
@@ -119,7 +123,30 @@ def test_run_daily_review_empty_day():
   learner = LearningEngine(session)
   learner._apply_adjustments = AsyncMock()
 
-  review = asyncio.run(learner.run_daily_review("stocks_futures", "2026-08-30"))
+  with patch(OUTAGE_PATCH, new=AsyncMock(return_value=[])):
+    review = asyncio.run(learner.run_daily_review("stocks_futures", "2026-08-30"))
 
   assert review.total_trades == 0
   assert "no trades" in (review.conclusions or "").lower()
+
+
+def test_run_daily_review_includes_platform_outage_patterns():
+  session = AsyncMock()
+  session.execute = AsyncMock(
+    side_effect=[
+      MagicMock(scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=[])))),
+      MagicMock(scalar_one_or_none=MagicMock(return_value=None)),
+    ]
+  )
+  session.commit = AsyncMock()
+  session.add = MagicMock()
+
+  learner = LearningEngine(session)
+  learner._apply_adjustments = AsyncMock()
+
+  outage_patterns = ["Platform downtime 95min — missed session open with queued: AAPL"]
+  with patch(OUTAGE_PATCH, new=AsyncMock(return_value=outage_patterns)):
+    review = asyncio.run(learner.run_daily_review("stocks_futures", "2026-08-30"))
+
+  assert "Platform downtime 95min" in (review.patterns_found or "")
+  assert "AAPL" in (review.patterns_found or "")

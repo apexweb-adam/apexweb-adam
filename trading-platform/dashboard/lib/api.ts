@@ -398,6 +398,18 @@ export type SessionOpenEvent = {
   detail?: string | null;
 };
 
+export type PlatformOutageEvent = {
+  detected_at: string;
+  last_online_utc?: string | null;
+  gap_minutes: number;
+  platform_revision?: string | null;
+  stocks_in_session?: boolean;
+  stocks_minutes_since_open?: number | null;
+  cme_in_session?: boolean;
+  us_open_ready_symbols?: string[];
+  cme_open_ready_symbols?: string[];
+};
+
 export type SessionOpenChecklistSummary = {
   ready: boolean;
   phase?: string;
@@ -736,6 +748,7 @@ export type PlatformStatus = {
   open_ready_candidates?: string[];
   next_session_events?: NextSessionEvents;
   session_open_events?: SessionOpenEvent[];
+  platform_outage_events?: PlatformOutageEvent[];
   session_open_checklists?: SessionOpenChecklists;
   deploy?: PlatformDeployStatus;
 };

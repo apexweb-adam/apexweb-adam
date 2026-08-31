@@ -1011,6 +1011,14 @@ async def setup_scheduler() -> None:
     synced = await sync_bot_strategy_versions(session)
     if synced:
       print(f"[Strategy] Synced strategy version on {synced} bot(s)")
+    from app.engines.platform_outage_log import detect_and_log_platform_outage
+
+    outage = await detect_and_log_platform_outage(session)
+    if outage:
+      print(
+        f"[PlatformOutage] Logged {outage.get('gap_minutes')}min gap — "
+        f"US queued={outage.get('us_open_ready_symbols')}"
+      )
   scheduler.add_job(intelligence_job, "interval", minutes=5, id="intelligence_scan")
   scheduler.add_job(content_study_job, "interval", hours=1, id="content_study")
   scheduler.add_job(risk_migration_job, "interval", minutes=15, id="risk_migration")
