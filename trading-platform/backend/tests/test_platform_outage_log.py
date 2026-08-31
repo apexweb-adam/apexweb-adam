@@ -85,6 +85,36 @@ async def test_platform_outage_patterns_for_review(session: AsyncSession):
 
 
 @pytest.mark.asyncio
+async def test_platform_outage_patterns_for_held_positions(session: AsyncSession):
+  from app.engines.platform_outage_log import platform_outage_patterns_for_review
+
+  today = datetime.utcnow().strftime("%Y-%m-%d")
+  await set_platform_setting(
+    session,
+    PLATFORM_OUTAGE_EVENTS_KEY,
+    json.dumps(
+      [
+        {
+          "detected_at": f"{today}T15:00:00",
+          "gap_minutes": 120,
+          "us_open_ready_symbols": [],
+          "cme_open_ready_symbols": [],
+          "held_open_positions": [
+            {"bot_type": "commodities", "symbol": "GC=F"},
+            {"bot_type": "commodities", "symbol": "EURUSD=X"},
+          ],
+          "cme_in_session": True,
+        }
+      ]
+    ),
+  )
+  patterns = await platform_outage_patterns_for_review(session, today)
+  assert len(patterns) == 1
+  assert "2 open position" in patterns[0]
+  assert "GC=F" in patterns[0]
+
+
+@pytest.mark.asyncio
 async def test_detect_skips_short_gap(session: AsyncSession):
   last = (datetime.utcnow() - timedelta(minutes=5)).isoformat()
   await set_platform_setting(session, PLATFORM_LAST_ONLINE_KEY, last)

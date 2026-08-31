@@ -1953,6 +1953,7 @@ function PlatformOutageEventsCard({ events }: { events?: PlatformOutageEvent[] }
               <th className="text-left pr-2">Gap</th>
               <th className="text-left pr-2">US queued</th>
               <th className="text-left pr-2">CME queued</th>
+              <th className="text-left pr-2">Held</th>
               <th className="text-left">Revision</th>
             </tr>
           </thead>
@@ -1965,6 +1966,13 @@ function PlatformOutageEventsCard({ events }: { events?: PlatformOutageEvent[] }
                 <td className="pr-2 text-orange-300">{evt.gap_minutes}m</td>
                 <td className="pr-2">{evt.us_open_ready_symbols?.join(", ") || "—"}</td>
                 <td className="pr-2">{evt.cme_open_ready_symbols?.join(", ") || "—"}</td>
+                <td className="pr-2 text-amber-200">
+                  {evt.held_open_positions?.length
+                    ? evt.held_open_positions
+                        .map((row) => `${row.symbol}(${row.bot_type})`)
+                        .join(", ")
+                    : "—"}
+                </td>
                 <td className="text-gray-400">{evt.platform_revision ?? "—"}</td>
               </tr>
             ))}

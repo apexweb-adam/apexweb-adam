@@ -408,6 +408,7 @@ export type PlatformOutageEvent = {
   cme_in_session?: boolean;
   us_open_ready_symbols?: string[];
   cme_open_ready_symbols?: string[];
+  held_open_positions?: { bot_type: string; symbol: string }[];
 };
 
 export type SessionOpenChecklistSummary = {

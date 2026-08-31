@@ -150,6 +150,25 @@ DOW="$(date -u +%u)"
 HOUR="$(date -u +%H)"
 if [[ "$SKIP_STOCKS" == false && "$DOW" == "1" && "$HOUR" -ge 13 && "$HOUR" -le 21 ]]; then
   echo ""
+  echo "=== US stocks scan preview (outage catch-up) ==="
+  fetch_json "$BACKEND/api/bots/stocks_futures/scan-preview" 120 3 > /tmp/stocks-scan.json 2>/dev/null || true
+  if [[ -f /tmp/stocks-scan.json ]]; then
+    python3 - << 'PY'
+import json
+from pathlib import Path
+data = json.loads(Path("/tmp/stocks-scan.json").read_text(encoding="utf-8") or "{}")
+held = data.get("held_symbols") or []
+open_ready = data.get("open_ready_candidates") or []
+would_enter = [row.get("symbol") for row in (data.get("symbols") or []) if row.get("would_enter")]
+print(f"  stocks held={held or 'none'} open_ready_candidates={open_ready or 'none'}")
+if would_enter:
+    print(f"  would_enter={would_enter}")
+imminent = data.get("stocks_open_imminent_scan")
+if imminent:
+    print(f"  stocks_open_imminent_scan={imminent}")
+PY
+  fi
+  echo ""
   echo "=== US stocks post-open verification (Monday session) ==="
   bash "$ROOT/scripts/verify-us-stocks-post-open.sh" --watch 120 || true
 fi
