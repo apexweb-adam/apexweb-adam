@@ -889,7 +889,15 @@ def test_build_scan_preview_stocks_monday_gate_skip_ready():
                                 "minutes_since_open": 0,
                               },
                             ):
-                              return await build_scan_preview(session, "stocks_futures")
+                              with patch(
+                                "app.engines.gate_entry_guard.stocks_session_info",
+                                return_value={
+                                  "in_session": False,
+                                  "minutes_until_open": 45,
+                                  "minutes_since_open": 0,
+                                },
+                              ):
+                                return await build_scan_preview(session, "stocks_futures")
 
   import asyncio
 
