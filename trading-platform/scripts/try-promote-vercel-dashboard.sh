@@ -16,7 +16,7 @@ $(PROMOTE_JSON="$DASH_JSON" python3 << 'PY'
 import json, os
 data = json.loads(os.environ.get("PROMOTE_JSON") or "{}")
 print(data.get("vercel_promote_deployment_id") or "")
-print(data.get("recommended_url") or data.get("verified_preview_url") or "")
+print(data.get("verified_preview_url") or data.get("verified_dashboard_url") or data.get("recommended_url") or "")
 PY
 )
 EOF

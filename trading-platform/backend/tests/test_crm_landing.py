@@ -1009,7 +1009,7 @@ def test_crm_landing_shows_dashboard_bundle_behind_expected():
     "vercel_bundle_behind_expected": True,
     "vercel_bundle_revision": "2026-08-29-r67",
     "expected_dashboard_bundle": "2026-08-29-r98",
-    "vercel_promote_deployment_id": "dpl_Cn62LPUnD83i28cydia12AKr3uUw",
+    "vercel_promote_deployment_id": "dpl_FapXAbo4Dv8WKU8ZEtDYtC7FryU7",
     "production_proxy_operational": True,
     "is_stale": False,
     "platform_revision": "2026-08-29-r336",
