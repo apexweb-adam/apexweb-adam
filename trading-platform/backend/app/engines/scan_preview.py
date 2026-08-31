@@ -643,6 +643,8 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
       shadow_open_cap=shadow_cap,
       profit_factor=per_bot_stats.get("profit_factor"),
       total_pnl=per_bot_stats.get("total_pnl"),
+      gate_status=gate_status,
+      per_bot_stats=per_bot_stats,
     )
     if cooldown_remaining > 0:
       blockers.append("symbol_cooldown")

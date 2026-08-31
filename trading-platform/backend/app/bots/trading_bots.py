@@ -29,6 +29,7 @@ from app.engines.gate_entry_guard import (
   bot_win_rate_for_graduation_nudge,
   commodities_graduation_entry_min_signal,
   commodities_graduation_ease_active,
+  commodities_verification_cooldown_bypass,
   commodities_verification_entry_min_signal,
   commodities_verification_min_sentiment,
   commodities_verification_trade_count_nudge,
@@ -922,11 +923,23 @@ class BaseBot(ABC):
           last_exit_reason=self._last_exit_reason.get(symbol),
           last_exit_after_loss=self._last_exit_after_loss.get(symbol),
         )
+        verification_cooldown_waived = commodities_verification_cooldown_bypass(
+          bot_type=self.bot_type,
+          shadow_mode=shadow_mode,
+          symbol=symbol,
+          proven_winners=proven_winners,
+          gate_status=gate_status,
+          per_bot_stats=per_bot_stats,
+          signal_direction=signal.direction,
+          macd_signal=signal.macd_signal,
+          composite=composite,
+        )
         if (
           not weekend_spot_cooldown_waived
           and not monday_commodities_cooldown_waived
           and not monday_stocks_cooldown_waived
           and not retreat_cooldown_waived
+          and not verification_cooldown_waived
         ):
           cooldown = self._symbol_cooldown_until.get(symbol)
           if cooldown and datetime.utcnow() < cooldown:
@@ -949,6 +962,8 @@ class BaseBot(ABC):
           shadow_open_cap=shadow_open_cap,
           profit_factor=per_bot_stats.get("profit_factor"),
           total_pnl=per_bot_stats.get("total_pnl"),
+          gate_status=gate_status,
+          per_bot_stats=per_bot_stats,
         ):
           continue
 
@@ -1407,6 +1422,8 @@ class BaseBot(ABC):
             reason += " | monday_futures_gate_skip"
           if weekend_spot_cooldown_waived:
             reason += " | weekend_spot_gate_skip"
+          if verification_cooldown_waived:
+            reason += " | verification_cooldown_bypass"
           if getattr(self, "_session_open_burst", False):
             reason += " | session_open_burst"
           buy_scale = SHADOW_POSITION_SCALE if shadow_mode else 1.0

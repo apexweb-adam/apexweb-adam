@@ -892,6 +892,35 @@ def commodities_verification_gate_skip_bypass(
   return composite >= COMMODITIES_VERIFICATION_TRADE_COUNT_MIN_COMPOSITE
 
 
+def commodities_verification_cooldown_bypass(
+  *,
+  bot_type: str,
+  shadow_mode: bool,
+  symbol: str,
+  proven_winners: frozenset[str],
+  gate_status: dict[str, Any],
+  per_bot_stats: dict[str, Any],
+  signal_direction: str,
+  macd_signal: str,
+  composite: float,
+) -> bool:
+  """Clear post-loss cooldown for strong verification-gap commodities entries."""
+  if shadow_mode or bot_type != "commodities":
+    return False
+  if not commodities_verification_trade_count_nudge(
+    bot_type, shadow_mode, gate_status, per_bot_stats
+  ):
+    return False
+  if signal_direction != "buy" or macd_signal != "bullish":
+    return False
+  if (
+    symbol in proven_winners
+    and composite >= COMMODITIES_VERIFICATION_TRADE_COUNT_MIN_COMPOSITE
+  ):
+    return True
+  return composite >= COMMODITIES_HIGH_COMPOSITE_RECOVERY_FLOOR
+
+
 def commodities_verification_min_sentiment(
   base_min_sentiment: float,
   *,
@@ -2943,6 +2972,8 @@ async def is_symbol_in_trade_cooldown(
   shadow_open_cap: int | None = None,
   profit_factor: float | None = None,
   total_pnl: float | None = None,
+  gate_status: dict[str, Any] | None = None,
+  per_bot_stats: dict[str, Any] | None = None,
 ) -> bool:
   """DB-backed re-entry cooldown — survives deploy restarts."""
   remaining = await symbol_cooldown_remaining_seconds(
@@ -2963,6 +2994,8 @@ async def is_symbol_in_trade_cooldown(
     shadow_open_cap=shadow_open_cap,
     profit_factor=profit_factor,
     total_pnl=total_pnl,
+    gate_status=gate_status,
+    per_bot_stats=per_bot_stats,
   )
   return remaining > 0
 
@@ -2986,8 +3019,26 @@ async def symbol_cooldown_remaining_seconds(
   shadow_open_cap: int | None = None,
   profit_factor: float | None = None,
   total_pnl: float | None = None,
+  gate_status: dict[str, Any] | None = None,
+  per_bot_stats: dict[str, Any] | None = None,
 ) -> int:
   """Seconds until symbol re-entry is allowed after last sell."""
+  if (
+    gate_status is not None
+    and per_bot_stats is not None
+    and commodities_verification_cooldown_bypass(
+      bot_type=bot_type,
+      shadow_mode=shadow_mode,
+      symbol=symbol,
+      proven_winners=proven_winners,
+      gate_status=gate_status,
+      per_bot_stats=per_bot_stats,
+      signal_direction=signal_direction,
+      macd_signal=macd_signal,
+      composite=composite,
+    )
+  ):
+    return 0
   if commodities_weekend_spot_gate_skip_bypass(
     bot_type=bot_type,
     shadow_mode=shadow_mode,
@@ -3078,6 +3129,7 @@ async def symbol_cooldown_remaining_seconds(
   if (
     is_winner is False
     and graduation_nudge
+    and shadow_mode
     and bot_type in ("crypto", "commodities")
   ):
     seconds = int(seconds * SHADOW_GRADUATION_LOSS_COOLDOWN_MULTIPLIER)
