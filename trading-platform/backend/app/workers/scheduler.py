@@ -262,7 +262,11 @@ async def stocks_open_ready_watch_job() -> None:
 HELD_TV_REFRESH_MAX_AGE_HOURS = 6
 
 
-async def held_positions_tv_refresh_job() -> None:
+async def held_positions_tv_refresh_job(
+  *,
+  force_refresh: bool = False,
+  reason_prefix: str = "Held-position TV refresh",
+) -> list[str]:
   """Refresh stale TradingView boosts for symbols in open active-gate positions."""
   from app.engines.integration_signals import refresh_tradingview_signals
   from app.engines.paper_trading import PaperTradingEngine
@@ -278,18 +282,20 @@ async def held_positions_tv_refresh_job() -> None:
         if position.symbol:
           symbols.add(position.symbol)
     if not symbols:
-      return
+      return []
     refreshed = await refresh_tradingview_signals(
       session,
       sorted(symbols),
-      reason_prefix="Held-position TV refresh",
-      max_age_hours=HELD_TV_REFRESH_MAX_AGE_HOURS,
+      reason_prefix=reason_prefix,
+      max_age_hours=0 if force_refresh else HELD_TV_REFRESH_MAX_AGE_HOURS,
+      force_refresh=force_refresh,
     )
   if refreshed:
     print(f"[HeldTVRefresh] Refreshed TradingView signals for {', '.join(refreshed)}")
     from app.ws_manager import push_live_update
 
     await push_live_update()
+  return refreshed
 
 
 COMMODITIES_PREP_SYMBOLS = ("CL=F", "SI=F", "NG=F", "GC=F", "HG=F")
@@ -1019,6 +1025,14 @@ async def setup_scheduler() -> None:
         f"[PlatformOutage] Logged {outage.get('gap_minutes')}min gap — "
         f"US queued={outage.get('us_open_ready_symbols')}"
       )
+      refreshed = await held_positions_tv_refresh_job(
+        force_refresh=True,
+        reason_prefix="Platform outage recovery TV refresh",
+      )
+      if refreshed:
+        print(
+          f"[PlatformOutage] Force-refreshed TV for held positions: {', '.join(refreshed)}"
+        )
   scheduler.add_job(intelligence_job, "interval", minutes=5, id="intelligence_scan")
   scheduler.add_job(content_study_job, "interval", hours=1, id="content_study")
   scheduler.add_job(risk_migration_job, "interval", minutes=15, id="risk_migration")
