@@ -199,3 +199,64 @@ def test_run_daily_review_detects_recurring_intel_loss_patterns():
   assert "tiktok" in (review.patterns_found or "").lower()
   assert "intel confirmation" in (review.patterns_found or "").lower()
   learner._apply_adjustments.assert_awaited()
+
+
+def test_run_daily_review_detects_recurring_newsapi_intel_loss_patterns():
+  trade_day = datetime(2026, 8, 31, 15, 0, 0)
+  trades = [
+    _sell_trade(
+      id=11,
+      bot_type="stocks_futures",
+      pnl=-1.1,
+      is_winner=False,
+      reason="newsapi headline breakout",
+      executed_at=trade_day,
+    ),
+    _sell_trade(
+      id=12,
+      bot_type="stocks_futures",
+      symbol="NVDA",
+      pnl=-0.85,
+      is_winner=False,
+      reason="Long on earnings headline",
+      executed_at=trade_day,
+    ),
+    _sell_trade(
+      id=13,
+      bot_type="stocks_futures",
+      symbol="MSFT",
+      pnl=1.0,
+      is_winner=True,
+      signal_score=0.72,
+      executed_at=trade_day,
+    ),
+  ]
+  analysis_one = MagicMock(
+    trade_id=11,
+    root_cause="News headline influenced entry without local technical confirmation",
+    lessons_learned="wait for TA alignment",
+  )
+  analysis_two = MagicMock(
+    trade_id=12,
+    root_cause="Entered long against bearish news headline intel",
+    lessons_learned="align with headline sentiment",
+  )
+  session = AsyncMock()
+  session.execute = AsyncMock(
+    side_effect=[
+      MagicMock(scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=trades)))),
+      MagicMock(scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=[analysis_one, analysis_two])))),
+      MagicMock(scalar_one_or_none=MagicMock(return_value=None)),
+    ]
+  )
+  session.commit = AsyncMock()
+  session.add = MagicMock()
+
+  learner = LearningEngine(session)
+  learner._apply_adjustments = AsyncMock()
+
+  with patch(OUTAGE_PATCH, new=AsyncMock(return_value=[])):
+    review = asyncio.run(learner.run_daily_review("stocks_futures", "2026-08-31"))
+
+  assert "news headline" in (review.patterns_found or "").lower()
+  assert "intel confirmation" in (review.patterns_found or "").lower()

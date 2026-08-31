@@ -309,3 +309,69 @@ def test_study_live_intel_sources_applies_newsapi_item():
   call_kwargs = learner.apply_external_insight.await_args.kwargs
   assert "commodities bot" in call_kwargs["impact"].lower()
   assert "news headline" in call_kwargs["impact"].lower()
+
+
+def test_study_live_intel_sources_applies_reddit_item():
+  item = SimpleNamespace(
+    id=5,
+    source="reddit",
+    title="WSB yolo on NVDA",
+    content="wallstreetbets bullish thread",
+    url="https://reddit.example/nvda",
+    symbols_mentioned="NVDA",
+    sentiment=0.36,
+    relevance_score=0.68,
+    applied=False,
+  )
+
+  session = AsyncMock()
+  session.execute = AsyncMock(
+    return_value=MagicMock(scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=[item]))))
+  )
+  session.commit = AsyncMock()
+
+  insight = MagicMock(applied=True)
+  learner = MagicMock()
+  learner.apply_external_insight = AsyncMock(return_value=insight)
+
+  engine = ContentStudyEngine(session)
+  engine.learner = learner
+
+  applied = asyncio.run(engine._study_live_intel_sources())
+
+  assert applied == 1
+  call_kwargs = learner.apply_external_insight.await_args.kwargs
+  assert "reddit" in call_kwargs["impact"].lower()
+
+
+def test_study_live_intel_sources_applies_tradingview_item():
+  item = SimpleNamespace(
+    id=6,
+    source="tradingview",
+    title="TradingView alert: AAPL buy",
+    content="strategy order buy signal",
+    url="https://tradingview.example/aapl",
+    symbols_mentioned="AAPL",
+    sentiment=0.25,
+    relevance_score=0.82,
+    applied=False,
+  )
+
+  session = AsyncMock()
+  session.execute = AsyncMock(
+    return_value=MagicMock(scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=[item]))))
+  )
+  session.commit = AsyncMock()
+
+  insight = MagicMock(applied=True)
+  learner = MagicMock()
+  learner.apply_external_insight = AsyncMock(return_value=insight)
+
+  engine = ContentStudyEngine(session)
+  engine.learner = learner
+
+  applied = asyncio.run(engine._study_live_intel_sources())
+
+  assert applied == 1
+  call_kwargs = learner.apply_external_insight.await_args.kwargs
+  assert "tradingview" in call_kwargs["impact"].lower()

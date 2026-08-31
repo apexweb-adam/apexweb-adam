@@ -249,7 +249,7 @@ if crypto_held:
 elif bots.get("crypto", {}).get("active"):
     print("  crypto_bot=active (no open positions reported)")
 
-session_events = status.get("session_open_events") or []
+session_events = data.get("session_open_events") or []
 stocks_outage = [
     e for e in session_events
     if e.get("bot_type") == "stocks_futures" and e.get("event_type") == "platform_outage"

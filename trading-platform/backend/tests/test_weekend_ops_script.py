@@ -112,6 +112,7 @@ def test_recover_render_billing_triggers_deploy_when_behind():
   assert "extended burst grace expired" in text
   assert "r467+" in text
   assert "has_outage_recovery_scan" in text
+  assert 'data.get("session_open_events")' in text
 
 
 def test_render_billing_recovery_workflow_monday_urgent_poll():
