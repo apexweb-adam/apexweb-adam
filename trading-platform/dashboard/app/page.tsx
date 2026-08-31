@@ -2073,6 +2073,17 @@ function BillingOutageRecoveryCard({
               >
                 <p className="font-medium text-orange-200">{bot.label}</p>
                 <p className="text-gray-400 mt-0.5">{bot.action}</p>
+                {bot.held_symbols && bot.held_symbols.length > 0 ? (
+                  <p className="text-amber-300/90 mt-1">
+                    Held at risk:{" "}
+                    <span className="font-mono">{bot.held_symbols.join(", ")}</span>
+                  </p>
+                ) : null}
+                {bot.verify_script ? (
+                  <p className="text-gray-500 mt-1 font-mono text-[10px]">
+                    verify: {bot.verify_script}
+                  </p>
+                ) : null}
               </div>
             ))}
           </div>

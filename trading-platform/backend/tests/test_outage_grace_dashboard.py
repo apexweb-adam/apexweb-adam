@@ -19,6 +19,10 @@ def test_backend_suspension_exports_grace_countdown():
   assert "usCashSessionCatchupMinutesRemaining" in text
   assert "outageRecoveryBots" in text
   assert "recovery_bots" in text
+  assert "verify_script" in text
+  assert "verify-crypto-held.sh" in text
+  assert "verify-cme-post-open.sh" in text
+  assert "us_cash_session_catchup_minutes_remaining" in text
   assert "270 * 60 * 1000" in text
   assert "forces open-ready scan" in text
 
