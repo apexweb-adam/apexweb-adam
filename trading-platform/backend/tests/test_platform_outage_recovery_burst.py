@@ -214,7 +214,7 @@ def test_run_post_outage_recovery_bursts_prioritizes_stocks_when_us_queued():
   assert call_order == ["stocks_futures", "commodities"]
 
 
-def test_run_post_outage_recovery_bursts_scans_stocks_when_us_queued_not_in_burst():
+def test_run_post_outage_recovery_bursts_logs_outage_recovery_scan_for_us_queued():
   stocks_bot = MagicMock()
   stocks_bot.scan_and_trade = AsyncMock(return_value=[])
 
@@ -224,6 +224,11 @@ def test_run_post_outage_recovery_bursts_scans_stocks_when_us_queued_not_in_burs
     "held_open_positions": [],
   }
   sched.bots = {"stocks_futures": stocks_bot}
+  recorded: list[dict] = []
+
+  async def capture_event(session, **kwargs):
+    recorded.append(kwargs)
+    return kwargs
 
   with patch(
     "app.engines.gate_entry_guard.stocks_session_info",
@@ -234,12 +239,20 @@ def test_run_post_outage_recovery_bursts_scans_stocks_when_us_queued_not_in_burs
       return_value={"in_session": False},
     ):
       with patch(
-        "app.ws_manager.push_live_update",
+        "app.engines.session_open_log.record_session_open_event",
         new_callable=AsyncMock,
-      ) as mock_push:
-        import asyncio
+        side_effect=capture_event,
+      ):
+        with patch(
+          "app.ws_manager.push_live_update",
+          new_callable=AsyncMock,
+        ):
+          import asyncio
 
-        asyncio.run(sched.run_post_outage_recovery_bursts())
+          asyncio.run(sched.run_post_outage_recovery_bursts())
 
   stocks_bot.scan_and_trade.assert_awaited_once()
-  mock_push.assert_awaited_once()
+  assert any(
+    row.get("event_type") == "outage_recovery_scan" and row.get("symbols") == ["AAPL"]
+    for row in recorded
+  )
