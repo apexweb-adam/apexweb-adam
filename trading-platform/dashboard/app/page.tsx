@@ -28,7 +28,7 @@ import {
   VERIFIED_PREVIEW_URL,
   VERIFIED_PROMOTE_DEPLOYMENT_ID,
 } from "@/lib/deploy-health";
-import { detectIntelPostMortemSources } from "@/lib/intel-postmortem";
+import { detectIntelPostMortemSources, intelSourceBadge } from "@/lib/intel-postmortem";
 import {
   botLabel,
   cn,
@@ -1486,13 +1486,26 @@ export default function Dashboard() {
                     No content-study highlights yet — runs hourly from YouTube, Reddit, and live intel.
                   </p>
                 ) : (
-                  (contentStudy?.recent ?? []).map((row, idx) => (
+                  (contentStudy?.recent ?? []).map((row, idx) => {
+                    const sourceBadge = intelSourceBadge(row.source_type);
+                    return (
                     <div
                       key={`${row.source_type}-${idx}`}
                       className="p-3 rounded-lg bg-apex-dark border border-apex-border"
                     >
                       <div className="flex justify-between gap-2 mb-1">
-                        <span className="text-xs uppercase text-gray-500">{row.source_type}</span>
+                        {sourceBadge ? (
+                          <span
+                            className={cn(
+                              "text-[10px] px-2 py-0.5 rounded-full border",
+                              sourceBadge.className
+                            )}
+                          >
+                            {sourceBadge.label}
+                          </span>
+                        ) : (
+                          <span className="text-xs uppercase text-gray-500">{row.source_type}</span>
+                        )}
                         <span
                           className={cn(
                             "text-[10px] px-2 py-0.5 rounded-full",
@@ -1510,7 +1523,8 @@ export default function Dashboard() {
                         confidence {Math.round(row.confidence * 100)}%
                       </p>
                     </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
               {contentStudy && (

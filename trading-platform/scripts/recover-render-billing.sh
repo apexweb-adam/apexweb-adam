@@ -249,6 +249,18 @@ if crypto_held:
 elif bots.get("crypto", {}).get("active"):
     print("  crypto_bot=active (no open positions reported)")
 
+learning = data.get("learning") or {}
+intel_count = learning.get("intel_pattern_count") or 0
+if intel_count:
+    print(f"  learning_intel_pattern_alerts={intel_count}")
+    for alert in (learning.get("intel_pattern_alerts") or [])[:4]:
+        print(f"    intel_alert={alert}")
+content = data.get("content_study") or {}
+print(
+    f"  content_study_applied={content.get('insights_applied') or 0} "
+    f"recent_highlights={len(content.get('recent') or [])}"
+)
+
 session_events = data.get("session_open_events") or []
 stocks_outage = [
     e for e in session_events

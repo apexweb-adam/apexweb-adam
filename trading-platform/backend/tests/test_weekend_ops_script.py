@@ -113,6 +113,8 @@ def test_recover_render_billing_triggers_deploy_when_behind():
   assert "r467+" in text
   assert "has_outage_recovery_scan" in text
   assert 'data.get("session_open_events")' in text
+  assert "content_study_applied" in text
+  assert "learning_intel_pattern_alerts" in text
 
 
 def test_render_billing_recovery_workflow_monday_urgent_poll():
@@ -340,6 +342,8 @@ def test_verify_post_outage_recovery_orchestrator():
   assert "--once" in text
   assert "--skip-stocks" in text
   assert "check_backend_suspension" in text
+  assert "URGENT:" in text
+  assert "outage_recovery_scan" in text
 
 
 def test_render_billing_recovery_workflow_uses_verify_once():
@@ -527,6 +531,7 @@ def test_verify_platform_prints_intel_health_fields():
   assert "x_intel=" in text
   assert "Content study insights" in text
   assert "insights_applied" in text
+  assert "intel_pattern_alerts" in text
   assert "deploy_credentials_ready" in text
   assert "check-deploy-credentials.sh" in text
 

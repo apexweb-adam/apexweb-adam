@@ -27,3 +27,21 @@ export function detectIntelPostMortemSources(
     ({ id, label, className }) => ({ id, label, className })
   );
 }
+
+const INTEL_SOURCE_TYPE_ALIASES: Record<string, string> = {
+  newsapi: "news",
+  polymarket_account: "polymarket",
+  wallet_tracker: "fomo",
+};
+
+/** Map content-study / intel source_type values to badge styling. */
+export function intelSourceBadge(sourceType: string): IntelPostMortemSource | null {
+  const normalized = sourceType.toLowerCase();
+  const id = INTEL_SOURCE_TYPE_ALIASES[normalized] ?? normalized;
+  const match = INTEL_POSTMORTEM_SOURCES.find((source) => source.id === id);
+  if (!match) {
+    return null;
+  }
+  const { id: badgeId, label, className } = match;
+  return { id: badgeId, label, className };
+}

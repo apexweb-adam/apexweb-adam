@@ -342,14 +342,28 @@ reviews = learning.get('daily_reviews') or 0
 applied = learning.get('insights_applied') or 0
 pending = learning.get('insights_pending') or 0
 if analyses > 0 and reviews > 0:
+    intel_count = learning.get('intel_pattern_count') or 0
     print(
         f'  learning analyses={analyses} reviews={reviews} '
-        f'insights_applied={applied} pending={pending}'
+        f'insights_applied={applied} pending={pending} intel_pattern_alerts={intel_count}'
     )
     sys.exit(0)
 sys.exit(1)
 "; then
   ok "Learning loop active (trade analyses + daily reviews)"
+  if echo "$STATUS" | python3 -c "
+import json, sys
+learning = json.load(sys.stdin).get('learning') or {}
+alerts = learning.get('intel_pattern_alerts') or []
+if alerts:
+    print('  intel_pattern_alerts:')
+    for alert in alerts[:5]:
+        print(f'    - {alert}')
+    sys.exit(0)
+sys.exit(1)
+"; then
+    note "Intel-driven loss patterns detected — confirmation gates may tighten"
+  fi
   if echo "$STATUS" | python3 -c "
 import json, sys
 applied = (json.load(sys.stdin).get('learning') or {}).get('insights_applied') or 0

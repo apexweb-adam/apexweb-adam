@@ -49,6 +49,20 @@ echo ""
 if ! check_backend_suspension "$BACKEND"; then
   echo "Backend billing-suspended — post-outage verification unavailable"
   echo "Fix billing at: ${RENDER_DASHBOARD_URL:-https://dashboard.render.com/web/srv-da848ms9v7es739k38jg}"
+  CATCHUP_LEFT="$(python3 - << 'PY' 2>/dev/null || true
+from datetime import datetime, timezone
+now = datetime.now(timezone.utc)
+if now.isoweekday() != 1 or now.hour < 13 or now.hour >= 21:
+    raise SystemExit(0)
+session_end = now.replace(hour=21, minute=0, second=0, microsecond=0)
+catchup_left = max(0, int((session_end.timestamp() - now.timestamp()) // 60))
+if catchup_left > 0:
+    print(catchup_left)
+PY
+  )"
+  if [[ -n "$CATCHUP_LEFT" && "$CATCHUP_LEFT" -gt 0 && "$CATCHUP_LEFT" -le 30 ]]; then
+    echo "URGENT: ${CATCHUP_LEFT} min until US cash close — resume billing to run outage_recovery_scan"
+  fi
   echo ""
   bash "$ROOT/scripts/print-outage-status.sh" 2>/dev/null | tail -n +2 || true
   exit 2

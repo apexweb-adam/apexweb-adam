@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { detectIntelPostMortemSources } from "./intel-postmortem.ts";
+import { detectIntelPostMortemSources, intelSourceBadge } from "./intel-postmortem.ts";
 
 describe("detectIntelPostMortemSources", () => {
   it("detects political and TikTok sources from root cause text", () => {
@@ -38,6 +38,16 @@ describe("detectIntelPostMortemSources", () => {
     );
     const ids = sources.map((source) => source.id);
     assert.deepEqual(ids, ["news"]);
+  });
+
+  it("maps content-study source_type values to badges", () => {
+    const news = intelSourceBadge("newsapi");
+    assert.ok(news);
+    assert.equal(news?.label, "News");
+    const tv = intelSourceBadge("tradingview");
+    assert.ok(tv);
+    assert.equal(tv?.label, "TradingView");
+    assert.equal(intelSourceBadge("unknown_source"), null);
   });
 
   it("returns empty list when no intel keywords are present", () => {
