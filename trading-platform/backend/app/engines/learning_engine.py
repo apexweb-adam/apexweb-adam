@@ -139,6 +139,25 @@ class LearningEngine:
       adjustments.append("Require TA confirmation when acting on Phantom portfolio moves")
       lessons.append("Phantom wallet changes are sentiment input — not a standalone entry trigger")
 
+    tv_driven = "tradingview" in reason_lower or await self._had_source_intel(
+      trade.symbol, trade.executed_at, "tradingview"
+    )
+    if tv_driven:
+      if trade.side == "long" and trade.sentiment_score < 0:
+        root_causes.append("Held long against bearish TradingView webhook alert")
+        adjustments.append("Honor TradingView sell/bearish alerts for wind-down; do not fight TV exits")
+        lessons.append("TradingView alerts are execution signals — exit or reduce when TV flips bearish")
+      elif trade.side == "long" and trade.signal_score < 0.5:
+        root_causes.append("Entered on TradingView alert without sufficient local composite confirmation")
+        adjustments.append("Require composite signal floor when acting on TradingView webhook entries")
+        lessons.append("TradingView webhooks augment local TA — wait for aligned signal score before sizing")
+
+    if await self._had_source_intel(trade.symbol, trade.executed_at, "youtube"):
+      if trade.signal_score < 0.5:
+        root_causes.append("YouTube strategy content influenced entry without local confirmation")
+        adjustments.append("Treat YouTube insights as study material — require live signal alignment")
+        lessons.append("Apply YouTube playbooks only when composite score and sentiment agree")
+
     if trade.bot_type == "crypto":
       if await self._had_source_intel(trade.symbol, trade.executed_at, "political"):
         if trade.sentiment_score < 0 and trade.side == "long":
@@ -181,6 +200,11 @@ class LearningEngine:
           root_causes.append("Political intel turned negative during stocks hold")
           adjustments.append("Require positive macro/political sentiment for stocks longs")
           lessons.append("Re-check tariff/Fed/election headlines before holding day-trade positions")
+      if await self._had_source_intel(trade.symbol, trade.executed_at, "tiktok"):
+        if trade.side == "long" and (trade.signal_score < 0.5 or trade.sentiment_score < 0.35):
+          root_causes.append("TikTok viral stock sentiment drove entry without MACD/volume confirmation")
+          adjustments.append("Require MACD + volume on TikTok-hype stock entries at session open")
+          lessons.append("TikTok stock trends need session-open technical confirmation before day-trade entries")
 
     if trade.bot_type == "commodities":
       if "weekend" in reason_lower:
