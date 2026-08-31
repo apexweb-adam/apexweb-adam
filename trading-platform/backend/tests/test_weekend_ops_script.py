@@ -208,7 +208,9 @@ def test_print_outage_status_script():
   assert "verify-post-outage-recovery.sh" in text
 
 
-def test_verify_post_deploy_includes_crm_and_learning_checks():
+def test_verify_post_outage_recovery_post_close_message():
+  text = (SCRIPTS / "verify-post-outage-recovery.sh").read_text(encoding="utf-8")
+  assert "US cash session closed" in text
   script = SCRIPTS / "verify-post-deploy.sh"
   text = script.read_text(encoding="utf-8")
   assert "ops-gate-summary.sh" in text

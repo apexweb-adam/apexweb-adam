@@ -171,6 +171,7 @@ export type DailyReview = {
 export type LearningInsight = {
   id: number;
   source_type: string;
+  source_label?: string;
   source_title: string;
   source_url: string;
   key_takeaways: string;

@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import BOT_TYPES
 from app.database import SessionLocal
+from app.engines.learning_engine import serialize_learning_insight
 from app.engines.trade_stats import aggregate_win_rate
 from app.models.entities import (
   BotState,
@@ -267,19 +268,7 @@ async def build_live_payload(session: AsyncSession) -> dict:
       }
       for r in recent_reviews
     ],
-    "insights": [
-      {
-        "id": i.id,
-        "source_type": i.source_type,
-        "source_title": i.source_title,
-        "source_url": i.source_url,
-        "key_takeaways": i.key_takeaways,
-        "strategy_impact": i.strategy_impact,
-        "confidence": i.confidence,
-        "applied": i.applied,
-      }
-      for i in recent_insights
-    ],
+    "insights": [serialize_learning_insight(i) for i in recent_insights],
     "verification_history": [serialize_verification_snapshot(s) for s in verification_history],
     "monday_recovery": monday_recovery,
     "session_prep": session_prep,

@@ -1539,20 +1539,21 @@ export default function Dashboard() {
               <div className="space-y-3 max-h-[500px] overflow-y-auto lg:col-span-2">
                 {(insights ?? []).map((i) => {
                   const insightBadge = intelSourceBadge(i.source_type);
+                  const insightLabel = i.source_label ?? insightBadge?.label ?? i.source_type;
                   return (
                   <div
                     key={i.id}
                     className="p-3 rounded-lg bg-apex-dark border border-apex-border"
                   >
                     <div className="flex items-center gap-2 mb-1">
-                      {insightBadge ? (
+                      {insightBadge || i.source_label ? (
                         <span
                           className={cn(
                             "text-[10px] px-2 py-0.5 rounded-full border",
-                            insightBadge.className
+                            insightBadge?.className ?? "bg-apex-border text-gray-400 border-apex-border"
                           )}
                         >
-                          {insightBadge.label}
+                          {insightLabel}
                         </span>
                       ) : (
                         <span className="text-[10px] px-2 py-0.5 rounded-full bg-apex-blue/20 text-apex-blue uppercase">

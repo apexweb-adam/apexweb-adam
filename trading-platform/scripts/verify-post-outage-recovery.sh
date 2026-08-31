@@ -62,6 +62,13 @@ PY
   )"
   if [[ -n "$CATCHUP_LEFT" && "$CATCHUP_LEFT" -gt 0 && "$CATCHUP_LEFT" -le 30 ]]; then
     echo "URGENT: ${CATCHUP_LEFT} min until US cash close — resume billing to run outage_recovery_scan"
+  elif python3 - << 'PY' 2>/dev/null | grep -q closed; then
+from datetime import datetime, timezone
+now = datetime.now(timezone.utc)
+if now.isoweekday() == 1 and now.hour >= 21:
+    print("closed")
+PY
+    echo "US cash session closed — resume billing for commodities/crypto held scan + Tue open prep"
   fi
   echo ""
   bash "$ROOT/scripts/print-outage-status.sh" 2>/dev/null | tail -n +2 || true

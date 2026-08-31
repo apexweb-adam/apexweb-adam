@@ -50,6 +50,22 @@ def intel_source_label(source_type: str) -> str:
   return _INTEL_SOURCE_LABELS.get(key, source_type or "unknown")
 
 
+def serialize_learning_insight(insight: LearningInsight) -> dict[str, Any]:
+  """Serialize a learning insight for API and WebSocket payloads."""
+  return {
+    "id": insight.id,
+    "source_type": insight.source_type,
+    "source_label": intel_source_label(insight.source_type or ""),
+    "source_title": insight.source_title,
+    "source_url": insight.source_url,
+    "key_takeaways": insight.key_takeaways,
+    "strategy_impact": insight.strategy_impact,
+    "confidence": insight.confidence,
+    "applied": insight.applied,
+    "created_at": insight.created_at.isoformat() if insight.created_at else None,
+  }
+
+
 def _target_bot_types_from_impact(impact: str) -> set[str] | None:
   """Return bot types mentioned in impact text; None means apply to all configs."""
   text = impact.lower()

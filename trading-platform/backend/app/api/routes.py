@@ -12,6 +12,7 @@ from app.config import settings, BOT_TYPES
 from app.database import SessionLocal, get_db, is_postgres
 from app.intelligence.wallet_tracker import wallet_tracker_configured
 from app.engines.deploy_status import build_deploy_status, resolve_crm_dashboard_url
+from app.engines.learning_engine import serialize_learning_insight
 from app.engines.profitability_gate import ProfitabilityGate
 from app.engines.trade_stats import aggregate_win_rate
 from app.engines.verification_snapshot import serialize_verification_snapshot
@@ -353,20 +354,7 @@ async def get_insights(
     select(LearningInsight).order_by(desc(LearningInsight.created_at)).limit(limit)
   )
   insights = result.scalars().all()
-  return [
-    {
-      "id": i.id,
-      "source_type": i.source_type,
-      "source_title": i.source_title,
-      "source_url": i.source_url,
-      "key_takeaways": i.key_takeaways,
-      "strategy_impact": i.strategy_impact,
-      "confidence": i.confidence,
-      "applied": i.applied,
-      "created_at": i.created_at.isoformat() if i.created_at else None,
-    }
-    for i in insights
-  ]
+  return [serialize_learning_insight(i) for i in insights]
 
 
 @router.post("/learning/apply-pending-insights")
