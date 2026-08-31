@@ -158,7 +158,7 @@ print("Crypto: 24/7 — held positions get immediate post-outage scan on startup
 PY
 
   echo ""
-  echo "Automated recovery: GitHub workflow render-billing-recovery (every 5 min Mon 13-18 UTC, else 15 min)"
+  echo "Automated recovery: GitHub workflow render-billing-recovery (every 5 min Mon 13-21 UTC, else 15 min)"
 }
 
 if [[ -n "$WATCH_INTERVAL" ]]; then

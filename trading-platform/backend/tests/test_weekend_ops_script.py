@@ -109,8 +109,9 @@ def test_recover_render_billing_triggers_deploy_when_behind():
 def test_render_billing_recovery_workflow_monday_urgent_poll():
   workflow = Path(__file__).resolve().parents[3] / ".github" / "workflows" / "render-billing-recovery.yml"
   text = workflow.read_text(encoding="utf-8")
-  assert "*/5 13-18 * * 1" in text
+  assert "*/5 13-21 * * 1" in text
   assert "Monday outage grace active" in text
+  assert "post-grace US session" in text
   assert "recover-render-billing.sh" in text
   text = (SCRIPTS / "verify-platform.sh").read_text(encoding="utf-8")
   assert "print-outage-status.sh" in text
@@ -185,7 +186,7 @@ def test_print_outage_status_script():
   assert "cme-reopen-checklist" in text
   assert "post-outage startup" in text
   assert "--watch" in text
-  assert "every 5 min Mon 13-18 UTC" in text
+  assert "every 5 min Mon 13-21 UTC" in text
   assert "has_outage_recovery_scan" in text or "outage_recovery_scan" in text
 
 
