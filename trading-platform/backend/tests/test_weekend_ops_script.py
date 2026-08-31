@@ -215,6 +215,7 @@ def test_print_outage_status_script():
   assert "verify-post-outage-recovery.sh" in text
   assert "content_study" in text
   assert "intel_pattern_alerts" in text
+  assert "verify-crm-learning.sh" in text
 
 
 def test_verify_post_outage_recovery_post_close_message():

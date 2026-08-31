@@ -1373,6 +1373,15 @@ export default function Dashboard() {
 
         {tab === "learning" && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {dashConfig?.backendHealth?.suspended ? (
+              <LearningOfflineBanner
+                verifyCommand={crmLearningVerifyCommand}
+                renderUrl={
+                  dashConfig.backendHealth.render_dashboard_url ??
+                  "https://dashboard.render.com/web/srv-da848ms9v7es739k38jg"
+                }
+              />
+            ) : null}
             <LearningPendingBanner
               pending={platformStatus?.learning?.insights_pending ?? 0}
             />
@@ -2300,6 +2309,33 @@ function IntelPatternAlertBanner({
       {verifyCommand ? (
         <p className="text-[10px] text-purple-200/50 mt-2 font-mono break-all">{verifyCommand}</p>
       ) : null}
+    </div>
+  );
+}
+
+function LearningOfflineBanner({
+  verifyCommand,
+  renderUrl,
+}: {
+  verifyCommand: string;
+  renderUrl: string;
+}) {
+  return (
+    <div className="lg:col-span-2 rounded-lg border border-orange-500/40 bg-orange-950/30 p-4">
+      <p className="text-sm font-semibold text-orange-300">Learning loop offline</p>
+      <p className="text-xs text-orange-200/80 mt-2">
+        Post-mortems, daily reviews, content study, and intel pattern alerts require the Render
+        backend. Resume billing, run recovery, then verify the learning loop is live.
+      </p>
+      <ol className="text-[11px] text-gray-400 mt-3 list-decimal list-inside space-y-1">
+        <li>
+          <a href={renderUrl} target="_blank" rel="noopener noreferrer" className="underline hover:text-white">
+            Fix billing in Render
+          </a>
+        </li>
+        <li className="font-mono text-[10px]">bash trading-platform/scripts/recover-render-billing.sh</li>
+        <li className="font-mono text-[10px] break-all">{verifyCommand} --strict</li>
+      </ol>
     </div>
   );
 }

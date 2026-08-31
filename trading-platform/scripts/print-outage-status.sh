@@ -141,6 +141,7 @@ PY
   echo "Recovery steps:"
   echo "  1. Fix billing + resume service in Render dashboard"
   echo "  2. bash trading-platform/scripts/recover-render-billing.sh"
+  echo "  3. bash trading-platform/scripts/verify-crm-learning.sh --strict"
   echo ""
 
   CODE_REV="$CODE_REV" python3 << 'PY'
@@ -212,6 +213,8 @@ if dow in (1, 2, 3, 4, 5):
     print("  held_at_risk=EURUSD=X, GC=F, HG=F (commodities) — verify after resume")
 print("Crypto: 24/7 — held positions get immediate post-outage scan on startup (r467+)")
 print("  verify=bash trading-platform/scripts/verify-post-outage-recovery.sh --watch 90")
+print("Learning: post-mortems + content study offline until resume")
+print("  verify_learning=bash trading-platform/scripts/verify-crm-learning.sh --strict")
 PY
 
   echo ""
