@@ -1078,6 +1078,7 @@ MONDAY_RECOVERY_PREP_CACHE_TTL_SECONDS = 60
 MONDAY_RECOVERY_WATCH_CACHE_TTL_SECONDS = 15
 _monday_recovery_cache: dict[str, Any] | None = None
 _monday_recovery_cached_at: float = 0.0
+_monday_recovery_build_lock = asyncio.Lock()
 
 
 def _monday_recovery_cache_ttl_seconds() -> int:
@@ -1086,6 +1087,7 @@ def _monday_recovery_cache_ttl_seconds() -> int:
     COMMODITIES_OPEN_READY_PREP_MINUTES,
     commodities_futures_weekend_closed,
     commodities_session_info,
+    status_cache_prewarm_active,
   )
 
   if commodities_futures_weekend_closed():
@@ -1096,6 +1098,8 @@ def _monday_recovery_cache_ttl_seconds() -> int:
       and minutes_until_open <= COMMODITIES_OPEN_READY_PREP_MINUTES
     ):
       return MONDAY_RECOVERY_WATCH_CACHE_TTL_SECONDS
+    return MONDAY_RECOVERY_PREP_CACHE_TTL_SECONDS
+  if status_cache_prewarm_active():
     return MONDAY_RECOVERY_PREP_CACHE_TTL_SECONDS
   return MONDAY_RECOVERY_CACHE_TTL_SECONDS
 
@@ -1114,11 +1118,25 @@ async def build_monday_recovery_summary(session: AsyncSession) -> dict[str, Any]
     _monday_recovery_cache is not None
     and (now - _monday_recovery_cached_at) < _monday_recovery_cache_ttl_seconds()
   ):
-    return _monday_recovery_cache
-  result = await _build_monday_recovery_summary(session)
-  _monday_recovery_cache = result
-  _monday_recovery_cached_at = now
-  return result
+    return dict(_monday_recovery_cache)
+
+  if _monday_recovery_build_lock.locked() and _monday_recovery_cache is not None:
+    stale = dict(_monday_recovery_cache)
+    stale["recovery_cache_stale"] = True
+    return stale
+
+  async with _monday_recovery_build_lock:
+    now = time.monotonic()
+    if (
+      _monday_recovery_cache is not None
+      and (now - _monday_recovery_cached_at) < _monday_recovery_cache_ttl_seconds()
+    ):
+      return dict(_monday_recovery_cache)
+
+    result = await _build_monday_recovery_summary(session)
+    _monday_recovery_cache = result
+    _monday_recovery_cached_at = time.monotonic()
+    return dict(result)
 
 
 async def _scan_preview_for_bot(bot_type: str) -> tuple[str, dict[str, Any]]:

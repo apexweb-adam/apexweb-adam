@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import time
 from datetime import datetime
 from typing import Any
@@ -20,6 +21,7 @@ GATE_PREP_STATUS_CACHE_TTL_SECONDS = 45
 GATE_PREP_STATUS_PREP_CACHE_TTL_SECONDS = 60
 _gate_prep_cache: dict[str, Any] | None = None
 _gate_prep_cached_at: float = 0.0
+_gate_prep_build_lock = asyncio.Lock()
 
 
 def _gate_prep_status_cache_ttl_seconds() -> int:
@@ -48,6 +50,23 @@ def gate_prep_status_cache_fresh(max_age_seconds: float) -> bool:
   return age is not None and age < max_age_seconds
 
 
+def _serve_cached_gate_prep_status(
+  *,
+  cache_hit: bool,
+  stale_served: bool = False,
+) -> dict[str, Any]:
+  cached = dict(_gate_prep_cache or {})
+  cached["timestamp"] = datetime.utcnow().isoformat()
+  cached["prep_cache_hit"] = cache_hit
+  cached["prep_cache_age_seconds"] = round(
+    time.monotonic() - _gate_prep_cached_at,
+    1,
+  )
+  if stale_served:
+    cached["prep_cache_stale"] = True
+  return cached
+
+
 async def build_gate_prep_status(session: AsyncSession) -> dict[str, Any]:
   global _gate_prep_cache, _gate_prep_cached_at
   now = time.monotonic()
@@ -55,18 +74,26 @@ async def build_gate_prep_status(session: AsyncSession) -> dict[str, Any]:
     _gate_prep_cache is not None
     and (now - _gate_prep_cached_at) < _gate_prep_status_cache_ttl_seconds()
   ):
-    cached = dict(_gate_prep_cache)
-    cached["timestamp"] = datetime.utcnow().isoformat()
-    cached["prep_cache_hit"] = True
-    cached["prep_cache_age_seconds"] = round(now - _gate_prep_cached_at, 1)
-    return cached
+    return _serve_cached_gate_prep_status(cache_hit=True)
 
-  result = await _build_gate_prep_status_uncached(session)
-  _gate_prep_cache = result
-  _gate_prep_cached_at = now
-  result["prep_cache_hit"] = False
-  result["prep_cache_age_seconds"] = 0.0
-  return result
+  if _gate_prep_build_lock.locked() and _gate_prep_cache is not None:
+    return _serve_cached_gate_prep_status(cache_hit=False, stale_served=True)
+
+  async with _gate_prep_build_lock:
+    now = time.monotonic()
+    if (
+      _gate_prep_cache is not None
+      and (now - _gate_prep_cached_at) < _gate_prep_status_cache_ttl_seconds()
+    ):
+      return _serve_cached_gate_prep_status(cache_hit=True)
+
+    result = await _build_gate_prep_status_uncached(session)
+    _gate_prep_cache = result
+    _gate_prep_cached_at = time.monotonic()
+    fresh = dict(result)
+    fresh["prep_cache_hit"] = False
+    fresh["prep_cache_age_seconds"] = 0.0
+    return fresh
 
 
 async def _build_gate_prep_status_uncached(session: AsyncSession) -> dict[str, Any]:

@@ -317,6 +317,59 @@ def test_build_monday_recovery_summary_uses_short_ttl_cache():
   assert call_count == 2
 
 
+def test_monday_recovery_cache_ttl_extended_during_us_stocks_prep():
+  with patch(
+    "app.engines.gate_entry_guard.commodities_futures_weekend_closed",
+    return_value=False,
+  ):
+    with patch(
+      "app.engines.gate_entry_guard.status_cache_prewarm_active",
+      return_value=True,
+    ):
+      assert _monday_recovery_cache_ttl_seconds() == 60
+
+
+def test_build_monday_recovery_summary_serves_stale_while_rebuild_in_progress():
+  async def _run():
+    session = AsyncMock()
+    payload = {"recovery_candidates": [], "bots": {}, "open_ready": ["AAPL"]}
+    build_started = asyncio.Event()
+    release_build = asyncio.Event()
+    build_count = 0
+
+    async def slow_build(_session):
+      nonlocal build_count
+      build_count += 1
+      if build_count == 1:
+        return dict(payload)
+      build_started.set()
+      await release_build.wait()
+      return {**payload, "open_ready": ["AAPL", "NVDA"]}
+
+    with patch(
+      "app.engines.scan_preview._build_monday_recovery_summary",
+      new=AsyncMock(side_effect=slow_build),
+    ) as builder:
+      await build_monday_recovery_summary(session)
+      scan_preview._monday_recovery_cached_at = 0.0
+      rebuild_task = asyncio.create_task(build_monday_recovery_summary(session))
+      await build_started.wait()
+      stale = await build_monday_recovery_summary(session)
+      release_build.set()
+      rebuilt = await rebuild_task
+
+    assert builder.await_count == 2
+    assert stale.get("recovery_cache_stale") is True
+    assert stale["open_ready"] == ["AAPL"]
+    assert rebuilt["open_ready"] == ["AAPL", "NVDA"]
+
+  import asyncio
+
+  from app.engines import scan_preview
+
+  asyncio.run(_run())
+
+
 def test_monday_recovery_cache_ttl_extended_during_cme_weekend():
   with patch(
     "app.engines.gate_entry_guard.commodities_futures_weekend_closed",
