@@ -138,11 +138,17 @@ if dow == 1:
             )
             print(f"  outage_grace_urgency={urgency}")
             if ext_left <= 30:
-                print("  action=resume billing NOW — grace expires at 18:00 UTC")
-            elif ext_left <= 10:
-                print(f"  warn=grace_closing — {ext_left} min until AAPL catch-up window closes")
+                print("  action=resume billing NOW — extended grace closes at 18:00 UTC")
+                if ext_left <= 10:
+                    print(f"  warn=grace_closing — {ext_left} min until extended burst window closes")
+            print(
+                "  note=post-outage startup always runs forced open-ready scan when prep state has queued symbols"
+            )
         else:
-            print("Platform outage grace expired — only normal scan intervals after resume")
+            print("Platform outage grace expired — extended burst window closed")
+            print(
+                "  note=post-outage startup still runs forced open-ready scan if prep state preserved"
+            )
 else:
     print("Not Monday — US stocks outage grace window N/A today")
 
