@@ -31,7 +31,7 @@ def test_warm_status_caches_job_builds_both_payloads():
 def test_refresh_status_caches_job_skips_when_fresh():
   async def run():
     with patch(
-      "app.engines.gate_entry_guard.commodities_futures_weekend_closed",
+      "app.engines.gate_entry_guard.status_cache_prewarm_active",
       return_value=True,
     ):
       with patch(
@@ -57,7 +57,7 @@ def test_refresh_status_caches_job_skips_when_fresh():
 def test_refresh_status_caches_job_rebuilds_when_stale():
   async def run():
     with patch(
-      "app.engines.gate_entry_guard.commodities_futures_weekend_closed",
+      "app.engines.gate_entry_guard.status_cache_prewarm_active",
       return_value=True,
     ):
       with patch(

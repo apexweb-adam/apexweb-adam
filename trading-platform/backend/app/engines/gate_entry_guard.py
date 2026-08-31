@@ -4008,6 +4008,19 @@ def stocks_trade_count_prep_active(
   return minutes_until <= STOCKS_TRADE_COUNT_PREP_MINUTES
 
 
+def status_cache_prewarm_active() -> bool:
+  """Keep /api/status caches warm during CME weekend prep or US stocks pre-open window."""
+  if commodities_futures_weekend_closed():
+    return True
+  session = stocks_session_info()
+  if session.get("in_session"):
+    return False
+  minutes_until = session.get("minutes_until_open")
+  if minutes_until is None:
+    return False
+  return minutes_until <= STOCKS_TRADE_COUNT_PREP_MINUTES
+
+
 def prioritize_stocks_monday_scan(
   symbols: list[str],
   *,
