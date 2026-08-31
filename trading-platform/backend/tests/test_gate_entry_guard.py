@@ -1735,6 +1735,50 @@ def test_build_session_prep_status_verification_near_floor_gap():
   assert status["commodities"]["near_floor_details"][0]["gap_to_floor"] == 0.052
 
 
+def test_build_session_prep_status_verification_composite_floor():
+  from app.engines.gate_entry_guard import (
+    COMMODITIES_VERIFICATION_TRADE_COUNT_MIN_COMPOSITE,
+    build_session_prep_status,
+  )
+
+  status = build_session_prep_status(
+    stocks_session={"in_session": False, "minutes_until_open": 2220, "mode": "outside_session"},
+    commodities_session={"in_session": True, "minutes_until_open": 0, "mode": "entries"},
+    stocks_trade_count_nudge=False,
+    commodities_graduation_nudge=False,
+    commodities_verification_nudge=True,
+  )
+  assert (
+    status["commodities"]["composite_floor"]
+    == COMMODITIES_VERIFICATION_TRADE_COUNT_MIN_COMPOSITE
+  )
+
+
+def test_build_next_session_events_verification_composite_floor():
+  from app.engines.gate_entry_guard import (
+    COMMODITIES_VERIFICATION_TRADE_COUNT_MIN_COMPOSITE,
+    build_next_session_events,
+    build_session_prep_status,
+  )
+
+  session_prep = build_session_prep_status(
+    stocks_session={"in_session": False, "minutes_until_open": 2220, "mode": "outside_session"},
+    commodities_session={"in_session": True, "minutes_until_open": 0, "mode": "entries"},
+    stocks_trade_count_nudge=False,
+    commodities_graduation_nudge=False,
+    commodities_verification_nudge=True,
+  )
+  events = build_next_session_events(
+    session_prep=session_prep,
+    commodities_session={"in_session": True, "minutes_until_open": 0, "mode": "entries"},
+    stocks_session={"in_session": False, "minutes_until_open": 2220, "mode": "outside_session"},
+  )
+  assert (
+    events["cme_reopen"]["composite_floor"]
+    == COMMODITIES_VERIFICATION_TRADE_COUNT_MIN_COMPOSITE
+  )
+
+
 def test_build_session_prep_status_skips_near_floor_when_already_open_ready():
   from app.engines.gate_entry_guard import build_session_prep_status
 
