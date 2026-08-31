@@ -878,6 +878,56 @@ def test_commodities_verification_cap_pressure_wind_down():
   ) is False
 
 
+def test_commodities_verification_cap_pressure_wind_down_unset_gate_cap():
+  """Wind-down must resolve cap when max_commodities_open_positions is unset (None)."""
+  from app.engines.gate_entry_guard import (
+    commodities_cap_pressure_loser_wind_down,
+    gate_cap_pressure_proxy_entry_blocked,
+  )
+
+  tightening = GateEntryTightening(
+    active=False,
+    win_rate=0.62,
+    min_sentiment=0.0,
+    require_macd_bullish=False,
+    min_composite_boost=0.0,
+    max_commodities_open_positions=None,
+  )
+  assert commodities_cap_pressure_loser_wind_down(
+    bot_type="commodities",
+    shadow_mode=False,
+    graduation_nudge=False,
+    verification_nudge=True,
+    symbol="HG=F",
+    unrealized=-7.91,
+    held_seconds=7200,
+    min_hold_seconds=180,
+    open_count=4,
+    gate_tightening=tightening,
+  ) is True
+  assert commodities_cap_pressure_loser_wind_down(
+    bot_type="commodities",
+    shadow_mode=False,
+    graduation_nudge=False,
+    verification_nudge=True,
+    symbol="HG=F",
+    unrealized=-7.91,
+    held_seconds=7200,
+    min_hold_seconds=180,
+    open_count=3,
+    gate_tightening=tightening,
+  ) is False
+  assert gate_cap_pressure_proxy_entry_blocked(
+    bot_type="commodities",
+    shadow_mode=False,
+    graduation_nudge=False,
+    verification_nudge=True,
+    symbol="XAUUSDT",
+    open_count=4,
+    gate_tightening=tightening,
+  ) is True
+
+
 def test_commodities_verification_cooldown_bypass():
   from app.engines.gate_entry_guard import (
     COMMODITIES_HIGH_COMPOSITE_RECOVERY_FLOOR,
