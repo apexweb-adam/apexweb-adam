@@ -882,7 +882,16 @@ async def run_post_outage_recovery_bursts() -> None:
   )
 
   targets: list[tuple[str, object, Any]] = []
+  us_queued_snapshot = list(_startup_outage_event.get("us_open_ready_symbols") or [])
+  cme_queued_snapshot = list(_startup_outage_event.get("cme_open_ready_symbols") or [])
+  current_us: list[str] = []
+  current_cme: list[str] = []
   async with SessionLocal() as session:
+    from app.engines.session_open_log import get_prep_phase_state
+
+    prep = await get_prep_phase_state(session)
+    current_us = list((prep.get("us_stocks_open") or {}).get("open_ready_symbols") or [])
+    current_cme = list((prep.get("cme_reopen") or {}).get("open_ready_symbols") or [])
     for bot_type, session_info in (
       ("stocks_futures", stocks_session_info()),
       ("commodities", commodities_session_info()),
@@ -905,7 +914,13 @@ async def run_post_outage_recovery_bursts() -> None:
       )
       targets.append((bot_type, bot, outage_recovery))
 
-  us_queued = list(_startup_outage_event.get("us_open_ready_symbols") or [])
+  us_queued = list(dict.fromkeys([*us_queued_snapshot, *current_us]))
+  cme_queued = list(dict.fromkeys([*cme_queued_snapshot, *current_cme]))
+  if us_queued_snapshot != current_us or cme_queued_snapshot != current_cme:
+    print(
+      "[PlatformOutage] Merged prep open-ready after startup prep: "
+      f"US={us_queued or 'none'} CME={cme_queued or 'none'}"
+    )
   if us_queued:
     targets.sort(key=lambda row: 0 if row[0] == "stocks_futures" else 1)
 
@@ -981,7 +996,8 @@ async def run_post_outage_recovery_bursts() -> None:
   ]
   stocks_symbols = list(dict.fromkeys([*stocks_held, *us_queued]))
   await _run_held_bot_scan("stocks_futures", stocks_symbols, "stocks")
-  await _run_held_bot_scan("commodities", commodities_held, "commodities")
+  commodities_symbols = list(dict.fromkeys([*commodities_held, *cme_queued]))
+  await _run_held_bot_scan("commodities", commodities_symbols, "commodities")
   await _run_held_bot_scan("crypto", crypto_held, "crypto")
 
   if scanned:
