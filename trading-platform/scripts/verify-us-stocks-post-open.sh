@@ -104,6 +104,10 @@ print(f"  has_burst_scan={events.get('has_burst_scan')} has_auto_entry={events.g
 outage = checklist.get("platform_outage_recovery") or {}
 if outage.get("logged"):
     print("  platform_outage_recovery_logged=true")
+if outage.get("has_outage_recovery_scan"):
+    print("  platform_outage_recovery_scan_logged=true")
+if outage.get("recovery_scan_pending_burst"):
+    print("  platform_outage_recovery_pending_burst=true")
 if outage.get("window_active"):
     print(
         f"  platform_outage_recovery_window=true "
@@ -184,6 +188,8 @@ if not events.get("has_burst_scan") and not events.get("has_auto_entry"):
                 f"  warn=deploy_{code_rev or 'revision'}_required_for_platform_outage_recovery"
             )
             errors.append("revision_behind_for_outage_recovery")
+        elif outage.get("recovery_scan_pending_burst"):
+            print("  note=platform_outage_recovery_scan_logged — awaiting burst_scan completion")
         else:
             print("  note=platform_outage_recovery_pending — burst scan expected on next bot loop")
     else:
