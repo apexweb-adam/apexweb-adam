@@ -612,6 +612,7 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
       symbol=symbol,
       open_count=len(held_symbols),
       gate_tightening=gate_tightening,
+      verification_nudge=commodities_verification_nudge,
     ):
       blockers.append("open_cap_proxy")
     if stocks_negative_pf_blocks_entry(
