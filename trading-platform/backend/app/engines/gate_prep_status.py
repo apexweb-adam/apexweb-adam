@@ -19,6 +19,7 @@ from app.engines.scan_preview import build_monday_recovery_summary
 
 GATE_PREP_STATUS_CACHE_TTL_SECONDS = 45
 GATE_PREP_STATUS_PREP_CACHE_TTL_SECONDS = 60
+GATE_PREP_STATUS_WATCH_CACHE_TTL_SECONDS = 15
 _gate_prep_cache: dict[str, Any] | None = None
 _gate_prep_cached_at: float = 0.0
 _gate_prep_build_lock = asyncio.Lock()
@@ -26,11 +27,13 @@ _gate_prep_build_lock = asyncio.Lock()
 
 def _gate_prep_status_cache_ttl_seconds() -> int:
   """Longer cache during session prep when prep-status is polled heavily."""
-  from app.engines.gate_entry_guard import status_cache_prewarm_active
+  from app.engines.gate_entry_guard import status_cache_ttl_seconds
 
-  if status_cache_prewarm_active():
-    return GATE_PREP_STATUS_PREP_CACHE_TTL_SECONDS
-  return GATE_PREP_STATUS_CACHE_TTL_SECONDS
+  return status_cache_ttl_seconds(
+    default_ttl=GATE_PREP_STATUS_CACHE_TTL_SECONDS,
+    prep_ttl=GATE_PREP_STATUS_PREP_CACHE_TTL_SECONDS,
+    watch_ttl=GATE_PREP_STATUS_WATCH_CACHE_TTL_SECONDS,
+  )
 
 
 def clear_gate_prep_status_cache() -> None:

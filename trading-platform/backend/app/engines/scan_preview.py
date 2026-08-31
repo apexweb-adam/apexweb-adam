@@ -1083,25 +1083,24 @@ _monday_recovery_build_lock = asyncio.Lock()
 
 def _monday_recovery_cache_ttl_seconds() -> int:
   """Shorter cache during CME open-ready watch; longer when weekend is far from open."""
-  from app.engines.gate_entry_guard import (
-    COMMODITIES_OPEN_READY_PREP_MINUTES,
-    commodities_futures_weekend_closed,
-    commodities_session_info,
-    status_cache_prewarm_active,
+  from app.engines.gate_entry_guard import status_cache_ttl_seconds
+
+  return status_cache_ttl_seconds(
+    default_ttl=MONDAY_RECOVERY_CACHE_TTL_SECONDS,
+    prep_ttl=MONDAY_RECOVERY_PREP_CACHE_TTL_SECONDS,
+    watch_ttl=MONDAY_RECOVERY_WATCH_CACHE_TTL_SECONDS,
   )
 
-  if commodities_futures_weekend_closed():
-    session_info = commodities_session_info()
-    minutes_until_open = session_info.get("minutes_until_open")
-    if (
-      minutes_until_open is not None
-      and minutes_until_open <= COMMODITIES_OPEN_READY_PREP_MINUTES
-    ):
-      return MONDAY_RECOVERY_WATCH_CACHE_TTL_SECONDS
-    return MONDAY_RECOVERY_PREP_CACHE_TTL_SECONDS
-  if status_cache_prewarm_active():
-    return MONDAY_RECOVERY_PREP_CACHE_TTL_SECONDS
-  return MONDAY_RECOVERY_CACHE_TTL_SECONDS
+
+def monday_recovery_cache_age_seconds() -> float | None:
+  if _monday_recovery_cache is None:
+    return None
+  return round(time.monotonic() - _monday_recovery_cached_at, 1)
+
+
+def monday_recovery_cache_fresh(max_age_seconds: float) -> bool:
+  age = monday_recovery_cache_age_seconds()
+  return age is not None and age < max_age_seconds
 
 
 def clear_monday_recovery_cache() -> None:
