@@ -726,17 +726,27 @@ async def refresh_status_caches_job() -> None:
     build_platform_status,
     platform_status_cache_fresh,
   )
+  from app.engines.scan_preview import (
+    build_monday_recovery_summary,
+    monday_recovery_cache_fresh,
+  )
 
   if not status_cache_prewarm_active():
     return
-  if platform_status_cache_fresh(30) and gate_prep_status_cache_fresh(30):
+
+  needs_platform = not platform_status_cache_fresh(30)
+  needs_prep = not gate_prep_status_cache_fresh(30)
+  needs_recovery = not monday_recovery_cache_fresh(30)
+  if not needs_platform and not needs_prep and not needs_recovery:
     return
 
   async with SessionLocal() as session:
-    if not platform_status_cache_fresh(30):
+    if needs_platform:
       await build_platform_status(session)
-    if not gate_prep_status_cache_fresh(30):
+    elif needs_prep:
       await build_gate_prep_status(session)
+    if needs_recovery and not needs_platform:
+      await build_monday_recovery_summary(session)
 
 
 async def _deferred_startup_jobs() -> None:

@@ -59,6 +59,7 @@ from app.models.entities import (
 
 PLATFORM_STATUS_CACHE_TTL_SECONDS = 45
 PLATFORM_STATUS_PREP_CACHE_TTL_SECONDS = 60
+PLATFORM_STATUS_WATCH_CACHE_TTL_SECONDS = 15
 _platform_status_cache: dict[str, Any] | None = None
 _platform_status_cached_at: float = 0.0
 _platform_status_build_lock = asyncio.Lock()
@@ -66,11 +67,13 @@ _platform_status_build_lock = asyncio.Lock()
 
 def _platform_status_cache_ttl_seconds() -> int:
   """Longer cache during session prep when /api/status is polled heavily."""
-  from app.engines.gate_entry_guard import status_cache_prewarm_active
+  from app.engines.gate_entry_guard import status_cache_ttl_seconds
 
-  if status_cache_prewarm_active():
-    return PLATFORM_STATUS_PREP_CACHE_TTL_SECONDS
-  return PLATFORM_STATUS_CACHE_TTL_SECONDS
+  return status_cache_ttl_seconds(
+    default_ttl=PLATFORM_STATUS_CACHE_TTL_SECONDS,
+    prep_ttl=PLATFORM_STATUS_PREP_CACHE_TTL_SECONDS,
+    watch_ttl=PLATFORM_STATUS_WATCH_CACHE_TTL_SECONDS,
+  )
 
 
 def clear_platform_status_cache() -> None:

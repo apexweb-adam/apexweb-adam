@@ -4021,6 +4021,31 @@ def status_cache_prewarm_active() -> bool:
   return minutes_until <= STOCKS_TRADE_COUNT_PREP_MINUTES
 
 
+STATUS_CACHE_WATCH_TTL_SECONDS = 15
+STATUS_CACHE_PREP_TTL_SECONDS = 60
+
+
+def status_cache_ttl_seconds(
+  *,
+  default_ttl: int,
+  prep_ttl: int = STATUS_CACHE_PREP_TTL_SECONDS,
+  watch_ttl: int = STATUS_CACHE_WATCH_TTL_SECONDS,
+) -> int:
+  """Unified TTL for platform status, gate prep, and monday recovery caches."""
+  if commodities_futures_weekend_closed():
+    session_info = commodities_session_info()
+    minutes_until_open = session_info.get("minutes_until_open")
+    if (
+      minutes_until_open is not None
+      and minutes_until_open <= COMMODITIES_OPEN_READY_PREP_MINUTES
+    ):
+      return watch_ttl
+    return prep_ttl
+  if status_cache_prewarm_active():
+    return prep_ttl
+  return default_ttl
+
+
 def prioritize_stocks_monday_scan(
   symbols: list[str],
   *,

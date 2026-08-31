@@ -125,6 +125,18 @@ def test_build_platform_status_serves_stale_while_rebuild_in_progress():
   asyncio.run(run())
 
 
+def test_platform_status_cache_ttl_short_during_cme_prep_watch():
+  with patch(
+    "app.engines.gate_entry_guard.commodities_futures_weekend_closed",
+    return_value=True,
+  ):
+    with patch(
+      "app.engines.gate_entry_guard.commodities_session_info",
+      return_value={"minutes_until_open": 120},
+    ):
+      assert platform_status._platform_status_cache_ttl_seconds() == 15
+
+
 def test_build_platform_status_includes_per_bot_gate():
   async def run():
     session = AsyncMock()

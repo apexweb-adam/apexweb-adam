@@ -104,6 +104,18 @@ def test_gate_prep_status_cache_ttl_extended_during_cme_weekend():
     assert gate_prep_status._gate_prep_status_cache_ttl_seconds() == 60
 
 
+def test_gate_prep_status_cache_ttl_short_during_cme_prep_watch():
+  with patch(
+    "app.engines.gate_entry_guard.commodities_futures_weekend_closed",
+    return_value=True,
+  ):
+    with patch(
+      "app.engines.gate_entry_guard.commodities_session_info",
+      return_value={"minutes_until_open": 120},
+    ):
+      assert gate_prep_status._gate_prep_status_cache_ttl_seconds() == 15
+
+
 def test_enrich_prep_with_session_events_surfaces_auto_entry():
   session_prep = {
     "commodities": {"prep_phase": "extended", "open_ready_symbols": ["NG=F"]},

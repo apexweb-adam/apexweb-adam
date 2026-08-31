@@ -54,7 +54,45 @@ def test_refresh_status_caches_job_skips_when_fresh():
   asyncio.run(run())
 
 
-def test_refresh_status_caches_job_rebuilds_when_stale():
+def test_refresh_status_caches_job_rebuilds_monday_recovery_when_only_recovery_stale():
+  async def run():
+    with patch(
+      "app.engines.gate_entry_guard.status_cache_prewarm_active",
+      return_value=True,
+    ):
+      with patch(
+        "app.engines.platform_status.platform_status_cache_fresh",
+        return_value=True,
+      ):
+        with patch(
+          "app.engines.gate_prep_status.gate_prep_status_cache_fresh",
+          return_value=True,
+        ):
+          with patch(
+            "app.engines.scan_preview.monday_recovery_cache_fresh",
+            return_value=False,
+          ):
+            with patch("app.workers.scheduler.SessionLocal") as session_local:
+              session = AsyncMock()
+              session.__aenter__ = AsyncMock(return_value=session)
+              session.__aexit__ = AsyncMock(return_value=None)
+              session_local.return_value = session
+              with patch(
+                "app.engines.platform_status.build_platform_status",
+                new=AsyncMock(),
+              ) as platform_builder:
+                with patch(
+                  "app.engines.scan_preview.build_monday_recovery_summary",
+                  new=AsyncMock(return_value={"open_ready": []}),
+                ) as recovery_builder:
+                  from app.workers.scheduler import refresh_status_caches_job
+
+                  await refresh_status_caches_job()
+                  platform_builder.assert_not_awaited()
+                  recovery_builder.assert_awaited_once_with(session)
+
+  asyncio.run(run())
+
   async def run():
     with patch(
       "app.engines.gate_entry_guard.status_cache_prewarm_active",
