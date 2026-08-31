@@ -1128,7 +1128,7 @@ class BaseBot(ABC):
 
         intel_override = shadow_intel_composite_override(
           self.bot_type,
-          graduation_nudge=graduation_nudge,
+          graduation_nudge=bypass_nudge,
           shadow_mode=shadow_mode,
           composite=composite,
           entry_min_signal=entry_min_signal,
@@ -1308,7 +1308,7 @@ class BaseBot(ABC):
             intel_override=intel_override,
             signal_direction=signal.direction,
             shadow_mode=shadow_mode,
-            graduation_nudge=graduation_nudge,
+            graduation_nudge=bypass_nudge,
           )
         )
 
