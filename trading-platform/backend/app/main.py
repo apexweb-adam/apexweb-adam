@@ -447,13 +447,19 @@ async def crm_landing():
         )
       floor_note = ""
       if commodities_prep.get("nudge_active"):
-        from app.engines.gate_entry_guard import commodities_recovery_composite_floor
+        from app.engines.gate_entry_guard import commodities_prep_composite_floor
 
-        cme_floor = commodities_recovery_composite_floor(graduation_nudge=True)
-        floor_note = (
-          f"<p class='muted' style='margin:0.35rem 0 0;font-size:0.8rem;'>"
-          f"Commodities composite floor: {cme_floor:.2f}</p>"
-        )
+        cme_floor = commodities_prep.get("composite_floor")
+        if cme_floor is None:
+          cme_floor = commodities_prep_composite_floor(
+            graduation_nudge=commodities_prep.get("nudge_label") == "graduation nudge",
+            verification_nudge=commodities_prep.get("nudge_label") == "verification nudge",
+          )
+        if cme_floor is not None:
+          floor_note = (
+            f"<p class='muted' style='margin:0.35rem 0 0;font-size:0.8rem;'>"
+            f"Commodities composite floor: {cme_floor:.2f}</p>"
+          )
       auto_entry_details = f"""<table style="margin-top:0.75rem;">
       <thead><tr><th>Symbol</th><th>Composite</th><th>Signal</th><th>MACD</th><th>Blockers</th><th>Gate-skip</th></tr></thead>
       <tbody>{detail_table}</tbody>

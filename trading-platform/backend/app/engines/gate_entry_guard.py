@@ -3901,6 +3901,21 @@ def session_open_composite_floor(
   return None
 
 
+def commodities_prep_composite_floor(
+  *,
+  graduation_nudge: bool = False,
+  verification_nudge: bool = False,
+) -> float | None:
+  """CRM/session composite floor for commodities graduation or verification nudge."""
+  if not graduation_nudge and not verification_nudge:
+    return None
+  return session_open_composite_floor(
+    "commodities",
+    graduation_nudge=graduation_nudge,
+    verification_nudge=verification_nudge,
+  )
+
+
 def gap_to_open_composite_floor(
   bot_type: str,
   composite: float | None,
@@ -4021,6 +4036,14 @@ def build_session_prep_status(
       reopen_wake_active=commodities_reopen_wake_active(commodities_session),
     ),
   }
+  result["commodities"]["composite_floor"] = commodities_prep_composite_floor(
+    graduation_nudge=commodities_graduation_nudge,
+    verification_nudge=commodities_verification_nudge,
+  )
+  result["stocks_futures"]["composite_floor"] = session_open_composite_floor(
+    "stocks_futures",
+    trade_count_nudge=stocks_trade_count_nudge,
+  )
 
   if open_ready_rows:
     open_ready: list[dict[str, Any]] = []
@@ -4210,11 +4233,9 @@ def build_next_session_events(
     fast_scan_active=bool(stocks_prep.get("gate_fast_scan_active")),
     imminent=bool(stocks_prep.get("gate_reopen_imminent")),
   )
-  comm_composite_floor = (
-    commodities_recovery_composite_floor(graduation_nudge=True)
-    if comm_prep.get("nudge_active")
-    else None
-  )
+  comm_composite_floor = comm_prep.get("composite_floor")
+  if comm_composite_floor is None and comm_prep.get("nudge_active"):
+    comm_composite_floor = commodities_recovery_composite_floor(graduation_nudge=True)
   cme_phase = session_prep_phase_info(
     session=commodities_session,
     imminent_minutes=COMMODITIES_REOPEN_IMMINENT_SCAN_MINUTES,
