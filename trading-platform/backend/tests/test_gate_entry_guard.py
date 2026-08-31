@@ -928,6 +928,22 @@ def test_commodities_verification_cap_pressure_wind_down_unset_gate_cap():
   ) is True
 
 
+def test_resolve_last_exit_reason_prefers_in_memory():
+  from app.engines.gate_entry_guard import resolve_last_exit_reason
+
+  assert resolve_last_exit_reason(
+    "HG=F",
+    in_memory={"HG=F": "Gate cap-pressure loser wind-down (uPnL $-1.00)"},
+    persisted={"HG=F": "Close excess commodities position"},
+  ) == "Gate cap-pressure loser wind-down (uPnL $-1.00)"
+  assert resolve_last_exit_reason(
+    "GC=F",
+    in_memory={},
+    persisted={"GC=F": "Gate cap-pressure loser wind-down (uPnL $-0.67)"},
+  ) == "Gate cap-pressure loser wind-down (uPnL $-0.67)"
+  assert resolve_last_exit_reason("NG=F", in_memory={}, persisted={}) is None
+
+
 def test_commodities_cap_pressure_reentry_blocked():
   from app.engines.gate_entry_guard import (
     COMMODITIES_HIGH_COMPOSITE_RECOVERY_FLOOR,
