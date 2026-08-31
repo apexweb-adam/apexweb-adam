@@ -54,9 +54,73 @@ def test_run_post_outage_recovery_bursts_scans_stocks_when_window_active():
           return_value=True,
         ):
           with _mock_scheduler_session():
-            import asyncio
+            with patch(
+              "app.ws_manager.push_live_update",
+              new_callable=AsyncMock,
+            ):
+              import asyncio
 
-            asyncio.run(sched.run_post_outage_recovery_bursts())
+              asyncio.run(sched.run_post_outage_recovery_bursts())
 
   bot.scan_and_trade.assert_awaited_once()
   assert bot._session_open_outage_recovery is False
+
+
+def test_run_post_outage_recovery_bursts_scans_crypto_when_held():
+  crypto_bot = MagicMock()
+  crypto_bot.scan_and_trade = AsyncMock(return_value=[])
+
+  sched._startup_outage_event = {
+    "gap_minutes": 90,
+    "held_open_positions": [
+      {"bot_type": "crypto", "symbol": "BTC-USD"},
+      {"bot_type": "stocks_futures", "symbol": "AAPL"},
+    ],
+  }
+  sched.bots = {"crypto": crypto_bot}
+
+  with patch(
+    "app.engines.gate_entry_guard.stocks_session_info",
+    return_value={"in_session": False},
+  ):
+    with patch(
+      "app.engines.gate_entry_guard.commodities_session_info",
+      return_value={"in_session": False},
+    ):
+      with patch(
+        "app.ws_manager.push_live_update",
+        new_callable=AsyncMock,
+      ) as mock_push:
+        import asyncio
+
+        asyncio.run(sched.run_post_outage_recovery_bursts())
+
+  crypto_bot.scan_and_trade.assert_awaited_once()
+  mock_push.assert_awaited_once()
+
+
+def test_run_post_outage_recovery_bursts_skips_crypto_without_held():
+  crypto_bot = MagicMock()
+  crypto_bot.scan_and_trade = AsyncMock(return_value=[])
+
+  sched._startup_outage_event = {"gap_minutes": 90, "held_open_positions": []}
+  sched.bots = {"crypto": crypto_bot}
+
+  with patch(
+    "app.engines.gate_entry_guard.stocks_session_info",
+    return_value={"in_session": False},
+  ):
+    with patch(
+      "app.engines.gate_entry_guard.commodities_session_info",
+      return_value={"in_session": False},
+    ):
+      with patch(
+        "app.ws_manager.push_live_update",
+        new_callable=AsyncMock,
+      ) as mock_push:
+        import asyncio
+
+        asyncio.run(sched.run_post_outage_recovery_bursts())
+
+  crypto_bot.scan_and_trade.assert_not_called()
+  mock_push.assert_not_called()

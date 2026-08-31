@@ -29,6 +29,8 @@ async function probeBackendHealth(base: string) {
         message: payload.message,
         render_dashboard_url: payload.render_dashboard_url,
         recovery_steps: payload.recovery_steps,
+        platform_outage_grace_minutes_remaining:
+          payload.platform_outage_grace_minutes_remaining,
       };
     }
     return {

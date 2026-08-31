@@ -584,6 +584,7 @@ export type DashboardConfig = {
     message?: string;
     render_dashboard_url?: string;
     recovery_steps?: string[];
+    platform_outage_grace_minutes_remaining?: number | null;
   };
   githubMainCommit?: string | null;
   promoteUrl?: string;
