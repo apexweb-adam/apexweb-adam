@@ -26,3 +26,14 @@ def test_serialize_learning_insight_includes_source_label():
   assert payload["source_title"] == "Whale accumulation on PEPE"
   assert payload["applied"] is True
   assert payload["created_at"].startswith("2026-08-31")
+
+
+def test_intel_source_label_covers_all_live_intel_sources():
+  from app.engines.learning_engine import intel_source_label
+  from app.intelligence.content_study import LIVE_INTEL_SOURCES
+
+  for source in LIVE_INTEL_SOURCES:
+    label = intel_source_label(source)
+    assert label
+    assert label != "unknown"
+    assert label != source or source in ("fomo", "axiom")

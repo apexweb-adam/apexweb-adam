@@ -117,6 +117,7 @@ def test_recover_render_billing_triggers_deploy_when_behind():
   assert 'data.get("session_open_events")' in text
   assert "content_study_applied" in text
   assert "learning_intel_pattern_alerts" in text
+  assert "us_cash_session_closed" in text or "US cash session closed" in text
 
 
 def test_render_billing_recovery_workflow_monday_urgent_poll():

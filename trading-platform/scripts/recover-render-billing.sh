@@ -115,6 +115,13 @@ PY
         echo "  action=resume billing NOW — US cash close at 21:00 UTC"
       fi
     fi
+  elif python3 - << 'PY' 2>/dev/null | grep -q closed; then
+from datetime import datetime, timezone
+now = datetime.now(timezone.utc)
+if now.isoweekday() == 1 and now.hour >= 21:
+    print("closed")
+PY
+    echo "US cash session closed — resume for commodities/crypto held scan + Tue open prep"
   fi
   echo ""
 fi
