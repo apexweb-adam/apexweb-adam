@@ -45,7 +45,7 @@ def summarize_session_open_checklist(checklist: dict[str, Any]) -> dict[str, Any
   open_ready = checklist.get("open_ready") or {}
   near_floor = checklist.get("near_floor") or {}
   events = checklist.get("session_open_events") or {}
-  return {
+  summary = {
     "ready": bool(checklist.get("ready")),
     "phase": checklist.get("phase"),
     "prep_phase": checklist.get("prep_phase"),
@@ -74,6 +74,10 @@ def summarize_session_open_checklist(checklist: dict[str, Any]) -> dict[str, Any
     "has_burst_scan": bool(events.get("has_burst_scan")),
     "has_auto_entry": bool(events.get("has_auto_entry")),
   }
+  outage = checklist.get("platform_outage_recovery")
+  if outage:
+    summary["platform_outage_recovery"] = outage
+  return summary
 
 
 async def build_session_open_checklist_summaries(session: AsyncSession) -> dict[str, Any]:

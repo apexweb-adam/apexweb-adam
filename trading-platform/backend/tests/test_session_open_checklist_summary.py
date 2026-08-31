@@ -56,3 +56,22 @@ def test_summarize_session_open_checklist():
   assert summary["near_floor_gaps"] == {"CL=F": 0.014}
   assert summary["release_margin"] == 0.02
   assert summary["critical_failures"] == ["deploy_current"]
+
+
+def test_summarize_session_open_checklist_includes_platform_outage_recovery():
+  summary = summarize_session_open_checklist(
+    {
+      "ready": False,
+      "phase": "post_open",
+      "open_ready": {"symbols": ["AAPL"], "auto_entry_queued": True},
+      "checks": [],
+      "session_open_events": {"has_burst_scan": False, "has_auto_entry": False},
+      "platform_outage_recovery": {
+        "window_active": True,
+        "logged": False,
+        "grace_minutes_remaining": 165,
+      },
+    }
+  )
+  assert summary["platform_outage_recovery"]["window_active"] is True
+  assert summary["platform_outage_recovery"]["grace_minutes_remaining"] == 165
