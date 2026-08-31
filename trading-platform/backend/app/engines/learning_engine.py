@@ -837,6 +837,7 @@ async def build_crm_learning_highlights(session: AsyncSession) -> dict[str, Any]
     "trade_analyses": analysis_count,
     "pending_insights": pending_insights,
     "intel_pattern_alerts": intel_pattern_alerts,
+    "intel_pattern_count": len(intel_pattern_alerts),
     "reviews": active_reviews,
   }
 

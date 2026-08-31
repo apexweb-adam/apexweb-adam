@@ -22,6 +22,7 @@ def test_build_deploy_snapshot_includes_deploy_window_when_behind():
   assert snap["expected_dashboard_bundle"] == EXPECTED_DASHBOARD_BUNDLE
   assert "verify-dashboard-bundle" in snap["dashboard_bundle_verify_command"]
   assert "verify-weekend-ops" in snap["weekend_ops_verify_command"]
+  assert "verify-crm-learning" in snap["crm_learning_verify_command"]
   assert "run-deploy-window" in snap["run_deploy_window_command"]
   assert "wait-for-render-deploy" in snap["wait_for_deploy_command"]
   window = snap["cme_deploy_window"]

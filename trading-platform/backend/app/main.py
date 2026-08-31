@@ -906,6 +906,7 @@ async def crm_landing():
     <h2>Today's learning loop</h2>
     <p class="muted" style="margin-top:0;">{learning_summary}</p>
     {learning_rows if learning_rows else "<p class='muted'>No losing-trade patterns today — bots scanning.</p>"}
+    <p class="muted" style="margin-top:0.75rem;font-family:monospace;font-size:0.8rem;">Verify: <code>bash trading-platform/scripts/verify-crm-learning.sh</code></p>
   </div>""" if learning else ""}
   {f"""<div class="card learning">
     <h2>External content study</h2>

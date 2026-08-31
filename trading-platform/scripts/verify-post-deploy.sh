@@ -163,6 +163,9 @@ sys.exit(0 if (learning.get('intel_pattern_count') or 0) > 0 else 1)
 fi
 
 echo ""
+bash "$ROOT/scripts/verify-crm-learning.sh" || true
+
+echo ""
 echo "Results: $pass passed, $fail failed, $warn notes"
 if [[ "$fail" -gt 0 ]]; then
   exit 1

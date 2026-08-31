@@ -112,7 +112,7 @@ if content.get("recent"):
 bundle = payload.get("expected_dashboard_bundle")
 if bundle:
     print(f"  expected_dashboard_bundle={bundle}")
-    for key in ("dashboard_bundle_verify_command", "weekend_ops_verify_command"):
+    for key in ("dashboard_bundle_verify_command", "weekend_ops_verify_command", "crm_learning_verify_command"):
         cmd = payload.get(key)
         if cmd:
             print(f"  {cmd}")

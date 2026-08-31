@@ -449,6 +449,10 @@ elif [[ -n "$DEPLOYED" ]]; then
 fi
 
 echo ""
+echo "--- CRM learning loop ---"
+bash "$ROOT/scripts/verify-crm-learning.sh" || true
+
+echo ""
 echo "Results: $pass passed, $fail failed, $warn notes"
 if [[ "$fail" -gt 0 ]]; then
   exit 1

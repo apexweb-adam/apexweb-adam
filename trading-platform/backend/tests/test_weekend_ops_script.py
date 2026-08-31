@@ -571,6 +571,7 @@ def test_verify_post_deploy_checks_learning_endpoint():
   assert "/api/intelligence/sources" in text
   assert "source_label" in text
   assert "intel_pattern_alerts" in text
+  assert "verify-crm-learning.sh" in text
 
 
 def test_watch_deploy_window_shows_x_intel_mode():
@@ -601,6 +602,7 @@ def test_verify_platform_prints_intel_health_fields():
   assert "source_label" in text
   assert "deploy_credentials_ready" in text
   assert "check-deploy-credentials.sh" in text
+  assert "verify-crm-learning.sh" in text
 
 
 def test_verify_pre_deploy_us_stocks_uses_fetch_json():

@@ -377,6 +377,7 @@ async def _build_platform_status_uncached(session: AsyncSession) -> dict[str, An
       "expected_dashboard_bundle": deploy_info.get("expected_dashboard_bundle"),
       "dashboard_bundle_verify_command": deploy_info.get("dashboard_bundle_verify_command"),
       "weekend_ops_verify_command": deploy_info.get("weekend_ops_verify_command"),
+      "crm_learning_verify_command": deploy_info.get("crm_learning_verify_command"),
       "vercel_promote_deployment_id": deploy_info.get("vercel_promote_deployment_id"),
       "vercel_promote_url": deploy_info.get("vercel_promote_url"),
       "production_proxy_operational": deploy_info.get("production_proxy_operational"),

@@ -115,6 +115,7 @@ def test_build_crm_learning_highlights_includes_intel_pattern_alerts():
   assert highlights["intel_pattern_alerts"] == [
     "crypto: 2 losses tied to Reddit retail buzz — tighten intel confirmation gates"
   ]
+  assert highlights["intel_pattern_count"] == 1
 
 
 def test_fetch_learning_counts_includes_intel_pattern_alerts():

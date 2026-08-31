@@ -721,6 +721,7 @@ def test_crm_landing_shows_intel_pattern_alerts():
   assert "TikTok/social hype" in body
   assert "Political/macro intel" in body
   assert "Today's learning loop" in body
+  assert "verify-crm-learning.sh" in body
 
 
 def test_crm_landing_shows_labeled_content_study_sources():

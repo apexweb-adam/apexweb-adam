@@ -85,6 +85,7 @@ def build_cme_deploy_window(
 
 DASHBOARD_BUNDLE_VERIFY_COMMAND = "bash trading-platform/scripts/verify-dashboard-bundle.sh"
 WEEKEND_OPS_VERIFY_COMMAND = "bash trading-platform/scripts/verify-weekend-ops.sh"
+CRM_LEARNING_VERIFY_COMMAND = "bash trading-platform/scripts/verify-crm-learning.sh"
 
 
 def format_dashboard_bundle_crm_html(
@@ -214,6 +215,7 @@ def build_deploy_snapshot() -> dict[str, Any]:
     "expected_dashboard_bundle": EXPECTED_DASHBOARD_BUNDLE,
     "dashboard_bundle_verify_command": DASHBOARD_BUNDLE_VERIFY_COMMAND,
     "weekend_ops_verify_command": WEEKEND_OPS_VERIFY_COMMAND,
+    "crm_learning_verify_command": CRM_LEARNING_VERIFY_COMMAND,
     "wait_for_deploy_command": WAIT_FOR_DEPLOY_COMMAND,
     "run_deploy_window_command": RUN_DEPLOY_WINDOW_COMMAND,
     "x_intel_collection_mode": x_intel_collection_mode(),
@@ -1014,6 +1016,7 @@ async def fetch_vercel_dashboard_bundle() -> dict[str, Any]:
         "expected_dashboard_bundle": EXPECTED_DASHBOARD_BUNDLE,
         "dashboard_bundle_verify_command": DASHBOARD_BUNDLE_VERIFY_COMMAND,
         "weekend_ops_verify_command": WEEKEND_OPS_VERIFY_COMMAND,
+        "crm_learning_verify_command": CRM_LEARNING_VERIFY_COMMAND,
       }
       if behind_expected:
         discovered = await discover_verified_dashboard()
@@ -1042,6 +1045,7 @@ async def fetch_vercel_dashboard_bundle() -> dict[str, Any]:
       "expected_dashboard_bundle": EXPECTED_DASHBOARD_BUNDLE,
       "dashboard_bundle_verify_command": DASHBOARD_BUNDLE_VERIFY_COMMAND,
       "weekend_ops_verify_command": WEEKEND_OPS_VERIFY_COMMAND,
+      "crm_learning_verify_command": CRM_LEARNING_VERIFY_COMMAND,
     }
   except Exception:
     verified_url = configured_verified_dashboard_url()
@@ -1057,6 +1061,7 @@ async def fetch_vercel_dashboard_bundle() -> dict[str, Any]:
       "expected_dashboard_bundle": EXPECTED_DASHBOARD_BUNDLE,
       "dashboard_bundle_verify_command": DASHBOARD_BUNDLE_VERIFY_COMMAND,
       "weekend_ops_verify_command": WEEKEND_OPS_VERIFY_COMMAND,
+      "crm_learning_verify_command": CRM_LEARNING_VERIFY_COMMAND,
     }
 
 
