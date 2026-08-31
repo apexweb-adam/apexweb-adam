@@ -121,6 +121,12 @@ async def _build_gate_prep_status_uncached(session: AsyncSession) -> dict[str, A
       if key in comm_bot:
         commodities_entry[key] = comm_bot[key]
     session_prep["commodities"] = commodities_entry
+  stocks_bot = (recovery.get("bots") or {}).get("stocks_futures") or {}
+  if stocks_bot:
+    stocks_entry = dict(session_prep.get("stocks_futures") or {})
+    if stocks_bot.get("stocks_trade_count_gap") is not None:
+      stocks_entry["trade_count_gap"] = stocks_bot["stocks_trade_count_gap"]
+    session_prep["stocks_futures"] = stocks_entry
   next_session_events = build_next_session_events(
     session_prep=session_prep,
     commodities_session=cme_session,
@@ -163,6 +169,7 @@ def _enrich_prep_with_session_events(
       "open_ready_details": us.get("open_ready_details") or stocks.get("open_ready_details"),
       "near_floor_symbols": us.get("near_floor_symbols") or stocks.get("near_floor_symbols"),
       "near_floor_details": us.get("near_floor_details") or stocks.get("near_floor_details"),
+      "trade_count_gap": stocks.get("trade_count_gap"),
     }
   )
   enriched["commodities"] = commodities

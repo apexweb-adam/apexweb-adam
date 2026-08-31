@@ -172,10 +172,12 @@ async def crm_landing():
     stocks_bot = (monday_recovery.get("bots") or {}).get("stocks_futures") or {}
     stock_candidates = stocks_bot.get("recovery_candidates") or []
     candidate_label = ", ".join(stock_candidates) if stock_candidates else "proven winners"
+    gap = stocks_bot.get("stocks_trade_count_gap")
+    gap_note = f" Needs {gap} more shadow trades for graduation." if gap else ""
     recovery_nudge_note = (
       f"<p class='muted' style='margin-top:0;color:#fbbf24;'>"
       f"Stocks shadow trade-count nudge: graduation WR met — easing proven-winner entries "
-      f"for {candidate_label} (composite floor 0.34).</p>"
+      f"for {candidate_label} (composite floor 0.34).{gap_note}</p>"
     )
   if commodities_graduation_nudge:
     commodities_bot = (monday_recovery.get("bots") or {}).get("commodities") or {}
@@ -431,9 +433,14 @@ async def crm_landing():
       imminent_active=bool(stocks_prep.get("gate_reopen_imminent")),
     )
     stocks_prep = {**stocks_prep, **stocks_phase}
+    gap_note = ""
+    if stocks_prep.get("trade_count_gap"):
+      gap_note = f" · {stocks_prep['trade_count_gap']} trades to graduation"
+    auto_note = " · auto-entry queued" if stocks_prep.get("auto_entry_queued") else ""
     next_session_lines.append(
       f"<strong>US stocks open</strong> in {_session_countdown(us_mins)} · prep scan {stocks_scan}"
       f"{_phase_note(stocks_prep, stocks_session)} · open ready: {stocks_ready}"
+      f"{gap_note}{auto_note}"
     )
   next_sessions_card = ""
   if next_session_lines:

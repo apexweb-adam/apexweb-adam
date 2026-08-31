@@ -753,14 +753,32 @@ def stocks_trade_count_graduation_nudge(
   total_trades: int,
 ) -> bool:
   """Stocks shadow has graduation WR but needs a few more trades — ease proven-winner entries."""
+  gap = stocks_trade_count_graduation_gap(
+    bot_type,
+    shadow_mode,
+    bot_win_rate,
+    total_trades,
+  )
+  return gap is not None
+
+
+def stocks_trade_count_graduation_gap(
+  bot_type: str,
+  shadow_mode: bool,
+  bot_win_rate: float | None,
+  total_trades: int,
+) -> int | None:
+  """Trades remaining for stocks shadow graduation when trade-count nudge is active."""
   from app.engines.profitability_gate import ProfitabilityGate
 
   if not (shadow_mode and bot_type == "stocks_futures"):
-    return False
+    return None
   if bot_win_rate is None or bot_win_rate < ProfitabilityGate.GRADUATION_MIN_WIN_RATE:
-    return False
+    return None
   gap = ProfitabilityGate.GRADUATION_MIN_TRADES - total_trades
-  return 0 < gap <= STOCKS_TRADE_COUNT_GRADUATION_GAP
+  if 0 < gap <= STOCKS_TRADE_COUNT_GRADUATION_GAP:
+    return gap
+  return None
 
 
 def commodities_verification_trade_count_nudge(

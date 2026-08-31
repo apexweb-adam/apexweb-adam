@@ -101,6 +101,7 @@ from app.engines.gate_entry_guard import (
   stocks_monday_recovery_ready,
   stocks_trade_count_entry_min_signal,
   stocks_trade_count_graduation_nudge,
+  stocks_trade_count_graduation_gap,
   stocks_trade_count_min_sentiment,
   stocks_gate_fast_scan_active,
   stocks_open_imminent_scan_active,
@@ -231,6 +232,12 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
   )
   bypass_nudge = graduation_nudge or commodities_ease_active
   stocks_trade_count_nudge = stocks_trade_count_graduation_nudge(
+    bot_type,
+    shadow_mode,
+    per_bot_stats.get("win_rate"),
+    int(per_bot_stats.get("total_trades") or 0),
+  )
+  stocks_trade_count_gap = stocks_trade_count_graduation_gap(
     bot_type,
     shadow_mode,
     per_bot_stats.get("win_rate"),
@@ -1123,6 +1130,7 @@ async def build_scan_preview(session: AsyncSession, bot_type: str) -> dict[str, 
     "graduation_nudge": graduation_nudge,
     "commodities_verification_trade_count_nudge": commodities_verification_nudge,
     "stocks_trade_count_nudge": stocks_trade_count_nudge,
+    "stocks_trade_count_gap": stocks_trade_count_gap,
     "stocks_gate_fast_scan_active": stocks_fast_scan_active,
     "stocks_open_imminent_scan": stocks_open_imminent,
     "commodities_gate_fast_scan_active": commodities_fast_scan_active,
@@ -1356,6 +1364,7 @@ async def _build_monday_recovery_summary(session: AsyncSession) -> dict[str, Any
       "near_floor_candidates": preview.get("near_floor_candidates") or [],
       "near_floor_symbols": near_floor_symbols,
       "stocks_trade_count_nudge": preview.get("stocks_trade_count_nudge"),
+      "stocks_trade_count_gap": preview.get("stocks_trade_count_gap"),
       "graduation_nudge": preview.get("graduation_nudge"),
       "commodities_verification_trade_count_nudge": preview.get(
         "commodities_verification_trade_count_nudge"
