@@ -51,6 +51,7 @@ def test_commodities_effective_scan_interval_fast_during_cme_prep():
       mock_gate.return_value.evaluate_per_bot = AsyncMock(
         return_value={"commodities": {"win_rate": 0.5, "profit_factor": 1.2, "total_pnl": 20.0}}
       )
+      mock_gate.return_value.evaluate = AsyncMock(return_value={})
       mock_session = AsyncMock()
       mock_cm = AsyncMock()
       mock_cm.__aenter__.return_value = mock_session
@@ -101,6 +102,7 @@ def test_commodities_effective_scan_interval_fast_during_graduation_prep():
       mock_gate.return_value.evaluate_per_bot = AsyncMock(
         return_value={"commodities": {"win_rate": 0.5, "profit_factor": 1.2, "total_pnl": 20.0}}
       )
+      mock_gate.return_value.evaluate = AsyncMock(return_value={})
       mock_session = AsyncMock()
       mock_cm = AsyncMock()
       mock_cm.__aenter__.return_value = mock_session
@@ -138,6 +140,7 @@ def test_commodities_effective_scan_interval_default_outside_prep():
       mock_gate.return_value.evaluate_per_bot = AsyncMock(
         return_value={"commodities": {"win_rate": 0.5, "profit_factor": 1.2, "total_pnl": 20.0}}
       )
+      mock_gate.return_value.evaluate = AsyncMock(return_value={})
       mock_session = AsyncMock()
       mock_cm = AsyncMock()
       mock_cm.__aenter__.return_value = mock_session
@@ -188,6 +191,7 @@ def test_commodities_effective_scan_interval_imminent_reopen():
       mock_gate.return_value.evaluate_per_bot = AsyncMock(
         return_value={"commodities": {"win_rate": 0.5, "profit_factor": 1.2, "total_pnl": 20.0}}
       )
+      mock_gate.return_value.evaluate = AsyncMock(return_value={})
       mock_session = AsyncMock()
       mock_cm = AsyncMock()
       mock_cm.__aenter__.return_value = mock_session

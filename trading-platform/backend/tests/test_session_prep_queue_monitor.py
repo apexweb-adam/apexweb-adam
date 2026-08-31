@@ -35,9 +35,16 @@ def test_session_prep_queue_monitor_runs_during_us_stocks_prep():
 
 def test_session_prep_queue_monitor_throttles_outside_imminent_window():
   async def run():
-    import app.workers.scheduler as scheduler_mod
+    import time
 
-    scheduler_mod._last_session_prep_queue_monitor_at = 0.0
+    import app.workers.scheduler as scheduler_mod
+    from app.engines.gate_entry_guard import SESSION_PREP_QUEUE_MONITOR_SLOW_INTERVAL_SECONDS
+
+    # Use monotonic-relative baseline — 0.0 fails on fresh CI runners where
+    # time.monotonic() < SLOW_INTERVAL and the first call gets throttled.
+    scheduler_mod._last_session_prep_queue_monitor_at = (
+      time.monotonic() - SESSION_PREP_QUEUE_MONITOR_SLOW_INTERVAL_SECONDS - 1
+    )
     with patch(
       "app.engines.gate_entry_guard.status_cache_prewarm_active",
       return_value=True,
