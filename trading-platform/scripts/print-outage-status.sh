@@ -124,7 +124,7 @@ else:
 
 if dow in (1, 2, 3, 4, 5):
     print("CME/commodities: weekday session — held positions unmanaged until resume (TV refresh + burst scan on startup)")
-print("Crypto: 24/7 — held positions get immediate post-outage scan on startup (r464+)")
+print("Crypto: 24/7 — held positions get immediate post-outage scan on startup (r465+)")
 PY
 
 echo ""

@@ -117,6 +117,7 @@ export function buildBackendSuspensionPayload(
       "Resume apex-trading-backend manually (API resume does not work for billing suspension).",
       "Run: bash trading-platform/scripts/recover-render-billing.sh",
       graceNote,
+      `After resume, confirm outage_recovery_scan then burst_scan in the US stocks open checklist (deploy ${EXPECTED_PLATFORM_REVISION}).`,
     ],
   };
 }

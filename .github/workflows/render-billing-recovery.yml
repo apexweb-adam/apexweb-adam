@@ -4,6 +4,8 @@ name: Render Billing Recovery
 on:
   schedule:
     - cron: "*/15 * * * *"
+    # Monday US outage grace window (13:30–18:00 UTC): poll every 5 min for faster recovery
+    - cron: "*/5 13-18 * * 1"
   workflow_dispatch:
 
 jobs:
