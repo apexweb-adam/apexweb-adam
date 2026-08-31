@@ -1051,10 +1051,12 @@ async def setup_scheduler() -> None:
     minutes=5,
     id="session_prep_queue_monitor",
   )
+  from app.engines.gate_entry_guard import STATUS_CACHE_WATCH_TTL_SECONDS
+
   scheduler.add_job(
     refresh_status_caches_job,
     "interval",
-    seconds=45,
+    seconds=STATUS_CACHE_WATCH_TTL_SECONDS,
     id="refresh_status_caches",
   )
   scheduler.add_job(
