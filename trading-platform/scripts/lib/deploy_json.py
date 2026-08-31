@@ -57,11 +57,13 @@ def intel_source_fields(sources_payload: Any) -> dict[str, Any]:
   by = {s.get("source"): s for s in sources if isinstance(s, dict)}
   x = by.get("x") or {}
   tv = by.get("tradingview") or {}
+  political = by.get("political") or {}
   return {
     "x_collection_mode": x.get("collection_mode"),
     "tv_scoring_excludes_synthetic": tv.get("scoring_excludes_synthetic"),
     "tv_webhook_items_24h": tv.get("webhook_items_24h"),
     "tv_synthetic_items_24h": tv.get("synthetic_items_24h"),
+    "political_status": political.get("status"),
   }
 
 
@@ -75,11 +77,16 @@ def evaluate_intel_readiness(
   """Return ok | partial | missing for shell preflight messaging."""
   fields = intel_source_fields(sources_payload)
   sources_ok = bool(fields.get("x_collection_mode")) and fields.get("tv_scoring_excludes_synthetic") is True
+  political_ok = fields.get("political_status") in ("active", "degraded")
   snapshot_ok = bool(snapshot.get("x_intel_collection_mode")) and bool(
     snapshot.get("tradingview_item_breakdown") or snapshot.get("tradingview_webhook_items_24h") is not None
   )
   if prod_rev == code_rev:
-    return "ok" if sources_ok and snapshot_ok else ("partial" if sources_ok else "missing")
+    if sources_ok and snapshot_ok and political_ok:
+      return "ok"
+    if sources_ok and political_ok:
+      return "partial"
+    return "partial" if sources_ok else "missing"
   if sources_ok and not snapshot_ok:
     return "partial"
   if sources_ok:
@@ -188,14 +195,35 @@ def evaluate_post_deploy(
 
   learning = status.get("learning") or {}
   if learning:
+    intel_count = learning.get("intel_pattern_count") or 0
     print(
       "  learning_loop "
       f"analyses={learning.get('trade_analyses')} "
       f"reviews={learning.get('daily_reviews')} "
-      f"pending_insights={learning.get('insights_pending')}"
+      f"pending_insights={learning.get('insights_pending')} "
+      f"insights_applied={learning.get('insights_applied')} "
+      f"intel_pattern_alerts={intel_count}"
     )
+    for alert in (learning.get("intel_pattern_alerts") or [])[:3]:
+      print(f"    intel_alert={alert}")
   elif status:
     errors.append("learning_loop_missing")
+
+  content = status.get("content_study") or {}
+  recent = content.get("recent") or []
+  if recent:
+    print(
+      f"  content_study applied={content.get('insights_applied') or 0} "
+      f"recent={len(recent)}"
+    )
+    for row in recent[:3]:
+      source_type = row.get("source_type")
+      label = row.get("source_label")
+      if source_type and not label:
+        errors.append("content_study_missing_source_label")
+      title = (row.get("title") or "")[:48]
+      state = "applied" if row.get("applied") else "pending"
+      print(f"    [{label or source_type or 'unknown'}] {title} ({state})")
 
   if snapshot.get("cme_deploy_window") or snapshot.get("platform_revision"):
     print(f"  deploy_snapshot=ok revision={snapshot.get('platform_revision')}")

@@ -509,6 +509,8 @@ def test_deploy_json_lib_exists():
   text = lib.read_text(encoding="utf-8")
   assert "intel-readiness" in text
   assert "cme-prep-preflight" in text
+  assert "content_study_missing_source_label" in text
+  assert "political_status" in text
 
 
 def test_verify_post_deploy_checks_learning_endpoint():
@@ -521,6 +523,8 @@ def test_verify_post_deploy_checks_learning_endpoint():
   assert "fetch_json.sh" in text
   assert "scoring_excludes_synthetic" in text or "intel-readiness" in text
   assert "/api/intelligence/sources" in text
+  assert "source_label" in text
+  assert "intel_pattern_alerts" in text
 
 
 def test_watch_deploy_window_shows_x_intel_mode():
