@@ -31,6 +31,7 @@ from app.engines.gate_entry_guard import (
   commodities_graduation_ease_active,
   commodities_verification_entry_min_signal,
   commodities_verification_min_sentiment,
+  commodities_verification_trade_count_nudge,
   commodities_verification_volume_required,
   commodities_weekend_spot_gate_skip_bypass,
   commodities_monday_futures_gate_skip_bypass,
@@ -352,6 +353,12 @@ class BaseBot(ABC):
         self.bot_type,
         shadow_mode,
         graduation_nudge,
+        gate_status,
+        per_bot_stats,
+      )
+      commodities_verification_nudge = commodities_verification_trade_count_nudge(
+        self.bot_type,
+        shadow_mode,
         gate_status,
         per_bot_stats,
       )
@@ -1011,6 +1018,7 @@ class BaseBot(ABC):
           gate_tightening=gate_tightening,
           shadow_open_cap=shadow_open_cap,
           graduation_nudge=bypass_nudge,
+          verification_nudge=commodities_verification_nudge,
         ):
           continue
 

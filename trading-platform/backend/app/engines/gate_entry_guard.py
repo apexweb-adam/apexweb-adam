@@ -538,9 +538,14 @@ def commodities_effective_open_cap(
   bot_type: str,
   graduation_nudge: bool,
   shadow_mode: bool,
+  verification_nudge: bool = False,
 ) -> int | None:
   """Give commodities one extra slot during graduation nudge on weekends and Monday open hour."""
-  if cap is None or bot_type != "commodities" or shadow_mode or not graduation_nudge:
+  if cap is None or bot_type != "commodities" or shadow_mode:
+    return cap
+  if verification_nudge:
+    cap = cap + COMMODITIES_VERIFICATION_CAP_BONUS
+  if not graduation_nudge:
     return cap
   if commodities_futures_weekend_closed():
     return cap + COMMODITIES_WEEKEND_GRADUATION_CAP_BONUS
@@ -561,6 +566,7 @@ def open_position_cap_blocks_entry(
   gate_tightening: GateEntryTightening,
   shadow_open_cap: int | None,
   graduation_nudge: bool = False,
+  verification_nudge: bool = False,
 ) -> bool:
   """Shadow bots use shadow_open_cap only — gate tightening caps apply to active gate bots."""
   if shadow_mode:
@@ -576,6 +582,7 @@ def open_position_cap_blocks_entry(
     bot_type=bot_type,
     graduation_nudge=graduation_nudge,
     shadow_mode=shadow_mode,
+    verification_nudge=verification_nudge,
   )
   if not isinstance(cap, int):
     return False
@@ -728,6 +735,7 @@ COMMODITIES_GOLD_PROXY_PREFERRED = "XAUUSDT"
 COMMODITIES_WEEKEND_SPOT_COOLDOWN_MULTIPLIER = 0.55
 COMMODITIES_WEEKEND_SPOT_GATE_SKIP_COMPOSITE_FLOOR = 0.40
 COMMODITIES_WEEKEND_GRADUATION_CAP_BONUS = 1
+COMMODITIES_VERIFICATION_CAP_BONUS = 1
 COMMODITIES_WEEKEND_SPOT_PROFIT_LOCK_USD = 1.0
 COMMODITIES_WEEKEND_SPOT_POST_LOCK_BUFFER_MINUTES = 60
 COMMODITIES_GOLD_PROXY_DEDUP_MIN_HOLD_SECONDS = 60
