@@ -716,8 +716,8 @@ async def warm_status_caches_job() -> None:
 
 
 async def refresh_status_caches_job() -> None:
-  """Keep status caches warm during CME weekend prep so dashboard polls avoid cold builds."""
-  from app.engines.gate_entry_guard import commodities_futures_weekend_closed
+  """Keep status caches warm during session prep so dashboard polls avoid cold builds."""
+  from app.engines.gate_entry_guard import status_cache_prewarm_active
   from app.engines.gate_prep_status import (
     build_gate_prep_status,
     gate_prep_status_cache_fresh,
@@ -727,7 +727,7 @@ async def refresh_status_caches_job() -> None:
     platform_status_cache_fresh,
   )
 
-  if not commodities_futures_weekend_closed():
+  if not status_cache_prewarm_active():
     return
   if platform_status_cache_fresh(30) and gate_prep_status_cache_fresh(30):
     return
