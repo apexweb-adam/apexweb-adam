@@ -112,9 +112,11 @@ if dow == 1:
         print(f"Standard burst grace (60 min): {'EXPIRED' if since_open > 60 else f'{60 - since_open} min left'}")
         print(f"Platform outage grace (270 min): {'EXPIRED' if ext_left == 0 else f'{ext_left} min left (~{ext_left // 60}h {ext_left % 60}m)'}")
         if ext_left > 0:
+            urgency = "URGENT" if ext_left <= 30 else "active"
             print(
                 f"Queued AAPL catch-up still possible if prep state preserved and {code_rev} deploys on resume"
             )
+            print(f"  outage_grace_urgency={urgency}")
         else:
             print("Platform outage grace expired — only normal scan intervals after resume")
 else:

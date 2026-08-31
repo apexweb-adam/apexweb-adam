@@ -16,6 +16,10 @@ import {
   Zap,
 } from "lucide-react";
 import { useState, useMemo, useEffect, type ReactNode } from "react";
+import {
+  platformOutageGraceDeadlineUtc,
+  platformOutageGraceMinutesRemaining,
+} from "@/lib/backend-suspension";
 import { useLiveData } from "@/lib/useLiveData";
 import { useAPI } from "@/lib/useAPI";
 import { fetchAPI, applyPendingInsights, getSessionPrepEntry } from "@/lib/api";
@@ -1950,12 +1954,35 @@ function BillingOutageRecoveryCard({
 }: {
   health: NonNullable<DashboardConfig["backendHealth"]>;
 }) {
-  const grace = health.platform_outage_grace_minutes_remaining;
-  const deadline = health.platform_outage_grace_deadline_utc;
+  const [grace, setGrace] = useState<number | null | undefined>(
+    health.platform_outage_grace_minutes_remaining
+  );
+  const [deadline, setDeadline] = useState<string | null | undefined>(
+    health.platform_outage_grace_deadline_utc
+  );
+
+  useEffect(() => {
+    const tick = () => {
+      setGrace(platformOutageGraceMinutesRemaining());
+      setDeadline(platformOutageGraceDeadlineUtc());
+    };
+    tick();
+    const id = setInterval(tick, 30_000);
+    return () => clearInterval(id);
+  }, []);
+
   const bots = health.recovery_bots ?? [];
+  const graceUrgent = grace !== null && grace !== undefined && grace > 0 && grace <= 30;
 
   return (
-    <div className="border-b border-orange-500/30 bg-orange-950/30 px-6 py-4">
+    <div
+      className={cn(
+        "border-b px-6 py-4",
+        graceUrgent
+          ? "border-red-500/50 bg-red-950/40"
+          : "border-orange-500/30 bg-orange-950/30"
+      )}
+    >
       <div className="max-w-[1600px] mx-auto">
         <p className="text-sm font-medium text-orange-200 mb-1">Billing outage — recovery plan</p>
         <p className="text-[11px] text-gray-400 mb-3">
@@ -1966,11 +1993,17 @@ function BillingOutageRecoveryCard({
           then run automated recovery for all three bots.
         </p>
         {grace !== null && grace !== undefined && (
-          <p className="text-xs text-amber-300 mb-3">
+          <p
+            className={cn(
+              "text-xs mb-3",
+              graceUrgent ? "text-red-300 font-medium" : "text-amber-300"
+            )}
+          >
             {grace > 0 ? (
               <>
                 Platform outage grace:{" "}
                 <strong>{grace} min</strong> remaining
+                {graceUrgent ? " — resume billing urgently" : null}
                 {deadline ? (
                   <>
                     {" "}
