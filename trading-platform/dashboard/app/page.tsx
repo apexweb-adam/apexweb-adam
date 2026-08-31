@@ -1359,6 +1359,9 @@ export default function Dashboard() {
             <LearningPendingBanner
               pending={platformStatus?.learning?.insights_pending ?? 0}
             />
+            <IntelPatternAlertBanner
+              alerts={platformStatus?.learning?.intel_pattern_alerts}
+            />
             <Card title="Loss Trade Analysis">
               <div className="space-y-3 max-h-[500px] overflow-y-auto">
                 {(analyses ?? []).length === 0 ? (
@@ -1425,7 +1428,11 @@ export default function Dashboard() {
                     Daily reviews run at 22:00 UTC. First review coming soon.
                   </p>
                 ) : (
-                  (reviews ?? []).map((r) => (
+                  (reviews ?? []).map((r) => {
+                    const patternTags = r.patterns_found
+                      ? detectIntelPostMortemSources(r.patterns_found)
+                      : [];
+                    return (
                     <div
                       key={r.id}
                       className="p-3 rounded-lg bg-apex-dark border border-apex-border"
@@ -1442,6 +1449,21 @@ export default function Dashboard() {
                         {r.total_trades} trades · {formatPct(r.win_rate)} win rate ·{" "}
                         {r.losing_trades} losses
                       </p>
+                      {patternTags.length > 0 ? (
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {patternTags.map((tag) => (
+                            <span
+                              key={`${r.id}-${tag.id}`}
+                              className={cn(
+                                "text-[10px] px-2 py-0.5 rounded-full border",
+                                tag.className
+                              )}
+                            >
+                              {tag.label}
+                            </span>
+                          ))}
+                        </div>
+                      ) : null}
                       <p className="text-xs text-gray-300 mt-2">{r.conclusions}</p>
                       {r.patterns_found && (
                         <p className="text-xs text-apex-purple mt-1">
@@ -1450,7 +1472,8 @@ export default function Dashboard() {
                       )}
                       <p className="text-xs text-apex-gold mt-1">{r.strategy_changes}</p>
                     </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             </Card>
@@ -2181,6 +2204,23 @@ function PlatformOutageEventsCard({ events }: { events?: PlatformOutageEvent[] }
           </tbody>
         </table>
       </div>
+    </div>
+  );
+}
+
+function IntelPatternAlertBanner({ alerts }: { alerts?: string[] }) {
+  if (!alerts?.length) return null;
+  return (
+    <div className="lg:col-span-2 rounded-lg border border-purple-500/40 bg-purple-950/30 p-4">
+      <p className="text-sm font-semibold text-purple-300">Recurring intel-driven losses today</p>
+      <ul className="text-xs text-purple-200/80 mt-2 list-disc pl-4 space-y-1">
+        {alerts.map((alert) => (
+          <li key={alert}>{alert}</li>
+        ))}
+      </ul>
+      <p className="text-[11px] text-purple-200/60 mt-2">
+        Strategy gates were tightened automatically — see daily review strategy changes below.
+      </p>
     </div>
   );
 }

@@ -33,7 +33,7 @@ from app.engines.gate_entry_guard import (
 )
 from app.engines.intel_source_status import build_intel_sources, x_intel_collection_mode
 from app.engines.scan_preview import build_monday_recovery_summary
-from app.engines.learning_engine import build_crm_content_study_highlights
+from app.engines.learning_engine import build_crm_content_study_highlights, collect_intel_pattern_alerts
 from app.engines.session_open_log import get_session_open_events
 from app.engines.trade_stats import aggregate_win_rate
 from app.intelligence.axiom_tracker import get_axiom_session_status
@@ -208,6 +208,16 @@ async def _fetch_learning_counts(session: AsyncSession) -> dict[str, Any]:
   snapshot_count = (
     await session.execute(select(func.count(VerificationSnapshot.id)))
   ).scalar_one()
+  today = datetime.utcnow().strftime("%Y-%m-%d")
+  review_rows = await session.execute(
+    select(DailyReview.bot_type, DailyReview.patterns_found).where(
+      DailyReview.review_date == today
+    )
+  )
+  intel_pattern_alerts: list[str] = []
+  for bot_type, patterns in review_rows.all():
+    for alert in collect_intel_pattern_alerts(patterns):
+      intel_pattern_alerts.append(f"{bot_type}: {alert}")
   return {
     "trade_analyses": trade_analyses,
     "daily_reviews": daily_reviews,
@@ -215,6 +225,8 @@ async def _fetch_learning_counts(session: AsyncSession) -> dict[str, Any]:
     "insights_total": insights_total,
     "insights_pending": insights_total - insights_applied,
     "verification_snapshots": snapshot_count,
+    "intel_pattern_alerts": intel_pattern_alerts,
+    "intel_pattern_count": len(intel_pattern_alerts),
     "content_study_admin": (
       "POST /api/admin/run-content-study with secret to study content and apply pending insights"
     ),

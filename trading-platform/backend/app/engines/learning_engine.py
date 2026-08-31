@@ -86,6 +86,17 @@ def _target_bot_types_from_impact(impact: str) -> set[str] | None:
   return targets if targets else None
 
 
+def collect_intel_pattern_alerts(patterns_found: str | None) -> list[str]:
+  """Extract intel-driven loss pattern lines from a daily review patterns string."""
+  if not patterns_found:
+    return []
+  return [
+    part.strip()
+    for part in patterns_found.split(";")
+    if part.strip() and "intel confirmation" in part.lower()
+  ]
+
+
 class LearningEngine:
   """Analyzes losing trades, runs daily reviews, and adapts strategy parameters."""
 
@@ -727,9 +738,12 @@ async def build_crm_learning_highlights(session: AsyncSession) -> dict[str, Any]
   )
 
   active_reviews: list[dict[str, Any]] = []
+  intel_pattern_alerts: list[str] = []
   for review in reviews:
     if review.total_trades <= 0 and not (review.patterns_found or "").strip():
       continue
+    for alert in collect_intel_pattern_alerts(review.patterns_found):
+      intel_pattern_alerts.append(f"{review.bot_type}: {alert}")
     active_reviews.append(
       {
         "bot_type": review.bot_type,
@@ -747,6 +761,7 @@ async def build_crm_learning_highlights(session: AsyncSession) -> dict[str, Any]
     "review_date": today,
     "trade_analyses": analysis_count,
     "pending_insights": pending_insights,
+    "intel_pattern_alerts": intel_pattern_alerts,
     "reviews": active_reviews,
   }
 

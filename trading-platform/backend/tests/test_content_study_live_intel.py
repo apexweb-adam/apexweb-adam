@@ -153,6 +153,40 @@ def test_study_live_intel_sources_applies_political_item():
   assert "commodities" in call_kwargs["impact"].lower()
 
 
+def test_study_live_intel_sources_applies_tiktok_item():
+  item = SimpleNamespace(
+    id=3,
+    source="tiktok",
+    title="PEPE pump viral on TikTok",
+    content="memecoin crypto trading trend",
+    url="https://news.example/tiktok-pepe",
+    symbols_mentioned="PEPEUSDT",
+    sentiment=0.4,
+    relevance_score=0.72,
+    applied=False,
+  )
+
+  session = AsyncMock()
+  session.execute = AsyncMock(
+    return_value=MagicMock(scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=[item]))))
+  )
+  session.commit = AsyncMock()
+
+  insight = MagicMock(applied=True)
+  learner = MagicMock()
+  learner.apply_external_insight = AsyncMock(return_value=insight)
+
+  engine = ContentStudyEngine(session)
+  engine.learner = learner
+
+  applied = asyncio.run(engine._study_live_intel_sources())
+
+  assert applied == 1
+  call_kwargs = learner.apply_external_insight.await_args.kwargs
+  assert "crypto bot" in call_kwargs["impact"].lower()
+  assert "tiktok" in call_kwargs["impact"].lower()
+
+
 def test_extract_x_crypto_bullish_impact():
   impact, confidence = _extract_live_intel_impact(
     "x",

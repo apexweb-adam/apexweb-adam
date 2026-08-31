@@ -752,6 +752,8 @@ export type PlatformStatus = {
     insights_applied: number;
     insights_total: number;
     insights_pending?: number;
+    intel_pattern_alerts?: string[];
+    intel_pattern_count?: number;
   };
   content_study?: ContentStudySummary;
   profitability_gate?: ProfitabilityStatus;
