@@ -972,8 +972,11 @@ def commodities_verification_cooldown_bypass(
   signal_direction: str,
   macd_signal: str,
   composite: float,
+  last_exit_reason: str | None = None,
 ) -> bool:
   """Clear post-loss cooldown for strong verification-gap commodities entries."""
+  if last_exit_reason and "cap-pressure loser" in last_exit_reason:
+    return False
   return commodities_verification_aligned_recovery_bypass(
     bot_type=bot_type,
     shadow_mode=shadow_mode,
@@ -2417,6 +2420,34 @@ def gate_cap_pressure_proxy_entry_blocked(
   return True
 
 
+def commodities_cap_pressure_reentry_blocked(
+  *,
+  bot_type: str,
+  shadow_mode: bool,
+  graduation_nudge: bool,
+  verification_nudge: bool = False,
+  symbol: str,
+  open_count: int,
+  gate_tightening: GateEntryTightening,
+  composite: float,
+  last_exit_reason: str | None = None,
+) -> bool:
+  """Block weak same-symbol re-entry near open cap after cap-pressure loser wind-down."""
+  if shadow_mode or bot_type != "commodities" or (not graduation_nudge and not verification_nudge):
+    return False
+  if not last_exit_reason or "cap-pressure loser" not in last_exit_reason:
+    return False
+  cap = commodities_resolved_gate_cap(
+    gate_tightening,
+    graduation_nudge=graduation_nudge,
+    shadow_mode=shadow_mode,
+    verification_nudge=verification_nudge,
+  )
+  if not isinstance(cap, int) or open_count < cap - 1:
+    return False
+  return composite < COMMODITIES_HIGH_COMPOSITE_RECOVERY_FLOOR
+
+
 def commodities_gold_proxy_duplicate_entry_blocked(
   symbol: str,
   held_symbols: frozenset[str] | set[str],
@@ -3133,6 +3164,20 @@ async def symbol_cooldown_remaining_seconds(
   per_bot_stats: dict[str, Any] | None = None,
 ) -> int:
   """Seconds until symbol re-entry is allowed after last sell."""
+  from app.models.entities import Trade
+
+  result = await session.execute(
+    select(Trade.is_winner, Trade.executed_at, Trade.reason, Trade.pnl)
+    .where(
+      Trade.bot_type == bot_type,
+      Trade.symbol == symbol,
+      Trade.action == "sell",
+    )
+    .order_by(Trade.executed_at.desc())
+    .limit(1)
+  )
+  row = result.first()
+  last_reason = row[2] if row else None
   if (
     gate_status is not None
     and per_bot_stats is not None
@@ -3146,6 +3191,7 @@ async def symbol_cooldown_remaining_seconds(
       signal_direction=signal_direction,
       macd_signal=macd_signal,
       composite=composite,
+      last_exit_reason=last_reason,
     )
   ):
     return 0
@@ -3181,21 +3227,7 @@ async def symbol_cooldown_remaining_seconds(
     composite=composite,
   ):
     return 0
-  from app.models.entities import Trade
-
-  result = await session.execute(
-    select(Trade.is_winner, Trade.executed_at, Trade.reason, Trade.pnl)
-    .where(
-      Trade.bot_type == bot_type,
-      Trade.symbol == symbol,
-      Trade.action == "sell",
-    )
-    .order_by(Trade.executed_at.desc())
-    .limit(1)
-  )
-  row = result.first()
   if row:
-    _, _, last_reason, _ = row
     if crypto_momentum_retreat_cooldown_bypass(
       bot_type=bot_type,
       shadow_mode=shadow_mode,

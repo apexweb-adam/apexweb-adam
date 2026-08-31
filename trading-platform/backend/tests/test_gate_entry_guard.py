@@ -928,6 +928,76 @@ def test_commodities_verification_cap_pressure_wind_down_unset_gate_cap():
   ) is True
 
 
+def test_commodities_cap_pressure_reentry_blocked():
+  from app.engines.gate_entry_guard import (
+    COMMODITIES_HIGH_COMPOSITE_RECOVERY_FLOOR,
+    commodities_cap_pressure_reentry_blocked,
+  )
+
+  tightening = GateEntryTightening(
+    active=False,
+    win_rate=0.62,
+    min_sentiment=0.0,
+    require_macd_bullish=False,
+    min_composite_boost=0.0,
+    max_commodities_open_positions=None,
+  )
+  base = dict(
+    bot_type="commodities",
+    shadow_mode=False,
+    graduation_nudge=False,
+    verification_nudge=True,
+    symbol="HG=F",
+    open_count=4,
+    gate_tightening=tightening,
+    last_exit_reason="Gate cap-pressure loser wind-down (uPnL $-6.45)",
+  )
+  assert commodities_cap_pressure_reentry_blocked(
+    **base,
+    composite=COMMODITIES_HIGH_COMPOSITE_RECOVERY_FLOOR - 0.05,
+  ) is True
+  assert commodities_cap_pressure_reentry_blocked(
+    **base,
+    composite=COMMODITIES_HIGH_COMPOSITE_RECOVERY_FLOOR + 0.05,
+  ) is False
+  assert commodities_cap_pressure_reentry_blocked(
+    **{**base, "open_count": 2},
+    composite=0.30,
+  ) is False
+  assert commodities_cap_pressure_reentry_blocked(
+    **{**base, "last_exit_reason": "Sell signal: momentum fade"},
+    composite=0.30,
+  ) is False
+
+
+def test_commodities_verification_cooldown_bypass_skips_cap_pressure_exit():
+  from app.engines.gate_entry_guard import commodities_verification_cooldown_bypass
+
+  gate_ok = {
+    "total_trades": 67,
+    "win_rate": 0.627,
+    "profit_factor": 1.5,
+    "total_pnl": 58.68,
+  }
+  per_bot_ready = {"graduation_ready": True, "total_trades": 67, "win_rate": 0.627}
+  base = dict(
+    bot_type="commodities",
+    shadow_mode=False,
+    symbol="HG=F",
+    proven_winners=frozenset({"HG=F", "SI=F"}),
+    gate_status=gate_ok,
+    per_bot_stats=per_bot_ready,
+    signal_direction="buy",
+    macd_signal="bullish",
+    composite=0.65,
+  )
+  assert commodities_verification_cooldown_bypass(**base) is True
+  assert commodities_verification_cooldown_bypass(
+    **base,
+    last_exit_reason="Gate cap-pressure loser wind-down (uPnL $-6.45)",
+  ) is False
+
+
 def test_commodities_verification_cooldown_bypass():
   from app.engines.gate_entry_guard import (
     COMMODITIES_HIGH_COMPOSITE_RECOVERY_FLOOR,
