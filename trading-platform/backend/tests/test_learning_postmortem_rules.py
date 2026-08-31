@@ -187,3 +187,38 @@ def test_analyze_losing_trade_flags_commodities_monday_futures_gate_skip():
     analysis = asyncio.run(learner.analyze_losing_trade(trade))
 
   assert "cme" in analysis.root_cause.lower() or "gate-skip" in analysis.root_cause.lower()
+
+
+def test_analyze_losing_trade_flags_political_intel_on_polymarket():
+  session = AsyncMock()
+  session.execute = AsyncMock(
+    side_effect=[
+      MagicMock(scalar_one_or_none=MagicMock(return_value=None)),
+      MagicMock(scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=[])))),
+      MagicMock(scalar_one_or_none=MagicMock(return_value=None)),
+      MagicMock(scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=[])))),
+    ]
+  )
+  session.commit = AsyncMock()
+  session.add = MagicMock()
+
+  trade = _trade(
+    bot_type="polymarket",
+    symbol="FED-RATE-CUT",
+    sentiment_score=-0.3,
+    reason="Yes entry on macro market",
+  )
+
+  learner = LearningEngine(session)
+  learner._get_market_context = AsyncMock(return_value="context")
+  learner._had_source_intel = AsyncMock(
+    side_effect=lambda symbol, at_time, source: source == "political"
+  )
+  learner._apply_adjustments = AsyncMock()
+  learner.run_daily_review = AsyncMock(return_value=MagicMock())
+
+  with patch("app.ws_manager.push_live_update", new_callable=AsyncMock):
+    analysis = asyncio.run(learner.analyze_losing_trade(trade))
+
+  assert "political" in analysis.root_cause.lower()
+  assert "macro" in analysis.lessons_learned.lower()

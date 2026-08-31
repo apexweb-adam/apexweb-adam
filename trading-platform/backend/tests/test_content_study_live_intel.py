@@ -96,6 +96,42 @@ def test_study_live_intel_sources_applies_fomo_item():
   assert "crypto bot" in call_kwargs["impact"].lower()
 
 
+def test_study_live_intel_sources_applies_political_item():
+  item = SimpleNamespace(
+    id=2,
+    source="political",
+    title="US imposes new tariff on steel imports",
+    content="trade war escalation",
+    url="https://news.example/tariff",
+    symbols_mentioned="GC=F",
+    sentiment=0.35,
+    relevance_score=0.72,
+    applied=False,
+  )
+
+  session = AsyncMock()
+  session.execute = AsyncMock(
+    return_value=MagicMock(scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=[item]))))
+  )
+  session.commit = AsyncMock()
+
+  insight = MagicMock(applied=True)
+  learner = MagicMock()
+  learner.apply_external_insight = AsyncMock(return_value=insight)
+
+  engine = ContentStudyEngine(session)
+  engine.learner = learner
+
+  applied = asyncio.run(engine._study_live_intel_sources())
+
+  assert applied == 1
+  learner.apply_external_insight.assert_awaited_once()
+  assert item.applied is True
+  call_kwargs = learner.apply_external_insight.await_args.kwargs
+  assert "tariff" in call_kwargs["impact"].lower()
+  assert "commodities" in call_kwargs["impact"].lower()
+
+
 def test_extract_x_crypto_bullish_impact():
   impact, confidence = _extract_live_intel_impact(
     "x",

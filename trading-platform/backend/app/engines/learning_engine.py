@@ -13,6 +13,14 @@ def _target_bot_types_from_impact(impact: str) -> set[str] | None:
   """Return bot types mentioned in impact text; None means apply to all configs."""
   text = impact.lower()
   targets: set[str] = set()
+  if "target bots:" in text:
+    bot_segment = text.split("target bots:", 1)[1].split(";", 1)[0]
+    for bot in bot_segment.split(","):
+      bot = bot.strip()
+      if bot in ("crypto", "stocks_futures", "commodities", "polymarket"):
+        targets.add(bot)
+    if targets:
+      return targets
   if any(
     k in text
     for k in (
@@ -54,6 +62,15 @@ def _target_bot_types_from_impact(impact: str) -> set[str] | None:
     targets.add("stocks_futures")
   if any(k in text for k in ("polymarket", "prediction market", "prediction-market")):
     targets.add("polymarket")
+  if "political intel" in text:
+    if "commodities" in text:
+      targets.add("commodities")
+    if "stocks_futures" in text or "stocks bot" in text:
+      targets.add("stocks_futures")
+    if "crypto" in text:
+      targets.add("crypto")
+    if "polymarket" in text:
+      targets.add("polymarket")
   return targets if targets else None
 
 
