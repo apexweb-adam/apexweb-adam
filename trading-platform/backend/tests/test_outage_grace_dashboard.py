@@ -16,9 +16,11 @@ def test_backend_suspension_exports_grace_countdown():
   assert "platformOutageGraceMinutesRemaining" in text
   assert "platform_outage_grace_minutes_remaining" in text
   assert "platformOutageGraceDeadlineUtc" in text
+  assert "usCashSessionCatchupMinutesRemaining" in text
   assert "outageRecoveryBots" in text
   assert "recovery_bots" in text
   assert "270 * 60 * 1000" in text
+  assert "forced open-ready scan" in text
 
 
 def test_deploy_unblock_documents_crypto_held_recovery():
