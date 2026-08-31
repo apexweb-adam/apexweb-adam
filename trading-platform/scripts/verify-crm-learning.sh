@@ -155,7 +155,7 @@ else
 fi
 
 STATUS_JSON="$STATUS" python3 << 'PY'
-import json, os
+import json, os, sys
 
 data = json.loads(os.environ.get("STATUS_JSON") or "{}")
 integrations = data.get("integrations") or {}
@@ -164,9 +164,40 @@ tv_items = integrations.get("tradingview_items")
 pm_hook = bool(integrations.get("polymarket_account_hook"))
 pm_api = bool(integrations.get("polymarket_api_key"))
 pm_scan = bool(integrations.get("polymarket_market_scanner"))
+pm_intel = integrations.get("polymarket_intel_items")
+pm_account = integrations.get("polymarket_account_items")
+pm_profile = integrations.get("polymarket_profile_url")
 print(f"integrations tradingview_webhook={tv} items={tv_items}")
-print(f"integrations polymarket_account_hook={pm_hook} api_key={pm_api} scanner={pm_scan}")
+print(
+    f"integrations polymarket_account_hook={pm_hook} api_key={pm_api} scanner={pm_scan} "
+    f"intel_items={pm_intel} account_items={pm_account}"
+)
+if pm_profile:
+    print(f"integrations polymarket_profile_url={pm_profile}")
+missing_pm_fields = [
+    key
+    for key in (
+        "polymarket_intel_items",
+        "polymarket_account_items",
+        "polymarket_profile_url",
+        "polymarket_setup",
+    )
+    if key not in integrations
+]
+if missing_pm_fields:
+    print("missing_polymarket_integration_fields=" + ",".join(missing_pm_fields))
+    sys.exit(4)
 PY
+INTEGRATIONS_RC=$?
+
+case "$INTEGRATIONS_RC" in
+  0)
+    ok "Integrations include Polymarket profile + intel counts (r127+)"
+    ;;
+  4)
+    bad "Integrations missing Polymarket fields — confirm r127+ revision"
+    ;;
+esac
 
 echo ""
 echo "Results: $pass passed, $fail failed, $warn notes"

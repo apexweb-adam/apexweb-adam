@@ -562,6 +562,7 @@ export type IntelligenceSource = {
   bearer_minutes_remaining?: number | null;
   bearer_polling_active?: boolean | null;
   oauth_configured?: boolean | null;
+  account_hook_configured?: boolean | null;
 };
 
 export type IntelRouting = {

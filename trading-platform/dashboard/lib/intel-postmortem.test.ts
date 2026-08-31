@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { detectIntelPostMortemSources, intelSourceBadge } from "./intel-postmortem.ts";
+import { detectIntelPostMortemSources, intelFeedSourceBadge, intelSourceBadge } from "./intel-postmortem.ts";
 
 describe("detectIntelPostMortemSources", () => {
   it("detects political and TikTok sources from root cause text", () => {
@@ -71,5 +71,18 @@ describe("detectIntelPostMortemSources", () => {
       "Review if entry timing could be improved"
     );
     assert.equal(sources.length, 0);
+  });
+
+  it("maps live intel feed sources to badges with fallback", () => {
+    const political = intelFeedSourceBadge("political");
+    assert.equal(political.label, "Political");
+    assert.match(political.className, /purple/);
+
+    const account = intelFeedSourceBadge("polymarket_account");
+    assert.equal(account.label, "Polymarket");
+
+    const unknown = intelFeedSourceBadge("custom_feed");
+    assert.equal(unknown.label, "custom feed");
+    assert.match(unknown.className, /purple/);
   });
 });

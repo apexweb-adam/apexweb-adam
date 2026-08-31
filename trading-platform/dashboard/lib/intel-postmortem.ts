@@ -51,3 +51,14 @@ export function intelSourceBadge(sourceType: string): IntelPostMortemSource | nu
   const { id: badgeId, label, className } = match;
   return { id: badgeId, label, className };
 }
+
+/** Badge for live intel feed rows — falls back to a neutral label for unknown sources. */
+export function intelFeedSourceBadge(source: string): IntelPostMortemSource {
+  return (
+    intelSourceBadge(source) ?? {
+      id: source,
+      label: source.replace(/_/g, " "),
+      className: "bg-apex-purple/20 text-apex-purple border-apex-purple/30",
+    }
+  );
+}

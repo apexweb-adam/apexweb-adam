@@ -28,7 +28,7 @@ import {
   VERIFIED_PREVIEW_URL,
   VERIFIED_PROMOTE_DEPLOYMENT_ID,
 } from "@/lib/deploy-health";
-import { detectIntelPostMortemSources, intelSourceBadge } from "@/lib/intel-postmortem";
+import { detectIntelPostMortemSources, intelFeedSourceBadge, intelSourceBadge } from "@/lib/intel-postmortem";
 import {
   botLabel,
   cn,
@@ -1248,11 +1248,18 @@ export default function Dashboard() {
                 )}
               </Card>
               <Card title="Latest Intelligence">
-                {(intelFeed ?? []).slice(0, 5).map((item) => (
+                {(intelFeed ?? []).slice(0, 5).map((item) => {
+                  const sourceBadge = intelFeedSourceBadge(item.source);
+                  return (
                   <div key={item.id} className="py-2 border-b border-apex-border last:border-0">
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-apex-border text-gray-400 uppercase">
-                        {item.source}
+                      <span
+                        className={cn(
+                          "text-[10px] px-1.5 py-0.5 rounded border font-medium",
+                          sourceBadge.className
+                        )}
+                      >
+                        {sourceBadge.label}
                       </span>
                       <span className={cn("text-[10px]", sentimentColor(item.sentiment))}>
                         {item.sentiment > 0 ? "+" : ""}
@@ -1261,7 +1268,8 @@ export default function Dashboard() {
                     </div>
                     <p className="text-xs text-gray-300 line-clamp-2">{item.title}</p>
                   </div>
-                ))}
+                  );
+                })}
               </Card>
             </div>
           </div>
@@ -1334,14 +1342,21 @@ export default function Dashboard() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card title="Market Intelligence Feed">
               <div className="space-y-3 max-h-[700px] overflow-y-auto">
-                {(intelFeed ?? []).map((item) => (
+                {(intelFeed ?? []).map((item) => {
+                  const sourceBadge = intelFeedSourceBadge(item.source);
+                  return (
                   <div
                     key={item.id}
                     className="p-3 rounded-lg bg-apex-dark border border-apex-border"
                   >
                     <div className="flex items-center gap-2 mb-2">
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-apex-purple/20 text-apex-purple uppercase font-medium">
-                        {item.source}
+                      <span
+                        className={cn(
+                          "text-[10px] px-2 py-0.5 rounded-full border font-medium",
+                          sourceBadge.className
+                        )}
+                      >
+                        {sourceBadge.label}
                       </span>
                       <span className="text-[10px] px-2 py-0.5 rounded-full bg-apex-border text-gray-400">
                         {item.category}
@@ -1362,19 +1377,22 @@ export default function Dashboard() {
                       {formatTime(item.fetched_at)}
                     </p>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </Card>
             <Card title="Intelligence Sources">
               <div className="space-y-4">
                 {intelSourcesDisplay ? (
-                intelSourcesDisplay.map((src) => (
+                intelSourcesDisplay.map((src) => {
+                  const sourceBadge = intelFeedSourceBadge(src.source);
+                  return (
                   <div
                     key={src.source}
                     className="flex items-center justify-between p-3 rounded-lg bg-apex-dark border border-apex-border"
                   >
                     <div>
-                      <p className="text-sm font-medium text-white uppercase">{src.source}</p>
+                      <p className="text-sm font-medium text-white">{sourceBadge.label}</p>
                       <p className="text-xs text-gray-500">
                         {src.items_collected} items collected
                         {src.last_fetched ? ` · last ${formatTime(src.last_fetched)}` : ""}
@@ -1413,6 +1431,9 @@ export default function Dashboard() {
                             {src.synthetic_items_24h ? ` · prep ${src.synthetic_items_24h} synthetic (excluded)` : ""}
                           </span>
                         )}
+                        {src.source === "polymarket_account" && src.account_hook_configured === false && (
+                          <span className="text-apex-gold"> · wallet hook not configured</span>
+                        )}
                       </p>
                     </div>
                     <span
@@ -1430,7 +1451,8 @@ export default function Dashboard() {
                       {src.status}
                     </span>
                   </div>
-                ))
+                  );
+                })
                 ) : (
                   <p className="text-xs text-gray-500 py-4 text-center">
                     Loading intelligence sources from platform status…
