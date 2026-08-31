@@ -1971,7 +1971,9 @@ function BillingOutageRecoveryCard({
   const [grace, setGrace] = useState<number | null | undefined>(
     health.platform_outage_grace_minutes_remaining
   );
-  const [catchupMin, setCatchupMin] = useState<number | null | undefined>(undefined);
+  const [catchupMin, setCatchupMin] = useState<number | null | undefined>(
+    health.us_cash_session_catchup_minutes_remaining
+  );
   const [deadline, setDeadline] = useState<string | null | undefined>(
     health.platform_outage_grace_deadline_utc
   );
@@ -1991,15 +1993,21 @@ function BillingOutageRecoveryCard({
   const graceUrgent = grace !== null && grace !== undefined && grace > 0 && grace <= 30;
   const postGraceCatchup =
     grace === 0 && catchupMin !== null && catchupMin !== undefined && catchupMin > 0;
+  const catchupUrgent =
+    postGraceCatchup && catchupMin !== null && catchupMin !== undefined && catchupMin <= 30;
+  const catchupActive =
+    postGraceCatchup && catchupMin !== null && catchupMin !== undefined && catchupMin <= 45;
 
   return (
     <div
       className={cn(
         "border-b px-6 py-4",
-        graceUrgent
+        graceUrgent || catchupUrgent
           ? "border-red-500/50 bg-red-950/40"
           : postGraceCatchup
-            ? "border-amber-500/40 bg-amber-950/30"
+            ? catchupActive
+              ? "border-amber-500/50 bg-amber-950/35"
+              : "border-amber-500/40 bg-amber-950/30"
             : "border-orange-500/30 bg-orange-950/30"
       )}
     >
@@ -2016,7 +2024,11 @@ function BillingOutageRecoveryCard({
           <p
             className={cn(
               "text-xs mb-3",
-              graceUrgent ? "text-red-300 font-medium" : "text-amber-300"
+              graceUrgent || catchupUrgent
+                ? "text-red-300 font-medium"
+                : catchupActive
+                  ? "text-amber-300 font-medium"
+                  : "text-amber-300"
             )}
           >
             {grace > 0 ? (
@@ -2050,9 +2062,15 @@ function BillingOutageRecoveryCard({
                 {postGraceCatchup ? (
                   <>
                     {" "}
-                    — <strong>{catchupMin} min</strong> until US cash close. Post-outage
-                    startup still forces <span className="font-mono">outage_recovery_scan</span>{" "}
-                    for open-ready symbols (e.g. AAPL) if prep state preserved.
+                    — <strong>{catchupMin} min</strong> until US cash close.
+                    {catchupUrgent
+                      ? " Resume billing urgently — post-outage scan window closing."
+                      : catchupActive
+                        ? " Resume billing soon — post-grace catch-up active."
+                        : null}{" "}
+                    Post-outage startup still forces{" "}
+                    <span className="font-mono">outage_recovery_scan</span> for open-ready
+                    symbols (e.g. AAPL) if prep state preserved.
                   </>
                 ) : (
                   <>

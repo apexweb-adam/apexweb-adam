@@ -33,3 +33,10 @@ def test_deploy_unblock_documents_crypto_held_recovery():
   assert "crypto held" in text
   assert "270 minutes" in text
   assert "print-outage-status.sh" in text
+
+
+def test_billing_outage_card_shows_catchup_urgency():
+  text = (ROOT / "dashboard/app/page.tsx").read_text()
+  assert "catchupUrgent" in text
+  assert "catchupActive" in text
+  assert "us_cash_session_catchup_minutes_remaining" in text
