@@ -50,6 +50,9 @@ describe("detectIntelPostMortemSources", () => {
     const whale = intelSourceBadge("wallet_tracker");
     assert.ok(whale);
     assert.equal(whale?.label, "Whale");
+    const hl = intelSourceBadge("hyperliquid");
+    assert.ok(hl);
+    assert.equal(hl?.label, "Hyperliquid");
     assert.equal(intelSourceBadge("unknown_source"), null);
   });
 

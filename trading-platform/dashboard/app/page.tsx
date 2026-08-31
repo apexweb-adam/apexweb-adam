@@ -1535,15 +1535,28 @@ export default function Dashboard() {
             </Card>
             <Card title="External Knowledge Applied">
               <div className="space-y-3 max-h-[500px] overflow-y-auto lg:col-span-2">
-                {(insights ?? []).map((i) => (
+                {(insights ?? []).map((i) => {
+                  const insightBadge = intelSourceBadge(i.source_type);
+                  return (
                   <div
                     key={i.id}
                     className="p-3 rounded-lg bg-apex-dark border border-apex-border"
                   >
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-apex-blue/20 text-apex-blue uppercase">
-                        {i.source_type}
-                      </span>
+                      {insightBadge ? (
+                        <span
+                          className={cn(
+                            "text-[10px] px-2 py-0.5 rounded-full border",
+                            insightBadge.className
+                          )}
+                        >
+                          {insightBadge.label}
+                        </span>
+                      ) : (
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-apex-blue/20 text-apex-blue uppercase">
+                          {i.source_type}
+                        </span>
+                      )}
                       {i.applied && (
                         <span className="text-[10px] px-2 py-0.5 rounded-full bg-apex-green/10 text-apex-green">
                           APPLIED
@@ -1557,7 +1570,8 @@ export default function Dashboard() {
                     <p className="text-xs text-gray-400 mt-1">{i.key_takeaways}</p>
                     <p className="text-xs text-apex-gold mt-1">Impact: {i.strategy_impact}</p>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </Card>
           </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import type { IntelRouting } from "@/lib/api";
+import { intelSourceBadge } from "@/lib/intel-postmortem";
 import { botLabel, cn } from "@/lib/utils";
 
 const BOT_ORDER = ["crypto", "stocks_futures", "commodities", "polymarket"];
@@ -25,21 +26,25 @@ export function IntelRoutingPanel({ routing }: { routing: IntelRouting | null })
           <div key={bot} className="p-3 rounded-lg bg-apex-dark border border-apex-border">
             <p className="text-sm font-medium text-white mb-2">{botLabel(bot)}</p>
             <div className="flex flex-wrap gap-1.5">
-              {sorted.map(([source, w]) => (
+              {sorted.map(([source, w]) => {
+                const badge = intelSourceBadge(source);
+                return (
                 <span
                   key={source}
                   className={cn(
-                    "text-[10px] px-2 py-0.5 rounded-full font-mono",
-                    w >= 1.2
-                      ? "bg-apex-gold/15 text-apex-gold border border-apex-gold/30"
-                      : w >= 0.8
-                        ? "bg-apex-purple/15 text-apex-purple border border-apex-purple/30"
-                        : "bg-apex-border text-gray-500"
+                    "text-[10px] px-2 py-0.5 rounded-full font-mono border",
+                    badge?.className ??
+                      (w >= 1.2
+                        ? "bg-apex-gold/15 text-apex-gold border-apex-gold/30"
+                        : w >= 0.8
+                          ? "bg-apex-purple/15 text-apex-purple border-apex-purple/30"
+                          : "bg-apex-border text-gray-500 border-apex-border")
                   )}
                 >
-                  {source} ×{w.toFixed(2)}
+                  {badge?.label ?? source} ×{w.toFixed(2)}
                 </span>
-              ))}
+                );
+              })}
             </div>
           </div>
         );
