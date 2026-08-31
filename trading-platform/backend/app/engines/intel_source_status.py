@@ -154,6 +154,14 @@ def _source_status(
     if _is_recent_activity(activity_at, hours=24):
       return "active"
     return "degraded"
+  if source == "hyperliquid" and (is_configured or has_items):
+    if _is_recent_activity(activity_at, hours=12):
+      return "active"
+    return "degraded"
+  if source == "dexscreener" and has_items:
+    if _is_recent_activity(activity_at, hours=24):
+      return "active"
+    return "degraded"
   if source == "reddit" and has_items and not configured.get("reddit_oauth"):
     latest = activity_at
     if latest is not None:
