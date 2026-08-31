@@ -7,6 +7,8 @@ export type OutageRecoveryBot = {
   bot_type: string;
   label: string;
   action: string;
+  verify_script?: string;
+  held_symbols?: string[];
 };
 
 export type BackendSuspension = {
@@ -17,6 +19,7 @@ export type BackendSuspension = {
   recovery_steps: string[];
   platform_outage_grace_minutes_remaining?: number | null;
   platform_outage_grace_deadline_utc?: string | null;
+  us_cash_session_catchup_minutes_remaining?: number | null;
   expected_platform_revision?: string;
   recovery_bots?: OutageRecoveryBot[];
 };
@@ -75,16 +78,20 @@ export function outageRecoveryBots(): OutageRecoveryBot[] {
       bot_type: "stocks_futures",
       label: "US stocks",
       action: "Burst scan + auto-entry for open-ready symbols (e.g. AAPL)",
+      verify_script: "verify-us-stocks-post-open.sh --watch 120",
     },
     {
       bot_type: "commodities",
       label: "Commodities / CME",
       action: "TV refresh + burst scan for held futures and forex",
+      verify_script: "verify-cme-post-open.sh --watch 90",
+      held_symbols: ["EURUSD=X", "GC=F", "HG=F"],
     },
     {
       bot_type: "crypto",
       label: "Crypto 24/7",
       action: "Immediate held-position scan on startup",
+      verify_script: "verify-crypto-held.sh --watch 90",
     },
   ];
 }
@@ -147,7 +154,11 @@ export function buildBackendSuspensionPayload(
       "Resume apex-trading-backend manually (API resume does not work for billing suspension).",
       "Run: bash trading-platform/scripts/recover-render-billing.sh",
       graceNote,
-      `After resume, confirm outage_recovery_scan then burst_scan in the US stocks open checklist (deploy ${EXPECTED_PLATFORM_REVISION}).`,
+      "Verify US stocks: bash trading-platform/scripts/verify-us-stocks-post-open.sh --watch 120",
+      "Verify CME/commodities: bash trading-platform/scripts/verify-cme-post-open.sh --watch 90",
+      "Verify crypto held: bash trading-platform/scripts/verify-crypto-held.sh --watch 90",
+      `After resume, confirm outage_recovery_scan then burst_scan (deploy ${EXPECTED_PLATFORM_REVISION}).`,
     ],
+    us_cash_session_catchup_minutes_remaining: catchupRemaining,
   };
 }

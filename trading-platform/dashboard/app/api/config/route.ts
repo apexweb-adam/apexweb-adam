@@ -32,6 +32,8 @@ async function probeBackendHealth(base: string) {
         platform_outage_grace_minutes_remaining:
           payload.platform_outage_grace_minutes_remaining,
         platform_outage_grace_deadline_utc: payload.platform_outage_grace_deadline_utc,
+        us_cash_session_catchup_minutes_remaining:
+          payload.us_cash_session_catchup_minutes_remaining,
         expected_platform_revision: payload.expected_platform_revision,
         recovery_bots: payload.recovery_bots,
       };
