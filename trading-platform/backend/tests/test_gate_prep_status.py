@@ -50,6 +50,52 @@ def test_build_session_prep_status_includes_prep_phase_fields():
   assert status["stocks_futures"]["minutes_until_imminent_scan"] == 2970
 
 
+def test_gate_prep_status_cache_ttl_extended_during_prewarm():
+  with patch(
+    "app.engines.gate_entry_guard.status_cache_prewarm_active",
+    return_value=True,
+  ):
+    assert gate_prep_status._gate_prep_status_cache_ttl_seconds() == 60
+
+
+def test_build_gate_prep_status_serves_stale_while_rebuild_in_progress():
+  async def run():
+    session = AsyncMock()
+    payload = {"commodities": {"prep_phase": "extended"}, "next_session_events": {}}
+    build_started = asyncio.Event()
+    release_build = asyncio.Event()
+    build_count = 0
+
+    async def slow_build(_session):
+      nonlocal build_count
+      build_count += 1
+      if build_count == 1:
+        return dict(payload)
+      build_started.set()
+      await release_build.wait()
+      return {**payload, "commodities": {"prep_phase": "imminent"}}
+
+    with patch(
+      "app.engines.gate_prep_status._build_gate_prep_status_uncached",
+      new=AsyncMock(side_effect=slow_build),
+    ) as builder:
+      await gate_prep_status.build_gate_prep_status(session)
+      gate_prep_status._gate_prep_cached_at = 0.0
+      rebuild_task = asyncio.create_task(gate_prep_status.build_gate_prep_status(session))
+      await build_started.wait()
+      stale = await gate_prep_status.build_gate_prep_status(session)
+      release_build.set()
+      rebuilt = await rebuild_task
+
+    assert builder.await_count == 2
+    assert stale["prep_cache_stale"] is True
+    assert stale["prep_cache_hit"] is False
+    assert stale["commodities"]["prep_phase"] == "extended"
+    assert rebuilt["commodities"]["prep_phase"] == "imminent"
+
+  asyncio.run(run())
+
+
 def test_gate_prep_status_cache_ttl_extended_during_cme_weekend():
   with patch(
     "app.engines.gate_entry_guard.commodities_futures_weekend_closed",
