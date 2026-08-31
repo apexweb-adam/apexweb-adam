@@ -239,6 +239,7 @@ async def crm_landing():
     commodities_session=cme_session,
     stocks_trade_count_nudge=stocks_trade_count_nudge,
     commodities_graduation_nudge=commodities_graduation_nudge,
+    commodities_verification_nudge=commodities_verification_nudge,
     open_ready_rows=monday_recovery.get("open_ready"),
     near_floor_rows=monday_recovery.get("near_floor"),
   )

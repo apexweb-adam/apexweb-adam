@@ -857,6 +857,32 @@ def commodities_verification_entry_min_signal(
   return min(entry_min_signal, COMMODITIES_VERIFICATION_TRADE_COUNT_MIN_COMPOSITE)
 
 
+def commodities_verification_gate_skip_bypass(
+  *,
+  bot_type: str,
+  shadow_mode: bool,
+  symbol: str,
+  proven_winners: frozenset[str],
+  gate_status: dict[str, Any],
+  per_bot_stats: dict[str, Any],
+  signal_direction: str,
+  macd_signal: str,
+  composite: float,
+) -> bool:
+  """Proven-winner commodities bypass gate_skip at the verification trade-count floor."""
+  if shadow_mode or bot_type != "commodities":
+    return False
+  if not commodities_verification_trade_count_nudge(
+    bot_type, shadow_mode, gate_status, per_bot_stats
+  ):
+    return False
+  if symbol not in proven_winners:
+    return False
+  if signal_direction != "buy" or macd_signal != "bullish":
+    return False
+  return composite >= COMMODITIES_VERIFICATION_TRADE_COUNT_MIN_COMPOSITE
+
+
 def stocks_trade_count_entry_min_signal(
   entry_min_signal: float,
   *,
@@ -2935,6 +2961,8 @@ def hard_skip_blocks_shadow_entry(
   total_pnl: float | None = None,
   open_count: int | None = None,
   shadow_open_cap: int | None = None,
+  gate_status: dict[str, Any] | None = None,
+  per_bot_stats: dict[str, Any] | None = None,
 ) -> bool:
   """Hard gate-skip during graduation nudge — review blocks ease on strong active-gate composites."""
   recovery_ok = (
@@ -2957,6 +2985,21 @@ def hard_skip_blocks_shadow_entry(
       signal_direction=signal_direction,
       macd_signal=macd_signal,
       graduation_nudge=graduation_nudge,
+    )
+  )
+  verification_gate_skip_ok = (
+    gate_status is not None
+    and per_bot_stats is not None
+    and commodities_verification_gate_skip_bypass(
+      bot_type=bot_type,
+      shadow_mode=shadow_mode,
+      symbol=symbol,
+      proven_winners=proven_winners or frozenset(),
+      gate_status=gate_status,
+      per_bot_stats=per_bot_stats,
+      signal_direction=signal_direction,
+      macd_signal=macd_signal,
+      composite=composite,
     )
   )
   if symbol in review_skip:
@@ -3002,6 +3045,8 @@ def hard_skip_blocks_shadow_entry(
       macd_signal=macd_signal,
       composite=composite,
     ):
+      return False
+    if verification_gate_skip_ok:
       return False
     return True
   large_bypass_floor = SHADOW_LARGE_LOSS_BYPASS_COMPOSITE_BY_BOT.get(
@@ -3066,6 +3111,8 @@ def hard_skip_blocks_shadow_entry(
       composite_only = SHADOW_INTEL_COMPOSITE_ONLY_BY_BOT.get(bot_type)
       if composite_only is not None and composite >= composite_only:
         return False
+    if verification_gate_skip_ok:
+      return False
     return True
   if symbol in recent_skip:
     if recovery_ok:
@@ -3121,6 +3168,8 @@ def hard_skip_blocks_shadow_entry(
       graduation_nudge=graduation_nudge,
       shadow_mode=shadow_mode,
     ) and intel_override:
+      return False
+    if verification_gate_skip_ok:
       return False
     return True
   return False
@@ -3746,6 +3795,7 @@ def build_session_prep_status(
   commodities_session: dict[str, Any],
   stocks_trade_count_nudge: bool,
   commodities_graduation_nudge: bool,
+  commodities_verification_nudge: bool = False,
   open_ready_rows: list[dict[str, Any]] | None = None,
   near_floor_rows: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
@@ -3754,7 +3804,7 @@ def build_session_prep_status(
   commodities_minutes = commodities_session.get("minutes_until_open")
   stocks_window = stocks_pre_session_prep_window_minutes(stocks_trade_count_nudge)
   commodities_window = commodities_pre_session_prep_window_minutes(
-    commodities_graduation_nudge,
+    commodities_graduation_nudge or commodities_verification_nudge,
     open_ready_watch=bool(
       [r for r in (open_ready_rows or []) if r.get("bot_type") == "commodities"]
       or [r for r in (near_floor_rows or []) if r.get("bot_type") == "commodities"]
@@ -3820,15 +3870,19 @@ def build_session_prep_status(
       "commodities",
       commodities_session,
       commodities_window,
-      commodities_graduation_nudge,
-      "graduation nudge",
+      commodities_graduation_nudge or commodities_verification_nudge,
+      (
+        "verification nudge"
+        if commodities_verification_nudge and not commodities_graduation_nudge
+        else "graduation nudge"
+      ),
       gate_fast_scan_active=commodities_gate_fast_scan_active(
         commodities_session,
-        graduation_nudge=commodities_graduation_nudge,
+        graduation_nudge=commodities_graduation_nudge or commodities_verification_nudge,
       ),
       gate_reopen_imminent=commodities_reopen_imminent_scan_active(
         commodities_session,
-        graduation_nudge=commodities_graduation_nudge,
+        graduation_nudge=commodities_graduation_nudge or commodities_verification_nudge,
       ),
       reopen_wake_active=commodities_reopen_wake_active(commodities_session),
     ),

@@ -108,6 +108,9 @@ async def _build_gate_prep_status_uncached(session: AsyncSession) -> dict[str, A
     commodities_session=cme_session,
     stocks_trade_count_nudge=bool(recovery.get("stocks_trade_count_nudge")),
     commodities_graduation_nudge=bool(recovery.get("commodities_graduation_nudge")),
+    commodities_verification_nudge=bool(
+      recovery.get("commodities_verification_trade_count_nudge")
+    ),
     open_ready_rows=recovery.get("open_ready"),
     near_floor_rows=recovery.get("near_floor"),
   )
