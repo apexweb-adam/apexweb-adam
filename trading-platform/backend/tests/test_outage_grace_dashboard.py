@@ -20,7 +20,7 @@ def test_backend_suspension_exports_grace_countdown():
   assert "outageRecoveryBots" in text
   assert "recovery_bots" in text
   assert "270 * 60 * 1000" in text
-  assert "forced open-ready scan" in text
+  assert "forces open-ready scan" in text
 
 
 def test_deploy_unblock_documents_crypto_held_recovery():
