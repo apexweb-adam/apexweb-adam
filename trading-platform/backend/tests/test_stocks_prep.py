@@ -54,16 +54,37 @@ def test_stocks_open_ready_watch_job_refreshes_imminent_window():
     return_value=["AAPL"],
   ) as mock_refresh:
     with patch(
-      "app.engines.gate_entry_guard.stocks_session_info",
-      return_value={"in_session": False, "minutes_until_open": 20},
+      "app.engines.gate_entry_guard.stocks_open_ready_watch_active",
+      return_value=True,
     ):
-      with patch("app.ws_manager.push_live_update", new_callable=AsyncMock):
-        with patch("app.engines.scan_preview.clear_monday_recovery_cache"):
-          import asyncio
+      with patch(
+        "app.engines.gate_entry_guard.stocks_session_info",
+        return_value={"in_session": False, "minutes_until_open": 20},
+      ):
+        with patch("app.ws_manager.push_live_update", new_callable=AsyncMock):
+          with patch("app.engines.scan_preview.clear_monday_recovery_cache"):
+            import asyncio
 
-          asyncio.run(stocks_open_ready_watch_job())
+            asyncio.run(stocks_open_ready_watch_job())
     mock_refresh.assert_called_once()
     assert mock_refresh.call_args.kwargs["max_minutes_until_open"] == 30
+
+
+def test_stocks_open_ready_watch_job_skips_outside_imminent_window():
+  from app.workers.scheduler import stocks_open_ready_watch_job
+
+  with patch(
+    "app.engines.gate_entry_guard.stocks_open_ready_watch_active",
+    return_value=False,
+  ):
+    with patch(
+      "app.workers.scheduler._stocks_us_watch_tv_refresh",
+      new_callable=AsyncMock,
+    ) as mock_refresh:
+      import asyncio
+
+      asyncio.run(stocks_open_ready_watch_job())
+      mock_refresh.assert_not_called()
 
 
 def test_stocks_prep_skips_when_in_session():

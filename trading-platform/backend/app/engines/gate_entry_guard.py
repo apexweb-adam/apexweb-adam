@@ -3597,6 +3597,7 @@ STOCKS_MONDAY_SCAN_PREP_MINUTES = 90
 STOCKS_TRADE_COUNT_PREP_MINUTES = 4320  # 72h — weekend TV refresh before Monday open
 STOCKS_OPEN_IMMINENT_SCAN_MINUTES = 30
 STOCKS_OPEN_IMMINENT_SCAN_INTERVAL = 5
+STOCKS_OPEN_READY_WATCH_INTERVAL_SECONDS = 60
 
 
 def session_open_composite_floor(
@@ -4365,6 +4366,18 @@ def stocks_gate_fast_scan_active(
       minutes_until is not None
       and minutes_until <= STOCKS_TRADE_COUNT_PREP_MINUTES
     )
+  minutes_until = session.get("minutes_until_open")
+  return (
+    minutes_until is not None
+    and minutes_until <= STOCKS_OPEN_IMMINENT_SCAN_MINUTES
+  )
+
+
+def stocks_open_ready_watch_active(session_info: dict[str, Any] | None = None) -> bool:
+  """Whether the 1-min open-ready TV watch window is active (last 30 min pre-open)."""
+  session = session_info or stocks_session_info()
+  if session.get("in_session"):
+    return False
   minutes_until = session.get("minutes_until_open")
   return (
     minutes_until is not None

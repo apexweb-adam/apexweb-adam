@@ -1553,6 +1553,20 @@ def test_stocks_open_wake_active():
   ) is False
 
 
+def test_stocks_open_ready_watch_active():
+  from app.engines.gate_entry_guard import stocks_open_ready_watch_active
+
+  assert stocks_open_ready_watch_active(
+    {"in_session": False, "minutes_until_open": 20, "minutes_since_open": 0}
+  ) is True
+  assert stocks_open_ready_watch_active(
+    {"in_session": False, "minutes_until_open": 45, "minutes_since_open": 0}
+  ) is False
+  assert stocks_open_ready_watch_active(
+    {"in_session": True, "minutes_until_open": 0, "minutes_since_open": 10}
+  ) is False
+
+
 def test_stocks_open_imminent_scan_active():
   from app.engines.gate_entry_guard import (
     STOCKS_OPEN_IMMINENT_SCAN_INTERVAL,
