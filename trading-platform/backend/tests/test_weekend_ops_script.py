@@ -13,6 +13,8 @@ def test_ops_gate_summary_script_exists():
   assert "Per-bot graduation" in text
   assert "fomo bearer" in text
   assert "intel degraded" in text
+  assert "post_grace_catchup_min" in text
+  assert "verify-post-outage-recovery.sh" in text
 
 
 def test_wait_for_render_deploy_script_exists():
@@ -105,6 +107,8 @@ def test_recover_render_billing_triggers_deploy_when_behind():
   assert "urgent polling" in text
   assert 'GRACE_LEFT" -le 30' in text
   assert "post_grace_catchup_min" in text
+  assert "CATCHUP_LEFT" in text or "catchup_left" in text
+  assert "Post-grace catch-up" in text
   assert "extended burst grace expired" in text
   assert "r467+" in text
   assert "has_outage_recovery_scan" in text
@@ -341,6 +345,7 @@ def test_render_billing_recovery_workflow_uses_verify_once():
   assert "VERIFY_ONCE=1" in text
   assert "--verify-once" in text
   assert "r467+" in text
+  assert "CATCHUP_LEFT" in text
 
 
 def test_wait_for_render_deploy_waits_for_status_revision():

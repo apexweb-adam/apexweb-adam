@@ -78,7 +78,44 @@ if now.isoweekday() == 1 and now.hour >= 13:
     if ext_left == 0 and now.hour < 21:
         print("post_grace")
 PY
+  CATCHUP_LEFT="$(python3 - << 'PY' 2>/dev/null || true
+from datetime import datetime, timezone
+now = datetime.now(timezone.utc)
+if now.isoweekday() != 1 or now.hour < 13 or now.hour >= 21:
+    raise SystemExit(0)
+open_at = now.replace(hour=13, minute=30, second=0, microsecond=0)
+ext_left = max(0, int((open_at.timestamp() + 270 * 60 - now.timestamp()) // 60))
+if ext_left > 0:
+    raise SystemExit(0)
+session_end = now.replace(hour=21, minute=0, second=0, microsecond=0)
+catchup_left = max(0, int((session_end.timestamp() - now.timestamp()) // 60))
+if catchup_left > 0:
+    print(catchup_left)
+PY
+  )"
   echo "Monday extended burst grace expired — post-outage startup still forces open-ready scan (r467+)."
+  if [[ -n "$CATCHUP_LEFT" && "$CATCHUP_LEFT" -gt 0 ]]; then
+    echo "US cash session catch-up: ${CATCHUP_LEFT} min until 21:00 UTC"
+    if [[ "$CATCHUP_LEFT" -le 45 ]]; then
+      if [[ "$INTERVAL" -ge 30 ]]; then
+        INTERVAL=15
+      fi
+      if [[ "$CATCHUP_LEFT" -le 30 && "$INTERVAL" -gt 5 ]]; then
+        INTERVAL=5
+      fi
+      if [[ "$MAX_WAIT" -le 1800 ]]; then
+        MAX_WAIT=3600
+      fi
+      urgency="active"
+      if [[ "$CATCHUP_LEFT" -le 30 ]]; then
+        urgency="URGENT"
+      fi
+      echo "Post-grace catch-up ${urgency} — polling every ${INTERVAL}s (max wait ${MAX_WAIT}s)"
+      if [[ "$CATCHUP_LEFT" -le 15 ]]; then
+        echo "  action=resume billing NOW — US cash close at 21:00 UTC"
+      fi
+    fi
+  fi
   echo ""
 fi
 
