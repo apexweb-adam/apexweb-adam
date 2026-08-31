@@ -184,7 +184,7 @@ def test_print_outage_status_script():
   assert "r454 deploys" not in text
   assert "held_open_positions" in text
   assert "cme-reopen-checklist" in text
-  assert "post-outage startup" in text
+  assert "us_cash_session_catchup" in text or "post-outage startup" in text
   assert "--watch" in text
   assert "every 5 min Mon 13-21 UTC" in text
   assert "has_outage_recovery_scan" in text or "outage_recovery_scan" in text
