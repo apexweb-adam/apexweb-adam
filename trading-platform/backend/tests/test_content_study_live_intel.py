@@ -247,6 +247,49 @@ def test_extract_tiktok_stock_sentiment_impact():
   assert confidence >= 0.59
 
 
+def test_extract_tiktok_commodities_impact():
+  impact, confidence = _extract_live_intel_impact(
+    "tiktok",
+    "Gold futures breakout viral on TikTok",
+    "CME commodities day trading trend",
+    "GC=F",
+    0.32,
+    0.68,
+  )
+  assert impact is not None
+  assert "commodities bot" in impact.lower()
+  assert "macd" in impact.lower()
+  assert confidence >= 0.55
+
+
+def test_extract_reddit_commodities_impact():
+  impact, confidence = _extract_live_intel_impact(
+    "reddit",
+    "Oil futures rally discussion",
+    "crude commodities CME breakout thread",
+    "CL=F",
+    0.34,
+    0.66,
+  )
+  assert impact is not None
+  assert "commodities bot" in impact.lower()
+  assert confidence >= 0.55
+
+
+def test_extract_reddit_stocks_impact():
+  impact, confidence = _extract_live_intel_impact(
+    "reddit",
+    "NVDA earnings yolo thread",
+    "bullish stock discussion",
+    "NVDA",
+    0.36,
+    0.67,
+  )
+  assert impact is not None
+  assert "stocks_futures bot" in impact.lower()
+  assert confidence >= 0.55
+
+
 def test_extract_political_tariff_impact():
   impact, confidence = _extract_live_intel_impact(
     "political",

@@ -291,6 +291,26 @@ def _extract_live_intel_impact(source: str, title: str, content: str, symbols: s
         min(0.76, relevance * 0.88),
       )
     if relevance > 0.45 and any(
+      k in text
+      for k in (
+        "gold",
+        "oil",
+        "commodit",
+        "futures",
+        "cme",
+        "xau",
+        "crude",
+        "natural gas",
+        "copper",
+        "forex",
+        "silver",
+      )
+    ):
+      return (
+        f"TikTok viral commodities sentiment on {sym} — commodities bot: require MACD + composite floor on social-driven entries",
+        min(0.72, relevance * 0.84),
+      )
+    if relevance > 0.45 and any(
       k in text for k in ("stock", "aapl", "nvda", "tsla", "spy", "qqq", "day trad", "earnings", "options")
     ):
       return (
@@ -301,6 +321,30 @@ def _extract_live_intel_impact(source: str, title: str, content: str, symbols: s
 
   if source == "reddit":
     if sentiment > 0.2:
+      if any(k in text for k in ("aapl", "nvda", "tsla", "spy", "qqq", "stock", "earnings")):
+        return (
+          f"Reddit bullish discussion on {sym} — stocks_futures bot: require MACD + volume when retail buzz drives entries",
+          min(0.72, relevance * 0.82 + abs(sentiment) * 0.1),
+        )
+      if any(
+        k in text
+        for k in (
+          "gold",
+          "oil",
+          "commodit",
+          "futures",
+          "cme",
+          "xau",
+          "crude",
+          "copper",
+          "forex",
+          "silver",
+        )
+      ):
+        return (
+          f"Reddit commodities discussion on {sym} — commodities bot: treat social buzz as sentiment input with MACD confirmation",
+          min(0.72, relevance * 0.82 + abs(sentiment) * 0.1),
+        )
       if any(k in text for k in ("wsb", "wallstreetbets", "yolo", "meme", "cryptocurrency")):
         return (
           f"Reddit retail buzz on {sym} — crypto bot: treat social hype as sentiment input, not sole entry signal",
