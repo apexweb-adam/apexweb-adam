@@ -79,6 +79,10 @@ def test_build_live_payload_includes_learning_fields():
     assert "content_study" in payload
     assert "learning" in payload
     assert "intel_pattern_alerts" in payload["learning"]
+    assert payload.get("paper_trading_only") is True
+    assert "integrations" in payload
+    assert "polymarket_market_scanner" in payload["integrations"]
+    assert "x_intel_collection_mode" in payload["integrations"]
     assert isinstance(payload["analyses"], list)
     assert isinstance(payload["reviews"], list)
     assert isinstance(payload["insights"], list)

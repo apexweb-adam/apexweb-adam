@@ -4,7 +4,7 @@ from fastapi import WebSocket
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import BOT_TYPES
+from app.config import BOT_TYPES, settings
 from app.database import SessionLocal
 from app.engines.learning_engine import serialize_learning_insight
 from app.engines.trade_stats import aggregate_win_rate
@@ -56,7 +56,7 @@ async def build_live_payload(session: AsyncSession) -> dict:
     serialize_strategy_config,
   )
   from app.engines.learning_engine import build_crm_content_study_highlights
-  from app.engines.platform_status import _fetch_learning_counts
+  from app.engines.platform_status import _fetch_learning_counts, build_integrations_status
   from app.engines.verification_snapshot import serialize_verification_snapshot
 
   content_study = await build_crm_content_study_highlights(session)
@@ -138,6 +138,11 @@ async def build_live_payload(session: AsyncSession) -> dict:
   strategy_configs = (await session.execute(select(StrategyConfig))).scalars().all()
   strategy_versions = {c.bot_type: c.version for c in strategy_configs}
   intel_sources = await build_intel_sources(session)
+  integrations = await build_integrations_status(
+    session,
+    intel_sources=intel_sources,
+    fomo_bearer=fomo_bearer,
+  )
   recent_analyses = (
     await session.execute(select(TradeAnalysis).order_by(desc(TradeAnalysis.analyzed_at)).limit(20))
   ).scalars().all()
@@ -161,6 +166,8 @@ async def build_live_payload(session: AsyncSession) -> dict:
   return {
     "type": "update",
     "timestamp": datetime.utcnow().isoformat(),
+    "paper_trading_only": settings.paper_trading_only,
+    "integrations": integrations,
     "stats": {
       "total_equity": total_equity,
       "total_pnl": total_pnl,

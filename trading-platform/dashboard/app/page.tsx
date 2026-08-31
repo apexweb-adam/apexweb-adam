@@ -76,7 +76,7 @@ import { MultiSourceIntelCard } from "@/components/MultiSourceIntelCard";
 type Tab = "overview" | "trades" | "positions" | "intelligence" | "learning" | "strategy";
 
 export default function Dashboard() {
-  const { stats, portfolios, bots, positions: livePositions, trades: liveTrades, recentIntel, analyses: liveAnalyses, reviews: liveReviews, insights: liveInsights, strategies: liveStrategies, intelSources: liveIntelSources, verificationHistory: liveVerificationHistory, connected, lastUpdate, lastTrade, profitabilityGate: liveProfitability, gateEntryTightening, botSessions, mondayRecovery, sessionPrep, nextSessionEvents, contentStudy, sessionOpenEvents, platformOutageEvents, sessionOpenChecklists, cmeDeployUrgency, cmeDeployWindow, liveDeploy, learning: liveLearning } = useLiveData();
+  const { stats, portfolios, bots, positions: livePositions, trades: liveTrades, recentIntel, analyses: liveAnalyses, reviews: liveReviews, insights: liveInsights, strategies: liveStrategies, intelSources: liveIntelSources, verificationHistory: liveVerificationHistory, connected, lastUpdate, lastTrade, profitabilityGate: liveProfitability, gateEntryTightening, botSessions, mondayRecovery, sessionPrep, nextSessionEvents, contentStudy, sessionOpenEvents, platformOutageEvents, sessionOpenChecklists, cmeDeployUrgency, cmeDeployWindow, liveDeploy, learning: liveLearning, paperTradingOnly: livePaperTradingOnly, liveIntegrations } = useLiveData();
   const { data: tradesRest } = useAPI<Trade[]>("/trades?limit=50", 30000);
   const { data: gateTradesRest } = useAPI<Trade[]>("/trades?limit=200", 30000);
   const { data: positionsRest } = useAPI<Position[]>("/positions", 30000);
@@ -117,6 +117,7 @@ export default function Dashboard() {
       ? liveLearning.intel_pattern_alerts
       : platformStatus?.learning?.intel_pattern_alerts;
   const learningStats = liveLearning ?? platformStatus?.learning;
+  const integrationsDisplay = liveIntegrations ?? platformStatus?.integrations ?? null;
   const crmLearningVerifyCommand =
     platformStatus?.deploy?.crm_learning_verify_command ??
     "bash trading-platform/scripts/verify-crm-learning.sh";
@@ -202,6 +203,9 @@ export default function Dashboard() {
       strategies
     );
   }, [activeGate, liveProfitability, connected, profitability, gateTrades, portfolios, strategies]);
+
+  const paperTradingDisplay =
+    livePaperTradingOnly ?? platformStatus?.paper_trading_only ?? gateStatus?.paper_trading_only;
 
   const liveGateTightening =
     gateEntryTightening ?? platformStatus?.gate_entry_tightening;
@@ -394,7 +398,7 @@ export default function Dashboard() {
         {tab === "overview" && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-6">
-              <IntelAlertBanner platformStatus={platformStatus} intelSources={intelSourcesDisplay ?? []} />
+              <IntelAlertBanner integrations={integrationsDisplay} intelSources={intelSourcesDisplay ?? []} />
               <CmeDeployUrgencyBanner
                 urgency={cmeDeployUrgency ?? platformStatus?.deploy?.cme_deploy_urgency}
               />
@@ -440,7 +444,7 @@ export default function Dashboard() {
                   bots={bots}
                   botSessions={botSessions ?? platformStatus?.bot_sessions}
                   profitability={gateStatus}
-                  paperTradingOnly={platformStatus?.paper_trading_only ?? gateStatus?.paper_trading_only}
+                  paperTradingOnly={paperTradingDisplay}
                 />
               </Card>
               <Card title="Bot Status">
@@ -527,17 +531,17 @@ export default function Dashboard() {
                   )}
                 </Card>
               )}
-              {platformStatus && (
+              {(integrationsDisplay || intelSourcesDisplay) && (
                 <Card title="Multi-Source Intel">
                   <MultiSourceIntelCard
-                    integrations={platformStatus.integrations}
+                    integrations={integrationsDisplay ?? undefined}
                     sources={intelSourcesDisplay}
                   />
                 </Card>
               )}
-              {platformStatus?.integrations && (
+              {integrationsDisplay && (
                 <Card title="Trading & Wallet Hooks">
-                  <IntegrationHooksPanel integrations={platformStatus.integrations} />
+                  <IntegrationHooksPanel integrations={integrationsDisplay} />
                 </Card>
               )}
               {(vercelStale ||
@@ -2168,13 +2172,12 @@ function LearningPendingBanner({ pending }: { pending: number }) {
 }
 
 function IntelAlertBanner({
-  platformStatus,
+  integrations,
   intelSources,
 }: {
-  platformStatus: PlatformStatus | null;
+  integrations: PlatformStatus["integrations"] | null;
   intelSources: IntelligenceSource[];
 }) {
-  const integrations = platformStatus?.integrations;
   const fomoNudge = integrations?.fomo_bearer_nudge_message;
   const fomoNudgeTier = integrations?.fomo_bearer_nudge_tier;
   const fomoExpired = fomoNudgeTier === "expired" || (

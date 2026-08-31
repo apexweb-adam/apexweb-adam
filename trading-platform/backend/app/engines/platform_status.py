@@ -280,13 +280,11 @@ async def _build_platform_status_uncached(session: AsyncSession) -> dict[str, An
   gate_tightening_data = gate_payload["gate_entry_tightening"]
 
   fomo_bearer = await get_fomo_bearer_status(session)
-  axiom_session = await get_axiom_session_status(session)
   content_study = await build_crm_content_study_highlights(session)
-  tv_items = next((s["items_collected"] for s in sources if s["source"] == "tradingview"), 0)
-  pm_intel_items = next((s["items_collected"] for s in sources if s["source"] == "polymarket"), 0)
-  pm_account_items = next(
-    (s["items_collected"] for s in sources if s["source"] == "polymarket_account"),
-    0,
+  integrations = await build_integrations_status(
+    session,
+    intel_sources=sources,
+    fomo_bearer=fomo_bearer,
   )
   base_next_steps = (
     []
@@ -336,13 +334,7 @@ async def _build_platform_status_uncached(session: AsyncSession) -> dict[str, An
     },
     "learning": learning,
     "content_study": content_study,
-    "integrations": _build_integrations_payload(
-      fomo_bearer,
-      axiom_session,
-      tv_items,
-      pm_intel_items=pm_intel_items,
-      pm_account_items=pm_account_items,
-    ),
+    "integrations": integrations,
     "scheduler": {
       "intelligence_scan": "every 5 min",
       "content_study": "every 1 hour",
@@ -432,6 +424,35 @@ async def _build_platform_status_uncached(session: AsyncSession) -> dict[str, An
       "next_steps": base_next_steps + deploy_info.get("next_steps", []),
     },
   }
+
+
+async def build_integrations_status(
+  session: AsyncSession,
+  *,
+  intel_sources: list[dict[str, Any]] | None = None,
+  fomo_bearer: dict[str, Any] | None = None,
+  axiom_session: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+  """Shared integrations block for /api/status and WebSocket live updates."""
+  if intel_sources is None:
+    intel_sources = await build_intel_sources(session)
+  if fomo_bearer is None:
+    fomo_bearer = await get_fomo_bearer_status(session)
+  if axiom_session is None:
+    axiom_session = await get_axiom_session_status(session)
+  tv_items = next((s["items_collected"] for s in intel_sources if s["source"] == "tradingview"), 0)
+  pm_intel_items = next((s["items_collected"] for s in intel_sources if s["source"] == "polymarket"), 0)
+  pm_account_items = next(
+    (s["items_collected"] for s in intel_sources if s["source"] == "polymarket_account"),
+    0,
+  )
+  return _build_integrations_payload(
+    fomo_bearer,
+    axiom_session,
+    tv_items,
+    pm_intel_items=pm_intel_items,
+    pm_account_items=pm_account_items,
+  )
 
 
 def _build_integrations_payload(

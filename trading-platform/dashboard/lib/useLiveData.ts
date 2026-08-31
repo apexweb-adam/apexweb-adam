@@ -71,6 +71,8 @@ type LiveData = {
   } | null;
   liveDeploy: PlatformStatus["deploy"] | null;
   learning: PlatformStatus["learning"] | null;
+  paperTradingOnly: boolean | null;
+  liveIntegrations: PlatformStatus["integrations"] | null;
   connected: boolean;
   lastUpdate: string | null;
   lastTrade: Record<string, unknown> | null;
@@ -103,6 +105,8 @@ export function useLiveData(): LiveData {
   const [cmeDeployWindow, setCmeDeployWindow] = useState<LiveData["cmeDeployWindow"]>(null);
   const [liveDeploy, setLiveDeploy] = useState<PlatformStatus["deploy"] | null>(null);
   const [learning, setLearning] = useState<PlatformStatus["learning"] | null>(null);
+  const [paperTradingOnly, setPaperTradingOnly] = useState<boolean | null>(null);
+  const [liveIntegrations, setLiveIntegrations] = useState<PlatformStatus["integrations"] | null>(null);
   const [connected, setConnected] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<string | null>(null);
   const [lastTrade, setLastTrade] = useState<Record<string, unknown> | null>(null);
@@ -171,6 +175,10 @@ export function useLiveData(): LiveData {
       }
       if (status.deploy) setLiveDeploy(status.deploy);
       if (status.learning) setLearning(status.learning);
+      if (typeof status.paper_trading_only === "boolean") {
+        setPaperTradingOnly(status.paper_trading_only);
+      }
+      if (status.integrations) setLiveIntegrations(status.integrations);
       if (status.timestamp) setLastUpdate(status.timestamp);
     } catch {
       // keep last good snapshot
@@ -231,6 +239,12 @@ export function useLiveData(): LiveData {
     else if (deploy?.platform_revision_current !== false) setCmeDeployWindow(null);
     if (deploy) setLiveDeploy(deploy);
     if (data.learning) setLearning(data.learning as PlatformStatus["learning"]);
+    if (typeof data.paper_trading_only === "boolean") {
+      setPaperTradingOnly(data.paper_trading_only);
+    }
+    if (data.integrations) {
+      setLiveIntegrations(data.integrations as PlatformStatus["integrations"]);
+    }
     if (data.timestamp) setLastUpdate(String(data.timestamp));
   }, []);
 
@@ -311,6 +325,8 @@ export function useLiveData(): LiveData {
     cmeDeployWindow,
     liveDeploy,
     learning,
+    paperTradingOnly,
+    liveIntegrations,
     connected,
     lastUpdate,
     lastTrade,

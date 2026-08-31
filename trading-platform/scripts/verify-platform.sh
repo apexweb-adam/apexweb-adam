@@ -70,6 +70,44 @@ else
   bad "Backend /api/status invalid or unavailable"
 fi
 
+# Core three bots + multi-source intel integration fields (r132+)
+if echo "$STATUS" | python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+bots = d.get('bots') or []
+bot_types = {b.get('bot_type') for b in bots if isinstance(b, dict)}
+required = {'crypto', 'stocks_futures', 'commodities'}
+missing = sorted(required - bot_types)
+if missing:
+    print(f'  missing_core_bots={missing}')
+    sys.exit(1)
+per_bot = d.get('per_bot_gate') or {}
+for key in required:
+    if key not in per_bot:
+        print(f'  missing_per_bot_gate={key}')
+        sys.exit(2)
+integrations = d.get('integrations') or {}
+for key in ('newsapi', 'reddit_oauth', 'x_intel_collection_mode', 'polymarket_market_scanner'):
+    if key not in integrations:
+        print(f'  missing_integration_field={key}')
+        sys.exit(3)
+print(
+    f'  core_bots={sorted(required)} '
+    f'newsapi={integrations.get(\"newsapi\")} reddit={integrations.get(\"reddit_oauth\")} '
+    f'x_mode={integrations.get(\"x_intel_collection_mode\")}'
+)
+sys.exit(0)
+"; then
+  ok "Core three bots + multi-source intel integrations on /api/status"
+else
+  CORE_RC=$?
+  if [[ "${CORE_RC:-1}" -eq 3 ]]; then
+    bad "Integrations missing multi-source intel fields — confirm r132+ revision"
+  else
+    note "Core bot or per-bot gate incomplete on /api/status"
+  fi
+fi
+
 # Platform outage recovery (billing suspension gaps)
 if echo "$STATUS" | python3 -c "
 import json, sys
