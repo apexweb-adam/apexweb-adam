@@ -189,6 +189,46 @@ def test_intel_readiness_requires_political_source_when_revision_matches():
   )
 
 
+def test_post_deploy_uses_snapshot_learning_when_status_sparse():
+  status = {
+    "deploy": {
+      "platform_revision": "2026-08-29-r467",
+      "platform_revision_current": True,
+    },
+    "session_open_checklists": {"cme_reopen": {"ready": True, "phase": "preflight"}},
+  }
+  checklist = {"open_ready": {"sticky_symbols": []}}
+  snapshot = {
+    "platform_revision": "2026-08-29-r467",
+    "platform_revision_current": True,
+    "run_deploy_window_command": "x",
+    "wait_for_deploy_command": "y",
+    "github_token_configured": True,
+    "fomo_bearer_configured": True,
+    "fomo_bearer_nudge_tier": "ok",
+    "x_intel_collection_mode": "twitter_api",
+    "learning": {
+      "trade_analyses": 3,
+      "daily_reviews": 2,
+      "insights_applied": 1,
+      "intel_pattern_count": 0,
+    },
+    "content_study": {
+      "insights_applied": 1,
+      "recent": [
+        {
+          "source_type": "political",
+          "source_label": "Political",
+          "title": "Tariff headline",
+          "applied": True,
+        }
+      ],
+    },
+  }
+  errors = evaluate_post_deploy(status, checklist, snapshot, expected="2026-08-29-r467")
+  assert errors == []
+
+
 def test_post_deploy_check_flags_revision_mismatch():
   status = {"deploy": {"platform_revision": "2026-08-29-r336"}, "learning": {}}
   checklist = {"open_ready": {"sticky_symbols": []}}

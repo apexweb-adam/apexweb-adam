@@ -119,6 +119,21 @@ def test_apply_fomo_bearer_to_snapshot_ready_when_polling():
   assert snap["deploy_credentials_warnings"] == []
 
 
+def test_apply_learning_to_snapshot_merges_learning_and_content_study():
+  from app.engines.deploy_status import apply_learning_to_snapshot
+
+  snap = apply_learning_to_snapshot(
+    {"platform_revision": "2026-08-29-r467"},
+    learning={"trade_analyses": 12, "intel_pattern_count": 1},
+    content_study={
+      "insights_applied": 3,
+      "recent": [{"source_type": "political", "source_label": "Political", "title": "Tariff"}],
+    },
+  )
+  assert snap["learning"]["trade_analyses"] == 12
+  assert snap["content_study"]["recent"][0]["source_label"] == "Political"
+
+
 def test_deploy_snapshot_route():
   from unittest.mock import AsyncMock
 
@@ -140,8 +155,33 @@ def test_deploy_snapshot_route():
       new_callable=AsyncMock,
       return_value={"configured": True, "polling_active": False, "minutes_remaining": -5},
     ):
-      client = TestClient(app)
-      resp = client.get("/api/deploy/snapshot")
+      with patch(
+        "app.engines.platform_status._fetch_learning_counts",
+        new_callable=AsyncMock,
+        return_value={
+          "trade_analyses": 5,
+          "daily_reviews": 2,
+          "intel_pattern_count": 1,
+          "intel_pattern_alerts": ["commodities: Political/macro intel"],
+        },
+      ):
+        with patch(
+          "app.engines.learning_engine.build_crm_content_study_highlights",
+          new_callable=AsyncMock,
+          return_value={
+            "insights_applied": 4,
+            "recent": [
+              {
+                "source_type": "newsapi",
+                "source_label": "News",
+                "title": "Fed signals higher rates",
+                "applied": True,
+              }
+            ],
+          },
+        ):
+          client = TestClient(app)
+          resp = client.get("/api/deploy/snapshot")
   assert resp.status_code == 200
   body = resp.json()
   assert body["platform_revision"] == "2026-08-29-r336"
@@ -149,3 +189,5 @@ def test_deploy_snapshot_route():
   assert body["fomo_bearer_polling_active"] is False
   assert body["fomo_bearer_minutes_remaining"] == -5
   assert body["fomo_bearer_nudge_tier"] == "expired"
+  assert body["learning"]["trade_analyses"] == 5
+  assert body["content_study"]["recent"][0]["source_label"] == "News"

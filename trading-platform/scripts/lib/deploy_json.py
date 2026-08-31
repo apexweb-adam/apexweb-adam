@@ -193,7 +193,7 @@ def evaluate_post_deploy(
     else:
       errors.append("snapshot_missing_x_intel_collection_mode")
 
-  learning = status.get("learning") or {}
+  learning = status.get("learning") or snapshot.get("learning") or {}
   if learning:
     intel_count = learning.get("intel_pattern_count") or 0
     print(
@@ -209,7 +209,7 @@ def evaluate_post_deploy(
   elif status:
     errors.append("learning_loop_missing")
 
-  content = status.get("content_study") or {}
+  content = status.get("content_study") or snapshot.get("content_study") or {}
   recent = content.get("recent") or []
   if recent:
     print(

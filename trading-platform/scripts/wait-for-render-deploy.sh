@@ -114,6 +114,19 @@ fomo = snap.get("fomo_bearer_configured")
 github = snap.get("github_token_configured")
 if fomo is not None or github is not None:
     print(f"  snapshot integrations: fomo_bearer={fomo} github_token={github}")
+learning = snap.get("learning") or {}
+content = snap.get("content_study") or {}
+if learning:
+    print(
+        f"  snapshot learning: analyses={learning.get('trade_analyses')} "
+        f"reviews={learning.get('daily_reviews')} "
+        f"intel_pattern_alerts={learning.get('intel_pattern_count') or 0}"
+    )
+if content.get("recent"):
+    for row in (content.get("recent") or [])[:3]:
+        label = row.get("source_label") or row.get("source_type") or "unknown"
+        title = (row.get("title") or "")[:48]
+        print(f"  snapshot content_study [{label}] {title}")
 PY
       bash "$ROOT/scripts/verify-post-deploy.sh"
       bash "$ROOT/scripts/verify-dashboard-bundle.sh" || true

@@ -335,6 +335,21 @@ def apply_fomo_bearer_to_snapshot(
   return merged
 
 
+def apply_learning_to_snapshot(
+  snap: dict[str, Any],
+  *,
+  learning: dict[str, Any] | None = None,
+  content_study: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+  """Merge learning loop + content-study highlights into deploy snapshot for ops scripts."""
+  merged = dict(snap)
+  if learning:
+    merged["learning"] = learning
+  if content_study:
+    merged["content_study"] = content_study
+  return merged
+
+
 def github_headers() -> dict[str, str]:
   headers = {
     "Accept": "application/vnd.github+json",

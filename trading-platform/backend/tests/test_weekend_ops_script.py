@@ -31,6 +31,8 @@ def test_wait_for_render_deploy_prints_snapshot_integrations():
   text = script.read_text(encoding="utf-8")
   assert "snapshot integrations" in text
   assert "fomo_bearer_configured" in text
+  assert "snapshot learning" in text
+  assert "snapshot content_study" in text
 
 
 def test_ops_gate_summary_includes_learning_loop():

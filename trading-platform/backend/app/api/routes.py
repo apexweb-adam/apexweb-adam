@@ -40,12 +40,24 @@ async def health() -> dict[str, str]:
 @router.get("/deploy/snapshot")
 async def get_deploy_snapshot(db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
   """Fast deploy revision + CME window timing for ops scripts (no heavy status build)."""
-  from app.engines.deploy_status import apply_fomo_bearer_to_snapshot, build_deploy_snapshot
+  from app.engines.deploy_status import (
+    apply_fomo_bearer_to_snapshot,
+    apply_learning_to_snapshot,
+    build_deploy_snapshot,
+  )
+  from app.engines.learning_engine import build_crm_content_study_highlights
+  from app.engines.platform_status import _fetch_learning_counts
   from app.intelligence.fomo_tracker import get_fomo_bearer_status
 
   snap = build_deploy_snapshot()
   fomo = await get_fomo_bearer_status(db)
-  return apply_fomo_bearer_to_snapshot(snap, fomo)
+  learning = await _fetch_learning_counts(db)
+  content_study = await build_crm_content_study_highlights(db)
+  return apply_learning_to_snapshot(
+    apply_fomo_bearer_to_snapshot(snap, fomo),
+    learning=learning,
+    content_study=content_study,
+  )
 
 
 @router.get("/platform-urls")
