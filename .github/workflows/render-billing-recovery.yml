@@ -1,0 +1,31 @@
+name: Render Billing Recovery
+
+# When billing suspension clears, run full platform recovery (deploy verify + post-open checks).
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+jobs:
+  recover:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Recover after billing suspension
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+        run: |
+          set -euo pipefail
+          ROOT="${{ github.workspace }}/trading-platform"
+          # shellcheck source=lib/fetch_json.sh
+          source "$ROOT/scripts/lib/fetch_json.sh"
+          URL="https://apex-trading-backend.onrender.com"
+
+          if ! check_backend_suspension "$URL"; then
+            echo "::error::Render backend billing-suspended — fix at https://dashboard.render.com/web/srv-da848ms9v7es739k38jg"
+            exit 1
+          fi
+
+          echo "Backend online — running recovery chain"
+          bash "$ROOT/scripts/recover-render-billing.sh" --wait 600 --interval 20

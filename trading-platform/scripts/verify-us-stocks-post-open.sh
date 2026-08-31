@@ -101,6 +101,15 @@ for row in near_floor.get("details") or []:
 
 print(f"  has_burst_scan={events.get('has_burst_scan')} has_auto_entry={events.get('has_auto_entry')}")
 
+outage = checklist.get("platform_outage_recovery") or {}
+if outage.get("logged"):
+    print("  platform_outage_recovery_logged=true")
+if outage.get("window_active"):
+    print(
+        f"  platform_outage_recovery_window=true "
+        f"grace_remaining_min={outage.get('grace_minutes_remaining')}"
+    )
+
 latest_burst = events.get("latest_burst_scan")
 if latest_burst:
     print(f"  latest_burst_scan={latest_burst.get('detail')}")
@@ -160,7 +169,16 @@ if phase not in ("post_open", "open"):
     print("  warn=still in pre-open phase — rerun after US stocks open")
     sys.exit(2)
 if not events.get("has_burst_scan") and not events.get("has_auto_entry"):
-    errors.append("burst_scan_missing")
+    deploy = checklist.get("deploy") or {}
+    rev_current = deploy.get("platform_revision_current")
+    if outage.get("window_active"):
+        if rev_current is False:
+            print("  warn=deploy_r450_required_for_platform_outage_recovery")
+            errors.append("revision_behind_for_outage_recovery")
+        else:
+            print("  note=platform_outage_recovery_pending — burst scan expected on next bot loop")
+    else:
+        errors.append("burst_scan_missing")
 if not events.get("has_auto_entry") and open_symbols:
     errors.append("auto_entry_missing")
 if critical_failures:

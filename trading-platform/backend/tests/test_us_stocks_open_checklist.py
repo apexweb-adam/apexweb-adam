@@ -3,6 +3,7 @@
 from app.engines.us_stocks_open_checklist import (
   build_us_stocks_open_checks,
   format_us_stocks_checklist_crm_html,
+  platform_outage_recovery_status,
   should_show_us_stocks_checklist_on_crm,
 )
 
@@ -78,6 +79,35 @@ def test_format_us_stocks_checklist_crm_html_near_floor_sticky():
   )
   assert "sticky AAPL" in html
   assert "near floor NVDA +0.02" in html
+
+
+def test_platform_outage_recovery_status_window_active():
+  status = platform_outage_recovery_status(
+    in_session=True,
+    minutes_since_open=90,
+    open_ready_symbols=["AAPL"],
+    has_burst_scan=False,
+    has_auto_entry=False,
+    burst_events=[],
+    auto_entry_events=[],
+  )
+  assert status["window_active"] is True
+  assert status["grace_minutes_remaining"] == 180
+  assert status["logged"] is False
+
+
+def test_platform_outage_recovery_status_logged_after_burst():
+  status = platform_outage_recovery_status(
+    in_session=True,
+    minutes_since_open=90,
+    open_ready_symbols=["AAPL"],
+    has_burst_scan=True,
+    has_auto_entry=False,
+    burst_events=[{"detail": "Platform outage recovery — Session open burst scan"}],
+    auto_entry_events=[],
+  )
+  assert status["window_active"] is False
+  assert status["logged"] is True
 
 
 def test_format_us_stocks_checklist_crm_html():

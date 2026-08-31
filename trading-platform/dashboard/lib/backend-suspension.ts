@@ -34,7 +34,8 @@ export function buildBackendSuspensionPayload(
     recovery_steps: [
       "Open the Render dashboard and resolve billing (payment method / upgrade from free).",
       "Resume apex-trading-backend manually (API resume does not work for billing suspension).",
-      "Run: bash trading-platform/scripts/wait-for-render-deploy.sh --verify",
+      "Run: bash trading-platform/scripts/recover-render-billing.sh",
+      "If US open was missed with queued symbols, deploy r450+ before the 270-minute outage grace expires.",
     ],
   };
 }
