@@ -160,6 +160,10 @@ def test_verify_us_stocks_post_open_supports_watch_mode():
   assert "Watching for US stocks post-open" in text
   assert "run_verification" in text
   assert "wake_backend" in text
+  assert "stocks_futures/scan-preview" in text
+  assert "stocks_graduation" in text
+  assert "shadow_entry_held" in text
+  assert "EXPECTED_PLATFORM_REVISION" in text
 
 
 def test_verify_cme_post_open_supports_watch_mode():
