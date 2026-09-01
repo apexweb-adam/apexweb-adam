@@ -45,7 +45,7 @@ wake_backend "$BACKEND" 2
 
 export WS_URL
 WS_RC=0
-WS_OUT=$(python3 << 'PY' 2>&1) || WS_RC=$?
+WS_OUT=$(python3 2>&1 <<'PY'
 import asyncio
 import json
 import os
@@ -124,6 +124,7 @@ print(
 )
 sys.exit(0)
 PY
+) || WS_RC=$?
 
 case "$WS_RC" in
   0)
