@@ -4,8 +4,9 @@ from fastapi import WebSocket
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import BOT_TYPES
+from app.config import BOT_TYPES, settings
 from app.database import SessionLocal
+from app.engines.learning_engine import serialize_learning_insight
 from app.engines.trade_stats import aggregate_win_rate
 from app.models.entities import (
   BotState,
@@ -55,9 +56,11 @@ async def build_live_payload(session: AsyncSession) -> dict:
     serialize_strategy_config,
   )
   from app.engines.learning_engine import build_crm_content_study_highlights
+  from app.engines.platform_status import _fetch_learning_counts, build_integrations_status
   from app.engines.verification_snapshot import serialize_verification_snapshot
 
   content_study = await build_crm_content_study_highlights(session)
+  learning = await _fetch_learning_counts(session)
   gate_payload = await build_gate_ws_payload(session)
   from app.engines.scan_preview import build_monday_recovery_summary
 
@@ -135,6 +138,11 @@ async def build_live_payload(session: AsyncSession) -> dict:
   strategy_configs = (await session.execute(select(StrategyConfig))).scalars().all()
   strategy_versions = {c.bot_type: c.version for c in strategy_configs}
   intel_sources = await build_intel_sources(session)
+  integrations = await build_integrations_status(
+    session,
+    intel_sources=intel_sources,
+    fomo_bearer=fomo_bearer,
+  )
   recent_analyses = (
     await session.execute(select(TradeAnalysis).order_by(desc(TradeAnalysis.analyzed_at)).limit(20))
   ).scalars().all()
@@ -158,6 +166,8 @@ async def build_live_payload(session: AsyncSession) -> dict:
   return {
     "type": "update",
     "timestamp": datetime.utcnow().isoformat(),
+    "paper_trading_only": settings.paper_trading_only,
+    "integrations": integrations,
     "stats": {
       "total_equity": total_equity,
       "total_pnl": total_pnl,
@@ -265,19 +275,7 @@ async def build_live_payload(session: AsyncSession) -> dict:
       }
       for r in recent_reviews
     ],
-    "insights": [
-      {
-        "id": i.id,
-        "source_type": i.source_type,
-        "source_title": i.source_title,
-        "source_url": i.source_url,
-        "key_takeaways": i.key_takeaways,
-        "strategy_impact": i.strategy_impact,
-        "confidence": i.confidence,
-        "applied": i.applied,
-      }
-      for i in recent_insights
-    ],
+    "insights": [serialize_learning_insight(i) for i in recent_insights],
     "verification_history": [serialize_verification_snapshot(s) for s in verification_history],
     "monday_recovery": monday_recovery,
     "session_prep": session_prep,
@@ -304,6 +302,7 @@ async def build_live_payload(session: AsyncSession) -> dict:
       "deploy_credentials_ready": len(deploy_credentials_warnings) == 0,
     },
     "content_study": content_study,
+    "learning": learning,
     **gate_payload,
   }
 

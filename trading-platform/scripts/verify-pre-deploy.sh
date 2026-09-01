@@ -148,6 +148,34 @@ else
   note "Intel r385 fields missing — confirm revision or run intelligence scan"
 fi
 
+echo "$SNAPSHOT" | python3 -c "
+import json, sys
+snap = json.load(sys.stdin)
+if not snap:
+    raise SystemExit(0)
+learning = snap.get('learning') or {}
+content = snap.get('content_study') or {}
+if learning:
+    print(
+        f\"Learning loop: analyses={learning.get('trade_analyses')} \"
+        f\"reviews={learning.get('daily_reviews')} \"
+        f\"pending_insights={learning.get('insights_pending')} \"
+        f\"intel_pattern_alerts={learning.get('intel_pattern_count') or 0}\"
+    )
+    for alert in (learning.get('intel_pattern_alerts') or [])[:3]:
+        print(f'  intel_alert={alert}')
+if content.get('recent') or content.get('insights_applied'):
+    print(
+        f\"Content study: applied={content.get('insights_applied') or 0} \"
+        f\"recent={len(content.get('recent') or [])}\"
+    )
+    for row in (content.get('recent') or [])[:3]:
+        label = row.get('source_label') or row.get('source_type') or 'unknown'
+        title = (row.get('title') or '')[:48]
+        state = 'applied' if row.get('applied') else 'pending'
+        print(f'  content_study [{label}] {title} ({state})')
+" 2>/dev/null || true
+
 CRM_TIME=$(curl -sS -o /dev/null -m 120 -w "%{time_total}" "$BACKEND/crm" 2>/dev/null || echo "")
 if [[ -n "$CRM_TIME" ]]; then
   CRM_SEC=$(python3 -c "print(f'{float('$CRM_TIME'):.1f}')")

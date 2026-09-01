@@ -49,6 +49,29 @@ echo ""
 if ! check_backend_suspension "$BACKEND"; then
   echo "Backend billing-suspended — post-outage verification unavailable"
   echo "Fix billing at: ${RENDER_DASHBOARD_URL:-https://dashboard.render.com/web/srv-da848ms9v7es739k38jg}"
+  CATCHUP_LEFT="$(python3 - << 'PY' 2>/dev/null || true
+from datetime import datetime, timezone
+now = datetime.now(timezone.utc)
+if now.isoweekday() != 1 or now.hour < 13 or now.hour >= 21:
+    raise SystemExit(0)
+session_end = now.replace(hour=21, minute=0, second=0, microsecond=0)
+catchup_left = max(0, int((session_end.timestamp() - now.timestamp()) // 60))
+if catchup_left > 0:
+    print(catchup_left)
+PY
+  )"
+  if [[ -n "$CATCHUP_LEFT" && "$CATCHUP_LEFT" -gt 0 && "$CATCHUP_LEFT" -le 30 ]]; then
+    echo "URGENT: ${CATCHUP_LEFT} min until US cash close — resume billing to run outage_recovery_scan"
+  elif python3 - << 'PY' 2>/dev/null | grep -q closed; then
+from datetime import datetime, timezone
+now = datetime.now(timezone.utc)
+if now.isoweekday() == 1 and now.hour >= 21:
+    print("closed")
+PY
+    echo "US cash session closed — resume billing for commodities/crypto held scan + Tue open prep"
+  fi
+  echo ""
+  bash "$ROOT/scripts/print-outage-status.sh" 2>/dev/null | tail -n +2 || true
   exit 2
 fi
 
@@ -85,3 +108,39 @@ if [[ "$failures" -gt 0 ]]; then
   exit 1
 fi
 echo "Post-outage recovery: all verifiers passed"
+
+STATUS=$(fetch_json "$BACKEND/api/status" 60 2)
+STATUS="$STATUS" python3 << 'PY'
+import json, os
+status = json.loads(os.environ.get("STATUS") or "{}")
+learning = status.get("learning") or {}
+content = status.get("content_study") or {}
+intel_count = learning.get("intel_pattern_count") or 0
+if learning:
+    print(
+        f"Learning loop: analyses={learning.get('trade_analyses')} "
+        f"reviews={learning.get('daily_reviews')} "
+        f"insights_applied={learning.get('insights_applied')} "
+        f"intel_pattern_alerts={intel_count}"
+    )
+    for alert in (learning.get("intel_pattern_alerts") or [])[:3]:
+        print(f"  intel_alert={alert}")
+if content.get("recent"):
+    print(
+        f"Content study: applied={content.get('insights_applied') or 0} "
+        f"recent={len(content.get('recent') or [])}"
+    )
+    for row in (content.get("recent") or [])[:3]:
+        label = row.get("source_label") or row.get("source_type") or "unknown"
+        title = (row.get("title") or "")[:48]
+        state = "applied" if row.get("applied") else "pending"
+        print(f"  content_study [{label}] {title} ({state})")
+PY
+
+echo ""
+echo "--- CRM learning loop + WebSocket live CRM ---"
+bash "$ROOT/scripts/verify-crm-learning.sh" || true
+bash "$ROOT/scripts/verify-ws-live.sh" || true
+
+echo ""
+echo "Post-outage recovery checks complete."

@@ -3,6 +3,7 @@
 from pathlib import Path
 
 SCRIPTS = Path(__file__).resolve().parents[2] / "scripts"
+ROOT = Path(__file__).resolve().parents[2]
 
 
 def test_ops_gate_summary_script_exists():
@@ -31,6 +32,8 @@ def test_wait_for_render_deploy_prints_snapshot_integrations():
   text = script.read_text(encoding="utf-8")
   assert "snapshot integrations" in text
   assert "fomo_bearer_configured" in text
+  assert "snapshot learning" in text
+  assert "snapshot content_study" in text
 
 
 def test_ops_gate_summary_includes_learning_loop():
@@ -38,6 +41,11 @@ def test_ops_gate_summary_includes_learning_loop():
   text = script.read_text(encoding="utf-8")
   assert "Learning loop:" in text
   assert "pending_insights" in text
+  assert "intel_pattern_count" in text
+  assert "intel pattern alerts" in text
+  assert "Content study:" in text
+  assert "source_label" in text
+  assert "verify-crm-learning.sh" in text
 
 
 def test_run_deploy_window_script_exists():
@@ -112,6 +120,11 @@ def test_recover_render_billing_triggers_deploy_when_behind():
   assert "extended burst grace expired" in text
   assert "r467+" in text
   assert "has_outage_recovery_scan" in text
+  assert 'data.get("session_open_events")' in text
+  assert "content_study_applied" in text
+  assert "learning_intel_pattern_alerts" in text
+  assert "content_study [" in text
+  assert "us_cash_session_closed" in text or "US cash session closed" in text
 
 
 def test_render_billing_recovery_workflow_monday_urgent_poll():
@@ -198,11 +211,20 @@ def test_print_outage_status_script():
   assert "has_outage_recovery_scan" in text or "outage_recovery_scan" in text
   assert "post_grace_catchup_active" in text
   assert "post_grace_catchup_urgency" in text
+  assert "us_cash_session_closed" in text
   assert "prep_phase_state persists" in text
   assert "verify-post-outage-recovery.sh" in text
+  assert "content_study" in text
+  assert "intel_pattern_alerts" in text
+  assert "verify-crm-learning.sh" in text
+  assert "verify-ws-live.sh --strict" in text
 
 
-def test_verify_post_deploy_includes_crm_and_learning_checks():
+def test_verify_post_outage_recovery_post_close_message():
+  text = (SCRIPTS / "verify-post-outage-recovery.sh").read_text(encoding="utf-8")
+  assert "US cash session closed" in text
+  assert "content_study [" in text
+  assert "intel_alert=" in text
   script = SCRIPTS / "verify-post-deploy.sh"
   text = script.read_text(encoding="utf-8")
   assert "ops-gate-summary.sh" in text
@@ -287,6 +309,9 @@ def test_print_deploy_window_summary_script_exists():
   assert "CME prep watch:" in text
   assert "queue dropped" in text
   assert "us-stocks-open-checklist" in text
+  assert "intel_pattern_alerts" in text
+  assert "content_study [" in text
+  assert "Learning verify:" in text
 
 
 def test_verify_us_stocks_post_open_supports_watch_mode():
@@ -339,6 +364,8 @@ def test_verify_post_outage_recovery_orchestrator():
   assert "--once" in text
   assert "--skip-stocks" in text
   assert "check_backend_suspension" in text
+  assert "URGENT:" in text
+  assert "outage_recovery_scan" in text
 
 
 def test_render_billing_recovery_workflow_uses_verify_once():
@@ -411,6 +438,18 @@ def test_verify_weekend_ops_includes_gate_and_revision_hints():
   assert "deploy_credentials_warnings" in text
   assert "print-deploy-window-summary.sh" in text
   assert "deploy will advance prod expected" in text
+  assert "intel_pattern_alerts" in text
+  assert "content_study [" in text
+  assert "crm_learning_verify_command" in text
+  assert "verify-crm-learning.sh" in text
+
+
+def test_dashboard_backend_suspension_includes_learning_recovery():
+  suspension = SCRIPTS.parent / "dashboard" / "lib" / "backend-suspension.ts"
+  text = suspension.read_text(encoding="utf-8")
+  assert "verify-crm-learning.sh --strict" in text
+  assert 'bot_type: "learning"' in text
+  assert "verify-post-outage-recovery.sh" in text
 
 
 def test_check_github_token_script_exists():
@@ -448,6 +487,8 @@ def test_check_deploy_credentials_shows_revision_gap():
   assert "code_target=" in text
   assert "PLATFORM_REVISION" in text
   assert "x_intel_collection_mode" in text or "google_news_rss activates" in text
+  assert "intel_pattern_alerts" in text
+  assert "content_study [" in text
 
 
 def test_check_deploy_credentials_treats_github_as_nudge():
@@ -466,6 +507,110 @@ def test_verify_pre_deploy_intel_readiness():
   assert "/api/intelligence/sources" in text
   assert "deploy_json.py" in text
   assert "Intel sources API ready" in text
+  assert "intel_pattern_alerts" in text
+  assert "content_study [" in text
+
+
+def test_verify_cme_post_open_includes_learning_visibility():
+  script = SCRIPTS / "verify-cme-post-open.sh"
+  text = script.read_text(encoding="utf-8")
+  assert "intel_pattern_alerts" in text
+  assert "content_study [" in text
+
+
+def test_verify_us_stocks_post_open_includes_learning_visibility():
+  script = SCRIPTS / "verify-us-stocks-post-open.sh"
+  text = script.read_text(encoding="utf-8")
+  assert "intel_pattern_alerts" in text
+  assert "content_study [" in text
+
+
+def test_verify_crm_learning_script_exists():
+  script = SCRIPTS / "verify-crm-learning.sh"
+  text = script.read_text(encoding="utf-8")
+  assert script.is_file()
+  assert "check_backend_suspension" in text
+  assert "/api/insights" in text
+  assert "source_label" in text
+  assert "Today's learning loop" in text
+  assert "run-daily-review-now.sh" in text
+  assert "tradingview_webhook" in text
+  assert "polymarket_account_hook" in text
+  assert "verify-ws-live.sh" in text
+  assert "/api/intelligence/sources" in text
+  assert "political" in text
+
+
+def test_verify_ws_live_script_exists():
+  script = SCRIPTS / "verify-ws-live.sh"
+  text = script.read_text(encoding="utf-8")
+  assert script.is_file()
+  assert "paper_trading_only" in text
+  assert "intel_sources" in text
+  assert "political" in text
+  assert "content_study" in text
+  assert "websockets.connect" in text
+
+
+def test_backend_suspension_recovery_steps_include_ws_verify():
+  suspension = (
+    Path(__file__).resolve().parents[2] / "dashboard/lib/backend-suspension.ts"
+  )
+  text = suspension.read_text(encoding="utf-8")
+  assert "verify-ws-live.sh" in text
+  assert "verify-crm-learning.sh" in text
+  assert "outageRecoveryBots" in text
+
+
+def test_crm_learning_section_mentions_verify_ws_live():
+  crm = (ROOT / "backend" / "app" / "main.py").read_text(encoding="utf-8")
+  assert "verify-ws-live.sh --strict" in crm
+  assert "verify-crm-learning.sh" in crm
+
+
+def test_crm_multi_source_intel_card_lists_core_sources():
+  crm = (ROOT / "backend" / "app" / "main.py").read_text(encoding="utf-8")
+  assert "Multi-source intelligence" in crm
+  for source in ("newsapi", "x", "reddit", "political", "tiktok", "youtube"):
+    assert source in crm
+
+
+def test_verify_post_outage_recovery_runs_crm_learning():
+  script = SCRIPTS / "verify-post-outage-recovery.sh"
+  text = script.read_text(encoding="utf-8")
+  assert "verify-crm-learning.sh" in text
+  assert "verify-ws-live.sh" in text
+
+
+def test_verify_platform_checks_dashboard_outage_ux_when_suspended():
+  text = (SCRIPTS / "verify-platform.sh").read_text(encoding="utf-8")
+  assert "backendHealth" in text
+  assert "dashboard_outage_ux" in text or "billing outage recovery guidance" in text
+
+
+def test_backend_suspension_exports_offline_helpers():
+  suspension = (
+    Path(__file__).resolve().parents[2] / "dashboard/lib/backend-suspension.ts"
+  )
+  text = suspension.read_text(encoding="utf-8")
+  assert "isBackendOffline" in text
+  assert "backendOfflineKind" in text
+  assert "unreachable" in text
+
+
+def test_multi_source_intel_card_lists_hooks_and_proxy_labels():
+  card = (
+    Path(__file__).resolve().parents[2] / "dashboard/components/MultiSourceIntelCard.tsx"
+  )
+  text = card.read_text(encoding="utf-8")
+  assert "Google News RSS proxy" in text
+  assert "polymarket" in text
+  assert "tradingview" in text
+
+
+def test_recover_render_billing_runs_crm_learning():
+  text = (SCRIPTS / "recover-render-billing.sh").read_text(encoding="utf-8")
+  assert "verify-crm-learning.sh" in text
 
 
 def test_verify_cme_reopen_uses_deploy_json_fallback():
@@ -491,6 +636,8 @@ def test_deploy_json_lib_exists():
   text = lib.read_text(encoding="utf-8")
   assert "intel-readiness" in text
   assert "cme-prep-preflight" in text
+  assert "content_study_missing_source_label" in text
+  assert "political_status" in text
 
 
 def test_verify_post_deploy_checks_learning_endpoint():
@@ -503,12 +650,17 @@ def test_verify_post_deploy_checks_learning_endpoint():
   assert "fetch_json.sh" in text
   assert "scoring_excludes_synthetic" in text or "intel-readiness" in text
   assert "/api/intelligence/sources" in text
+  assert "source_label" in text
+  assert "intel_pattern_alerts" in text
+  assert "verify-crm-learning.sh" in text
 
 
 def test_watch_deploy_window_shows_x_intel_mode():
   script = SCRIPTS / "watch-deploy-window.sh"
   text = script.read_text(encoding="utf-8")
   assert "x_intel_collection_mode" in text
+  assert "intel_pattern_alerts" in text
+  assert "content_study [" in text
 
 
 def test_watch_deploy_window_uses_fetch_json():
@@ -526,8 +678,12 @@ def test_verify_platform_prints_intel_health_fields():
   assert "x_intel=" in text
   assert "Content study insights" in text
   assert "insights_applied" in text
+  assert "intel_pattern_alerts" in text
+  assert "content_study_recent" in text
+  assert "source_label" in text
   assert "deploy_credentials_ready" in text
   assert "check-deploy-credentials.sh" in text
+  assert "verify-crm-learning.sh" in text
 
 
 def test_verify_pre_deploy_us_stocks_uses_fetch_json():

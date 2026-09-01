@@ -415,6 +415,8 @@ async def build_intel_sources(session: AsyncSession) -> list[dict[str, Any]]:
       row["portfolio_poll_mode"] = phantom_portfolio_poll_mode()
       row["tracked_wallets"] = len(phantom_poll_wallet_addresses())
       row["using_default_wallets"] = not bool(settings.phantom_wallet_addresses.strip())
+    if source == "polymarket_account":
+      row["account_hook_configured"] = configured.get("polymarket_account", False)
     rows.append(row)
   return rows
 

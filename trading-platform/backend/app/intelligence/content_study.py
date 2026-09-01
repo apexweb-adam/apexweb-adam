@@ -31,6 +31,36 @@ def _extract_youtube_impact(title: str, content: str) -> tuple[str, float] | Non
   return None
 
 
+def _youtube_bot_targeted_fallback(
+  title: str,
+  content: str,
+  symbols: str,
+  sentiment: float,
+) -> str:
+  """Route unscored YouTube intel to the bots most likely affected by the topic."""
+  text = f"{title} {content}".lower()
+  sym = symbols or "markets"
+  targets: list[str] = []
+  if any(k in text for k in ("crypto", "bitcoin", "ethereum", "memecoin", "solana", "defi")):
+    targets.append("crypto")
+  if any(k in text for k in ("stock", "aapl", "nvda", "tsla", "spy", "qqq", "day trad", "earnings")):
+    targets.append("stocks_futures")
+  if any(k in text for k in ("gold", "oil", "commodit", "futures", "cme", "forex", "silver")):
+    targets.append("commodities")
+  if any(k in text for k in ("polymarket", "prediction market", "election", "fed rate")):
+    targets.append("polymarket")
+  direction = "long" if sentiment > 0 else "cautious"
+  if targets:
+    bots = ", ".join(dict.fromkeys(targets))
+    return (
+      f"YouTube intel on {sym}: favor {direction} setups — "
+      f"target bots: {bots}; apply playbooks only with live signal alignment"
+    )
+  return (
+    f"YouTube intel on {sym}: favor {direction} setups when sentiment aligns"
+  )
+
+
 TRADING_KNOWLEDGE_BASE = [
   {
     "source_type": "youtube",
@@ -146,7 +176,91 @@ LIVE_INTEL_SOURCES = (
   "tiktok",
   "reddit",
   "tradingview",
+  "political",
+  "newsapi",
 )
+
+
+def _extract_political_impact(
+  title: str,
+  content: str,
+  symbols: str,
+  sentiment: float,
+  relevance: float,
+) -> tuple[str, float] | None:
+  """Map political headlines into bot-targeted strategy impacts."""
+  from app.intelligence.political_signals import classify_political_event
+
+  text = f"{title} {content}"
+  event_type, event_symbols, target_bots = classify_political_event(text)
+  if abs(sentiment) < 0.1 and event_type == "general":
+    return None
+  sym = symbols or ",".join(event_symbols[:3])
+  bots = ", ".join(target_bots)
+  if sentiment > 0.1:
+    direction = "long"
+  elif sentiment < -0.1:
+    direction = "cautious"
+  else:
+    direction = "defensive"
+  impact = (
+    f"Political intel ({event_type}): favor {direction} bias on {sym} — "
+    f"target bots: {bots}; weight geopolitical news when price action aligns"
+  )
+  confidence = min(0.82, relevance * 0.85 + abs(sentiment) * 0.15)
+  if confidence < 0.55:
+    return None
+  return impact, confidence
+
+
+def _extract_polymarket_impact(
+  source: str,
+  title: str,
+  content: str,
+  symbols: str,
+  sentiment: float,
+  relevance: float,
+) -> tuple[str, float] | None:
+  """Map Polymarket market + account-hook intel into bot-targeted strategy impacts."""
+  text = f"{title} {content}".lower()
+  sym = symbols or "macro markets"
+
+  if source == "polymarket_account":
+    if "no open positions" in text or "account linked" in text:
+      return None
+    direction = "Yes entries" if sentiment > 0 else "reduce Yes exposure"
+    impact = (
+      f"Polymarket account hook on {sym} — polymarket bot: mirror account positions only with "
+      f"macro/political intel confirmation; favor {direction} when composite score aligns"
+    )
+    confidence = min(0.78, relevance * 0.82 + abs(sentiment) * 0.15)
+    if confidence < 0.55:
+      return None
+    return impact, confidence
+
+  targets: list[str] = ["polymarket"]
+  if any(k in text for k in ("gold", "oil", "commodit", "tariff", "energy")):
+    targets.append("commodities")
+  if any(k in text for k in ("fed", "rate", "cpi", "inflation", "gdp", "recession")):
+    targets.extend(["stocks_futures", "polymarket"])
+  if any(k in text for k in ("bitcoin", "crypto", "ethereum", "btc", "eth")):
+    targets.append("crypto")
+  bots = ", ".join(dict.fromkeys(targets))
+
+  if sentiment > 0.15:
+    direction = "long Yes"
+  elif sentiment < -0.15:
+    direction = "cautious No / reduce Yes"
+  else:
+    direction = "neutral — wait for momentum"
+  impact = (
+    f"Polymarket intel on {sym}: favor {direction} when prediction odds align with price action — "
+    f"target bots: {bots}"
+  )
+  confidence = min(0.8, relevance * 0.85 + abs(sentiment) * 0.15)
+  if confidence < 0.55:
+    return None
+  return impact, confidence
 
 
 def _extract_live_intel_impact(source: str, title: str, content: str, symbols: str, sentiment: float, relevance: float) -> tuple[str, float] | None:
@@ -257,6 +371,26 @@ def _extract_live_intel_impact(source: str, title: str, content: str, symbols: s
         min(0.76, relevance * 0.88),
       )
     if relevance > 0.45 and any(
+      k in text
+      for k in (
+        "gold",
+        "oil",
+        "commodit",
+        "futures",
+        "cme",
+        "xau",
+        "crude",
+        "natural gas",
+        "copper",
+        "forex",
+        "silver",
+      )
+    ):
+      return (
+        f"TikTok viral commodities sentiment on {sym} — commodities bot: require MACD + composite floor on social-driven entries",
+        min(0.72, relevance * 0.84),
+      )
+    if relevance > 0.45 and any(
       k in text for k in ("stock", "aapl", "nvda", "tsla", "spy", "qqq", "day trad", "earnings", "options")
     ):
       return (
@@ -267,6 +401,30 @@ def _extract_live_intel_impact(source: str, title: str, content: str, symbols: s
 
   if source == "reddit":
     if sentiment > 0.2:
+      if any(k in text for k in ("aapl", "nvda", "tsla", "spy", "qqq", "stock", "earnings")):
+        return (
+          f"Reddit bullish discussion on {sym} — stocks_futures bot: require MACD + volume when retail buzz drives entries",
+          min(0.72, relevance * 0.82 + abs(sentiment) * 0.1),
+        )
+      if any(
+        k in text
+        for k in (
+          "gold",
+          "oil",
+          "commodit",
+          "futures",
+          "cme",
+          "xau",
+          "crude",
+          "copper",
+          "forex",
+          "silver",
+        )
+      ):
+        return (
+          f"Reddit commodities discussion on {sym} — commodities bot: treat social buzz as sentiment input with MACD confirmation",
+          min(0.72, relevance * 0.82 + abs(sentiment) * 0.1),
+        )
       if any(k in text for k in ("wsb", "wallstreetbets", "yolo", "meme", "cryptocurrency")):
         return (
           f"Reddit retail buzz on {sym} — crypto bot: treat social hype as sentiment input, not sole entry signal",
@@ -284,15 +442,61 @@ def _extract_live_intel_impact(source: str, title: str, content: str, symbols: s
     return None
 
   if source == "tradingview":
+    targets: list[str] = []
+    sym_lower = sym.lower()
+    if any(k in text or k in sym_lower for k in ("usdt", "btc", "eth", "sol", "meme", "crypto")):
+      targets.append("crypto")
+    if any(
+      k in text or k in sym_lower
+      for k in ("aapl", "nvda", "tsla", "spy", "qqq", "stock", "=x")
+    ):
+      targets.append("stocks_futures")
+    if any(
+      k in text or k in sym_lower
+      for k in ("=f", "gold", "gc", "oil", "cl", "ng", "xau", "commodit", "forex", "eurusd")
+    ):
+      targets.append("commodities")
+    bot_hint = (
+      f" — target bots: {', '.join(dict.fromkeys(targets))}" if targets else ""
+    )
+
     if sentiment > 0 or any(k in text for k in ("buy", "long", "bullish")):
       return (
-        f"TradingView alert on {sym} — require webhook signal alignment before entry; increase technical_weight",
+        f"TradingView alert on {sym}: require webhook signal alignment before entry; "
+        f"increase technical_weight{bot_hint}",
         min(0.8, relevance * 0.9),
       )
     if sentiment < 0 or any(k in text for k in ("sell", "short", "bearish")):
       return (
-        f"TradingView exit signal on {sym} — honor TV alerts for wind-down; avoid fighting the alert",
+        f"TradingView exit signal on {sym}: honor TV alerts for wind-down; "
+        f"avoid fighting the alert{bot_hint}",
         min(0.78, relevance * 0.85),
+      )
+    return None
+
+  if source == "political":
+    return _extract_political_impact(title, content, symbols, sentiment, relevance)
+
+  if source == "newsapi":
+    if sentiment > 0.25:
+      if any(k in text for k in ("crypto", "bitcoin", "btc", "ethereum", "eth", "solana")):
+        return (
+          f"News headline bullish on {sym} — crypto bot: require TA confirmation on headline-driven entries",
+          min(0.76, relevance * 0.85 + abs(sentiment) * 0.1),
+        )
+      if any(k in text for k in ("gold", "oil", "commodit", "fed", "rate", "tariff")):
+        return (
+          f"News headline on {sym} — commodities bot: weight macro headlines; align with political intel",
+          min(0.74, relevance * 0.82 + abs(sentiment) * 0.1),
+        )
+      return (
+        f"News headline bullish on {sym} — stocks_futures bot: favor long bias when news confirms TA",
+        min(0.72, relevance * 0.8 + abs(sentiment) * 0.1),
+      )
+    if sentiment < -0.25:
+      return (
+        f"News headline bearish on {sym} — tighten stops and reduce long exposure across bots",
+        min(0.75, relevance * 0.82 + abs(sentiment) * 0.1),
       )
     return None
 
@@ -345,11 +549,13 @@ class ContentStudyEngine:
       if extracted:
         impact, confidence = extracted
       else:
-        impact = (
-          f"YouTube intel on {item.symbols_mentioned or 'markets'}: "
-          f"favor {'long' if item.sentiment > 0 else 'cautious'} setups when sentiment aligns"
+        impact = _youtube_bot_targeted_fallback(
+          item.title,
+          item.content or "",
+          item.symbols_mentioned or "",
+          float(item.sentiment or 0),
         )
-        confidence = min(0.85, item.relevance_score)
+        confidence = min(0.85, float(item.relevance_score or 0))
       insight = await self.learner.apply_external_insight(
         source_type="youtube",
         title=item.title,
@@ -379,6 +585,57 @@ class ContentStudyEngine:
       if not _is_trading_relevant_intel(item.title, item.content or "", item.source):
         item.applied = True
         continue
+      if item.source == "political":
+        extracted = _extract_political_impact(
+          item.title,
+          item.content or "",
+          item.symbols_mentioned or "",
+          float(item.sentiment or 0),
+          float(item.relevance_score or 0),
+        )
+        if extracted:
+          impact, confidence = extracted
+          insight = await self.learner.apply_external_insight(
+            source_type=item.source,
+            title=item.title,
+            url=item.url or "",
+            takeaways=item.content[:500],
+            impact=impact,
+            confidence=confidence,
+          )
+          if insight.applied:
+            item.applied = True
+            applied += 1
+          continue
+      if item.source in ("polymarket", "polymarket_account"):
+        extracted = _extract_polymarket_impact(
+          item.source,
+          item.title,
+          item.content or "",
+          item.symbols_mentioned or "",
+          float(item.sentiment or 0),
+          float(item.relevance_score or 0),
+        )
+        if extracted:
+          impact, confidence = extracted
+          insight = await self.learner.apply_external_insight(
+            source_type=item.source,
+            title=item.title,
+            url=item.url or "",
+            takeaways=item.content[:500],
+            impact=impact,
+            confidence=confidence,
+          )
+          if insight.applied:
+            item.applied = True
+            applied += 1
+          continue
+        if item.source == "polymarket_account" and (
+          "account linked" in f"{item.title} {item.content}".lower()
+          or "no open positions" in f"{item.title} {item.content}".lower()
+        ):
+          item.applied = True
+          continue
       direction = "long" if item.sentiment > 0 else "cautious"
       symbols = item.symbols_mentioned or "macro markets"
       impact = (

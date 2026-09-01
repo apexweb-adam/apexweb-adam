@@ -20,6 +20,7 @@ export type BackendSuspension = {
   platform_outage_grace_minutes_remaining?: number | null;
   platform_outage_grace_deadline_utc?: string | null;
   us_cash_session_catchup_minutes_remaining?: number | null;
+  post_grace_catchup_active?: boolean;
   expected_platform_revision?: string;
   recovery_bots?: OutageRecoveryBot[];
 };
@@ -77,8 +78,9 @@ export function outageRecoveryBots(): OutageRecoveryBot[] {
     {
       bot_type: "stocks_futures",
       label: "US stocks",
-      action: "Burst scan + auto-entry for open-ready symbols (e.g. AAPL)",
+      action: "Burst scan + auto-entry for open-ready symbols (prep state preserved)",
       verify_script: "verify-us-stocks-post-open.sh --watch 120",
+      held_symbols: ["AAPL"],
     },
     {
       bot_type: "commodities",
@@ -92,6 +94,12 @@ export function outageRecoveryBots(): OutageRecoveryBot[] {
       label: "Crypto 24/7",
       action: "Immediate held-position scan on startup",
       verify_script: "verify-crypto-held.sh --watch 90",
+    },
+    {
+      bot_type: "learning",
+      label: "Learning loop",
+      action: "Post-mortems, content study, intel pattern alerts, strategy adaptation",
+      verify_script: "verify-crm-learning.sh --strict",
     },
   ];
 }
@@ -123,11 +131,66 @@ export function usCashSessionCatchupMinutesRemaining(now = new Date()): number |
   return Math.max(0, Math.floor((sessionEnd - nowMs) / 60000));
 }
 
+/** True when Monday extended grace expired but US cash session catch-up window is still open. */
+export function isPostGraceCatchupActive(now = new Date()): boolean {
+  const graceRemaining = platformOutageGraceMinutesRemaining(now);
+  const catchupRemaining = usCashSessionCatchupMinutesRemaining(now);
+  return graceRemaining === 0 && catchupRemaining !== null && catchupRemaining > 0;
+}
+
+export type BackendHealthSnapshot = {
+  reachable?: boolean;
+  suspended?: boolean;
+  reason?: "billing" | "unknown" | "unreachable";
+  message?: string;
+  render_dashboard_url?: string;
+  recovery_steps?: string[];
+  platform_outage_grace_minutes_remaining?: number | null;
+  platform_outage_grace_deadline_utc?: string | null;
+  us_cash_session_catchup_minutes_remaining?: number | null;
+  post_grace_catchup_active?: boolean;
+  expected_platform_revision?: string;
+  recovery_bots?: OutageRecoveryBot[];
+};
+
+/** True when CRM should treat the Render backend as offline (billing suspension or unreachable). */
+export function isBackendOffline(health?: BackendHealthSnapshot | null): boolean {
+  if (!health) return false;
+  if (health.suspended) return true;
+  return health.reachable === false;
+}
+
+export function backendOfflineKind(
+  health?: BackendHealthSnapshot | null
+): "billing" | "unreachable" | null {
+  if (!health || !isBackendOffline(health)) return null;
+  if (health.suspended) return "billing";
+  return "unreachable";
+}
+
+export function backendOfflineBannerMessage(health?: BackendHealthSnapshot | null): string {
+  const kind = backendOfflineKind(health);
+  if (kind === "billing") {
+    return (
+      health?.message ??
+      "Bots, intel, learning, and live CRM data are unavailable until Render billing is restored."
+    );
+  }
+  if (kind === "unreachable") {
+    return (
+      health?.message ??
+      "Backend unreachable — Render may be waking or the connection failed. Live data may be stale."
+    );
+  }
+  return health?.message ?? "Backend offline.";
+}
+
 export function buildBackendSuspensionPayload(
   reason: "billing" | "unknown" = "billing"
 ): BackendSuspension {
   const graceRemaining = platformOutageGraceMinutesRemaining();
   const catchupRemaining = usCashSessionCatchupMinutesRemaining();
+  const postGraceCatchupActive = isPostGraceCatchupActive();
   const graceNote =
     graceRemaining !== null && graceRemaining > 0
       ? `Platform outage grace: ~${graceRemaining} min left for extended burst window (deploy ${EXPECTED_PLATFORM_REVISION}). Post-outage startup still forces open-ready scan if prep state preserved.`
@@ -155,8 +218,11 @@ export function buildBackendSuspensionPayload(
       "Run: bash trading-platform/scripts/recover-render-billing.sh",
       graceNote,
       "Or verify all bots: bash trading-platform/scripts/verify-post-outage-recovery.sh --watch 90",
+      "Verify learning loop: bash trading-platform/scripts/verify-crm-learning.sh --strict",
+      "Verify WebSocket live CRM: bash trading-platform/scripts/verify-ws-live.sh --strict",
       `After resume, confirm outage_recovery_scan then burst_scan (deploy ${EXPECTED_PLATFORM_REVISION}).`,
     ],
     us_cash_session_catchup_minutes_remaining: catchupRemaining,
+    post_grace_catchup_active: postGraceCatchupActive,
   };
 }

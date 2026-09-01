@@ -33,7 +33,7 @@ from app.engines.gate_entry_guard import (
 )
 from app.engines.intel_source_status import build_intel_sources, x_intel_collection_mode
 from app.engines.scan_preview import build_monday_recovery_summary
-from app.engines.learning_engine import build_crm_content_study_highlights
+from app.engines.learning_engine import build_crm_content_study_highlights, collect_intel_pattern_alerts
 from app.engines.session_open_log import get_session_open_events
 from app.engines.trade_stats import aggregate_win_rate
 from app.intelligence.axiom_tracker import get_axiom_session_status
@@ -208,6 +208,16 @@ async def _fetch_learning_counts(session: AsyncSession) -> dict[str, Any]:
   snapshot_count = (
     await session.execute(select(func.count(VerificationSnapshot.id)))
   ).scalar_one()
+  today = datetime.utcnow().strftime("%Y-%m-%d")
+  review_rows = await session.execute(
+    select(DailyReview.bot_type, DailyReview.patterns_found).where(
+      DailyReview.review_date == today
+    )
+  )
+  intel_pattern_alerts: list[str] = []
+  for bot_type, patterns in review_rows.all():
+    for alert in collect_intel_pattern_alerts(patterns):
+      intel_pattern_alerts.append(f"{bot_type}: {alert}")
   return {
     "trade_analyses": trade_analyses,
     "daily_reviews": daily_reviews,
@@ -215,6 +225,8 @@ async def _fetch_learning_counts(session: AsyncSession) -> dict[str, Any]:
     "insights_total": insights_total,
     "insights_pending": insights_total - insights_applied,
     "verification_snapshots": snapshot_count,
+    "intel_pattern_alerts": intel_pattern_alerts,
+    "intel_pattern_count": len(intel_pattern_alerts),
     "content_study_admin": (
       "POST /api/admin/run-content-study with secret to study content and apply pending insights"
     ),
@@ -268,9 +280,12 @@ async def _build_platform_status_uncached(session: AsyncSession) -> dict[str, An
   gate_tightening_data = gate_payload["gate_entry_tightening"]
 
   fomo_bearer = await get_fomo_bearer_status(session)
-  axiom_session = await get_axiom_session_status(session)
   content_study = await build_crm_content_study_highlights(session)
-  tv_items = next((s["items_collected"] for s in sources if s["source"] == "tradingview"), 0)
+  integrations = await build_integrations_status(
+    session,
+    intel_sources=sources,
+    fomo_bearer=fomo_bearer,
+  )
   base_next_steps = (
     []
     if is_postgres()
@@ -319,7 +334,7 @@ async def _build_platform_status_uncached(session: AsyncSession) -> dict[str, An
     },
     "learning": learning,
     "content_study": content_study,
-    "integrations": _build_integrations_payload(fomo_bearer, axiom_session, tv_items),
+    "integrations": integrations,
     "scheduler": {
       "intelligence_scan": "every 5 min",
       "content_study": "every 1 hour",
@@ -365,6 +380,7 @@ async def _build_platform_status_uncached(session: AsyncSession) -> dict[str, An
       "expected_dashboard_bundle": deploy_info.get("expected_dashboard_bundle"),
       "dashboard_bundle_verify_command": deploy_info.get("dashboard_bundle_verify_command"),
       "weekend_ops_verify_command": deploy_info.get("weekend_ops_verify_command"),
+      "crm_learning_verify_command": deploy_info.get("crm_learning_verify_command"),
       "vercel_promote_deployment_id": deploy_info.get("vercel_promote_deployment_id"),
       "vercel_promote_url": deploy_info.get("vercel_promote_url"),
       "production_proxy_operational": deploy_info.get("production_proxy_operational"),
@@ -410,11 +426,45 @@ async def _build_platform_status_uncached(session: AsyncSession) -> dict[str, An
   }
 
 
+async def build_integrations_status(
+  session: AsyncSession,
+  *,
+  intel_sources: list[dict[str, Any]] | None = None,
+  fomo_bearer: dict[str, Any] | None = None,
+  axiom_session: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+  """Shared integrations block for /api/status and WebSocket live updates."""
+  if intel_sources is None:
+    intel_sources = await build_intel_sources(session)
+  if fomo_bearer is None:
+    fomo_bearer = await get_fomo_bearer_status(session)
+  if axiom_session is None:
+    axiom_session = await get_axiom_session_status(session)
+  tv_items = next((s["items_collected"] for s in intel_sources if s["source"] == "tradingview"), 0)
+  pm_intel_items = next((s["items_collected"] for s in intel_sources if s["source"] == "polymarket"), 0)
+  pm_account_items = next(
+    (s["items_collected"] for s in intel_sources if s["source"] == "polymarket_account"),
+    0,
+  )
+  return _build_integrations_payload(
+    fomo_bearer,
+    axiom_session,
+    tv_items,
+    pm_intel_items=pm_intel_items,
+    pm_account_items=pm_account_items,
+  )
+
+
 def _build_integrations_payload(
   fomo_bearer: dict[str, Any],
   axiom_session: dict[str, Any],
   tv_items: int,
+  *,
+  pm_intel_items: int = 0,
+  pm_account_items: int = 0,
 ) -> dict[str, Any]:
+  pm_wallet = bool(settings.polymarket_wallet_address or settings.polymarket_deposit_address)
+  pm_api = bool(settings.polymarket_api_key)
   return {
     "tradingview_webhook": bool(settings.tradingview_webhook_secret),
     "tradingview_webhook_url": (
@@ -444,10 +494,25 @@ def _build_integrations_payload(
       else None
     ),
     "polymarket_market_scanner": True,
-    "polymarket_account_hook": bool(
-      settings.polymarket_wallet_address or settings.polymarket_deposit_address
+    "polymarket_account_hook": pm_wallet,
+    "polymarket_api_key": pm_api,
+    "polymarket_profile_url": settings.polymarket_profile_url or None,
+    "polymarket_intel_items": pm_intel_items,
+    "polymarket_account_items": pm_account_items,
+    "polymarket_setup": (
+      "Set POLYMARKET_API_KEY for market scanner; POLYMARKET_WALLET_ADDRESS or "
+      "POLYMARKET_DEPOSIT_ADDRESS for account hook mirroring"
+      if not pm_wallet and not pm_api
+      else (
+        "Account hook needs POLYMARKET_WALLET_ADDRESS or POLYMARKET_DEPOSIT_ADDRESS"
+        if not pm_wallet
+        else (
+          "Market scanner needs POLYMARKET_API_KEY for CLOB/Gamma API"
+          if not pm_api
+          else None
+        )
+      )
     ),
-    "polymarket_api_key": bool(settings.polymarket_api_key),
     "newsapi": bool(settings.newsapi_key),
     "twitter_x": bool(settings.twitter_bearer_token),
     "x_intel_collection_mode": x_intel_collection_mode(),

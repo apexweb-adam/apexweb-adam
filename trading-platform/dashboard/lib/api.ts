@@ -171,6 +171,7 @@ export type DailyReview = {
 export type LearningInsight = {
   id: number;
   source_type: string;
+  source_label?: string;
   source_title: string;
   source_url: string;
   key_takeaways: string;
@@ -536,6 +537,7 @@ export type VerificationSnapshot = {
 
 export type ContentStudyHighlight = {
   source_type: string;
+  source_label?: string;
   title: string;
   impact: string;
   confidence: number;
@@ -560,6 +562,7 @@ export type IntelligenceSource = {
   bearer_minutes_remaining?: number | null;
   bearer_polling_active?: boolean | null;
   oauth_configured?: boolean | null;
+  account_hook_configured?: boolean | null;
 };
 
 export type IntelRouting = {
@@ -580,13 +583,14 @@ export type DashboardConfig = {
   backendHealth?: {
     reachable: boolean;
     suspended: boolean;
-    reason?: "billing" | "unknown";
+    reason?: "billing" | "unknown" | "unreachable";
     message?: string;
     render_dashboard_url?: string;
     recovery_steps?: string[];
     platform_outage_grace_minutes_remaining?: number | null;
     platform_outage_grace_deadline_utc?: string | null;
     us_cash_session_catchup_minutes_remaining?: number | null;
+    post_grace_catchup_active?: boolean;
     expected_platform_revision?: string;
     recovery_bots?: {
       bot_type: string;
@@ -643,6 +647,9 @@ export type PlatformDeployStatus = {
   deploy_credentials_ready?: boolean;
   deploy_credentials_warnings?: string[];
   deploy_credentials_nudges?: string[];
+  dashboard_bundle_verify_command?: string;
+  weekend_ops_verify_command?: string;
+  crm_learning_verify_command?: string;
   next_steps: string[];
 };
 
@@ -682,6 +689,7 @@ export type BotSessions = Record<string, BotSessionInfo>;
 
 export type PlatformStatus = {
   platform: string;
+  paper_trading_only?: boolean;
   database: { engine: string; persistent: boolean };
   intelligence: {
     active_sources: number;
@@ -698,6 +706,13 @@ export type PlatformStatus = {
     tradingview_setup?: string | null;
     tradingview_test_endpoint?: string | null;
     tradingview_example_payload?: Record<string, string> | null;
+    polymarket_market_scanner?: boolean;
+    polymarket_account_hook?: boolean;
+    polymarket_api_key?: boolean;
+    polymarket_profile_url?: string | null;
+    polymarket_intel_items?: number;
+    polymarket_account_items?: number;
+    polymarket_setup?: string | null;
     wallet_tracker?: boolean;
     wallet_tracker_webhook?: boolean;
     wallet_tracker_webhook_url?: string | null;
@@ -744,6 +759,9 @@ export type PlatformStatus = {
     phantom_setup?: string | null;
     phantom_example_payload?: Record<string, unknown> | null;
     reddit_oauth?: boolean;
+    newsapi?: boolean;
+    x_intel_collection_mode?: string | null;
+    x_intel_keyless?: boolean;
     twitter_x?: boolean;
   };
   learning?: {
@@ -752,6 +770,8 @@ export type PlatformStatus = {
     insights_applied: number;
     insights_total: number;
     insights_pending?: number;
+    intel_pattern_alerts?: string[];
+    intel_pattern_count?: number;
   };
   content_study?: ContentStudySummary;
   profitability_gate?: ProfitabilityStatus;

@@ -17,6 +17,9 @@ import {
 } from "lucide-react";
 import { useState, useMemo, useEffect, type ReactNode } from "react";
 import {
+  backendOfflineBannerMessage,
+  backendOfflineKind,
+  isBackendOffline,
   platformOutageGraceDeadlineUtc,
   platformOutageGraceMinutesRemaining,
   usCashSessionCatchupMinutesRemaining,
@@ -27,7 +30,9 @@ import { fetchAPI, applyPendingInsights, getSessionPrepEntry } from "@/lib/api";
 import {
   VERIFIED_PREVIEW_URL,
   VERIFIED_PROMOTE_DEPLOYMENT_ID,
+  DEFAULT_PLATFORM_SCHEDULER,
 } from "@/lib/deploy-health";
+import { detectIntelPostMortemSources, intelFeedSourceBadge, intelSourceBadge } from "@/lib/intel-postmortem";
 import {
   botLabel,
   cn,
@@ -67,12 +72,15 @@ import type {
 } from "@/lib/api";
 import { enrichProfitabilityStatus, activeGateToProfitability, buildEquityHistoryFromTrades } from "@/lib/profitability";
 import { VerificationPnLChart } from "@/components/VerificationPnLChart";
+import { CoreMarketBotsCard } from "@/components/CoreMarketBotsCard";
+import { IntegrationHooksPanel } from "@/components/IntegrationHooksPanel";
 import { IntelRoutingPanel } from "@/components/IntelRoutingPanel";
+import { MultiSourceIntelCard } from "@/components/MultiSourceIntelCard";
 
 type Tab = "overview" | "trades" | "positions" | "intelligence" | "learning" | "strategy";
 
 export default function Dashboard() {
-  const { stats, portfolios, bots, positions: livePositions, trades: liveTrades, recentIntel, analyses: liveAnalyses, reviews: liveReviews, insights: liveInsights, strategies: liveStrategies, intelSources: liveIntelSources, verificationHistory: liveVerificationHistory, connected, lastUpdate, lastTrade, profitabilityGate: liveProfitability, gateEntryTightening, botSessions, mondayRecovery, sessionPrep, nextSessionEvents, contentStudy, sessionOpenEvents, platformOutageEvents, sessionOpenChecklists, cmeDeployUrgency, cmeDeployWindow, liveDeploy } = useLiveData();
+  const { stats, portfolios, bots, positions: livePositions, trades: liveTrades, recentIntel, analyses: liveAnalyses, reviews: liveReviews, insights: liveInsights, strategies: liveStrategies, intelSources: liveIntelSources, verificationHistory: liveVerificationHistory, connected, lastUpdate, lastTrade, profitabilityGate: liveProfitability, gateEntryTightening, botSessions, mondayRecovery, sessionPrep, nextSessionEvents, contentStudy, sessionOpenEvents, platformOutageEvents, sessionOpenChecklists, cmeDeployUrgency, cmeDeployWindow, liveDeploy, learning: liveLearning, paperTradingOnly: livePaperTradingOnly, liveIntegrations } = useLiveData();
   const { data: tradesRest } = useAPI<Trade[]>("/trades?limit=50", 30000);
   const { data: gateTradesRest } = useAPI<Trade[]>("/trades?limit=200", 30000);
   const { data: positionsRest } = useAPI<Position[]>("/positions", 30000);
@@ -108,6 +116,16 @@ export default function Dashboard() {
     if (statusSources && statusSources.length > 0) return statusSources;
     return null;
   }, [intelSources, platformStatus?.intelligence?.sources]);
+  const intelPatternAlerts =
+    liveLearning?.intel_pattern_alerts?.length
+      ? liveLearning.intel_pattern_alerts
+      : platformStatus?.learning?.intel_pattern_alerts;
+  const learningStats = liveLearning ?? platformStatus?.learning;
+  const contentStudyDisplay = contentStudy ?? platformStatus?.content_study ?? null;
+  const integrationsDisplay = liveIntegrations ?? platformStatus?.integrations ?? null;
+  const crmLearningVerifyCommand =
+    platformStatus?.deploy?.crm_learning_verify_command ??
+    "bash trading-platform/scripts/verify-crm-learning.sh";
   const [tab, setTab] = useState<Tab>("overview");
   const [dashConfig, setDashConfig] = useState<DashboardConfig | null>(null);
 
@@ -119,7 +137,7 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
-    if (!dashConfig?.backendHealth?.suspended) return;
+    if (!isBackendOffline(dashConfig?.backendHealth)) return;
     const id = setInterval(() => {
       fetch("/api/config", { cache: "no-store" })
         .then((r) => (r.ok ? r.json() : null))
@@ -127,7 +145,10 @@ export default function Dashboard() {
         .catch(() => {});
     }, 60_000);
     return () => clearInterval(id);
-  }, [dashConfig?.backendHealth?.suspended]);
+  }, [
+    dashConfig?.backendHealth?.suspended,
+    dashConfig?.backendHealth?.reachable,
+  ]);
 
   const vercelFullBundle = dashConfig?.features?.activeGate === true;
   const vercelProxyMode = dashConfig != null && !vercelFullBundle;
@@ -191,6 +212,12 @@ export default function Dashboard() {
     );
   }, [activeGate, liveProfitability, connected, profitability, gateTrades, portfolios, strategies]);
 
+  const paperTradingDisplay =
+    livePaperTradingOnly ?? platformStatus?.paper_trading_only ?? gateStatus?.paper_trading_only;
+  const backendOffline = isBackendOffline(dashConfig?.backendHealth);
+  const offlineKind = backendOfflineKind(dashConfig?.backendHealth);
+  const schedulerDisplay = platformStatus?.scheduler ?? DEFAULT_PLATFORM_SCHEDULER;
+
   const liveGateTightening =
     gateEntryTightening ?? platformStatus?.gate_entry_tightening;
 
@@ -219,7 +246,12 @@ export default function Dashboard() {
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-apex-green/10 border border-apex-green/20">
               <Shield size={14} className="text-apex-green" />
-              <span className="text-xs text-apex-green font-medium">PAPER TRADING</span>
+              <span className="text-xs text-apex-green font-medium">
+                PAPER TRADING
+                {gateStatus?.verification_day != null && gateStatus.verification_day > 0
+                  ? ` · Day ${gateStatus.verification_day}`
+                  : ""}
+              </span>
             </div>
             <div className="flex items-center gap-2">
               <Circle
@@ -242,31 +274,54 @@ export default function Dashboard() {
         </div>
       </header>
 
-      {dashConfig?.backendHealth?.suspended && (
-        <div className="bg-apex-red/20 border-b border-apex-red/40 px-6 py-3">
-          <p className="max-w-[1600px] mx-auto text-xs text-apex-red">
-            <strong>Backend offline — Render billing suspension.</strong>{" "}
-            {dashConfig.backendHealth.message ??
-              "Bots, intel, learning, and live CRM data are unavailable until Render is restored."}{" "}
-            <a
-              href={
-                dashConfig.backendHealth.render_dashboard_url ??
-                "https://dashboard.render.com/web/srv-da848ms9v7es739k38jg"
-              }
-              target="_blank"
-              rel="noopener noreferrer"
-              className="underline hover:text-white"
-            >
-              Fix billing in Render →
-            </a>
-            {dashConfig.backendHealth.recovery_steps?.[3] && (
-              <span className="ml-2 text-amber-300">
-                {dashConfig.backendHealth.recovery_steps[3]}
-              </span>
+      {backendOffline && (
+        <div
+          className={cn(
+            "border-b px-6 py-3",
+            offlineKind === "billing"
+              ? "bg-apex-red/20 border-apex-red/40"
+              : "bg-amber-500/15 border-amber-500/30"
+          )}
+        >
+          <p
+            className={cn(
+              "max-w-[1600px] mx-auto text-xs",
+              offlineKind === "billing" ? "text-apex-red" : "text-amber-300"
             )}
-            {dashConfig.backendHealth.recovery_steps?.[2] && (
-              <span className="ml-2 font-mono text-[10px] text-gray-400">
-                then {dashConfig.backendHealth.recovery_steps[2]}
+          >
+            <strong>
+              {offlineKind === "billing"
+                ? "Backend offline — Render billing suspension."
+                : "Backend unreachable — live data may be stale."}
+            </strong>{" "}
+            {backendOfflineBannerMessage(dashConfig?.backendHealth)}{" "}
+            {offlineKind === "billing" ? (
+              <>
+                <a
+                  href={
+                    dashConfig?.backendHealth?.render_dashboard_url ??
+                    "https://dashboard.render.com/web/srv-da848ms9v7es739k38jg"
+                  }
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline hover:text-white"
+                >
+                  Fix billing in Render →
+                </a>
+                {dashConfig?.backendHealth?.recovery_steps?.[3] && (
+                  <span className="ml-2 text-amber-300">
+                    {dashConfig.backendHealth.recovery_steps[3]}
+                  </span>
+                )}
+                {dashConfig?.backendHealth?.recovery_steps?.[2] && (
+                  <span className="ml-2 font-mono text-[10px] text-gray-400">
+                    then {dashConfig.backendHealth.recovery_steps[2]}
+                  </span>
+                )}
+              </>
+            ) : (
+              <span className="ml-2 text-gray-400">
+                Retrying every 60s — if Render is waking, data should resume shortly.
               </span>
             )}
           </p>
@@ -377,7 +432,7 @@ export default function Dashboard() {
         {tab === "overview" && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-6">
-              <IntelAlertBanner platformStatus={platformStatus} intelSources={intelSourcesDisplay ?? []} />
+              <IntelAlertBanner integrations={integrationsDisplay} intelSources={intelSourcesDisplay ?? []} />
               <CmeDeployUrgencyBanner
                 urgency={cmeDeployUrgency ?? platformStatus?.deploy?.cme_deploy_urgency}
               />
@@ -418,6 +473,15 @@ export default function Dashboard() {
               />
               <MondayRecoveryBanner summary={mondayRecovery} />
               <SessionPrepBanner sessionPrep={sessionPrep} />
+              <Card title="Core Market Bots">
+                <CoreMarketBotsCard
+                  bots={bots}
+                  botSessions={botSessions ?? platformStatus?.bot_sessions}
+                  profitability={gateStatus}
+                  paperTradingOnly={paperTradingDisplay}
+                  backendOffline={backendOffline}
+                />
+              </Card>
               <Card title="Bot Status">
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
                   {bots.map((bot) => (
@@ -465,32 +529,62 @@ export default function Dashboard() {
               </Card>
             </div>
             <div className="space-y-6">
-              {platformStatus?.scheduler && (
-                <Card title="Autonomous Operations">
-                  <div className="space-y-2">
-                    {Object.entries(platformStatus.scheduler).map(([key, value]) => (
-                      <div key={key} className="flex justify-between text-xs">
-                        <span className="text-gray-500">{key.replace(/_/g, " ")}</span>
-                        <span className="text-apex-green font-medium">{value}</span>
-                      </div>
-                    ))}
-                  </div>
-                  {platformStatus.learning && (
-                    <div className="mt-4 pt-4 border-t border-apex-border space-y-1 text-xs text-gray-500">
-                      <p>
-                        Learning: {platformStatus.learning.trade_analyses} post-mortems ·{" "}
-                        {platformStatus.learning.daily_reviews} daily reviews ·{" "}
-                        {platformStatus.learning.insights_applied}/{platformStatus.learning.insights_total}{" "}
-                        insights applied
-                        {(platformStatus.learning.insights_pending ?? 0) > 0 && (
-                          <span className="text-apex-gold">
-                            {" "}
-                            · {platformStatus.learning.insights_pending} pending
-                          </span>
-                        )}
-                      </p>
+              <Card title="Autonomous Operations">
+                <div className="space-y-2">
+                  {backendOffline ? (
+                    <p className="text-[10px] text-apex-red border border-apex-red/30 bg-apex-red/10 rounded px-2 py-1.5 mb-2">
+                      Schedulers paused while Render billing is suspended — bots and intel scans
+                      resume on recovery.
+                    </p>
+                  ) : null}
+                  {Object.entries(schedulerDisplay).map(([key, value]) => (
+                    <div key={key} className="flex justify-between text-xs gap-3">
+                      <span className="text-gray-500 shrink-0">{key.replace(/_/g, " ")}</span>
+                      <span className="text-apex-green font-medium text-right">{value}</span>
                     </div>
-                  )}
+                  ))}
+                </div>
+                {learningStats && (
+                  <div className="mt-4 pt-4 border-t border-apex-border space-y-1 text-xs text-gray-500">
+                    <p>
+                      Learning: {learningStats.trade_analyses} post-mortems ·{" "}
+                      {learningStats.daily_reviews} daily reviews ·{" "}
+                      {learningStats.insights_applied}/{learningStats.insights_total}{" "}
+                      insights applied
+                      {(learningStats.insights_pending ?? 0) > 0 && (
+                        <span className="text-apex-gold">
+                          {" "}
+                          · {learningStats.insights_pending} pending
+                        </span>
+                      )}
+                      {(learningStats.intel_pattern_count ?? 0) > 0 && (
+                        <span className="text-purple-300">
+                          {" "}
+                          · {learningStats.intel_pattern_count} intel pattern alert(s)
+                        </span>
+                      )}
+                    </p>
+                    <p className="font-mono text-[10px] text-gray-600 break-all">
+                      {crmLearningVerifyCommand}
+                    </p>
+                  </div>
+                )}
+              </Card>
+              {(integrationsDisplay || intelSourcesDisplay || backendOffline) && (
+                <Card title="Multi-Source Intel">
+                  <MultiSourceIntelCard
+                    integrations={integrationsDisplay ?? undefined}
+                    sources={intelSourcesDisplay}
+                    backendOffline={backendOffline}
+                  />
+                </Card>
+              )}
+              {(integrationsDisplay || backendOffline) && (
+                <Card title="Trading & Wallet Hooks">
+                  <IntegrationHooksPanel
+                    integrations={integrationsDisplay ?? undefined}
+                    backendOffline={backendOffline}
+                  />
                 </Card>
               )}
               {(vercelStale ||
@@ -561,278 +655,6 @@ export default function Dashboard() {
                             </span>
                           )}
                         </div>
-                        {(platformStatus.integrations?.tradingview_webhook ||
-                          platformStatus.integrations?.tradingview_setup) && (
-                          <div className="rounded-lg border border-apex-border bg-apex-dark px-3 py-2 text-xs text-gray-400">
-                            <p className="text-apex-gold font-medium mb-1">TradingView webhook ready</p>
-                            {platformStatus.integrations.tradingview_setup && (
-                              <p>{platformStatus.integrations.tradingview_setup}</p>
-                            )}
-                            {platformStatus.integrations.tradingview_webhook_url && (
-                              <p className="mt-1 font-mono text-[10px] text-gray-500 break-all">
-                                {platformStatus.integrations.tradingview_webhook_url}
-                              </p>
-                            )}
-                            {platformStatus.integrations.tradingview_test_endpoint && (
-                              <p className="mt-2 text-[10px] text-gray-500">
-                                Test: {platformStatus.integrations.tradingview_test_endpoint}
-                              </p>
-                            )}
-                            {platformStatus.integrations.tradingview_items != null &&
-                              platformStatus.integrations.tradingview_items > 0 && (
-                                <p className="mt-1 text-apex-green text-[10px]">
-                                  {platformStatus.integrations.tradingview_items} alert(s) received
-                                </p>
-                              )}
-                            {platformStatus.integrations.tradingview_example_payload && (
-                              <pre className="mt-2 p-2 rounded bg-black/40 text-[10px] text-gray-400 overflow-x-auto">
-                                {JSON.stringify(
-                                  platformStatus.integrations.tradingview_example_payload,
-                                  null,
-                                  2
-                                )}
-                              </pre>
-                            )}
-                          </div>
-                        )}
-                        {(platformStatus.integrations?.wallet_tracker_webhook ||
-                          platformStatus.integrations?.wallet_tracker) && (
-                          <div className="rounded-lg border border-apex-border bg-apex-dark px-3 py-2 text-xs text-gray-400">
-                            <p className="text-apex-gold font-medium mb-1">
-                              Wallet tracker {platformStatus.integrations.wallet_tracker ? "active" : "webhook ready"}
-                            </p>
-                            {platformStatus.integrations.wallet_tracker_webhook_url && (
-                              <p className="font-mono text-[10px] text-gray-500 break-all">
-                                {platformStatus.integrations.wallet_tracker_webhook_url}
-                              </p>
-                            )}
-                            <p className="mt-1 text-[10px] text-gray-500">
-                              On-chain whale scan + external monitor ingest (Arkham, Nansen, custom)
-                            </p>
-                            {platformStatus.integrations.wallet_tracker_example_payload && (
-                              <pre className="mt-2 p-2 rounded bg-black/40 text-[10px] text-gray-400 overflow-x-auto">
-                                {JSON.stringify(
-                                  platformStatus.integrations.wallet_tracker_example_payload,
-                                  null,
-                                  2
-                                )}
-                              </pre>
-                            )}
-                          </div>
-                        )}
-                        {(platformStatus.integrations?.fomo_webhook ||
-                          platformStatus.integrations?.fomo_family) && (
-                          <div className="rounded-lg border border-apex-border bg-apex-dark px-3 py-2 text-xs text-gray-400">
-                            <p className="text-apex-gold font-medium mb-1">
-                              fomo.family {platformStatus.integrations.fomo_webhook ? "webhook ready" : "enabled"}
-                            </p>
-                            {platformStatus.integrations.fomo_webhook_url && (
-                              <p className="font-mono text-[10px] text-gray-500 break-all">
-                                {platformStatus.integrations.fomo_webhook_url}
-                              </p>
-                            )}
-                            {platformStatus.integrations.fomo_userscript_url && (
-                              <p className="mt-1 text-[10px]">
-                                <a
-                                  href={platformStatus.integrations.fomo_userscript_url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-apex-gold hover:underline break-all"
-                                >
-                                  Install userscript (Tampermonkey v1.1 — auto-syncs bearer)
-                                </a>
-                              </p>
-                            )}
-                            {platformStatus.integrations.fomo_bearer_configured && (
-                              <p
-                                className={cn(
-                                  "mt-1 text-[10px]",
-                                  platformStatus.integrations.fomo_bearer_polling_active
-                                    ? "text-green-400"
-                                    : "text-amber-400"
-                                )}
-                              >
-                                Server poll:{" "}
-                                {platformStatus.integrations.fomo_bearer_polling_active
-                                  ? `active (${platformStatus.integrations.fomo_bearer_minutes_remaining ?? "?"} min left)`
-                                  : "bearer expired — keep fomo.family open in Tampermonkey or refresh token"}
-                              </p>
-                            )}
-                            {platformStatus.integrations.fomo_webhook_fallback_active && (
-                              <p className="mt-1 text-[10px] text-blue-400">
-                                Webhook fallback active — Tampermonkey bridge still ingests trades
-                              </p>
-                            )}
-                            {platformStatus.integrations.fomo_setup && (
-                              <p className="mt-1 text-[10px] text-gray-500">
-                                {platformStatus.integrations.fomo_setup}
-                              </p>
-                            )}
-                            {platformStatus.integrations.fomo_bridge_scripts && (
-                              <ul className="mt-2 text-[10px] text-gray-500 list-disc list-inside space-y-1">
-                                <li>
-                                  Userscript:{" "}
-                                  <code>{platformStatus.integrations.fomo_bridge_scripts.userscript}</code>
-                                </li>
-                                <li>
-                                  Zapier:{" "}
-                                  <code>{platformStatus.integrations.fomo_bridge_scripts.zapier_guide}</code>
-                                </li>
-                                <li>
-                                  Manual curl:{" "}
-                                  <code>{platformStatus.integrations.fomo_bridge_scripts.manual_curl}</code>
-                                </li>
-                              </ul>
-                            )}
-                            {platformStatus.integrations.fomo_example_payload && (
-                              <pre className="mt-2 p-2 rounded bg-black/40 text-[10px] text-gray-400 overflow-x-auto">
-                                {JSON.stringify(
-                                  platformStatus.integrations.fomo_example_payload,
-                                  null,
-                                  2
-                                )}
-                              </pre>
-                            )}
-                          </div>
-                        )}
-                        {(platformStatus.integrations?.axiom_webhook ||
-                          platformStatus.integrations?.axiom_trade) && (
-                          <div className="rounded-lg border border-apex-border bg-apex-dark px-3 py-2 text-xs text-gray-400">
-                            <p className="text-apex-gold font-medium mb-1">
-                              axiom.trade{" "}
-                              {platformStatus.integrations.axiom_multi_wallet_ready
-                                ? `multi-wallet (${platformStatus.integrations.axiom_tracked_wallets ?? 8}+)`
-                                : platformStatus.integrations.axiom_webhook
-                                  ? "webhook ready"
-                                  : "enabled"}
-                            </p>
-                            {platformStatus.integrations.axiom_webhook_url && (
-                              <p className="font-mono text-[10px] text-gray-500 break-all">
-                                {platformStatus.integrations.axiom_webhook_url}
-                              </p>
-                            )}
-                            {platformStatus.integrations.axiom_userscript_url && (
-                              <p className="mt-1 text-[10px]">
-                                <a
-                                  href={platformStatus.integrations.axiom_userscript_url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-apex-gold hover:underline break-all"
-                                >
-                                  Install axiom userscript (24/7 memecoin + wallet bridge)
-                                </a>
-                              </p>
-                            )}
-                            {platformStatus.integrations.axiom_trade && (
-                              <p className="mt-1 text-[10px] text-gray-400">
-                                Poll mode:{" "}
-                                <span
-                                  className={cn(
-                                    platformStatus.integrations.axiom_poll_mode === "session"
-                                      ? "text-green-400"
-                                      : platformStatus.integrations.axiom_poll_mode === "mirror"
-                                        ? "text-blue-400"
-                                        : "text-amber-400"
-                                  )}
-                                >
-                                  {platformStatus.integrations.axiom_poll_mode ?? "off"}
-                                </span>
-                                {platformStatus.integrations.axiom_poll_mode === "mirror"
-                                  ? " — mirroring wallet_tracker + phantom holdings"
-                                  : ""}
-                              </p>
-                            )}
-                            {platformStatus.integrations.axiom_session_configured && (
-                              <p
-                                className={cn(
-                                  "mt-1 text-[10px]",
-                                  platformStatus.integrations.axiom_session_polling_active
-                                    ? "text-green-400"
-                                    : "text-amber-400"
-                                )}
-                              >
-                                Session poll:{" "}
-                                {platformStatus.integrations.axiom_session_polling_active
-                                  ? "active"
-                                  : "expired — keep axiom.trade open in Tampermonkey"}
-                              </p>
-                            )}
-                            {platformStatus.integrations.axiom_setup && (
-                              <p className="mt-1 text-[10px] text-gray-500">
-                                {platformStatus.integrations.axiom_setup}
-                              </p>
-                            )}
-                            {platformStatus.integrations.axiom_example_payload && (
-                              <pre className="mt-2 p-2 rounded bg-black/40 text-[10px] text-gray-400 overflow-x-auto">
-                                {JSON.stringify(
-                                  platformStatus.integrations.axiom_example_payload,
-                                  null,
-                                  2
-                                )}
-                              </pre>
-                            )}
-                          </div>
-                        )}
-                        {(platformStatus.integrations?.phantom_webhook ||
-                          platformStatus.integrations?.phantom_wallet) && (
-                          <div className="rounded-lg border border-apex-border bg-apex-dark px-3 py-2 text-xs text-gray-400">
-                            <p className="text-apex-gold font-medium mb-1">
-                              Phantom wallet{" "}
-                              {platformStatus.integrations.phantom_webhook ? "webhook ready" : "enabled"}
-                            </p>
-                            {platformStatus.integrations.phantom_webhook_url && (
-                              <p className="font-mono text-[10px] text-gray-500 break-all">
-                                {platformStatus.integrations.phantom_webhook_url}
-                              </p>
-                            )}
-                            {platformStatus.integrations.phantom_userscript_url && (
-                              <p className="mt-1 text-[10px]">
-                                <a
-                                  href={platformStatus.integrations.phantom_userscript_url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-apex-gold hover:underline break-all"
-                                >
-                                  Install Phantom userscript (portfolio forwarding)
-                                </a>
-                              </p>
-                            )}
-                            {platformStatus.integrations.phantom_portfolio_poll ? (
-                              <p className="mt-1 text-[10px] text-green-400">
-                                Server portfolio poll active
-                                {platformStatus.integrations.phantom_portfolio_poll_mode
-                                  ? ` (${platformStatus.integrations.phantom_portfolio_poll_mode})`
-                                  : ""}
-                                {platformStatus.integrations.phantom_tracked_wallets
-                                  ? ` — ${platformStatus.integrations.phantom_tracked_wallets} wallets`
-                                  : ""}
-                              </p>
-                            ) : (
-                              <p className="mt-1 text-[10px] text-amber-400">
-                                Portfolio poll inactive
-                                {platformStatus.integrations.phantom_portfolio_poll_mode
-                                  ? ` (${platformStatus.integrations.phantom_portfolio_poll_mode})`
-                                  : ""}
-                                {" — "}
-                                set HELIUS_API_KEY or install Phantom userscript
-                              </p>
-                            )}
-                            {platformStatus.integrations.phantom_setup && (
-                              <p className="mt-1 text-[10px] text-gray-500">
-                                {platformStatus.integrations.phantom_setup}
-                              </p>
-                            )}
-                            {platformStatus.integrations.phantom_example_payload && (
-                              <pre className="mt-2 p-2 rounded bg-black/40 text-[10px] text-gray-400 overflow-x-auto">
-                                {JSON.stringify(
-                                  platformStatus.integrations.phantom_example_payload,
-                                  null,
-                                  2
-                                )}
-                              </pre>
-                            )}
-                          </div>
-                        )}
                         {(platformStatus.deploy.next_steps?.length ?? 0) > 0 && (
                           <ul className="space-y-2 text-xs text-gray-400 list-disc list-inside">
                             {platformStatus.deploy.next_steps.map((step) => (
@@ -1157,11 +979,27 @@ export default function Dashboard() {
                 )}
               </Card>
               <Card title="Latest Intelligence">
-                {(intelFeed ?? []).slice(0, 5).map((item) => (
+                {backendOffline && (intelFeed ?? []).length === 0 ? (
+                  <p className="text-xs text-apex-red py-4 text-center">
+                    Intel feed offline — scanners resume when Render billing is restored.
+                  </p>
+                ) : (intelFeed ?? []).length === 0 ? (
+                  <p className="text-xs text-gray-500 py-4 text-center">
+                    No intelligence items yet — scanners run every 5 minutes when backend is online.
+                  </p>
+                ) : (
+                (intelFeed ?? []).slice(0, 5).map((item) => {
+                  const sourceBadge = intelFeedSourceBadge(item.source);
+                  return (
                   <div key={item.id} className="py-2 border-b border-apex-border last:border-0">
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-apex-border text-gray-400 uppercase">
-                        {item.source}
+                      <span
+                        className={cn(
+                          "text-[10px] px-1.5 py-0.5 rounded border font-medium",
+                          sourceBadge.className
+                        )}
+                      >
+                        {sourceBadge.label}
                       </span>
                       <span className={cn("text-[10px]", sentimentColor(item.sentiment))}>
                         {item.sentiment > 0 ? "+" : ""}
@@ -1170,7 +1008,9 @@ export default function Dashboard() {
                     </div>
                     <p className="text-xs text-gray-300 line-clamp-2">{item.title}</p>
                   </div>
-                ))}
+                  );
+                })
+                )}
               </Card>
             </div>
           </div>
@@ -1178,13 +1018,23 @@ export default function Dashboard() {
 
         {tab === "trades" && (
           <Card title="All Trades">
-            <TradesTable trades={trades ?? []} />
+            {backendOffline && (trades ?? []).length === 0 ? (
+              <p className="text-xs text-apex-red py-8 text-center">
+                Trade history unavailable — backend offline until Render billing is restored.
+              </p>
+            ) : (
+              <TradesTable trades={trades ?? []} />
+            )}
           </Card>
         )}
 
         {tab === "positions" && (
           <Card title="Open Positions">
-            {(positions ?? []).length === 0 ? (
+            {backendOffline && (positions ?? []).length === 0 ? (
+              <p className="text-xs text-apex-red py-8 text-center">
+                Live positions unavailable — bots paused while Render billing is suspended.
+              </p>
+            ) : (positions ?? []).length === 0 ? (
               <p className="text-sm text-gray-500 py-8 text-center">
                 No open positions. Bots are scanning for opportunities...
               </p>
@@ -1241,16 +1091,49 @@ export default function Dashboard() {
 
         {tab === "intelligence" && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {backendOffline ? (
+              <div className="lg:col-span-2 rounded-lg border border-apex-red/40 bg-apex-red/10 px-4 py-3 text-xs text-apex-red">
+                Intel scanners offline — news, X, Reddit, political, TikTok, and YouTube feeds resume
+                when Render billing is restored. Cached items below may be stale.
+              </div>
+            ) : null}
+            {(integrationsDisplay || intelSourcesDisplay || backendOffline) && (
+              <div className="lg:col-span-2">
+                <Card title="Multi-Source Intel">
+                  <MultiSourceIntelCard
+                    integrations={integrationsDisplay ?? undefined}
+                    sources={intelSourcesDisplay}
+                    backendOffline={backendOffline}
+                  />
+                </Card>
+              </div>
+            )}
             <Card title="Market Intelligence Feed">
               <div className="space-y-3 max-h-[700px] overflow-y-auto">
-                {(intelFeed ?? []).map((item) => (
+                {backendOffline && (intelFeed ?? []).length === 0 ? (
+                  <p className="text-xs text-apex-red py-8 text-center">
+                    Intel feed offline — scanners run every 5 minutes when backend is online.
+                  </p>
+                ) : (intelFeed ?? []).length === 0 ? (
+                  <p className="text-xs text-gray-500 py-8 text-center">
+                    No intelligence items yet — bots are collecting multi-source headlines.
+                  </p>
+                ) : (
+                (intelFeed ?? []).map((item) => {
+                  const sourceBadge = intelFeedSourceBadge(item.source);
+                  return (
                   <div
                     key={item.id}
                     className="p-3 rounded-lg bg-apex-dark border border-apex-border"
                   >
                     <div className="flex items-center gap-2 mb-2">
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-apex-purple/20 text-apex-purple uppercase font-medium">
-                        {item.source}
+                      <span
+                        className={cn(
+                          "text-[10px] px-2 py-0.5 rounded-full border font-medium",
+                          sourceBadge.className
+                        )}
+                      >
+                        {sourceBadge.label}
                       </span>
                       <span className="text-[10px] px-2 py-0.5 rounded-full bg-apex-border text-gray-400">
                         {item.category}
@@ -1271,19 +1154,27 @@ export default function Dashboard() {
                       {formatTime(item.fetched_at)}
                     </p>
                   </div>
-                ))}
+                  );
+                })
+                )}
               </div>
             </Card>
             <Card title="Intelligence Sources">
               <div className="space-y-4">
-                {intelSourcesDisplay ? (
-                intelSourcesDisplay.map((src) => (
+                {backendOffline && !intelSourcesDisplay ? (
+                  <p className="text-xs text-apex-red py-4 text-center">
+                    Source health unavailable — reconnect Render to refresh scanner status.
+                  </p>
+                ) : intelSourcesDisplay ? (
+                intelSourcesDisplay.map((src) => {
+                  const sourceBadge = intelFeedSourceBadge(src.source);
+                  return (
                   <div
                     key={src.source}
                     className="flex items-center justify-between p-3 rounded-lg bg-apex-dark border border-apex-border"
                   >
                     <div>
-                      <p className="text-sm font-medium text-white uppercase">{src.source}</p>
+                      <p className="text-sm font-medium text-white">{sourceBadge.label}</p>
                       <p className="text-xs text-gray-500">
                         {src.items_collected} items collected
                         {src.last_fetched ? ` · last ${formatTime(src.last_fetched)}` : ""}
@@ -1322,6 +1213,9 @@ export default function Dashboard() {
                             {src.synthetic_items_24h ? ` · prep ${src.synthetic_items_24h} synthetic (excluded)` : ""}
                           </span>
                         )}
+                        {src.source === "polymarket_account" && src.account_hook_configured === false && (
+                          <span className="text-apex-gold"> · wallet hook not configured</span>
+                        )}
                       </p>
                     </div>
                     <span
@@ -1339,7 +1233,8 @@ export default function Dashboard() {
                       {src.status}
                     </span>
                   </div>
-                ))
+                  );
+                })
                 ) : (
                   <p className="text-xs text-gray-500 py-4 text-center">
                     Loading intelligence sources from platform status…
@@ -1348,22 +1243,47 @@ export default function Dashboard() {
               </div>
             </Card>
             <Card title="Intel Source Routing">
-              <IntelRoutingPanel routing={intelRouting} />
+              {backendOffline && !intelRouting ? (
+                <p className="text-xs text-apex-red py-4 text-center">
+                  Political and per-bot intel routing unavailable while backend is offline.
+                </p>
+              ) : (
+                <IntelRoutingPanel routing={intelRouting} />
+              )}
             </Card>
           </div>
         )}
 
         {tab === "learning" && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {backendOffline ? (
+              <LearningOfflineBanner
+                verifyCommand={crmLearningVerifyCommand}
+                renderUrl={
+                  dashConfig?.backendHealth?.render_dashboard_url ??
+                  "https://dashboard.render.com/web/srv-da848ms9v7es739k38jg"
+                }
+              />
+            ) : null}
             <LearningPendingBanner
-              pending={platformStatus?.learning?.insights_pending ?? 0}
+              pending={learningStats?.insights_pending ?? 0}
+              backendOffline={backendOffline}
+            />
+            <IntelPatternAlertBanner
+              alerts={intelPatternAlerts}
+              verifyCommand={crmLearningVerifyCommand}
             />
             <Card title="Loss Trade Analysis">
               <div className="space-y-3 max-h-[500px] overflow-y-auto">
                 {(analyses ?? []).length === 0 ? (
                   <p className="text-sm text-gray-500 py-4">No losing trades analyzed yet.</p>
                 ) : (
-                  (analyses ?? []).map((a) => (
+                  (analyses ?? []).map((a) => {
+                    const intelTags = detectIntelPostMortemSources(
+                      a.root_cause,
+                      a.lessons_learned
+                    );
+                    return (
                     <div
                       key={a.id}
                       className="p-3 rounded-lg bg-apex-dark border border-apex-red/20"
@@ -1376,6 +1296,21 @@ export default function Dashboard() {
                           -{formatCurrency(a.loss_amount)}
                         </span>
                       </div>
+                      {intelTags.length > 0 ? (
+                        <div className="flex flex-wrap gap-1 mb-2">
+                          {intelTags.map((tag) => (
+                            <span
+                              key={tag.id}
+                              className={cn(
+                                "text-[10px] px-2 py-0.5 rounded-full border",
+                                tag.className
+                              )}
+                            >
+                              {tag.label}
+                            </span>
+                          ))}
+                        </div>
+                      ) : null}
                       <p className="text-xs text-apex-red mb-1">
                         <strong>Root cause:</strong> {a.root_cause}
                       </p>
@@ -1392,7 +1327,8 @@ export default function Dashboard() {
                         <strong>Adjustment:</strong> {a.strategy_adjustment}
                       </p>
                     </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             </Card>
@@ -1403,7 +1339,11 @@ export default function Dashboard() {
                     Daily reviews run at 22:00 UTC. First review coming soon.
                   </p>
                 ) : (
-                  (reviews ?? []).map((r) => (
+                  (reviews ?? []).map((r) => {
+                    const patternTags = r.patterns_found
+                      ? detectIntelPostMortemSources(r.patterns_found)
+                      : [];
+                    return (
                     <div
                       key={r.id}
                       className="p-3 rounded-lg bg-apex-dark border border-apex-border"
@@ -1420,6 +1360,21 @@ export default function Dashboard() {
                         {r.total_trades} trades · {formatPct(r.win_rate)} win rate ·{" "}
                         {r.losing_trades} losses
                       </p>
+                      {patternTags.length > 0 ? (
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {patternTags.map((tag) => (
+                            <span
+                              key={`${r.id}-${tag.id}`}
+                              className={cn(
+                                "text-[10px] px-2 py-0.5 rounded-full border",
+                                tag.className
+                              )}
+                            >
+                              {tag.label}
+                            </span>
+                          ))}
+                        </div>
+                      ) : null}
                       <p className="text-xs text-gray-300 mt-2">{r.conclusions}</p>
                       {r.patterns_found && (
                         <p className="text-xs text-apex-purple mt-1">
@@ -1428,24 +1383,41 @@ export default function Dashboard() {
                       )}
                       <p className="text-xs text-apex-gold mt-1">{r.strategy_changes}</p>
                     </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             </Card>
             <Card title="External Content Study">
               <div className="space-y-3 max-h-[320px] overflow-y-auto">
-                {(contentStudy?.recent ?? []).length === 0 ? (
+                {(contentStudyDisplay?.recent ?? []).length === 0 ? (
                   <p className="text-sm text-gray-500 py-4">
-                    No content-study highlights yet — runs hourly from YouTube, Reddit, and live intel.
+                    No content-study highlights yet — runs hourly from YouTube, Reddit, live intel
+                    (political, TikTok, news, TradingView), and wallet hooks.
                   </p>
                 ) : (
-                  (contentStudy?.recent ?? []).map((row, idx) => (
+                  (contentStudyDisplay?.recent ?? []).map((row, idx) => {
+                    const sourceBadge = intelSourceBadge(row.source_type);
+                    const sourceLabel = row.source_label ?? sourceBadge?.label ?? row.source_type;
+                    const badgeClass = sourceBadge?.className;
+                    return (
                     <div
                       key={`${row.source_type}-${idx}`}
                       className="p-3 rounded-lg bg-apex-dark border border-apex-border"
                     >
                       <div className="flex justify-between gap-2 mb-1">
-                        <span className="text-xs uppercase text-gray-500">{row.source_type}</span>
+                        {sourceBadge || row.source_label ? (
+                          <span
+                            className={cn(
+                              "text-[10px] px-2 py-0.5 rounded-full border",
+                              badgeClass ?? "bg-apex-border text-gray-400 border-apex-border"
+                            )}
+                          >
+                            {sourceLabel}
+                          </span>
+                        ) : (
+                          <span className="text-xs uppercase text-gray-500">{row.source_type}</span>
+                        )}
                         <span
                           className={cn(
                             "text-[10px] px-2 py-0.5 rounded-full",
@@ -1463,26 +1435,41 @@ export default function Dashboard() {
                         confidence {Math.round(row.confidence * 100)}%
                       </p>
                     </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
-              {contentStudy && (
+              {contentStudyDisplay && (
                 <p className="text-[10px] text-gray-500 mt-3">
-                  {contentStudy.insights_applied} insights applied to strategy parameters
+                  {contentStudyDisplay.insights_applied} insights applied to strategy parameters
                 </p>
               )}
             </Card>
             <Card title="External Knowledge Applied">
               <div className="space-y-3 max-h-[500px] overflow-y-auto lg:col-span-2">
-                {(insights ?? []).map((i) => (
+                {(insights ?? []).map((i) => {
+                  const insightBadge = intelSourceBadge(i.source_type);
+                  const insightLabel = i.source_label ?? insightBadge?.label ?? i.source_type;
+                  return (
                   <div
                     key={i.id}
                     className="p-3 rounded-lg bg-apex-dark border border-apex-border"
                   >
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-apex-blue/20 text-apex-blue uppercase">
-                        {i.source_type}
-                      </span>
+                      {insightBadge || i.source_label ? (
+                        <span
+                          className={cn(
+                            "text-[10px] px-2 py-0.5 rounded-full border",
+                            insightBadge?.className ?? "bg-apex-border text-gray-400 border-apex-border"
+                          )}
+                        >
+                          {insightLabel}
+                        </span>
+                      ) : (
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-apex-blue/20 text-apex-blue uppercase">
+                          {i.source_type}
+                        </span>
+                      )}
                       {i.applied && (
                         <span className="text-[10px] px-2 py-0.5 rounded-full bg-apex-green/10 text-apex-green">
                           APPLIED
@@ -1496,7 +1483,8 @@ export default function Dashboard() {
                     <p className="text-xs text-gray-400 mt-1">{i.key_takeaways}</p>
                     <p className="text-xs text-apex-gold mt-1">Impact: {i.strategy_impact}</p>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </Card>
           </div>
@@ -1504,6 +1492,12 @@ export default function Dashboard() {
 
         {tab === "strategy" && (
           <Card title="Strategy Configuration (Auto-Adapting)">
+            {backendOffline ? (
+              <p className="text-xs text-apex-red border border-apex-red/30 bg-apex-red/10 rounded px-3 py-2 mb-4">
+                Strategy adaptation paused — learning loop and content study resume when Render
+                billing is restored. Cached parameters below may be stale.
+              </p>
+            ) : null}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {(strategies ?? []).map((s) => (
                 <div
@@ -1536,7 +1530,9 @@ export default function Dashboard() {
               ))}
               {(strategies ?? []).length === 0 && (
                 <p className="text-sm text-gray-500 col-span-3 py-4 text-center">
-                  Strategy configs will appear after bots initialize.
+                  {backendOffline
+                    ? "Strategy configs unavailable while backend is offline."
+                    : "Strategy configs will appear after bots initialize."}
                 </p>
               )}
             </div>
@@ -1992,7 +1988,8 @@ function BillingOutageRecoveryCard({
   const bots = health.recovery_bots ?? [];
   const graceUrgent = grace !== null && grace !== undefined && grace > 0 && grace <= 30;
   const postGraceCatchup =
-    grace === 0 && catchupMin !== null && catchupMin !== undefined && catchupMin > 0;
+    health.post_grace_catchup_active ??
+    (grace === 0 && catchupMin !== null && catchupMin !== undefined && catchupMin > 0);
   const catchupUrgent =
     postGraceCatchup && catchupMin !== null && catchupMin !== undefined && catchupMin <= 30;
   const catchupActive =
@@ -2018,7 +2015,7 @@ function BillingOutageRecoveryCard({
           <span className="font-mono text-orange-200">
             {health.expected_platform_revision ?? "latest main"}
           </span>{" "}
-          then run automated recovery for all three bots.
+          then run automated recovery for all three bots and the learning loop.
         </p>
         {grace !== null && grace !== undefined && (
           <p
@@ -2083,7 +2080,7 @@ function BillingOutageRecoveryCard({
           </p>
         )}
         {bots.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2 mb-3">
             {bots.map((bot) => (
               <div
                 key={bot.bot_type}
@@ -2163,7 +2160,86 @@ function PlatformOutageEventsCard({ events }: { events?: PlatformOutageEvent[] }
   );
 }
 
-function LearningPendingBanner({ pending }: { pending: number }) {
+function IntelPatternAlertBanner({
+  alerts,
+  verifyCommand,
+}: {
+  alerts?: string[];
+  verifyCommand?: string;
+}) {
+  if (!alerts?.length) return null;
+  return (
+    <div className="lg:col-span-2 rounded-lg border border-purple-500/40 bg-purple-950/30 p-4">
+      <p className="text-sm font-semibold text-purple-300">Recurring intel-driven losses today</p>
+      <ul className="text-xs text-purple-200/80 mt-2 list-disc pl-4 space-y-2">
+        {alerts.map((alert) => {
+          const tags = detectIntelPostMortemSources(alert);
+          return (
+            <li key={alert}>
+              {tags.length > 0 ? (
+                <span className="inline-flex flex-wrap gap-1 mr-2 align-middle">
+                  {tags.map((tag) => (
+                    <span
+                      key={`${alert}-${tag.id}`}
+                      className={cn(
+                        "text-[10px] px-2 py-0.5 rounded-full border list-none",
+                        tag.className
+                      )}
+                    >
+                      {tag.label}
+                    </span>
+                  ))}
+                </span>
+              ) : null}
+              <span>{alert}</span>
+            </li>
+          );
+        })}
+      </ul>
+      <p className="text-[11px] text-purple-200/60 mt-2">
+        Strategy gates were tightened automatically — see daily review strategy changes below.
+      </p>
+      {verifyCommand ? (
+        <p className="text-[10px] text-purple-200/50 mt-2 font-mono break-all">{verifyCommand}</p>
+      ) : null}
+    </div>
+  );
+}
+
+function LearningOfflineBanner({
+  verifyCommand,
+  renderUrl,
+}: {
+  verifyCommand: string;
+  renderUrl: string;
+}) {
+  return (
+    <div className="lg:col-span-2 rounded-lg border border-orange-500/40 bg-orange-950/30 p-4">
+      <p className="text-sm font-semibold text-orange-300">Learning loop offline</p>
+      <p className="text-xs text-orange-200/80 mt-2">
+        Post-mortems, daily reviews, content study, and intel pattern alerts require the Render
+        backend. Resume billing, run recovery, then verify the learning loop is live.
+      </p>
+      <ol className="text-[11px] text-gray-400 mt-3 list-decimal list-inside space-y-1">
+        <li>
+          <a href={renderUrl} target="_blank" rel="noopener noreferrer" className="underline hover:text-white">
+            Fix billing in Render
+          </a>
+        </li>
+        <li className="font-mono text-[10px]">bash trading-platform/scripts/recover-render-billing.sh</li>
+        <li className="font-mono text-[10px] break-all">{verifyCommand} --strict</li>
+      </ol>
+    </div>
+  );
+}
+
+function LearningPendingBanner({
+  pending,
+  backendOffline,
+}: {
+  pending: number;
+  backendOffline?: boolean;
+}) {
   const [applying, setApplying] = useState(false);
   const [result, setResult] = useState<string | null>(null);
 
@@ -2176,11 +2252,16 @@ function LearningPendingBanner({ pending }: { pending: number }) {
           <p>
             {pending} content-study insight(s) pending application — auto-applies every 1h when
             confidence ≥ 55%.
+            {backendOffline ? (
+              <span className="block mt-1 text-gray-500">
+                Resume the Render backend before applying insights manually.
+              </span>
+            ) : null}
           </p>
         ) : null}
         {result ? <p className="text-apex-green mt-1">{result}</p> : null}
       </div>
-      {pending > 0 ? (
+      {pending > 0 && !backendOffline ? (
         <button
           type="button"
           disabled={applying}
@@ -2211,13 +2292,12 @@ function LearningPendingBanner({ pending }: { pending: number }) {
 }
 
 function IntelAlertBanner({
-  platformStatus,
+  integrations,
   intelSources,
 }: {
-  platformStatus: PlatformStatus | null;
+  integrations: PlatformStatus["integrations"] | null;
   intelSources: IntelligenceSource[];
 }) {
-  const integrations = platformStatus?.integrations;
   const fomoNudge = integrations?.fomo_bearer_nudge_message;
   const fomoNudgeTier = integrations?.fomo_bearer_nudge_tier;
   const fomoExpired = fomoNudgeTier === "expired" || (

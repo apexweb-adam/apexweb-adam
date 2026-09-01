@@ -103,6 +103,27 @@ if open_positions:
             by_bot.setdefault(bot, []).append(str(sym))
     if by_bot:
         print("Open positions:", ", ".join(f"{bot}={syms}" for bot, syms in sorted(by_bot.items())))
+learning = status.get("learning") or {}
+content = status.get("content_study") or {}
+intel_count = learning.get("intel_pattern_count") or 0
+if learning:
+    print(
+        f"Learning: analyses={learning.get('trade_analyses')} "
+        f"reviews={learning.get('daily_reviews')} "
+        f"insights_applied={learning.get('insights_applied')} "
+        f"intel_pattern_alerts={intel_count}"
+    )
+    for alert in (learning.get("intel_pattern_alerts") or [])[:3]:
+        print(f"  intel_alert={alert}")
+    print("  verify_learning=bash trading-platform/scripts/verify-crm-learning.sh --strict")
+    print("  verify_ws=bash trading-platform/scripts/verify-ws-live.sh --strict")
+if content.get("recent"):
+    print(f"Content study: applied={content.get('insights_applied') or 0} recent={len(content.get('recent') or [])}")
+    for row in (content.get("recent") or [])[:3]:
+        label = row.get("source_label") or row.get("source_type") or "unknown"
+        title = (row.get("title") or "")[:48]
+        state = "applied" if row.get("applied") else "pending"
+        print(f"  content_study [{label}] {title} ({state})")
 from datetime import datetime, timezone
 now = datetime.now(timezone.utc)
 if now.isoweekday() == 1 and now.hour >= 13:
@@ -121,6 +142,8 @@ PY
   echo "Recovery steps:"
   echo "  1. Fix billing + resume service in Render dashboard"
   echo "  2. bash trading-platform/scripts/recover-render-billing.sh"
+  echo "  3. bash trading-platform/scripts/verify-crm-learning.sh --strict"
+  echo "  4. bash trading-platform/scripts/verify-ws-live.sh --strict"
   echo ""
 
   CODE_REV="$CODE_REV" python3 << 'PY'
@@ -171,6 +194,15 @@ if dow == 1:
                     print(f"  post_grace_catchup_urgency={tag}")
                 if catchup_left <= 15:
                     print("  action=resume billing NOW — US cash close at 21:00 UTC")
+                print(
+                    "  stocks_open_ready_at_risk=AAPL (if prep state preserved — outage_recovery_scan on r467+)"
+                )
+            elif now.hour >= 21:
+                print("  us_cash_session_closed=true — US stocks in after-hours wind-down until Tue 13:30 UTC")
+                print("  post_grace_catchup_urgency=EXPIRED")
+                print(
+                    "  action=resume billing for commodities/crypto held scan + Tue open prep (AAPL state may persist)"
+                )
             print(
                 "  note=post-outage startup still runs forced open-ready scan if prep state preserved"
             )
@@ -183,6 +215,8 @@ if dow in (1, 2, 3, 4, 5):
     print("  held_at_risk=EURUSD=X, GC=F, HG=F (commodities) — verify after resume")
 print("Crypto: 24/7 — held positions get immediate post-outage scan on startup (r467+)")
 print("  verify=bash trading-platform/scripts/verify-post-outage-recovery.sh --watch 90")
+print("Learning: post-mortems + content study offline until resume")
+print("  verify_learning=bash trading-platform/scripts/verify-crm-learning.sh --strict")
 PY
 
   echo ""

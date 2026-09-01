@@ -85,6 +85,7 @@ def build_cme_deploy_window(
 
 DASHBOARD_BUNDLE_VERIFY_COMMAND = "bash trading-platform/scripts/verify-dashboard-bundle.sh"
 WEEKEND_OPS_VERIFY_COMMAND = "bash trading-platform/scripts/verify-weekend-ops.sh"
+CRM_LEARNING_VERIFY_COMMAND = "bash trading-platform/scripts/verify-crm-learning.sh"
 
 
 def format_dashboard_bundle_crm_html(
@@ -214,6 +215,7 @@ def build_deploy_snapshot() -> dict[str, Any]:
     "expected_dashboard_bundle": EXPECTED_DASHBOARD_BUNDLE,
     "dashboard_bundle_verify_command": DASHBOARD_BUNDLE_VERIFY_COMMAND,
     "weekend_ops_verify_command": WEEKEND_OPS_VERIFY_COMMAND,
+    "crm_learning_verify_command": CRM_LEARNING_VERIFY_COMMAND,
     "wait_for_deploy_command": WAIT_FOR_DEPLOY_COMMAND,
     "run_deploy_window_command": RUN_DEPLOY_WINDOW_COMMAND,
     "x_intel_collection_mode": x_intel_collection_mode(),
@@ -335,6 +337,21 @@ def apply_fomo_bearer_to_snapshot(
   return merged
 
 
+def apply_learning_to_snapshot(
+  snap: dict[str, Any],
+  *,
+  learning: dict[str, Any] | None = None,
+  content_study: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+  """Merge learning loop + content-study highlights into deploy snapshot for ops scripts."""
+  merged = dict(snap)
+  if learning:
+    merged["learning"] = learning
+  if content_study:
+    merged["content_study"] = content_study
+  return merged
+
+
 def github_headers() -> dict[str, str]:
   headers = {
     "Accept": "application/vnd.github+json",
@@ -348,7 +365,7 @@ PRODUCTION_DASHBOARD_URL = "https://apex-trading-dashboard-flame.vercel.app"
 DEFAULT_VERIFIED_DASHBOARD_URL = "https://apex-trading-dashboard-git-main-apexweb-adams-projects.vercel.app"
 DEFAULT_VERIFIED_DEPLOYMENT_ID = "dpl_CYnStyurwSb3VDMnfAUVG8KNc4Gs"
 VERCEL_TEAM_ID = "team_K7OUE7uroVXeVUf42cUAQvAl"
-EXPECTED_DASHBOARD_BUNDLE = "2026-08-29-r114"
+EXPECTED_DASHBOARD_BUNDLE = "2026-08-29-r138"
 EXPECTED_PLATFORM_REVISION = "2026-08-29-r467"
 GIT_MAIN_ALIAS = "apex-trading-dashboard-git-main"
 ACCEPTABLE_DASHBOARD_BUNDLES = frozenset({
@@ -439,6 +456,23 @@ ACCEPTABLE_DASHBOARD_BUNDLES = frozenset({
   "2026-08-29-r112",
   "2026-08-29-r113",
   "2026-08-29-r114",
+  "2026-08-29-r115",
+  "2026-08-29-r116",
+  "2026-08-29-r117",
+  "2026-08-29-r118",
+  "2026-08-29-r119",
+  "2026-08-29-r120",
+  "2026-08-29-r121",
+  "2026-08-29-r122",
+  "2026-08-29-r123",
+  "2026-08-29-r124",
+  "2026-08-29-r125",
+  "2026-08-29-r126",
+  "2026-08-29-r127",
+  "2026-08-29-r128",
+  "2026-08-29-r129",
+  "2026-08-29-r130",
+  "2026-08-29-r131",
 })
 
 
@@ -987,6 +1021,7 @@ async def fetch_vercel_dashboard_bundle() -> dict[str, Any]:
         "expected_dashboard_bundle": EXPECTED_DASHBOARD_BUNDLE,
         "dashboard_bundle_verify_command": DASHBOARD_BUNDLE_VERIFY_COMMAND,
         "weekend_ops_verify_command": WEEKEND_OPS_VERIFY_COMMAND,
+        "crm_learning_verify_command": CRM_LEARNING_VERIFY_COMMAND,
       }
       if behind_expected:
         discovered = await discover_verified_dashboard()
@@ -1015,6 +1050,7 @@ async def fetch_vercel_dashboard_bundle() -> dict[str, Any]:
       "expected_dashboard_bundle": EXPECTED_DASHBOARD_BUNDLE,
       "dashboard_bundle_verify_command": DASHBOARD_BUNDLE_VERIFY_COMMAND,
       "weekend_ops_verify_command": WEEKEND_OPS_VERIFY_COMMAND,
+      "crm_learning_verify_command": CRM_LEARNING_VERIFY_COMMAND,
     }
   except Exception:
     verified_url = configured_verified_dashboard_url()
@@ -1030,6 +1066,7 @@ async def fetch_vercel_dashboard_bundle() -> dict[str, Any]:
       "expected_dashboard_bundle": EXPECTED_DASHBOARD_BUNDLE,
       "dashboard_bundle_verify_command": DASHBOARD_BUNDLE_VERIFY_COMMAND,
       "weekend_ops_verify_command": WEEKEND_OPS_VERIFY_COMMAND,
+      "crm_learning_verify_command": CRM_LEARNING_VERIFY_COMMAND,
     }
 
 

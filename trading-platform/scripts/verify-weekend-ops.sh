@@ -39,10 +39,23 @@ if snap.get("deploy_credentials_ready") is False:
 window = snap.get("cme_deploy_window") or {}
 if window.get("message"):
     print(f"CME window: {window.get('message')}")
+learning = snap.get("learning") or {}
+content = snap.get("content_study") or {}
+if learning:
+    print(
+        f"Learning: analyses={learning.get('trade_analyses')} "
+        f"reviews={learning.get('daily_reviews')} "
+        f"intel_pattern_alerts={learning.get('intel_pattern_count') or 0}"
+    )
+if content.get("recent"):
+    for row in (content.get("recent") or [])[:2]:
+        label = row.get("source_label") or row.get("source_type") or "unknown"
+        title = (row.get("title") or "")[:40]
+        print(f"  content_study [{label}] {title}")
 bundle = snap.get("expected_dashboard_bundle")
 if bundle:
     print(f"Dashboard bundle target: {bundle}")
-for key in ("dashboard_bundle_verify_command", "weekend_ops_verify_command"):
+for key in ("dashboard_bundle_verify_command", "weekend_ops_verify_command", "crm_learning_verify_command"):
     cmd = snap.get(key)
     if cmd:
         print(f"  {cmd}")
@@ -146,3 +159,6 @@ echo "Monday before US open (13:30 UTC):"
 echo "  bash trading-platform/scripts/verify-us-stocks-open.sh --watch 120"
 echo "Monday after US open:"
 echo "  bash trading-platform/scripts/verify-us-stocks-post-open.sh --watch 120"
+echo ""
+echo "--- CRM learning loop ---"
+bash "$ROOT/scripts/verify-crm-learning.sh" || true

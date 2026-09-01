@@ -1,6 +1,7 @@
 import asyncio
 import os
 from contextlib import asynccontextmanager
+from html import escape
 from typing import Any
 
 from fastapi import FastAPI
@@ -571,16 +572,38 @@ async def crm_landing():
     f"review date {learning.get('review_date', '')}"
   )
 
+  intel_pattern_alerts = learning.get("intel_pattern_alerts") or []
+  intel_pattern_banner = ""
+  if intel_pattern_alerts:
+    alert_items = "".join(
+      f"<li style='margin:0.25rem 0;color:#fca5a5;'>{escape(alert)}</li>"
+      for alert in intel_pattern_alerts[:8]
+    )
+    overflow = ""
+    if len(intel_pattern_alerts) > 8:
+      overflow = (
+        f"<p class='muted' style='margin:0.35rem 0 0;'>"
+        f"+{len(intel_pattern_alerts) - 8} more intel pattern alerts in dashboard</p>"
+      )
+    intel_pattern_banner = f"""<div class="card" style="border-color:#7f1d1d;background:#450a0a;">
+    <p style="color:#fca5a5;font-weight:600;margin:0;">Intel-driven loss patterns — tighten confirmation gates</p>
+    <ul style="margin:0.5rem 0 0;padding-left:1.25rem;font-size:0.85rem;">{alert_items}</ul>
+    {overflow}
+  </div>"""
+
   content_rows = ""
+  from app.engines.learning_engine import intel_source_label
+
   for row in content_study.get("recent") or []:
     source_type = row.get("source_type", "")
+    source_label = row.get("source_label") or intel_source_label(source_type)
     title = row.get("title", "")
     impact = row.get("impact") or "—"
     confidence = row.get("confidence") or 0
     applied = "applied" if row.get("applied") else "pending"
     content_rows += (
-      f"<div class='learning-item'><strong>{source_type}</strong> — {title}<br>"
-      f"<span class='muted'>Impact: {impact}</span><br>"
+      f"<div class='learning-item'><strong>{escape(source_label)}</strong> — {escape(title)}<br>"
+      f"<span class='muted'>Impact: {escape(str(impact))}</span><br>"
       f"<span class='muted'>Confidence {confidence:.0%} · {applied}</span></div>"
     )
 
@@ -595,6 +618,33 @@ async def crm_landing():
   intel_footer = f"intel {intel_active}/{intel_total} sources"
   if intel_degraded:
     intel_footer += f" ({', '.join(intel_degraded)} degraded)"
+
+  intel_by = {s.get("source"): s for s in intel_sources if isinstance(s, dict)}
+  intel_multi_rows = ""
+  for key in ("newsapi", "x", "reddit", "political", "tiktok", "youtube"):
+    src = intel_by.get(key)
+    if key == "newsapi" and not src:
+      src = intel_by.get("news")
+    if not src:
+      continue
+    label = intel_source_label(key if key != "newsapi" or intel_by.get(key) else "newsapi")
+    if key == "newsapi" and not intel_by.get("newsapi") and intel_by.get("news"):
+      label = intel_source_label("news")
+    intel_multi_rows += (
+      f"<tr><td>{escape(label)}</td><td>{src.get('status', '—')}</td>"
+      f"<td>{src.get('items_collected', 0)}</td></tr>"
+    )
+  intel_multi_card = ""
+  if intel_multi_rows:
+    intel_multi_card = f"""<div class="card learning">
+    <h2>Multi-source intelligence</h2>
+    <p class="muted" style="margin-top:0;">{intel_active}/{intel_total} sources — news · X · Reddit · political · TikTok · YouTube</p>
+    <table>
+      <thead><tr><th>Source</th><th>Status</th><th>Items</th></tr></thead>
+      <tbody>{intel_multi_rows}</tbody>
+    </table>
+    <p class="muted" style="margin-top:0.75rem;font-family:monospace;font-size:0.8rem;">Verify: <code>bash trading-platform/scripts/verify-ws-live.sh --strict</code></p>
+  </div>"""
 
   position_rows = ""
   total_unrealized = 0.0
@@ -878,10 +928,13 @@ async def crm_landing():
       <tbody>{recovery_table_body}</tbody>
     </table>
   </div>""" if recovery_table_body or recovery_nudge_note else ""}
+  {intel_pattern_banner}
+  {intel_multi_card}
   {f"""<div class="card learning">
     <h2>Today's learning loop</h2>
     <p class="muted" style="margin-top:0;">{learning_summary}</p>
     {learning_rows if learning_rows else "<p class='muted'>No losing-trade patterns today — bots scanning.</p>"}
+    <p class="muted" style="margin-top:0.75rem;font-family:monospace;font-size:0.8rem;">Verify: <code>bash trading-platform/scripts/verify-crm-learning.sh</code> · <code>bash trading-platform/scripts/verify-ws-live.sh --strict</code></p>
   </div>""" if learning else ""}
   {f"""<div class="card learning">
     <h2>External content study</h2>

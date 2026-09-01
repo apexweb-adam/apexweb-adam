@@ -8,11 +8,77 @@ from app.models.entities import DailyReview, IntelligenceItem, LearningInsight, 
 
 LEARNING_NOISE_DISMISS_MAX_CONFIDENCE = 0.54
 
+_INTEL_LOSS_PATTERN_KEYWORDS: list[tuple[tuple[str, ...], str]] = [
+  (("tiktok",), "TikTok/social hype"),
+  (("reddit",), "Reddit retail buzz"),
+  (("tradingview",), "TradingView webhook"),
+  (("youtube",), "YouTube strategy content"),
+  (("political", "geopolitical", "tariff"), "Political/macro intel"),
+  (("newsapi", "news headline", "breaking news"), "News headline intel"),
+  (("fomo",), "fomo copy-trade"),
+  (("axiom",), "axiom wallet signal"),
+  (("phantom",), "Phantom wallet intel"),
+  (("dexscreener",), "DexScreener trending"),
+  (("hyperliquid",), "Hyperliquid perp intel"),
+  (("wallet_tracker", "whale wallet"), "Whale wallet signal"),
+  (("x/twitter", "twitter"), "X/Twitter sentiment"),
+  (("polymarket",), "Polymarket account hook"),
+]
+
+_INTEL_SOURCE_LABELS: dict[str, str] = {
+  "newsapi": "News",
+  "wallet_tracker": "Whale",
+  "polymarket_account": "Polymarket",
+  "polymarket": "Polymarket",
+  "tradingview": "TradingView",
+  "hyperliquid": "Hyperliquid",
+  "dexscreener": "DexScreener",
+  "phantom": "Phantom",
+  "axiom": "axiom",
+  "fomo": "fomo",
+  "political": "Political",
+  "tiktok": "TikTok",
+  "reddit": "Reddit",
+  "youtube": "YouTube",
+  "podcast": "Podcast",
+  "x": "X",
+}
+
+
+def intel_source_label(source_type: str) -> str:
+  """Human-readable label for intel / content-study source_type values."""
+  key = (source_type or "").strip().lower()
+  return _INTEL_SOURCE_LABELS.get(key, source_type or "unknown")
+
+
+def serialize_learning_insight(insight: LearningInsight) -> dict[str, Any]:
+  """Serialize a learning insight for API and WebSocket payloads."""
+  return {
+    "id": insight.id,
+    "source_type": insight.source_type,
+    "source_label": intel_source_label(insight.source_type or ""),
+    "source_title": insight.source_title,
+    "source_url": insight.source_url,
+    "key_takeaways": insight.key_takeaways,
+    "strategy_impact": insight.strategy_impact,
+    "confidence": insight.confidence,
+    "applied": insight.applied,
+    "created_at": insight.created_at.isoformat() if insight.created_at else None,
+  }
+
 
 def _target_bot_types_from_impact(impact: str) -> set[str] | None:
   """Return bot types mentioned in impact text; None means apply to all configs."""
   text = impact.lower()
   targets: set[str] = set()
+  if "target bots:" in text:
+    bot_segment = text.split("target bots:", 1)[1].split(";", 1)[0]
+    for bot in bot_segment.split(","):
+      bot = bot.strip()
+      if bot in ("crypto", "stocks_futures", "commodities", "polymarket"):
+        targets.add(bot)
+    if targets:
+      return targets
   if any(
     k in text
     for k in (
@@ -54,7 +120,27 @@ def _target_bot_types_from_impact(impact: str) -> set[str] | None:
     targets.add("stocks_futures")
   if any(k in text for k in ("polymarket", "prediction market", "prediction-market")):
     targets.add("polymarket")
+  if "political intel" in text:
+    if "commodities" in text:
+      targets.add("commodities")
+    if "stocks_futures" in text or "stocks bot" in text:
+      targets.add("stocks_futures")
+    if "crypto" in text:
+      targets.add("crypto")
+    if "polymarket" in text:
+      targets.add("polymarket")
   return targets if targets else None
+
+
+def collect_intel_pattern_alerts(patterns_found: str | None) -> list[str]:
+  """Extract intel-driven loss pattern lines from a daily review patterns string."""
+  if not patterns_found:
+    return []
+  return [
+    part.strip()
+    for part in patterns_found.split(";")
+    if part.strip() and "intel confirmation" in part.lower()
+  ]
 
 
 class LearningEngine:
@@ -122,6 +208,85 @@ class LearningEngine:
       adjustments.append("Require TA confirmation when acting on Phantom portfolio moves")
       lessons.append("Phantom wallet changes are sentiment input — not a standalone entry trigger")
 
+    tv_driven = "tradingview" in reason_lower or await self._had_source_intel(
+      trade.symbol, trade.executed_at, "tradingview"
+    )
+    if tv_driven:
+      if trade.side == "long" and trade.sentiment_score < 0:
+        root_causes.append("Held long against bearish TradingView webhook alert")
+        adjustments.append("Honor TradingView sell/bearish alerts for wind-down; do not fight TV exits")
+        lessons.append("TradingView alerts are execution signals — exit or reduce when TV flips bearish")
+      elif trade.side == "long" and trade.signal_score < 0.5:
+        root_causes.append("Entered on TradingView alert without sufficient local composite confirmation")
+        adjustments.append("Require composite signal floor when acting on TradingView webhook entries")
+        lessons.append("TradingView webhooks augment local TA — wait for aligned signal score before sizing")
+
+    if await self._had_source_intel(trade.symbol, trade.executed_at, "youtube"):
+      if trade.signal_score < 0.5:
+        root_causes.append("YouTube strategy content influenced entry without local confirmation")
+        adjustments.append("Treat YouTube insights as study material — require live signal alignment")
+        lessons.append("Apply YouTube playbooks only when composite score and sentiment agree")
+
+    news_driven = (
+      "newsapi" in reason_lower
+      or "news headline" in reason_lower
+      or await self._had_source_intel(trade.symbol, trade.executed_at, "newsapi")
+    )
+    if news_driven:
+      if trade.side == "long" and trade.sentiment_score < 0:
+        root_causes.append("Entered long against bearish news headline intel")
+        adjustments.append("Honor bearish news sentiment — reduce long exposure when headlines flip negative")
+        lessons.append("News headlines move fast — align trade direction with headline sentiment")
+      elif trade.signal_score < 0.5:
+        root_causes.append("News headline influenced entry without local technical confirmation")
+        adjustments.append("Require composite signal floor when acting on news-driven entries")
+        lessons.append("Treat news as sentiment input — wait for TA alignment before sizing")
+
+    x_driven = "twitter" in reason_lower or " x " in f" {reason_lower} " or await self._had_source_intel(
+      trade.symbol, trade.executed_at, "x"
+    )
+    if x_driven:
+      if trade.side == "long" and trade.sentiment_score < 0:
+        root_causes.append("X/Twitter bearish chatter preceded loss on long position")
+        adjustments.append("Reduce long exposure when X sentiment flips bearish on the symbol")
+        lessons.append("X/Twitter sentiment is fast-moving — honor bearish social intel on open longs")
+      elif trade.side == "long" and trade.signal_score < 0.5:
+        root_causes.append("X/Twitter sentiment drove entry without technical confirmation")
+        adjustments.append("Require composite signal floor when acting on X/Twitter buzz")
+        lessons.append("Social buzz on X needs local TA alignment before sizing entries")
+
+    if trade.bot_type == "crypto":
+      if await self._had_source_intel(trade.symbol, trade.executed_at, "political"):
+        if trade.sentiment_score < 0 and trade.side == "long":
+          root_causes.append("Political or crypto-policy intel turned negative during crypto hold")
+          adjustments.append("Reduce crypto exposure when policy headlines flip bearish")
+          lessons.append("Watch Fed/crypto executive orders and geopolitical risk on BTC/ETH positions")
+      if await self._had_source_intel(trade.symbol, trade.executed_at, "tiktok"):
+        if trade.side == "long" and (trade.signal_score < 0.5 or trade.sentiment_score < 0.35):
+          root_causes.append("TikTok viral sentiment drove entry without sufficient technical confirmation")
+          adjustments.append("Require volume + signal floor on TikTok-hype crypto entries")
+          lessons.append("Treat TikTok trading trends as sentiment input — confirm with volume before entry")
+      if await self._had_source_intel(trade.symbol, trade.executed_at, "reddit"):
+        if trade.side == "long" and (trade.signal_score < 0.5 or trade.sentiment_score < 0.35):
+          root_causes.append("Reddit retail hype preceded loss without strong local confirmation")
+          adjustments.append("Raise min_signal_score when Reddit retail buzz is the primary intel driver")
+          lessons.append("WSB/crypto subreddit hype is not a standalone entry — wait for TA alignment")
+      if await self._had_source_intel(trade.symbol, trade.executed_at, "dexscreener"):
+        if trade.side == "long" and (trade.signal_score < 0.5 or trade.sentiment_score < 0.35):
+          root_causes.append("DexScreener trending signal drove entry without volume confirmation")
+          adjustments.append("Require volume + liquidity floor on DexScreener hype entries")
+          lessons.append("DexScreener boosts are sentiment input — confirm on-chain volume before sizing")
+      if await self._had_source_intel(trade.symbol, trade.executed_at, "hyperliquid"):
+        if trade.side == "long" and trade.signal_score < 0.5:
+          root_causes.append("Hyperliquid perp intel influenced entry without local confirmation")
+          adjustments.append("Cross-check HL funding/momentum with local composite before entries")
+          lessons.append("Hyperliquid perp signals need TA alignment — watch funding rate flips")
+      if await self._had_source_intel(trade.symbol, trade.executed_at, "wallet_tracker"):
+        if trade.side == "long" and (trade.signal_score < 0.5 or trade.sentiment_score < 0.35):
+          root_causes.append("Whale wallet tracker signal preceded loss without TA confirmation")
+          adjustments.append("Require stronger composite score when mirroring whale wallet buys")
+          lessons.append("Wallet tracker buys are intel — wait for local signal alignment")
+
     if trade.bot_type == "stocks_futures":
       if "macd" in reason_lower and "bearish" in reason_lower:
         root_causes.append("Entered against bearish MACD confirmation")
@@ -142,6 +307,21 @@ class LearningEngine:
         lessons.append(
           "Gate-skip bypasses chronic blocks at US open — demand stronger technical confirmation"
         )
+      if await self._had_source_intel(trade.symbol, trade.executed_at, "political"):
+        if trade.sentiment_score < 0 and trade.side == "long":
+          root_causes.append("Political intel turned negative during stocks hold")
+          adjustments.append("Require positive macro/political sentiment for stocks longs")
+          lessons.append("Re-check tariff/Fed/election headlines before holding day-trade positions")
+      if await self._had_source_intel(trade.symbol, trade.executed_at, "tiktok"):
+        if trade.side == "long" and (trade.signal_score < 0.5 or trade.sentiment_score < 0.35):
+          root_causes.append("TikTok viral stock sentiment drove entry without MACD/volume confirmation")
+          adjustments.append("Require MACD + volume on TikTok-hype stock entries at session open")
+          lessons.append("TikTok stock trends need session-open technical confirmation before day-trade entries")
+      if await self._had_source_intel(trade.symbol, trade.executed_at, "reddit"):
+        if trade.side == "long" and (trade.signal_score < 0.5 or trade.sentiment_score < 0.35):
+          root_causes.append("Reddit retail hype preceded loss without MACD/volume confirmation")
+          adjustments.append("Require MACD + volume on Reddit-hype stock entries at session open")
+          lessons.append("WSB/meme-stock Reddit buzz needs session-open technical confirmation")
 
     if trade.bot_type == "commodities":
       if "weekend" in reason_lower:
@@ -161,6 +341,21 @@ class LearningEngine:
         root_causes.append("Loss on CME reopen or Monday futures gate-skip entry")
         adjustments.append("Raise composite floor for commodities gate-skip entries at session open")
         lessons.append("CME reopen volatility needs extra confirmation before gate-skip entries")
+      if await self._had_source_intel(trade.symbol, trade.executed_at, "political"):
+        if trade.sentiment_score < 0 and trade.side == "long":
+          root_causes.append("Political intel turned negative during commodities hold")
+          adjustments.append("Reduce commodities exposure when political headlines flip bearish")
+          lessons.append("Weight geopolitical news higher — tighten stops on tariff/geopolitics risk")
+      if await self._had_source_intel(trade.symbol, trade.executed_at, "tiktok"):
+        if trade.side == "long" and (trade.signal_score < 0.5 or trade.sentiment_score < 0.35):
+          root_causes.append("TikTok viral commodities sentiment drove entry without MACD confirmation")
+          adjustments.append("Require MACD + composite floor on TikTok-hype commodities entries")
+          lessons.append("TikTok gold/oil trends need CME technical confirmation before futures entries")
+      if await self._had_source_intel(trade.symbol, trade.executed_at, "reddit"):
+        if trade.side == "long" and (trade.signal_score < 0.5 or trade.sentiment_score < 0.35):
+          root_causes.append("Reddit commodities hype preceded loss without technical confirmation")
+          adjustments.append("Raise min_signal_score when Reddit buzz is primary intel driver on futures")
+          lessons.append("Reddit commodities chatter is sentiment input — confirm with MACD/momentum")
 
     if trade.bot_type == "polymarket":
       if "overbought" in reason_lower:
@@ -184,6 +379,11 @@ class LearningEngine:
         if trade.sentiment_score < 0 and trade.side == "long":
           root_causes.append("Political intel turned negative after macro Yes entry")
           lessons.append("Re-check political headline risk before holding macro PM positions")
+      if await self._had_source_intel(trade.symbol, trade.executed_at, "polymarket_account"):
+        if trade.side == "long" and (trade.signal_score < 0.5 or trade.sentiment_score < 0.4):
+          root_causes.append("Polymarket account hook signal lacked fresh macro/intel confirmation")
+          adjustments.append("Require stronger composite + sentiment when mirroring PM account positions")
+          lessons.append("PM account hook is a sync signal — confirm with political/macro intel before Yes entries")
 
     if not root_causes:
       root_causes.append("Market moved against position - normal variance")
@@ -250,6 +450,7 @@ class LearningEngine:
     from app.engines.platform_outage_log import platform_outage_patterns_for_review
 
     patterns.extend(await platform_outage_patterns_for_review(self.session, review_date))
+    patterns.extend(await self._intel_loss_patterns_for_review(losing))
 
     if bot_type == "polymarket":
       overbought_losses = [
@@ -379,6 +580,36 @@ class LearningEngine:
     if dismissed:
       await self.session.commit()
     return dismissed
+
+  async def _intel_loss_patterns_for_review(self, losing: list) -> list[str]:
+    """Surface recurring intel-driven loss themes in daily post-mortems."""
+    if len(losing) < 2:
+      return []
+    trade_ids = [
+      t.id for t in losing if isinstance(getattr(t, "id", None), int)
+    ]
+    analyses_by_trade: dict[int, str] = {}
+    if trade_ids:
+      result = await self.session.execute(
+        select(TradeAnalysis).where(TradeAnalysis.trade_id.in_(trade_ids))
+      )
+      for analysis in result.scalars().all():
+        analyses_by_trade[analysis.trade_id] = (
+          f"{analysis.root_cause} {analysis.lessons_learned}".lower()
+        )
+
+    counts: dict[str, int] = {}
+    for trade in losing:
+      blob = f"{trade.reason or ''} {analyses_by_trade.get(trade.id, '')}".lower()
+      for keywords, label in _INTEL_LOSS_PATTERN_KEYWORDS:
+        if any(keyword in blob for keyword in keywords):
+          counts[label] = counts.get(label, 0) + 1
+
+    patterns: list[str] = []
+    for label, count in counts.items():
+      if count >= 2:
+        patterns.append(f"{count} losses tied to {label} — tighten intel confirmation gates")
+    return patterns
 
   async def _had_source_intel(self, symbol: str, at_time: datetime | None, source: str) -> bool:
     """True when recent intel from a source mentioned this symbol near trade time."""
@@ -515,6 +746,16 @@ class LearningEngine:
       changes.append("Raised minimum signal score threshold by 0.05")
       await self._apply_adjustments(bot_type, ["Increase min_signal_score threshold"])
 
+    if any("intel confirmation" in p for p in patterns):
+      changes.append("Tightened intel confirmation gates after recurring social/macro-driven losses")
+      await self._apply_adjustments(
+        bot_type,
+        [
+          "Require positive sentiment for long entries",
+          "Increase min_signal_score threshold",
+        ],
+      )
+
     if len(losing) > 3:
       changes.append("Reduced max position size due to elevated daily losses")
       await self._apply_adjustments(bot_type, ["Use smaller positions during high-volatility periods"])
@@ -588,9 +829,12 @@ async def build_crm_learning_highlights(session: AsyncSession) -> dict[str, Any]
   )
 
   active_reviews: list[dict[str, Any]] = []
+  intel_pattern_alerts: list[str] = []
   for review in reviews:
     if review.total_trades <= 0 and not (review.patterns_found or "").strip():
       continue
+    for alert in collect_intel_pattern_alerts(review.patterns_found):
+      intel_pattern_alerts.append(f"{review.bot_type}: {alert}")
     active_reviews.append(
       {
         "bot_type": review.bot_type,
@@ -608,6 +852,8 @@ async def build_crm_learning_highlights(session: AsyncSession) -> dict[str, Any]
     "review_date": today,
     "trade_analyses": analysis_count,
     "pending_insights": pending_insights,
+    "intel_pattern_alerts": intel_pattern_alerts,
+    "intel_pattern_count": len(intel_pattern_alerts),
     "reviews": active_reviews,
   }
 
@@ -642,6 +888,7 @@ async def build_crm_content_study_highlights(
     recent.append(
       {
         "source_type": insight.source_type,
+        "source_label": intel_source_label(insight.source_type or ""),
         "title": title,
         "impact": impact,
         "confidence": insight.confidence,

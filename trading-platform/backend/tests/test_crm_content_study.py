@@ -36,6 +36,7 @@ def test_build_crm_content_study_highlights_truncates_long_fields():
   assert len(result["recent"]) == 1
   assert result["recent"][0]["title"].endswith("…")
   assert result["recent"][0]["impact"].endswith("…")
+  assert result["recent"][0]["source_label"] == "Polymarket"
 
 
 def test_crm_landing_includes_content_study_section():

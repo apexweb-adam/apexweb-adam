@@ -115,6 +115,13 @@ PY
         echo "  action=resume billing NOW — US cash close at 21:00 UTC"
       fi
     fi
+  elif python3 - << 'PY' 2>/dev/null | grep -q closed; then
+from datetime import datetime, timezone
+now = datetime.now(timezone.utc)
+if now.isoweekday() == 1 and now.hour >= 21:
+    print("closed")
+PY
+    echo "US cash session closed — resume for commodities/crypto held scan + Tue open prep"
   fi
   echo ""
 fi
@@ -178,6 +185,8 @@ bash "$ROOT/scripts/wait-for-render-deploy.sh" --verify --max-wait "$MAX_WAIT" -
 
 echo ""
 bash "$ROOT/scripts/verify-platform.sh" || true
+echo ""
+bash "$ROOT/scripts/verify-crm-learning.sh" || true
 
 echo ""
 echo "=== Platform outage recovery state ==="
@@ -249,7 +258,24 @@ if crypto_held:
 elif bots.get("crypto", {}).get("active"):
     print("  crypto_bot=active (no open positions reported)")
 
-session_events = status.get("session_open_events") or []
+learning = data.get("learning") or {}
+intel_count = learning.get("intel_pattern_count") or 0
+if intel_count:
+    print(f"  learning_intel_pattern_alerts={intel_count}")
+    for alert in (learning.get("intel_pattern_alerts") or [])[:4]:
+        print(f"    intel_alert={alert}")
+content = data.get("content_study") or {}
+print(
+    f"  content_study_applied={content.get('insights_applied') or 0} "
+    f"recent_highlights={len(content.get('recent') or [])}"
+)
+for row in (content.get("recent") or [])[:4]:
+    label = row.get("source_label") or row.get("source_type") or "unknown"
+    title = (row.get("title") or "")[:52]
+    applied = "applied" if row.get("applied") else "pending"
+    print(f"    content_study [{label}] {title} ({applied})")
+
+session_events = data.get("session_open_events") or []
 stocks_outage = [
     e for e in session_events
     if e.get("bot_type") == "stocks_futures" and e.get("event_type") == "platform_outage"
@@ -355,6 +381,7 @@ bash "$ROOT/scripts/verify-post-outage-recovery.sh" "${VERIFY_ARGS[@]}" || true
 
 echo ""
 echo "Recovery complete. Check CRM dashboard and gate metrics."
+echo "Verify WebSocket live CRM: bash trading-platform/scripts/verify-ws-live.sh --strict"
 DOW="$(date -u +%u)"
 HOUR="$(date -u +%H)"
 if [[ "$DOW" == "1" && "$HOUR" -ge 13 && "$HOUR" -le 21 ]]; then

@@ -28,6 +28,20 @@ echo ""
 
 if ! check_backend_suspension "$BACKEND"; then
   bad "Render backend billing-suspended — all platform checks blocked"
+  DASH_CFG="$(curl -fsSL --max-time 12 "${DASHBOARD%/}/api/config" 2>/dev/null || echo '{}')"
+  if echo "$DASH_CFG" | python3 -c "
+import json,sys
+d=json.load(sys.stdin)
+h=d.get('backendHealth') or {}
+if h.get('suspended') is True and h.get('recovery_steps'):
+    print('dashboard_outage_ux_ok')
+    sys.exit(0)
+sys.exit(1)
+" 2>/dev/null; then
+    ok "Dashboard CRM surfaces billing outage recovery guidance (/api/config)"
+  else
+    note "Dashboard /api/config missing backendHealth.suspended recovery UX"
+  fi
   echo ""
   bash "$ROOT/scripts/print-outage-status.sh" 2>/dev/null | tail -n +8 || true
   echo ""
@@ -68,6 +82,44 @@ sys.exit(1)
   ok "Backend /api/status (paper trading, gate stats)"
 else
   bad "Backend /api/status invalid or unavailable"
+fi
+
+# Core three bots + multi-source intel integration fields (r132+)
+if echo "$STATUS" | python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+bots = d.get('bots') or []
+bot_types = {b.get('bot_type') for b in bots if isinstance(b, dict)}
+required = {'crypto', 'stocks_futures', 'commodities'}
+missing = sorted(required - bot_types)
+if missing:
+    print(f'  missing_core_bots={missing}')
+    sys.exit(1)
+per_bot = d.get('per_bot_gate') or {}
+for key in required:
+    if key not in per_bot:
+        print(f'  missing_per_bot_gate={key}')
+        sys.exit(2)
+integrations = d.get('integrations') or {}
+for key in ('newsapi', 'reddit_oauth', 'x_intel_collection_mode', 'polymarket_market_scanner'):
+    if key not in integrations:
+        print(f'  missing_integration_field={key}')
+        sys.exit(3)
+print(
+    f'  core_bots={sorted(required)} '
+    f'newsapi={integrations.get(\"newsapi\")} reddit={integrations.get(\"reddit_oauth\")} '
+    f'x_mode={integrations.get(\"x_intel_collection_mode\")}'
+)
+sys.exit(0)
+"; then
+  ok "Core three bots + multi-source intel integrations on /api/status"
+else
+  CORE_RC=$?
+  if [[ "${CORE_RC:-1}" -eq 3 ]]; then
+    bad "Integrations missing multi-source intel fields — confirm r132+ revision"
+  else
+    note "Core bot or per-bot gate incomplete on /api/status"
+  fi
 fi
 
 # Platform outage recovery (billing suspension gaps)
@@ -144,6 +196,26 @@ if tv.get('scoring_excludes_synthetic'):
         f'synthetic_24h={tv.get(\"synthetic_items_24h\")}'
     )
 " 2>/dev/null || true
+
+# Multi-source intel sources (political, YouTube, TikTok)
+if echo "$INTEL_RAW" | python3 -c "
+import json,sys
+raw=json.load(sys.stdin)
+sources=raw.get('sources', raw) if isinstance(raw, dict) else raw
+if not isinstance(sources, list):
+    sys.exit(1)
+by={s.get('source'): s for s in sources if isinstance(s, dict)}
+for key in ('political', 'youtube', 'tiktok'):
+    if key not in by:
+        print(f'  missing_intel_source={key}')
+        sys.exit(2)
+print(f'  political={by[\"political\"].get(\"status\")} youtube={by[\"youtube\"].get(\"status\")} tiktok={by[\"tiktok\"].get(\"status\")}')
+sys.exit(0)
+" 2>/dev/null; then
+  ok "Multi-source social/political intel sources present"
+else
+  note "Political/YouTube/TikTok intel sources missing from /api/intelligence/sources"
+fi
 
 # Verification snapshots
 VH=$(curl -s -o /dev/null -w "%{http_code}" -m 20 "$BACKEND/api/verification/history?limit=1")
@@ -342,14 +414,28 @@ reviews = learning.get('daily_reviews') or 0
 applied = learning.get('insights_applied') or 0
 pending = learning.get('insights_pending') or 0
 if analyses > 0 and reviews > 0:
+    intel_count = learning.get('intel_pattern_count') or 0
     print(
         f'  learning analyses={analyses} reviews={reviews} '
-        f'insights_applied={applied} pending={pending}'
+        f'insights_applied={applied} pending={pending} intel_pattern_alerts={intel_count}'
     )
     sys.exit(0)
 sys.exit(1)
 "; then
   ok "Learning loop active (trade analyses + daily reviews)"
+  if echo "$STATUS" | python3 -c "
+import json, sys
+learning = json.load(sys.stdin).get('learning') or {}
+alerts = learning.get('intel_pattern_alerts') or []
+if alerts:
+    print('  intel_pattern_alerts:')
+    for alert in alerts[:5]:
+        print(f'    - {alert}')
+    sys.exit(0)
+sys.exit(1)
+"; then
+    note "Intel-driven loss patterns detected — confirmation gates may tighten"
+  fi
   if echo "$STATUS" | python3 -c "
 import json, sys
 applied = (json.load(sys.stdin).get('learning') or {}).get('insights_applied') or 0
@@ -358,6 +444,20 @@ sys.exit(0 if applied > 0 else 1)
     ok "Content study insights applied to strategy"
   else
     note "Content study insights not applied yet — hourly job or POST /api/admin/run-content-study"
+  fi
+  if echo "$STATUS" | python3 -c "
+import json, sys
+recent = (json.load(sys.stdin).get('content_study') or {}).get('recent') or []
+labeled = [row for row in recent if row.get('source_label')]
+if labeled:
+    print('  content_study_recent:')
+    for row in labeled[:5]:
+        applied = 'applied' if row.get('applied') else 'pending'
+        print(f\"    - [{row.get('source_label')}] {row.get('title', '')[:56]} ({applied})\")
+    sys.exit(0)
+sys.exit(1)
+"; then
+    note "Content study highlights (labeled sources above)"
   fi
 else
   note "Learning loop sparse — confirm trades and daily review scheduler"
@@ -419,6 +519,14 @@ if [[ -n "$DEPLOYED" && -n "$MAIN" && "$DEPLOYED" == "$MAIN" ]]; then
 elif [[ -n "$DEPLOYED" ]]; then
   note "Render git commit ${DEPLOYED} vs main ${MAIN:-?}"
 fi
+
+echo ""
+echo "--- CRM learning loop ---"
+bash "$ROOT/scripts/verify-crm-learning.sh" || true
+
+echo ""
+echo "--- WebSocket live CRM ---"
+bash "$ROOT/scripts/verify-ws-live.sh" || true
 
 echo ""
 echo "Results: $pass passed, $fail failed, $warn notes"

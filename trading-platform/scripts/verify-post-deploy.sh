@@ -125,6 +125,46 @@ else
   note "Daily review API empty — learning loop may need first trade day"
 fi
 
+if echo "$STATUS" | python3 -c "
+import json, sys
+status = json.load(sys.stdin)
+learning = status.get('learning') or {}
+content = status.get('content_study') or {}
+intel_count = learning.get('intel_pattern_count') or 0
+if intel_count:
+    print(f'  intel_pattern_alerts={intel_count}')
+    for alert in (learning.get('intel_pattern_alerts') or [])[:3]:
+        print(f'    - {alert}')
+recent = content.get('recent') or []
+if recent:
+    missing = [row for row in recent if row.get('source_type') and not row.get('source_label')]
+    for row in recent[:3]:
+        label = row.get('source_label') or row.get('source_type')
+        title = (row.get('title') or '')[:48]
+        print(f'  content_study [{label}] {title}')
+    sys.exit(1 if missing else 0)
+sys.exit(0)
+"; then
+  ok "Content study highlights include source_label (r125+)"
+else
+  if echo "$STATUS" | python3 -c "
+import json, sys
+recent = (json.load(sys.stdin).get('content_study') or {}).get('recent') or []
+sys.exit(0 if recent else 1)
+" 2>/dev/null; then
+    note "Content study rows missing source_label — confirm r125+ revision live"
+  elif echo "$STATUS" | python3 -c "
+import json, sys
+learning = json.load(sys.stdin).get('learning') or {}
+sys.exit(0 if (learning.get('intel_pattern_count') or 0) > 0 else 1)
+" 2>/dev/null; then
+    note "Intel pattern alerts active — strategy gates may have tightened"
+  fi
+fi
+
+echo ""
+bash "$ROOT/scripts/verify-crm-learning.sh" || true
+
 echo ""
 echo "Results: $pass passed, $fail failed, $warn notes"
 if [[ "$fail" -gt 0 ]]; then

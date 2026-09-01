@@ -101,6 +101,37 @@ def test_youtube_active_with_recent_scan_heartbeat():
   assert status == "active"
 
 
+def test_youtube_degraded_when_stale():
+  status = _source_status(
+    "youtube",
+    source_counts={"youtube": 5},
+    source_latest={"youtube": datetime.utcnow() - timedelta(days=3)},
+    configured={"youtube": True},
+    scan_heartbeats={},
+  )
+  assert status == "degraded"
+
+
+def test_political_active_when_configured_with_items():
+  status = _source_status(
+    "political",
+    source_counts={"political": 12},
+    source_latest={"political": datetime.now(timezone.utc) - timedelta(hours=2)},
+    configured={"political": True},
+  )
+  assert status == "active"
+
+
+def test_political_pending_when_unconfigured_and_empty():
+  status = _source_status(
+    "political",
+    source_counts={},
+    source_latest={},
+    configured={"political": False},
+  )
+  assert status == "pending"
+
+
 def test_latest_activity_at_handles_mixed_timezone_datetimes():
   aware = datetime.now(timezone.utc) - timedelta(hours=1)
   naive = datetime.utcnow() - timedelta(hours=2)
