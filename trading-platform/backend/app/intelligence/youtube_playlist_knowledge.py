@@ -1,0 +1,486 @@
+"""Curated trading knowledge from user YouTube playlist (Aug 2026).
+
+Metadata sourced via YouTube oEmbed; takeaways distilled from titles/channels
+and aligned with platform bot playbooks (crypto, stocks_futures, commodities).
+Transcript ingestion can extend entries via ingest_youtube_oembed().
+"""
+
+from __future__ import annotations
+
+from typing import Any
+
+PLAYLIST_ID = "user-claude-watch-aug2026"
+PLAYLIST_VIDEO_COUNT = 46
+
+
+def _entry(
+  video_id: str,
+  title: str,
+  author: str,
+  takeaways: str,
+  impact: str,
+  confidence: float,
+  bots: tuple[str, ...] = (),
+) -> dict[str, Any]:
+  bot_hint = f" Target bots: {', '.join(bots)}." if bots else ""
+  return {
+    "source_type": "youtube",
+    "title": title,
+    "url": f"https://youtu.be/{video_id}",
+    "author": author,
+    "video_id": video_id,
+    "playlist_id": PLAYLIST_ID,
+    "takeaways": takeaways,
+    "impact": f"{impact}{bot_hint}",
+    "confidence": confidence,
+  }
+
+
+# One knowledge-base row per unique video in the user playlist.
+YOUTUBE_PLAYLIST_KNOWLEDGE: list[dict[str, Any]] = [
+  _entry(
+    "eRkkrqhf_Kg",
+    "Claude Code vs Codex for TradingView Automation",
+    "Moon Dev",
+    "Automate TradingView alerts with AI codegen; validate Pine/webhook parity in paper before live.",
+    "Require TradingView webhook alignment for entries; increase technical_weight when TV + composite agree",
+    0.82,
+    ("crypto", "stocks_futures", "commodities"),
+  ),
+  _entry(
+    "6njREUQAFdg",
+    "How To Build A Self-Improving AI Trading Agent (Insanely Cool)",
+    "Lewis Jackson",
+    "Self-improving agents need post-trade review loops, not just signal generation.",
+    "Feed learning loop postmortems into signal thresholds; raise floor after repeated false positives",
+    0.84,
+    ("crypto", "stocks_futures"),
+  ),
+  _entry(
+    "IqvnryFzZD4",
+    "I Built an AI Trading System With Claude + TradingView",
+    "Humbled Trader",
+    "Combine discretionary context with systematic TV alerts; never enter on AI narrative alone.",
+    "Honor TradingView alerts for wind-down; require MACD/volume confirmation on AI-suggested entries",
+    0.83,
+    ("stocks_futures",),
+  ),
+  _entry(
+    "PL7LKUsCgIQ",
+    "Trading WORLD CHAMPION Reveals the Orderflow Strategy That Won the Robbins Cup (Step-by-Step)",
+    "IQCapital",
+    "Orderflow + volume profile at key levels beats indicator-only entries in fast markets.",
+    "Require volume confirmation at session open; favor orderflow-aligned entries on stocks_futures and CME",
+    0.86,
+    ("stocks_futures", "commodities"),
+  ),
+  _entry(
+    "oxZj1kSye-g",
+    "I Backtested This Viral Trading Strategy",
+    "LuxAlgo",
+    "Viral indicator strategies often fail out-of-sample; demand walk-forward proof before easing gates.",
+    "Do not ease signal floor from social hype; require backtest parity on shadow before graduation",
+    0.8,
+    ("crypto", "stocks_futures"),
+  ),
+  _entry(
+    "oln5SktcX9E",
+    "The Biggest Trading Loss In History Just Happened",
+    "Hamish Hodder",
+    "Tail-risk and leverage blowups dominate headlines; cap exposure and respect hard stops.",
+    "Tighten max position size; enforce stop-loss; halve size after large single-trade loss",
+    0.88,
+    ("crypto", "stocks_futures", "commodities"),
+  ),
+  _entry(
+    "8zUa4JnCrRw",
+    "I Let AI Invest for Me on Trading 212, Here's What Happened",
+    "Financial Interest",
+    "Fully delegated AI investing underperforms without risk rails and human override.",
+    "Keep paper-only gate; require composite + intel alignment before mirroring automated suggestions",
+    0.75,
+    ("stocks_futures",),
+  ),
+  _entry(
+    "kcb7Ip7Yxeo",
+    "Can ChatGPT Build a Profitable Scalping EA?",
+    "René Balke - Fx Bot Trading",
+    "LLM-generated EAs need spread/slippage modeling; scalping edges die on poor execution assumptions.",
+    "Focus on higher signal scores during scalp windows; widen stop buffer on low-liquidity pairs",
+    0.78,
+    ("commodities", "crypto"),
+  ),
+  _entry(
+    "54i7wfbuCQA",
+    "MASTER AI Trading in 70 Minutes (Full Claude + TradingView Course)",
+    "Mind Math Money",
+    "Full-stack AI+TV workflow: alert → webhook → risk check → sized entry → journal review.",
+    "Increase technical_weight on TradingView-confirmed setups; journal losses into learning loop",
+    0.85,
+    ("crypto", "stocks_futures", "commodities"),
+  ),
+  _entry(
+    "zspMXJVbfAY",
+    "How Trading Like an Idiot Makes Me $10,000/Month (15 Minutes a Day)",
+    "The Rumers",
+    "Simple rules executed consistently beat complex systems traded inconsistently.",
+    "Prefer proven winners and A+ setups; skip marginal signals during low-focus windows",
+    0.72,
+    ("stocks_futures",),
+  ),
+  _entry(
+    "_o-e4SqaieQ",
+    "TradingView Paper Trading Tutorial For Beginners (2026)",
+    "Ryan Scribner",
+    "Paper trade until process is repeatable; track fills and slippage assumptions.",
+    "Maintain paper_trading_only gate until profitability verification passes",
+    0.9,
+    ("crypto", "stocks_futures", "commodities"),
+  ),
+  _entry(
+    "XFtayhPIdEs",
+    "The ONE CANDLE Scalping Strategy I Will Use For Life",
+    "ProRealAlgos",
+    "One-candle rejection setups need defined invalidation and tight risk per trade.",
+    "Favor one-candle rejection at S/R with 1:2+ R:R; cut fast if candle invalidates",
+    0.79,
+    ("stocks_futures", "commodities"),
+  ),
+  _entry(
+    "6r0QOQWy-Ug",
+    "How to Identify Memecoin Scams with 100% Accuracy",
+    "Crypto Vic",
+    "Rug patterns: mint authority, liquidity locks, holder concentration, fake volume.",
+    "Block entries on scam markers; require min liquidity + holder distribution before memecoin longs",
+    0.9,
+    ("crypto",),
+  ),
+  _entry(
+    "f9GO0ZEaCmI",
+    "I Made My INSANELY Profitable AI Trading Bot Even Better (Full Guide)",
+    "Trading with DaviddTech",
+    "Iterate bots with live metrics: win rate, profit factor, max drawdown gates.",
+    "Use learning loop to tighten gates when profit factor drops; only graduate proven configs",
+    0.82,
+    ("crypto", "stocks_futures"),
+  ),
+  _entry(
+    "NxWsb9BJO50",
+    "The REAL Reason 91% of traders fail (It has nothing to do with their strategy)",
+    "SMB Capital",
+    "Process and psychology dominate outcomes; size and patience matter more than entries.",
+    "After loss streaks raise signal threshold and halve position size; avoid revenge entries",
+    0.9,
+    ("stocks_futures",),
+  ),
+  _entry(
+    "9Bdwg_XfFV8",
+    "Teaching My Friend How To Day Trade",
+    "TJR",
+    "Day trading requires session rules, max daily loss, and planned exits before entry.",
+    "Enforce session wind-down and daily loss cap; favor open-drive setups with volume",
+    0.8,
+    ("stocks_futures",),
+  ),
+  _entry(
+    "6XWWdmOkOPs",
+    "It Only Takes 1 Good Trade...",
+    "Ross Cameron - Warrior Trading",
+    "Protect capital to survive until the A+ setup; don't overtrade mediocre patterns.",
+    "Skip low composite scores; wait for high-conviction session setups",
+    0.78,
+    ("stocks_futures",),
+  ),
+  _entry(
+    "VhRZ5-JjlTQ",
+    "How To Start Day Trading With Only $100",
+    "TJR",
+    "Small accounts need strict risk per trade and focus on liquid symbols.",
+    "Cap position size; trade liquid large-cap symbols during regular session only",
+    0.74,
+    ("stocks_futures",),
+  ),
+  _entry(
+    "HN6frMMfjzE",
+    "How To Start Trading As A Beginner In 2026 (Step-by-Step)",
+    "Sierra Aaliyah",
+    "Foundation: risk management, journal, one market, one strategy before scaling.",
+    "Tighten stop-loss to 1.5-2% max; reduce max position size during verification period",
+    0.85,
+    ("stocks_futures", "crypto"),
+  ),
+  _entry(
+    "yiuFUp0kFz8",
+    "How To Start Day Trading In 2026 [Full Tutorial]",
+    "TJR",
+    "Pre-market plan, key levels, and no-trade rules reduce impulsive entries.",
+    "Require MACD + volume at session open; block entries outside planned session window",
+    0.79,
+    ("stocks_futures",),
+  ),
+  _entry(
+    "DMEqH6EFPcc",
+    "The NEXT BIG Trade: Deep Dive Into Gold, Silver, Oil And Natural Gas",
+    "Gareth Soloway",
+    "Commodities react to macro, USD, and supply shocks; align technicals with headline risk.",
+    "Weight geopolitical and macro news for commodities; favor London/NY overlap for gold/oil",
+    0.82,
+    ("commodities",),
+  ),
+  _entry(
+    "BiCbVud2zf0",
+    "Making $96k Live Trading (HOW TO MOVE YOUR STOP LOSS 101)",
+    "Brad Trades",
+    "Trail stops to breakeven after structure confirms; let winners run with defined rules.",
+    "Enable profit-lock trailing after favorable move; avoid moving stop into noise",
+    0.81,
+    ("stocks_futures", "commodities"),
+  ),
+  _entry(
+    "4itGU4D3odc",
+    "Things Every Memecoin Trader Should Do (My Best Tips)",
+    "Daumen",
+    "Pre-trade checklist: liquidity, dev wallet, social velocity, exit plan before entry.",
+    "Require volume + social confirmation on memecoins; predefine exit before entry",
+    0.87,
+    ("crypto",),
+  ),
+  _entry(
+    "HUYBdYnXUNc",
+    "World's #1 Scalper Just Gave Away His ENTIRE New Strategy for FREE (Live On Chart)",
+    "IQCapital",
+    "Scalping edges come from location + aggression at liquidity, not lagging indicators.",
+    "Raise signal floor during fast scalp windows; require price-at-level confirmation",
+    0.84,
+    ("stocks_futures", "commodities"),
+  ),
+  _entry(
+    "vaB08fflrYc",
+    "1,500 Hours of Memecoin Knowledge in just 6 Minutes",
+    "Bez Trades",
+    "Memecoins: enter early momentum, exit on distribution; never marry bags.",
+    "Cut memecoin losers fast on -3%; take partial profits into strength",
+    0.86,
+    ("crypto",),
+  ),
+  _entry(
+    "snLPN-KKHrg",
+    "Beginners Guide To Memecoin Trading in 2026 (FREE COURSE)",
+    "Orangie Web3",
+    "Solana memecoin workflow: scanner → wallet tracking → size small → scale on confirmation.",
+    "Boost sentiment weight for SOL memecoins; track DexScreener + whale wallets",
+    0.85,
+    ("crypto",),
+  ),
+  _entry(
+    "nI_sejt9EpY",
+    "The World's Shortest Memecoin Trading Guide You'll Ever Need",
+    "Alex Choi Crypto",
+    "Only trade coins with real volume; skip illiquid launches and unverified contracts.",
+    "Never chase illiquid launches; min liquidity gate before memecoin entry",
+    0.88,
+    ("crypto",),
+  ),
+  _entry(
+    "hxXZTE9wWdA",
+    "How I Made $20,000 Trading Memecoins In ONE DAY (FULL GUIDE)",
+    "Megga",
+    "Big memecoin days come from concentration + fast execution, not wide diversification.",
+    "Cap concurrent memecoin positions; prioritize highest composite + social velocity",
+    0.8,
+    ("crypto",),
+  ),
+  _entry(
+    "4QNfRWqzuag",
+    "He Trades Memecoins Every Day And Always Wins (Decu)",
+    "Daumen",
+    "Consistent memecoin traders repeat the same entry checklist and exit discipline daily.",
+    "Apply memecoin checklist on every entry; mirror only with axiom/fomo + TA confirmation",
+    0.83,
+    ("crypto",),
+  ),
+  _entry(
+    "NL40BKxdb0A",
+    "How to Trade Memecoins With 0.1 SOL in 2026 (Full Course)",
+    "starwifpump",
+    "Micro-size accounts must use tight stops and high-liquidity pairs only.",
+    "Reduce max position on micro-cap memecoins; require liquidity depth before entry",
+    0.82,
+    ("crypto",),
+  ),
+  _entry(
+    "u3dvYR9JR6I",
+    "How To Make Money Trading Memecoins (fomo app tutorial)",
+    "Orangie Web3",
+    "Copy-trade feeds (fomo.family) are sentiment input, not sole entry signal.",
+    "Require local TA confirmation before mirroring fomo leaderboard buys; tighten stops on sells",
+    0.86,
+    ("crypto",),
+  ),
+  _entry(
+    "TwnuvydK20U",
+    "Beginners Guide to Trading Crypto & Memecoins in 2026 (Free Course)",
+    "Alex Choi Crypto",
+    "Separate spot memecoin rules from perp rules; funding and liquidity differ.",
+    "Use HL funding as contrarian filter on perps; stricter liquidity on spot memes",
+    0.81,
+    ("crypto",),
+  ),
+  _entry(
+    "DPgpjaRkZEY",
+    "Turning 1 Solana into $20,000 Scalping Solana Meme coins",
+    "Leck",
+    "Sol scalping needs sub-minute exits and pre-set take-profit levels.",
+    "Tighten stop-loss on SOL memecoins; favor momentum scalps with defined TP ladders",
+    0.83,
+    ("crypto",),
+  ),
+  _entry(
+    "P1WjCGzIE2A",
+    "How I Turned $50 into $500,000 Trading Memecoins (Full Scalping Guide)",
+    "Setuh",
+    "Outlier returns come from selective entries during viral windows, not constant trading.",
+    "Increase sentiment weight during viral windows; skip chop when social velocity fades",
+    0.79,
+    ("crypto",),
+  ),
+  _entry(
+    "-czWNiE5Qmw",
+    "How I Find the PERFECT Entry on Memecoins (Full Strategy)",
+    "starwifpump",
+    "Perfect entries align pullback + volume surge + wallet accumulation on support.",
+    "Require pullback-to-support with volume surge before memecoin long; confirm with wallet intel",
+    0.84,
+    ("crypto",),
+  ),
+  _entry(
+    "KFWNPwsPmOg",
+    "I Traded With The World's #1 Memecoin Trader",
+    "Ethan Prosper",
+    "Top traders size down when spread widens and skip unclear narrative shifts.",
+    "Halve size when spread/liquidity degrades; skip entries on narrative-only pumps",
+    0.8,
+    ("crypto",),
+  ),
+  _entry(
+    "1aiq7iDcDJA",
+    "He Made $1.1M Trading Memecoins in July (His Secrets)",
+    "Daumen",
+    "High PnL months still require daily loss limits and selective market focus.",
+    "Enforce daily loss cap on crypto; focus on top liquidity memecoins only",
+    0.82,
+    ("crypto",),
+  ),
+  _entry(
+    "N5_Guyc2fB0",
+    "I Built an AI Trading Bot for Crypto Trading: The Power of Claude AI",
+    "Andrew Parker",
+    "AI crypto bots need exchange constraints, fee model, and slippage in the loop.",
+    "Validate AI signals against composite score; paper-only until win-rate gate passes",
+    0.8,
+    ("crypto",),
+  ),
+  _entry(
+    "m5qtqoDFCx0",
+    "1,000 Hours of studying the Best Trading Robots",
+    "Trade with Pat",
+    "Robust bots survive regime change via adaptive risk, not static indicator params.",
+    "Use learning loop to adapt thresholds; avoid overfitting to one regime",
+    0.77,
+    ("crypto", "stocks_futures", "commodities"),
+  ),
+  _entry(
+    "y_bsjZThP0o",
+    "How To Actually Build a Trading Bot With Claude Code (Fully Automated)",
+    "AI Pathways",
+    "Automation stack: data → signals → risk → execution → monitoring; test each layer.",
+    "Require webhook + risk gate pass before auto-entry; monitor deploy revision parity",
+    0.83,
+    ("crypto", "stocks_futures"),
+  ),
+  _entry(
+    "86AlV6174KI",
+    "I Built an INSANELY Profitable AI Trading Bot (Full Guide)",
+    "Trading with DaviddTech",
+    "Profitability claims need verified metrics; gate live promotion on profit factor.",
+    "Only graduate strategies with proven profit factor; shadow-first for new AI configs",
+    0.81,
+    ("crypto", "stocks_futures"),
+  ),
+  _entry(
+    "SNO1wqJTq5A",
+    "Backtesting JJ Simon's NQ Strategy | Fair Value Theory",
+    "FX Replay",
+    "Fair value gaps and session opens drive NQ edges; backtest session-specific rules.",
+    "Favor fair-value / open-drive setups on index futures during RTH; require volume",
+    0.8,
+    ("stocks_futures",),
+  ),
+  _entry(
+    "yl-nurM6Qgk",
+    "My 85% Win Rate No Wick Trading Strategy + Live Backtest",
+    "omarnowick",
+    "No-wick candle patterns need spread filter and session timing to keep win rate.",
+    "Require clean candle structure at key level; skip wide-spread chop",
+    0.76,
+    ("stocks_futures", "commodities"),
+  ),
+  _entry(
+    "nSA0Mfor75c",
+    "The ONLY Axiom Trading Tutorial You Need in 2026",
+    "Crypto Vic",
+    "Axiom.trade surfaces multi-wallet flow; confirm with liquidity before mirroring.",
+    "Require liquidity + volume before mirroring axiom.trade smart-money entries",
+    0.88,
+    ("crypto",),
+  ),
+  _entry(
+    "2hyqdVF0JVk",
+    "12x CHAMPION Reveals His 3-TOUCH Strategy That Won Robbins Cup (Step-by-Step)",
+    "IQCapital",
+    "Three-touch level tests increase probability; enter on third rejection with volume.",
+    "Favor third-touch S/R rejections with volume confirmation on futures and index day trades",
+    0.85,
+    ("stocks_futures", "commodities"),
+  ),
+  _entry(
+    "fw9HYrSBVo0",
+    "STEAL This INSANE 5-Minute Gold Trading Strategy ($325,000 Payouts)",
+    "PropFirmTrader",
+    "Short-term gold scalps work best during London/NY overlap with defined daily stop.",
+    "Focus gold scalps during peak hours; tight daily loss cap on commodities bot",
+    0.82,
+    ("commodities",),
+  ),
+]
+
+
+def ingest_youtube_oembed(items: list[dict[str, str]]) -> list[dict[str, Any]]:
+  """Build minimal knowledge rows from oEmbed title/author when no curated row exists."""
+  known_ids = {row["video_id"] for row in YOUTUBE_PLAYLIST_KNOWLEDGE if "video_id" in row}
+  extra: list[dict[str, Any]] = []
+  for item in items:
+    vid = item.get("id") or ""
+    if not vid or vid in known_ids:
+      continue
+    title = item.get("title") or "YouTube trading video"
+    author = item.get("author") or "unknown"
+    extra.append(
+      _entry(
+        vid,
+        title,
+        author,
+        f"Playlist ingest: {title} ({author}). Apply only with live signal alignment.",
+        "YouTube playlist intel: favor cautious entries until composite + intel confirm",
+        0.65,
+      )
+    )
+  return extra
+
+
+def all_playlist_knowledge(extra_oembed: list[dict[str, str]] | None = None) -> list[dict[str, Any]]:
+  """Return curated playlist knowledge plus any oEmbed-only extras."""
+  rows = list(YOUTUBE_PLAYLIST_KNOWLEDGE)
+  if extra_oembed:
+    rows.extend(ingest_youtube_oembed(extra_oembed))
+  return rows

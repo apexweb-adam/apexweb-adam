@@ -124,7 +124,7 @@ def test_apply_learning_to_snapshot_merges_learning_and_content_study():
   from app.engines.deploy_status import apply_learning_to_snapshot
 
   snap = apply_learning_to_snapshot(
-    {"platform_revision": "2026-08-29-r467"},
+    {"platform_revision": "2026-08-29-r468"},
     learning={"trade_analyses": 12, "intel_pattern_count": 1},
     content_study={
       "insights_applied": 3,
