@@ -1,5 +1,5 @@
 /** Bump when dashboard features change — compared in /api/config for stale Vercel detection. */
-export const DASHBOARD_BUNDLE_REVISION = "2026-08-29-r138";
+export const DASHBOARD_BUNDLE_REVISION = "2026-08-29-r139";
 
 /** Fallback scheduler labels when /api/status is unreachable (matches backend platform_status). */
 export const DEFAULT_PLATFORM_SCHEDULER: Record<string, string> = {
@@ -18,7 +18,7 @@ export const DEFAULT_PLATFORM_SCHEDULER: Record<string, string> = {
 };
 
 /** Matches backend EXPECTED_PLATFORM_REVISION — update when backend revision bumps. */
-export const EXPECTED_PLATFORM_REVISION = "2026-08-29-r467";
+export const EXPECTED_PLATFORM_REVISION = "2026-08-29-r468";
 
 /** Verified preview when production -flame bundle is stale (matches backend VERIFIED_DASHBOARD_URL). */
 export const VERIFIED_PREVIEW_URL =
