@@ -72,6 +72,7 @@ human approval  •  CRM  •  monitoring  •  measurable follow-up
 
 ### Public engineering work
 
+- **[QuoteReady](https://github.com/apexweb-adam/quote-ready)**: an MIT-licensed, evidence-linked voice-intake prototype with explicit human review. A [draft maintenance pull request](https://github.com/apexweb-adam/quote-ready/pull/1) adds a reusable provider-independent core, regression tests and integration documentation. Pre-release; synthetic demonstrations are not customer usage or independent adoption.
 - **[LangGraph Job Search Agent](https://github.com/apexweb-adam/langgraph-jobsearch-agent)**: job discovery, AI scoring with deterministic guardrails, human approval, and a daily decision digest.
 - **[Apify Indeed Scraper](https://github.com/apexweb-adam/apify-indeed-scraper)**: a Crawlee and Playwright actor built for structured job-source collection.
 
