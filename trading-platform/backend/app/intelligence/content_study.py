@@ -1,6 +1,10 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.engines.learning_engine import LearningEngine
+from app.intelligence.youtube_playlist_knowledge import (
+  YOUTUBE_PLAYLIST_KNOWLEDGE,
+  all_playlist_knowledge,
+)
 
 # Keyword patterns extracted from YouTube/podcast titles → structured strategy impacts.
 YOUTUBE_IMPACT_PATTERNS: list[tuple[tuple[str, ...], str, float]] = [
@@ -16,10 +20,30 @@ YOUTUBE_IMPACT_PATTERNS: list[tuple[tuple[str, ...], str, float]] = [
   (("revenge", "psychology", "discipline"), "After loss streaks raise signal threshold and halve position size", 0.85),
   (("polymarket", "prediction market"), "Weight Polymarket intel for event-driven setups", 0.7),
   (("memecoin", "pump"), "Tighten memecoin entries: require volume + social confirmation; cut fast on -3%", 0.88),
-  (("solana", "meme"), "Boost sentiment weight for SOL memecoins; track DexScreener + whale wallets", 0.86),
   (("hyperliquid", "perp"), "Use HL funding rate as contrarian signal; favor momentum on kPEPE/WIF/BONK", 0.84),
   (("pump.fun", "degen"), "Never chase illiquid launches; min liquidity gate before entry", 0.9),
   (("day trad", "scalp"), "Focus on higher signal scores during day-trading sessions", 0.72),
+  (("orderflow", "volume"), "Require volume profile / orderflow confirmation at key levels", 0.84),
+  (("order flow", "liquidity"), "Favor entries at liquidity sweeps with volume confirmation", 0.83),
+  (("fair value", "gap"), "Favor fair-value gap setups at session open on index futures", 0.8),
+  (("one candle", "scalp"), "Use one-candle rejection with tight invalidation and 1:2+ R:R", 0.79),
+  (("no wick", "candle"), "Require clean candle structure at S/R; skip wide-spread chop", 0.76),
+  (("3-touch", "touch"), "Enter on third S/R touch with volume confirmation", 0.85),
+  (("robbins", "cup"), "Raise signal floor during championship-style scalp windows", 0.82),
+  (("tradingview", "webhook"), "Require TradingView webhook alignment; increase technical_weight", 0.85),
+  (("claude", "ai"), "Validate AI-suggested entries with composite + TA; paper-only until proven", 0.8),
+  (("self-improving", "agent"), "Feed postmortems into learning loop; tighten after false positives", 0.82),
+  (("backtest", "viral"), "Do not ease gates from viral strategies without shadow backtest proof", 0.8),
+  (("memecoin", "scam"), "Block rug/scam markers; require liquidity + holder distribution", 0.9),
+  (("solana", "memecoin"), "Boost sentiment weight for SOL memecoins; track DexScreener + whale wallets", 0.86),
+  (("axiom", "wallet"), "Mirror axiom.trade flow only with liquidity + volume confirmation", 0.88),
+  (("fomo", "copy"), "Treat fomo.family as sentiment input; require TA before mirroring", 0.86),
+  (("liquidity", "launch"), "Never chase illiquid launches; min liquidity gate before entry", 0.9),
+  (("trail", "stop"), "Trail stops to breakeven after structure confirms; lock profits systematically", 0.81),
+  (("gold", "scalp"), "Focus gold scalps during London/NY overlap with daily loss cap", 0.82),
+  (("oil", "natural gas"), "Weight energy macro headlines for commodities entries", 0.78),
+  (("psychology", "fail"), "After loss streaks raise threshold and halve size; process over prediction", 0.88),
+  (("paper trad", "beginner"), "Maintain paper-only gate until profitability verification passes", 0.9),
 ]
 
 
@@ -41,9 +65,9 @@ def _youtube_bot_targeted_fallback(
   text = f"{title} {content}".lower()
   sym = symbols or "markets"
   targets: list[str] = []
-  if any(k in text for k in ("crypto", "bitcoin", "ethereum", "memecoin", "solana", "defi")):
+  if any(k in text for k in ("crypto", "bitcoin", "ethereum", "memecoin", "solana", "defi", "axiom", "fomo")):
     targets.append("crypto")
-  if any(k in text for k in ("stock", "aapl", "nvda", "tsla", "spy", "qqq", "day trad", "earnings")):
+  if any(k in text for k in ("stock", "aapl", "nvda", "tsla", "spy", "qqq", "day trad", "earnings", "orderflow", "nq")):
     targets.append("stocks_futures")
   if any(k in text for k in ("gold", "oil", "commodit", "futures", "cme", "forex", "silver")):
     targets.append("commodities")
@@ -142,6 +166,10 @@ TRADING_KNOWLEDGE_BASE = [
     "impact": "Weight Hyperliquid intel for crypto entries on WIF/PEPE/BONK. Use funding as contrarian filter.",
     "confidence": 0.8,
   },
+  *[
+    {k: v for k, v in row.items() if k not in ("author", "video_id", "playlist_id")}
+    for row in YOUTUBE_PLAYLIST_KNOWLEDGE
+  ],
 ]
 
 

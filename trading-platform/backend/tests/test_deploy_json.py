@@ -141,7 +141,7 @@ def test_post_deploy_ok_when_revision_current_without_deploy_window():
 def test_post_deploy_flags_content_study_missing_source_label():
   status = {
     "deploy": {
-      "platform_revision": "2026-08-29-r467",
+      "platform_revision": "2026-08-29-r468",
       "platform_revision_current": True,
     },
     "session_open_checklists": {"cme_reopen": {"ready": True, "phase": "preflight"}},
@@ -153,7 +153,7 @@ def test_post_deploy_flags_content_study_missing_source_label():
   }
   checklist = {"open_ready": {"sticky_symbols": []}}
   snapshot = {
-    "platform_revision": "2026-08-29-r467",
+    "platform_revision": "2026-08-29-r468",
     "platform_revision_current": True,
     "run_deploy_window_command": "x",
     "wait_for_deploy_command": "y",
@@ -162,7 +162,7 @@ def test_post_deploy_flags_content_study_missing_source_label():
     "fomo_bearer_nudge_tier": "ok",
     "x_intel_collection_mode": "twitter_api",
   }
-  errors = evaluate_post_deploy(status, checklist, snapshot, expected="2026-08-29-r467")
+  errors = evaluate_post_deploy(status, checklist, snapshot, expected="2026-08-29-r468")
   assert "content_study_missing_source_label" in errors
 
 
@@ -175,7 +175,7 @@ def test_intel_readiness_requires_political_source_when_revision_matches():
     ]
   }
   snapshot = {
-    "platform_revision": "2026-08-29-r467",
+    "platform_revision": "2026-08-29-r468",
     "x_intel_collection_mode": "google_news_rss",
     "tradingview_item_breakdown": {"webhook": 1, "synthetic": 0},
   }
@@ -183,8 +183,8 @@ def test_intel_readiness_requires_political_source_when_revision_matches():
     evaluate_intel_readiness(
       sources,
       snapshot,
-      prod_rev="2026-08-29-r467",
-      code_rev="2026-08-29-r467",
+      prod_rev="2026-08-29-r468",
+      code_rev="2026-08-29-r468",
     )
     == "ok"
   )
@@ -193,14 +193,14 @@ def test_intel_readiness_requires_political_source_when_revision_matches():
 def test_post_deploy_uses_snapshot_learning_when_status_sparse():
   status = {
     "deploy": {
-      "platform_revision": "2026-08-29-r467",
+      "platform_revision": "2026-08-29-r468",
       "platform_revision_current": True,
     },
     "session_open_checklists": {"cme_reopen": {"ready": True, "phase": "preflight"}},
   }
   checklist = {"open_ready": {"sticky_symbols": []}}
   snapshot = {
-    "platform_revision": "2026-08-29-r467",
+    "platform_revision": "2026-08-29-r468",
     "platform_revision_current": True,
     "run_deploy_window_command": "x",
     "wait_for_deploy_command": "y",
@@ -226,7 +226,7 @@ def test_post_deploy_uses_snapshot_learning_when_status_sparse():
       ],
     },
   }
-  errors = evaluate_post_deploy(status, checklist, snapshot, expected="2026-08-29-r467")
+  errors = evaluate_post_deploy(status, checklist, snapshot, expected="2026-08-29-r468")
   assert errors == []
 
 
