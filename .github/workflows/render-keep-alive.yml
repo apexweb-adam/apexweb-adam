@@ -10,6 +10,10 @@ jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
+      # The wake step sources trading-platform/scripts/lib/fetch_json.sh; without a
+      # checkout every run since 2026-08-31 failed with "No such file or directory".
+      - uses: actions/checkout@v4
+
       - name: Wake Render backend
         env:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
