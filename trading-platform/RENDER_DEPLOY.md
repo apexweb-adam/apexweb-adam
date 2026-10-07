@@ -87,3 +87,48 @@ https://apex-trading-backend.onrender.com/api/webhooks/tradingview
 ```
 
 Payload must include `"secret": "<TRADINGVIEW_WEBHOOK_SECRET>"`.
+
+## Render workflows paused (2026-10-07)
+
+`Render Keep-Alive` (`render-keep-alive.yml`) and `Render Billing Recovery` (`render-billing-recovery.yml`) are disabled with `gh workflow disable`. The files stay in the repo. Reason: the backend runs on the Render free plan and nobody will pay for Render, while both workflows failed on every run:
+
+- **Keep-Alive** had no checkout step, so `source trading-platform/scripts/lib/fetch_json.sh` failed with "No such file or directory" on every run since 2026-08-31 (last green run 2026-08-31 06:49 UTC). The checkout is now added, so re-enabling works without further edits.
+- **Billing Recovery** never had a green run (0 of 245). In the 2026-10-07 19:26 UTC run the backend was online and 21 checks passed; the job then died in `trading-platform/scripts/recover-render-billing.sh` line 194: the status JSON is piped into `python3 << 'PY'`, the heredoc takes over stdin, and `json.load(sys.stdin)` reads nothing (JSONDecodeError).
+- On 2026-10-07 20:03 UTC the backend was **online**: `/api/health` 200 with `mode: paper_trading`, deployed commit = `main` (`38b8262`), all 4 bots scanning. Render suspends every free service of a workspace when the workspace uses up its 750 free instance hours in a calendar month, and resumes them on the 1st.
+- Side effect of pausing: Billing Recovery's requests every 15 minutes were the only regular traffic. A free service sleeps after 15 minutes without inbound traffic, so the paper bots now run only while something calls the API (Platform Health Check every 6 hours wakes it for one run; spin-up takes about a minute).
+
+`Platform Health Check` now probes the backend and the Vercel dashboard first and skips the live checks that target something not serving (with a `::warning::`). Backend unit tests always run.
+
+### What still depends on the Render backend
+
+Service `srv-da848ms9v7es739k38jg`, `https://apex-trading-backend.onrender.com` (and `wss://` for `/api/ws`):
+
+| Where | What |
+|---|---|
+| `.github/workflows/platform-health-check.yml` | live backend checks (snapshot, deploy freshness, `/crm`, WebSocket, equity history) |
+| `.github/workflows/deploy-render-backend.yml`, `render-api-deploy.yml` (push to `main`, backend paths), `render-hook-recovery.yml` (manual) | trigger Render deploys with `RENDER_DEPLOY_HOOK` (the only secret set) or `RENDER_API_KEY` (not set) |
+| `.github/workflows/render-keep-alive.yml`, `render-billing-recovery.yml` | paused, see above |
+| `.github/workflows/deploy-trading-platform.yml`, `trading-platform/vercel.json`, `trading-platform/dashboard/vercel.json`, `trading-platform/dashboard/lib/production-backend.ts` | Vercel dashboard: `BACKEND_URL`, `BACKEND_WS_URL`, `/api/backend/*` proxy. All dashboard URLs return 404 `DEPLOYMENT_NOT_FOUND` (checked 2026-10-07) |
+| `render.yaml`, `trading-platform/render.yaml`, `trading-platform/RENDER_ENV_TEMPLATE.txt` | Render Blueprint and env template |
+| `trading-platform/backend/app/api/routes.py`, `app/engines/crm_summary.py`, `app/engines/platform_status.py` | links the backend prints about itself |
+| `trading-platform/backend/assets/*.user.js`, `trading-platform/scripts/fomo-family-bridge.user.js` | browser userscripts (Axiom, fomo.family, Phantom) that post to the backend |
+| TradingView alerts (`TRADINGVIEW_SETUP.md`), Zapier fomo hook (`scripts/fomo-zapier-setup.md`) | senders configured outside this repo |
+| 38 ops scripts in `trading-platform/scripts/` (`verify-*.sh`, `recover-render-billing.sh`, `lib/fetch_json.sh` with `RENDER_SERVICE_ID`, ...) | default backend URL |
+
+Data lives in Supabase project `zzgmovjapeyauvpdpuqe` (`DATABASE_URL`), not on Render, so a move keeps all history. The `apex-web-codex` trading lab does not use this backend.
+
+### Re-enable on Render
+
+1. If the service is suspended: wait for the monthly reset or add a payment method, then resume it at https://dashboard.render.com/web/srv-da848ms9v7es739k38jg.
+2. `gh workflow enable render-keep-alive.yml -R apexweb-adam/apexweb-adam`, then `gh workflow run render-keep-alive.yml -R apexweb-adam/apexweb-adam` and confirm the run is green. A 24/7 keep-alive uses about 744 of the 750 free hours, so any other free service in the same workspace ends the month early.
+3. Billing Recovery only after fixing `recover-render-billing.sh` line 194 (pass the JSON through an env var or a temp file instead of stdin); then `gh workflow enable render-billing-recovery.yml -R apexweb-adam/apexweb-adam`.
+
+### Move to the Hetzner VPS (not done)
+
+1. On the VPS: `docker build -t apex-trading-backend trading-platform/backend` (Python 3.12 image, uvicorn on port 8000, `HEALTHCHECK` on `/api/health`).
+2. Env file from the Render service (`scripts/export-render-env.sh`, `RENDER_ENV_TEMPLATE.txt`): `DATABASE_URL` (Supabase pooler), `PAPER_TRADING_ONLY=true`, `INITIAL_BALANCE`, `NEWSAPI_KEY`, `TWITTER_BEARER_TOKEN`, `TRADINGVIEW_WEBHOOK_SECRET`, `POLYMARKET_*`, `CORS_ORIGINS`, `PLATFORM_REVISION`, `DISABLE_AUTO_REDEPLOY=true`; drop `RENDER_DEPLOY_HOOK` and `RENDER_API_KEY`.
+3. `docker run -d --restart unless-stopped --env-file <file> -p 127.0.0.1:8000:8000 apex-trading-backend`, behind Caddy or nginx with TLS on a subdomain; forward WebSocket upgrades for `/api/ws`.
+4. Check: `curl https://<new-host>/api/health` returns `{"status":"ok","mode":"paper_trading"}`, `/api/status` shows 4 bots scanning, and the WebSocket sends an `update` message.
+5. Replace `https://apex-trading-backend.onrender.com` and `wss://apex-trading-backend.onrender.com` in the files listed above, plus the TradingView alert URL, the Zapier hook and the installed userscripts.
+6. Delete the Render-only workflows (`render-*.yml`, `deploy-render-backend.yml`) and the probe's Render wording in `platform-health-check.yml`; a VPS needs no keep-alive.
+7. Suspend the Render service, and delete it after a week without traffic.
