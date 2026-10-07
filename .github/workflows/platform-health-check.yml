@@ -131,21 +131,37 @@ jobs:
 
       - name: Check GitHub blockers and Render deploy freshness
         if: steps.probe.outputs.backend == 'up'
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           # render.yaml deploys on every commit (autoDeployTrigger: commit), so pending
           # third-party check suites no longer block Render; the freshness check below decides.
           ./trading-platform/scripts/check-github-blockers.sh || \
             echo "::warning::Third-party check suites pending on main (not a Render blocker with autoDeployTrigger: commit) — see trading-platform/DEPLOY_UNBLOCK.md"
-          LATEST=$(curl -fsS "https://api.github.com/repos/apexweb-adam/apexweb-adam/git/ref/heads/main" | python3 -c "import json,sys; print(json.load(sys.stdin)['object']['sha'][:12])")
+          LATEST=$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq .sha)
           STATUS=$(curl -fsS "https://apex-trading-backend.onrender.com/api/status")
-          DEPLOYED=$(echo "$STATUS" | python3 -c "import json,sys; print(json.load(sys.stdin).get('deploy',{}).get('git_commit','')[:12])")
-          echo "main=$LATEST deployed=$DEPLOYED"
+          DEPLOYED=$(echo "$STATUS" | python3 -c "import json,sys; print(json.load(sys.stdin).get('deploy',{}).get('git_commit') or '')")
+          echo "main=${LATEST:0:12} deployed=${DEPLOYED:0:12}"
           if [[ "$DEPLOYED" != "$LATEST" ]]; then
-            echo "::error::Render backend stale — deployed $DEPLOYED, main is $LATEST. Manual Deploy or set RENDER_API_KEY."
-            exit 1
+            # Render builds only trading-platform/backend (dockerContext) with render.yaml, so
+            # newer commits that touch neither (docs, workflows) leave the running backend
+            # current. Only undeployed backend changes, or an unknown diff, fail this check.
+            if [[ -n "$DEPLOYED" ]] && FILES=$(gh api "repos/$GITHUB_REPOSITORY/compare/$DEPLOYED...$LATEST" \
+                --jq 'if .status == "ahead" and ((.files // []) | length) < 300 then (.files // [])[].filename else "?" end'); then
+              BACKEND_CHANGES=$(echo "$FILES" | grep -E '^(\?$|trading-platform/backend/|render\.yaml$|trading-platform/render\.yaml$)' || true)
+            else
+              BACKEND_CHANGES="?"
+            fi
+            if [[ -n "$BACKEND_CHANGES" ]]; then
+              echo "::error::Render backend stale: deployed ${DEPLOYED:0:12}, main is ${LATEST:0:12}. Undeployed backend files below (? = diff unknown). Manual Deploy or set RENDER_API_KEY."
+              echo "$BACKEND_CHANGES"
+              exit 1
+            fi
+            echo "::warning::Render runs ${DEPLOYED:0:12}, main is ${LATEST:0:12}; the newer commits do not touch trading-platform/backend or render.yaml."
+          else
+            echo "Backend deploy matches main (${DEPLOYED:0:12})"
           fi
-          echo "Backend deploy matches main ($DEPLOYED)"
           DASH_URL=$(curl -fsS "https://apex-trading-backend.onrender.com/api/dashboard-url" | python3 -c "import json,sys; print(json.load(sys.stdin).get('recommended_url',''))")
           echo "recommended_dashboard_url=$DASH_URL"
           if [[ "$DASH_URL" == *"git-main"* ]]; then
