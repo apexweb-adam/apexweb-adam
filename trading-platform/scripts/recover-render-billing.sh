@@ -191,11 +191,16 @@ bash "$ROOT/scripts/verify-crm-learning.sh" || true
 echo ""
 echo "=== Platform outage recovery state ==="
 STATUS_JSON=$(fetch_json "$BACKEND/api/status" 60 2)
-echo "$STATUS_JSON" | CODE_REV="$EXPECTED_REVISION" python3 << 'PY'
+# The heredoc is python's stdin, so the JSON travels in the environment (a pipe here would be ignored).
+STATUS_JSON="$STATUS_JSON" CODE_REV="$EXPECTED_REVISION" python3 - << 'PY'
 import json, os, sys
 from datetime import datetime, timezone
 
-data = json.load(sys.stdin)
+try:
+    data = json.loads(os.environ.get("STATUS_JSON") or "{}")
+except json.JSONDecodeError:
+    print("  warn=status_unreadable")
+    sys.exit(0)
 code_rev = os.environ.get("CODE_REV") or "?"
 outage_events = data.get("platform_outage_events") or []
 if outage_events:
